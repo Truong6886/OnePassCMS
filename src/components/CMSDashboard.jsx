@@ -1422,7 +1422,7 @@ useEffect(() => {
     try {
       console.log("🔄 Đang cập nhật profile...", { userId, formData });
       
-      const res = await fetch(`/api/User/${userId}`, { 
+      const res = await fetch(`https://onepasscms-backend.onrender.com/api/User/${userId}`, { 
         method: "PUT", 
         body: formData 
       });
@@ -1479,7 +1479,7 @@ useEffect(() => {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/dichvu");
+        const res = await fetch("https://onepasscms-backend.onrender.com/api/dichvu");
         const result = await res.json();
         if (result.success) setDichvuList(result.data);
         else setDichvuList([]);
@@ -1504,11 +1504,11 @@ useEffect(() => {
     // Fetch data
     (async () => {
       try {
-        const res1 = await fetch('/api/yeucau');
+        const res1 = await fetch('https://onepasscms-backend.onrender.com/api/yeucau');
         const result1 = await res1.json();
         if(result1.success) setData(result1.data);
         
-        const res2 = await fetch('/api/User');
+        const res2 = await fetch('https://onepasscms-backend.onrender.com/api/User');
         const result2 = await res2.json();
         if(result2.success) setUsers(result2.data);
       } catch(err) { 
