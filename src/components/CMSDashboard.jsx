@@ -487,7 +487,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
         <input
           type="date"
           className="form-control form-control-sm"
-          style={{ width: "100px" }}
+          style={{ width: "110px" }}
           value={localData.ChonNgay ? new Date(localData.ChonNgay).toISOString().split("T")[0] : ""}
           onChange={(e) => handleInputChange("ChonNgay", e.target.value)}
         />
