@@ -487,7 +487,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
         <input
           type="date"
           className="form-control form-control-sm"
-          style={{ width: "120px" }}
+          style={{ width: "100px" }}
           value={localData.ChonNgay ? new Date(localData.ChonNgay).toISOString().split("T")[0] : ""}
           onChange={(e) => handleInputChange("ChonNgay", e.target.value)}
         />
@@ -524,13 +524,128 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
     </td>
 
       <td>
-        <select className="form-select form-select-sm" style={{ width:130}} value={localData.TrangThai} onChange={e => { handleInputChange('TrangThai', e.target.value); onStatusChange(localData.YeuCauID, e.target.value); }}>
-          {statusOptions.map(option => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+      <select
+            className="form-select form-select-sm"
+            style={{ width: 130 }}
+            value={localData.TrangThai}
+            onChange={async (e) => {
+              const newStatus = e.target.value;
+              handleInputChange("TrangThai", newStatus);
+
+              // ✅ Bảng map mã theo dịch vụ
+              const serviceCodeMap = {
+                "Chứng thực": "CT",
+                "Kết hôn": "KH",
+                "Khai sinh, khai tử": "KS",
+                "Xuất nhập cảnh": "XNC",
+                "Giấy tờ tuỳ thân": "GT",
+                "Nhận nuôi": "NN",
+                "Thị thực": "TT",
+                "Tư vấn pháp lý": "TV",
+                "Dịch vụ B2B": "B2B",
+                "Khác": "KHAC",
+              };
+
+              // ✅ Nếu chuyển sang “Đang xử lý” mà chưa có mã hồ sơ
+              if (newStatus === "Đang xử lý" && !localData.MaHoSo) {
+                try {
+                  const prefix =
+                    serviceCodeMap[localData.TenDichVu?.trim()] ||
+                    (localData.TenDichVu
+                      ? localData.TenDichVu.replace(/\s+/g, "")
+                          .substring(0, 3)
+                          .toUpperCase()
+                      : "HS");
+
+                  const resAll = await fetch(`/api/yeucau`);
+                  const resultAll = await resAll.json();
+                  if (!resultAll.success) throw new Error("Không thể tải danh sách hồ sơ");
+
+                  const related = resultAll.data.filter(
+                    (r) =>
+                      r.TenDichVu &&
+                      r.TenDichVu.trim().toLowerCase() ===
+                        (localData.TenDichVu || "").trim().toLowerCase() &&
+                      r.MaHoSo &&
+                      r.MaHoSo.startsWith(prefix)
+                  );
+
+                  let maxNum = 0;
+                  related.forEach((r) => {
+                    const numPart = parseInt(r.MaHoSo.split("-")[1], 10);
+                    if (!isNaN(numPart) && numPart > maxNum) maxNum = numPart;
+                  });
+
+                  const nextNum = (maxNum + 1).toString().padStart(3, "0");
+                  const generatedCode = `${prefix}-${nextNum}`;
+
+                  handleInputChange("MaHoSo", generatedCode);
+                  showToast(
+                    `${currentLanguage === "vi" ? "Đã tạo mã hồ sơ:" : "Generated file code:"} ${generatedCode}`,
+                    "success"
+                  );
+
+                  // ✅ Lưu lên server
+                  const res = await fetch(`/api/yeucau/${localData.YeuCauID}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ TrangThai: newStatus, MaHoSo: generatedCode }),
+                  });
+                  const result = await res.json();
+                  if (!result.success) throw new Error(result.message || "Update failed");
+                } catch (err) {
+                  console.error("❌ Lỗi tạo mã hồ sơ:", err);
+                  showToast(
+                    currentLanguage === "vi"
+                      ? "Lỗi khi tạo mã hồ sơ!"
+                      : "Error generating record code!",
+                    "error"
+                  );
+                }
+              } 
+              // ✅ Nếu chuyển ngược về “Tư vấn” → reset mã hồ sơ
+              else if (newStatus === "Tư vấn" && localData.MaHoSo) {
+                try {
+                  handleInputChange("MaHoSo", "");
+                  showToast(
+                    currentLanguage === "vi"
+                      ? "Đã xóa mã hồ sơ."
+                      : "Record code has been reset.",
+                    "info"
+                  );
+
+                  const res = await fetch(`/api/yeucau/${localData.YeuCauID}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ TrangThai: newStatus, MaHoSo: null }),
+                  });
+                  const result = await res.json();
+                  if (!result.success) throw new Error(result.message || "Update failed");
+                } catch (err) {
+                  console.error("❌ Lỗi reset mã hồ sơ:", err);
+                  showToast(
+                    currentLanguage === "vi"
+                      ? "Lỗi khi reset mã hồ sơ!"
+                      : "Error resetting record code!",
+                    "error"
+                  );
+                }
+              } 
+              // ✅ Trường hợp đổi trạng thái khác
+              else {
+                onStatusChange(localData.YeuCauID, newStatus);
+              }
+            }}
+          >
+            {statusOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
+
+
       </td>
     {currentUser.is_admin && (
         <td>
@@ -1533,7 +1648,7 @@ const CMSDashboard = () => {
 
   // Socket connection
 useEffect(() => {
-  const socket = io("https://onepasscms-backend.onrender.com", {
+  const socket = io("http://localhost:5000", {
     transports: ["websocket", "polling"],
     withCredentials: false,
   });
@@ -1648,7 +1763,7 @@ useEffect(() => {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("https://onepasscms-backend.onrender.com/api/dichvu");
+        const res = await fetch("/api/dichvu");
         const result = await res.json();
         if (result.success) setDichvuList(result.data);
         else setDichvuList([]);
@@ -1673,11 +1788,11 @@ useEffect(() => {
     // Fetch data
     (async () => {
       try {
-        const res1 = await fetch('https://onepasscms-backend.onrender.com/api/yeucau');
+        const res1 = await fetch('/api/yeucau');
         const result1 = await res1.json();
         if(result1.success) setData(result1.data);
         
-        const res2 = await fetch('https://onepasscms-backend.onrender.com/api/User');
+        const res2 = await fetch('/api/User');
         const result2 = await res2.json();
         if(result2.success) setUsers(result2.data);
       } catch(err) { 
@@ -1719,7 +1834,7 @@ const handleAddRequest = (newItem) => {
     const item = data.find(r => r.YeuCauID === id);
     if(!item) return;
     try {
-      const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${id}`, {
+      const res = await fetch(`/api/yeucau/${id}`, {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(item)
@@ -1779,7 +1894,7 @@ const filteredData = data.filter(item => {
         'Ghi chú', 'Hành động'
       ]
     : [
-        'ID', 'Record ID', 'Service', 'Mode', 'Full Name', 'Email', 'Area Code', 
+        'ID', 'Profile Code', 'Service', 'Format', 'Full Name', 'Email', 'Area Code', 
         'Phone', 'Title', 'Content', 'Select Date', 'Time', 'Created Date', 'Status',
         ...(currentUser.is_admin ? ['Assignee'] : []),
         'Note', 'Action'
