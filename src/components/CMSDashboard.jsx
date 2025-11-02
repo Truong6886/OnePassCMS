@@ -800,7 +800,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
   modal.querySelector("#confirmBtn").onclick = async () => {
     overlay.remove();
     try {
-      const res = await fetch(`http://localhost:5000/api/yeucau/${localData.YeuCauID}`, {
+      const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${localData.YeuCauID}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
       });
@@ -1648,7 +1648,7 @@ const CMSDashboard = () => {
 
   // Socket connection
 useEffect(() => {
-  const socket = io("http://localhost:5000", {
+  const socket = io("https://onepasscms-backend.onrender.com", {
     transports: ["websocket", "polling"],
     withCredentials: false,
   });
@@ -1788,11 +1788,11 @@ useEffect(() => {
     // Fetch data
     (async () => {
       try {
-        const res1 = await fetch('/api/yeucau');
+        const res1 = await fetch('https://onepasscms-backend.onrender.com/api/yeucau');
         const result1 = await res1.json();
         if(result1.success) setData(result1.data);
         
-        const res2 = await fetch('/api/User');
+        const res2 = await fetch('https://onepasscms-backend.onrender.com/api/User');
         const result2 = await res2.json();
         if(result2.success) setUsers(result2.data);
       } catch(err) { 
@@ -1834,7 +1834,7 @@ const handleAddRequest = (newItem) => {
     const item = data.find(r => r.YeuCauID === id);
     if(!item) return;
     try {
-      const res = await fetch(`/api/yeucau/${id}`, {
+      const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${id}`, {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(item)
@@ -1894,7 +1894,7 @@ const filteredData = data.filter(item => {
         'Ghi chú', 'Hành động'
       ]
     : [
-        'ID', 'Profile Code', 'Service', 'Format', 'Full Name', 'Email', 'Area Code', 
+        'ID', 'Record ID', 'Service', 'Format', 'Full Name', 'Email', 'Area Code', 
         'Phone', 'Title', 'Content', 'Select Date', 'Time', 'Created Date', 'Status',
         ...(currentUser.is_admin ? ['Assignee'] : []),
         'Note', 'Action'
