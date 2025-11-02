@@ -557,7 +557,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
                           .toUpperCase()
                       : "HS");
 
-                  const resAll = await fetch(`/api/yeucau`);
+                  const resAll = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau`);
                   const resultAll = await resAll.json();
                   if (!resultAll.success) throw new Error("Không thể tải danh sách hồ sơ");
 
@@ -586,7 +586,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
                   );
 
                   // ✅ Lưu lên server
-                  const res = await fetch(`/api/yeucau/${localData.YeuCauID}`, {
+                  const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${localData.YeuCauID}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ TrangThai: newStatus, MaHoSo: generatedCode }),
@@ -614,7 +614,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
                     "info"
                   );
 
-                  const res = await fetch(`/api/yeucau/${localData.YeuCauID}`, {
+                  const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${localData.YeuCauID}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ TrangThai: newStatus, MaHoSo: null }),
@@ -1233,7 +1233,7 @@ const AddRequestModal = ({ dichvuList, users, data = [], onClose, onSave, curren
 
       console.log("🔄 Đang gửi yêu cầu mới...", newItem);
 
-      const res = await fetch("/api/yeucau", {
+      const res = await fetch("https://onepasscms-backend.onrender.com/api/yeucau", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newItem)
@@ -1706,7 +1706,7 @@ useEffect(() => {
     try {
       console.log("🔄 Đang cập nhật profile...", { userId, formData });
       
-      const res = await fetch(`/api/User/${userId}`, { 
+      const res = await fetch(`https://onepasscms-backend.onrender.com/api/User/${userId}`, { 
         method: "PUT", 
         body: formData 
       });
@@ -1763,7 +1763,7 @@ useEffect(() => {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/dichvu");
+        const res = await fetch("https://onepasscms-backend.onrender.com/api/dichvu");
         const result = await res.json();
         if (result.success) setDichvuList(result.data);
         else setDichvuList([]);
