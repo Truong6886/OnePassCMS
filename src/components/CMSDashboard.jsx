@@ -1610,8 +1610,8 @@ const filteredData = data.filter(item => {
         'Ghi chú', 'Hành động'
       ]
     : [
-        'ID', 'Profile Code', 'Service', 'Format', 'Full Name', 'Email', 'Area Code', 
-        'Phone', 'Title', 'Content', 'Select Date', 'Time', 'Created Date', 'Status',
+        'ID', 'Record ID', 'Service', 'Mode', 'Full Name', 'Email', 'Area Code', 
+        'Phone', 'Title', 'Content', 'Date', 'Time', 'Created Date', 'Status',
         ...(currentUser.is_admin ? ['Assignee'] : []),
         'Note', 'Action'
       ];
