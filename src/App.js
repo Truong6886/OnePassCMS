@@ -1,16 +1,18 @@
 import { useState, useEffect } from "react";
 import Login from "./components/Login";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import '../src/components/CMSDashboard.css';
 import CMSDashboard from "./components/CMSDashboard";
-import 'bootstrap/dist/css/bootstrap.min.css';
+import TraCuuHoSo from "./components/TraCuuHoSo"; // 👈 Thêm import trang tra cứu
+import KyHoSo from "./components/KyHoSo"; // 👈 Thêm import trang tra cứu
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "../src/components/CMSDashboard.css";
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [loadingUser, setLoadingUser] = useState(true);
 
-  // Load user từ localStorage khi component mount
+  // ✅ Load user từ localStorage khi app mount
   useEffect(() => {
     const storedUser = localStorage.getItem("currentUser");
     if (storedUser) {
@@ -24,7 +26,7 @@ export default function App() {
     setLoadingUser(false);
   }, []);
 
-  // Xử lý set current user và đồng bộ với localStorage
+  // ✅ Cập nhật user trong state + localStorage
   const handleSetCurrentUser = (user) => {
     setCurrentUser(user);
     if (user) {
@@ -34,17 +36,17 @@ export default function App() {
     }
   };
 
-  // Xử lý logout
+  // ✅ Đăng xuất
   const handleLogout = () => {
     handleSetCurrentUser(null);
   };
 
-  // Xử lý toggle sidebar
+  // ✅ Ẩn/hiện sidebar
   const toggleSidebar = () => {
-    setShowSidebar(prev => !prev);
+    setShowSidebar((prev) => !prev);
   };
 
-  // Hiển thị loading
+  // ✅ Loading hiển thị trong khi chờ user
   if (loadingUser) {
     return (
       <div className="d-flex justify-content-center align-items-center vh-100">
@@ -60,7 +62,7 @@ export default function App() {
     <BrowserRouter>
       <div className="app-container">
         <Routes>
-          {/* Route chính - Dashboard */}
+          {/* ✅ Route dashboard chính */}
           <Route
             path="/"
             element={
@@ -77,7 +79,7 @@ export default function App() {
             }
           />
 
-          {/* Route login */}
+          {/* ✅ Route login */}
           <Route
             path="/login"
             element={
@@ -89,7 +91,11 @@ export default function App() {
             }
           />
 
-          {/* Fallback route */}
+          {/* ✅ Route tra cứu hồ sơ — KHÔNG cần đăng nhập */}
+          <Route path="/hoso" element={<TraCuuHoSo />} />
+          <Route path="/ky/:mahoso" element={<KyHoSo />} />
+
+          {/* ✅ Route mặc định fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
