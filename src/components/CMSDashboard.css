@@ -274,6 +274,28 @@
   color: #2563eb;
   transform: translateX(2px);
 }
+/* === Căn giữa nội dung trong textarea của bảng === */
+.table td textarea.form-control-sm {
+  height: 44px !important;              /* cao bằng hàng */
+  line-height: 44px;                    /* chữ giữa theo chiều dọc */
+  padding: 0 8px !important;            /* bỏ padding trên/dưới */
+  margin: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 0;
+  background-color: #fff;
+  resize: none;
+  overflow: hidden;                     /* ẩn thanh cuộn khi không cần */
+  box-sizing: border-box;
+  vertical-align: middle !important;
+}
+
+/* Khi nhập nhiều dòng thì mở rộng chiều cao tự nhiên */
+.table td textarea.form-control-sm:focus {
+  line-height: 20px;                    /* trở lại bình thường khi nhập nhiều dòng */
+  height: auto !important;
+  min-height: 44px;
+  overflow-y: auto;
+}
 
 /* Active — KHÔNG nháy đen khi đổi */
 .dropdown-item-modern.active {
@@ -290,7 +312,109 @@
   color: #2563eb;
   box-shadow: none;
 }
+/* === Pagination Modern Flat Style === */
+.pagination {
+  background: transparent !important;
+}
 
+.pagination .page-item {
+  border: none !important;
+  background: transparent !important;
+}
+
+.pagination .page-link {
+  border: none !important;
+  background: transparent !important;
+  color: #2563eb !important;
+  border-radius: 10px !important;
+  margin: 0 3px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: none !important;
+}
+/* === Ô nhập trong bảng: cao đều, hiện đại, không bo tròn === */
+.table td {
+  padding: 0 !important;
+  vertical-align: middle !important;
+  height: 44px;
+}
+
+/* === Input, Select, Textarea đồng bộ === */
+.table td input.form-control-sm,
+.table td select.form-select-sm,
+.table td textarea.form-control-sm {
+  height: 44px !important;
+  line-height: 42px;
+  border: 1px solid #d1d5db; /* xám nhạt hiện đại */
+  border-radius: 0; /* góc vuông */
+  background-color: #fff;
+  padding: 0 10px;
+  font-size: 13px;
+  color: #111827;
+  margin: 0;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+/* Hover & Focus hiện đại */
+.table td input:hover,
+.table td select:hover,
+.table td textarea:hover {
+  border-color: #9ca3af;
+  background-color: #f9fafb;
+}
+
+.table td input:focus,
+.table td select:focus,
+.table td textarea:focus {
+  border-color: #2563eb; /* xanh lam */
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+  outline: none;
+  background-color: #fff;
+}
+
+/* === Textarea đồng bộ chiều cao === */
+.table td textarea.form-control-sm {
+  resize: none;
+  height: 44px !important;
+  overflow-y: auto;
+}
+
+/* === Select hiện đại, góc vuông, căn giữa === */
+.table td select.form-select-sm {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-position: right 8px center;
+  background-repeat: no-repeat;
+  text-align: center;
+}
+
+/* === Làm hàng trông tách biệt nhẹ === */
+.table tbody tr {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.table tbody tr:hover {
+  background-color: rgba(44, 77, 158, 0.04);
+}
+
+.pagination .page-link:hover {
+  background-color: rgba(37,99,235,0.1) !important;
+  color: #2563eb !important;
+}
+
+.pagination .page-item.active .page-link {
+  background-color: #2563eb !important;
+  color: white !important;
+  box-shadow: 0 4px 10px rgba(37,99,235,0.3);
+}
+
+.pagination .page-item.disabled .page-link {
+  opacity: 0.4;
+  pointer-events: none;
+  background: transparent !important;
+}
 
 /* ================= Toast ================= */
 #toast-container {
