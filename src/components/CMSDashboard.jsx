@@ -8,6 +8,7 @@ import { io } from "socket.io-client";
 import { Filter } from "lucide-react"; 
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import * as bootstrap from 'bootstrap';
 window.bootstrap = bootstrap;
 // ✅ Hàm tiện ích hiện thông báo nhỏ dạng popup
@@ -408,7 +409,7 @@ const Header = ({ currentUser, onToggleSidebar, showSidebar, onOpenEditModal, on
 };
 
 // ================= TableRow =================
-const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, onSave, currentLanguage }) => {
+const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, onSave, onDelete, currentLanguage }) => {
   const [localData, setLocalData] = useState(item);
   const handleInputChange = (field, value) => setLocalData(prev => ({ ...prev, [field]: value }));
   const gioVN = localData.Gio ? new Date(localData.Gio).toLocaleTimeString('vi-VN', { hour12: false, hour: '2-digit', minute:'2-digit' }) : '';
@@ -482,14 +483,24 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
       <td><input type="text"  style={{ width: 90 }}  className="form-control form-control-sm" value={localData.SoDienThoai} onChange={e => handleInputChange('SoDienThoai', e.target.value)}/></td>
       <td><input style={{width: 100}} type="text" className="form-control form-control-sm" value={localData.TieuDe} onChange={e => handleInputChange('TieuDe', e.target.value)} /></td>
       <td><textarea  style={{width: 150}} className="form-control form-control-sm" rows={2} value={localData.NoiDung} onChange={e => handleInputChange('NoiDung', e.target.value)} /></td>
-      <td><input type="date"  style={{ width: 100}} className="form-control form-control-sm" value={localData.ChonNgay ? new Date(localData.ChonNgay).toISOString().split('T')[0] : ''} onChange={e => handleInputChange('ChonNgay', e.target.value)} /></td>
-      <input
-      type="time"
-      style={{ width: 72 }}
-      className="form-control form-control-sm"
-      value={gioVN}
-      onChange={e => handleInputChange('Gio', e.target.value)}
-    />
+      <td>
+        <input
+          type="date"
+          className="form-control form-control-sm"
+          style={{ width: "100px" }}
+          value={localData.ChonNgay ? new Date(localData.ChonNgay).toISOString().split("T")[0] : ""}
+          onChange={(e) => handleInputChange("ChonNgay", e.target.value)}
+        />
+         </td>
+        <td>
+        <input
+          type="time"
+          className="form-control form-control-sm"
+          style={{ width: "80px" }}
+          value={gioVN}
+          onChange={(e) => handleInputChange("Gio", e.target.value)}
+        />
+      </td>
 
 
     <td className="text-nowrap text-center">
@@ -542,9 +553,167 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
 
 
       <td><textarea  style={{width: 150}} className="form-control form-control-sm" rows={2} value={localData.GhiChu || ''} onChange={e => handleInputChange('GhiChu', e.target.value)} /></td>
-      <td><button className="btn btn-sm btn-primary" style={{ minWidth: 70 }} onClick={handleSave}>
-        {currentLanguage === 'vi' ? 'Lưu' : 'Save'}
-      </button></td>
+   <td className="text-center">
+  <div className="d-flex justify-content-center align-items-center gap-2">
+    {/* Nút Save */}
+    <button
+      className="btn btn-sm d-flex align-items-center justify-content-center"
+      style={{
+        backgroundColor: "#2563eb",
+        border: "none",
+        color: "white",
+        width: 36,
+        height: 36,
+        padding: 0,
+        borderRadius: 6,
+        transition: "all 0.2s ease",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+      onClick={handleSave}
+      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#1e40af")}
+      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#2563eb")}
+    >
+      <Save size={17} strokeWidth={2.3} />
+    </button>
+
+    {/* Nút Delete */}
+    <button
+      className="btn btn-sm d-flex align-items-center justify-content-center"
+      style={{
+        backgroundColor: "#ef4444",
+        border: "none",
+        color: "white",
+        width: 36,
+        height: 36,
+        padding: 0,
+        borderRadius: 6,
+        transition: "all 0.2s ease",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+      onClick={() => {
+  // 🩵 Tạo hộp xác nhận xóa hiện đại
+  const overlay = document.createElement("div");
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    animation: fadeIn 0.25s ease;
+  `;
+
+  const modal = document.createElement("div");
+  modal.style.cssText = `
+    background: white;
+    padding: 28px 24px;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    max-width: 320px;
+    width: 90%;
+    transform: translateY(-20px);
+    opacity: 0;
+    transition: all 0.25s ease;
+    font-family: 'Inter', sans-serif;
+  `;
+
+  modal.innerHTML = `
+    <h5 style="margin-bottom: 12px; font-weight: 600; color:#111;">
+      ${currentLanguage === "vi" ? "Xóa yêu cầu này?" : "Delete this request?"}
+    </h5>
+    <p style="font-size: 13px; color:#6b7280; margin-bottom: 20px;">
+      ${currentLanguage === "vi"
+        ? "Thao tác này sẽ không thể hoàn tác."
+        : "This action cannot be undone."}
+    </p>
+    <div style="display: flex; justify-content: center; gap: 10px;">
+      <button id="cancelBtn" style="
+        background: #e5e7eb;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+      ">${currentLanguage === "vi" ? "Hủy" : "Cancel"}</button>
+      <button id="confirmBtn" style="
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+      ">${currentLanguage === "vi" ? "Xóa" : "Delete"}</button>
+    </div>
+  `;
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  // Hiệu ứng fade-in nhẹ
+  setTimeout(() => {
+    modal.style.opacity = "1";
+    modal.style.transform = "translateY(0)";
+  }, 10);
+
+  // Thêm animation CSS
+  const style = document.createElement("style");
+  style.innerHTML = `
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Đóng khi click ngoài modal
+  overlay.onclick = (e) => {
+    if (e.target === overlay) overlay.remove();
+  };
+
+  // Xử lý nút
+  modal.querySelector("#cancelBtn").onclick = () => overlay.remove();
+  modal.querySelector("#confirmBtn").onclick = async () => {
+    overlay.remove();
+    try {
+      const res = await fetch(`http://localhost:5000/api/yeucau/${localData.YeuCauID}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || "Server error");
+
+      if (result.success) {
+        showToast(currentLanguage === "vi" ? "Đã xóa yêu cầu" : "Request deleted", "success");
+        if (typeof onDelete === "function") onDelete(localData.YeuCauID);
+      } else {
+        showToast(result.message || "❌ Lỗi khi xóa!", "error");
+      }
+    } catch (err) {
+      console.error("❌ Delete error:", err);
+      showToast(err.message || "Server error!", "error");
+    }
+  };
+}}
+
+      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#b91c1c")}
+      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#ef4444")}
+    >
+      <Trash2 size={17} strokeWidth={2.3} />
+    </button>
+  </div>
+</td>
+
+
     </tr>
   );
 };
@@ -1422,7 +1591,7 @@ useEffect(() => {
     try {
       console.log("🔄 Đang cập nhật profile...", { userId, formData });
       
-      const res = await fetch(`https://onepasscms-backend.onrender.com/api/User/${userId}`, { 
+      const res = await fetch(`/api/User/${userId}`, { 
         method: "PUT", 
         body: formData 
       });
@@ -1550,7 +1719,7 @@ const handleAddRequest = (newItem) => {
     const item = data.find(r => r.YeuCauID === id);
     if(!item) return;
     try {
-      const res = await fetch(`/api/yeucau/${id}`, {
+      const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${id}`, {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(item)
@@ -1611,7 +1780,7 @@ const filteredData = data.filter(item => {
       ]
     : [
         'ID', 'Record ID', 'Service', 'Mode', 'Full Name', 'Email', 'Area Code', 
-        'Phone', 'Title', 'Content', 'Date', 'Time', 'Created Date', 'Status',
+        'Phone', 'Title', 'Content', 'Select Date', 'Time', 'Created Date', 'Status',
         ...(currentUser.is_admin ? ['Assignee'] : []),
         'Note', 'Action'
       ];
@@ -1863,6 +2032,7 @@ const filteredData = data.filter(item => {
                 onSave={handleSaveRow} 
                 data={data} 
                 currentLanguage={currentLanguage}
+                onDelete={(id) => setData(prev => prev.filter(r => r.YeuCauID !== id))}
               />
             )) : (
               <tr>
@@ -1876,6 +2046,55 @@ const filteredData = data.filter(item => {
           </table>
           
         </div>
+        <div className="d-flex justify-content-between align-items-center mt-3 px-2">
+
+          <div className="text-muted small">
+            {currentLanguage === 'vi'
+              ? `Hiển thị ${currentRows.length} / ${filteredData.length} hàng`
+              : `Showing ${currentRows.length} / ${filteredData.length} rows`}
+          </div>
+
+          {/* 👉 Phân trang */}
+          <div className="d-flex justify-content-center align-items-center">
+            <nav>
+              <ul className="pagination pagination-sm mb-0 shadow-sm">
+                <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                  <button className="page-link" onClick={() => setCurrentPage(p => p - 1)}>
+                    &laquo;
+                  </button>
+                </li>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || (p >= currentPage - 1 && p <= currentPage + 1))
+                  .map((p, idx, arr) => (
+                    <React.Fragment key={p}>
+                      {idx > 0 && arr[idx - 1] !== p - 1 && (
+                        <li className="page-item disabled"><span className="page-link">…</span></li>
+                      )}
+                      <li className={`page-item ${currentPage === p ? "active" : ""}`}>
+                        <button className="page-link" onClick={() => setCurrentPage(p)}>
+                          {p}
+                        </button>
+                      </li>
+                    </React.Fragment>
+                  ))}
+
+                <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                  <button className="page-link" onClick={() => setCurrentPage(p => p + 1)}>
+                    &raquo;
+                  </button>
+                </li>
+              </ul>
+            </nav>
+
+            <div className="ms-3 text-muted small">
+              {currentLanguage === 'vi'
+                ? `Trang ${currentPage}/${totalPages}`
+                : `Page ${currentPage}/${totalPages}`}
+            </div>
+          </div>
+        </div>
+
       </div>
 
       {showEditModal && (
