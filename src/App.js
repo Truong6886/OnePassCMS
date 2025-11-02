@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import Login from "./components/Login";
 import CMSDashboard from "./components/CMSDashboard";
 import TraCuuHoSo from "./components/TraCuuHoSo"; // 👈 Thêm import trang tra cứu
-import KyHoSo from "./components/KyHoSo"; // 👈 Thêm import trang tra cứu
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../src/components/CMSDashboard.css";
@@ -93,8 +92,6 @@ export default function App() {
 
           {/* ✅ Route tra cứu hồ sơ — KHÔNG cần đăng nhập */}
           <Route path="/hoso" element={<TraCuuHoSo />} />
-          <Route path="/ky/:mahoso" element={<KyHoSo />} />
-
           {/* ✅ Route mặc định fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
