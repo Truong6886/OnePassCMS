@@ -41,7 +41,7 @@ const showToast = (message, type = "info") => {
     setRecord(null);
 
     try {
-      const res = await fetch("/api/yeucau");
+      const res = await fetch("https://onepasscms-backend.onrender.com/api/yeucau");
       const result = await res.json();
 
       if (result.success) {
