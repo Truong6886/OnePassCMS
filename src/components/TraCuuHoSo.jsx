@@ -10,9 +10,33 @@ export default function TraCuuHoSo() {
   const [pdfFile, setPdfFile] = useState(null);
   const navigate = useNavigate();
 
-  // ✅ Tra cứu hồ sơ
+const showToast = (message, type = "info") => {
+  const colors = {
+    success: "#4caf50",
+    error: "#f44336",
+    warning: "#ff9800",
+    info: "#2196f3",
+  };
+  const toast = document.createElement("div");
+  toast.textContent = message;
+  toast.style.position = "fixed";
+  toast.style.bottom = "20px";
+  toast.style.right = "20px";
+  toast.style.padding = "12px 20px";
+  toast.style.background = colors[type] || colors.info;
+  toast.style.color = "white";
+  toast.style.borderRadius = "8px";
+  toast.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
+  toast.style.zIndex = "9999";
+  toast.style.fontSize = "14px";
+  toast.style.transition = "opacity 0.5s ease";
+  document.body.appendChild(toast);
+  setTimeout(() => (toast.style.opacity = "0"), 2500);
+  setTimeout(() => toast.remove(), 3000);
+};
+
   const handleSearch = async () => {
-    if (!searchCode.trim()) return alert("Vui lòng nhập mã hồ sơ!");
+    if (!searchCode.trim()) return showToast("Vui lòng nhập mã hồ sơ!");
     setLoading(true);
     setRecord(null);
 
@@ -28,10 +52,10 @@ export default function TraCuuHoSo() {
         );
 
         if (found) setRecord(found);
-        else alert("Không tìm thấy hồ sơ hoặc chưa được xử lý!");
-      } else alert("Lỗi khi tải dữ liệu!");
+        else showToast("Không tìm thấy hồ sơ hoặc chưa được xử lý!");
+      } else showToast("Lỗi khi tải dữ liệu!");
     } catch (err) {
-      console.error("❌ Lỗi tìm hồ sơ:", err);
+      console.error("Lỗi tìm hồ sơ:", err);
       alert("Lỗi khi tìm hồ sơ!");
     } finally {
       setLoading(false);
@@ -45,7 +69,7 @@ export default function TraCuuHoSo() {
       const formData = new FormData();
       formData.append("pdf", pdfFile);
 
-      const res = await fetch(`/api/uploadpdf/${record.YeuCauID}`, {
+      const res = await fetch(`https://onepasscms-backend.onrender.com/api/uploadpdf/${record.YeuCauID}`, {
         method: "POST",
         body: formData,
       });
