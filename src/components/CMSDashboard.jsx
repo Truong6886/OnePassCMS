@@ -436,7 +436,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
       };
     }, []);
 
-  const handleSave = () => onSave(localData.YeuCauID);
+  const handleSave = () => onSave(localData);
   const displayMaHoSo = localData.TrangThai === 'Tư vấn' ? '' : (localData.MaHoSo || '-');
 
   // Dịch các label theo ngôn ngữ
@@ -1655,7 +1655,7 @@ useEffect(() => {
 
   socket.on("connect", () => console.log("✅ Socket connected:", socket.id));
 
-
+  // 🟢 KH gửi form → có thông báo + chuông
   socket.on("new_request", (newRequestData) => {
     console.log("📨 Nhận yêu cầu mới từ KH:", newRequestData);
 
@@ -1664,6 +1664,7 @@ useEffect(() => {
       return exists ? prev : [...prev, newRequestData];
     });
 
+    // 🔔 Thông báo + chuông
     const newNotification = {
       id: Date.now(),
       message:
@@ -1684,8 +1685,8 @@ useEffect(() => {
     setShowNotification(true);
     showToast(
       currentLanguage === "vi"
-        ? `Có yêu cầu mới từ ${newRequestData.HoTen}`
-        : `New request from ${newRequestData.HoTen}`,
+        ? `🎉 Có yêu cầu mới từ ${newRequestData.HoTen}`
+        : `🎉 New request from ${newRequestData.HoTen}`,
       "success"
     );
   });
@@ -1774,31 +1775,44 @@ useEffect(() => {
   }, []);
 
   // Fetch data ban đầu
-  useEffect(() => {
-    const savedUser = localStorage.getItem("currentUser");
-    if(savedUser) {
-      try { 
-        setCurrentUser(JSON.parse(savedUser)); 
-      } catch(err){ 
-        console.error(err); 
-      }
+useEffect(() => {
+  const savedUser = localStorage.getItem("currentUser");
+  if (savedUser) {
+    try {
+      setCurrentUser(JSON.parse(savedUser));
+    } catch (err) {
+      console.error(err);
     }
+  }
 
-    // Fetch data
-    (async () => {
-      try {
-        const res1 = await fetch('https://onepasscms-backend.onrender.com/api/yeucau');
-        const result1 = await res1.json();
-        if(result1.success) setData(result1.data);
-        
-        const res2 = await fetch('https://onepasscms-backend.onrender.com/api/User');
-        const result2 = await res2.json();
-        if(result2.success) setUsers(result2.data);
-      } catch(err) { 
-        showToast(currentLanguage === 'vi' ? '❌ Lỗi tải dữ liệu!' : '❌ Error loading data!', 'danger'); 
-      }
-    })();
-  }, []);
+  // Fetch data
+  (async () => {
+    try {
+      const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+
+ 
+      const res1 = await fetch(
+        `https://onepasscms-backend.onrender.com/api/yeucau?userId=${currentUser?.id || ""}&is_admin=${currentUser?.is_admin || false}`
+      );
+      const result1 = await res1.json();
+      if (result1.success) setData(result1.data);
+
+    
+      const res2 = await fetch("https://onepasscms-backend.onrender.com/api/User");
+      const result2 = await res2.json();
+      if (result2.success) setUsers(result2.data);
+    } catch (err) {
+      console.error("❌ Lỗi khi tải dữ liệu:", err);
+      showToast(
+        currentLanguage === "vi"
+          ? "❌ Lỗi tải dữ liệu!"
+          : "❌ Error loading data!",
+        "danger"
+      );
+    }
+  })();
+}, []);
+
 
   const handleBellClick = () => {
     setShowNotification(prev => !prev);
@@ -1821,6 +1835,31 @@ const handleAddRequest = (newItem) => {
   // );
 };
 
+const handleSave = async (updatedItem) => {
+  try {
+    const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${updatedItem.YeuCauID}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedItem),
+    });
+    const result = await res.json();
+
+    if (result.success) {
+      setData((prevData) =>
+        prevData.map((item) =>
+          item.YeuCauID === result.data.YeuCauID ? result.data : item
+        )
+      );
+      showToast("Lưu thành công!", "success");
+    } else {
+      showToast(result.message || "❌ Lỗi khi lưu!", "error");
+    }
+  } catch (err) {
+    console.error(err);
+    showToast("❌ Lỗi kết nối máy chủ!", "error");
+  }
+};
+
 
 
   const handleStatusChange = (id, status) => {
@@ -1829,22 +1868,22 @@ const handleAddRequest = (newItem) => {
     ));
   };
 
-  const handleSaveRow = async (id) => {
-    const item = data.find(r => r.YeuCauID === id);
-    if(!item) return;
-    try {
-      const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${id}`, {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(item)
-      });
-      const result = await res.json();
-      if(result.success) showToast(currentLanguage === 'vi' ? '✅ Cập nhật thành công!' : '✅ Update successful!');
-      else showToast(currentLanguage === 'vi' ? '❌ Lỗi khi lưu dữ liệu!' : '❌ Error saving data!', 'danger');
-    } catch(err) { 
-      showToast(currentLanguage === 'vi' ? '❌ Lỗi máy chủ!' : '❌ Server error!', 'danger'); 
-    }
-  };
+  // const handleSaveRow = async (id) => {
+  //   const item = data.find(r => r.YeuCauID === id);
+  //   if(!item) return;
+  //   try {
+  //     const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${id}`, {
+  //       method: 'PUT',
+  //       headers: {'Content-Type': 'application/json'},
+  //       body: JSON.stringify(item)
+  //     });
+  //     const result = await res.json();
+  //     if(result.success) showToast(currentLanguage === 'vi' ? '✅ Cập nhật thành công!' : '✅ Update successful!');
+  //     else showToast(currentLanguage === 'vi' ? '❌ Lỗi khi lưu dữ liệu!' : '❌ Error saving data!', 'danger');
+  //   } catch(err) { 
+  //     showToast(currentLanguage === 'vi' ? '❌ Lỗi máy chủ!' : '❌ Server error!', 'danger'); 
+  //   }
+  // };
 
   const showToast = (msg, type = 'success') => {
     if (!toastContainerRef.current) return;
@@ -1943,7 +1982,7 @@ const filteredData = data.filter(item => {
               justifyContent: "space-between"
             }}
           >
-            <span>{currentLanguage === 'vi' ? 'Thông báo mới' : 'New Notifications'}</span>
+            <span>🔔 {currentLanguage === 'vi' ? 'Thông báo mới' : 'New Notifications'}</span>
             <button
               onClick={() => setShowNotification(false)}
               style={{
@@ -2011,8 +2050,8 @@ const filteredData = data.filter(item => {
       className="form-control shadow-sm"
       placeholder={
         currentLanguage === 'vi'
-          ? 'Tìm kiếm Họ tên, Email, SĐT...'
-          : 'Search Name, Email, Phone...'
+          ? '🔍  Tìm kiếm Họ tên, Email, SĐT...'
+          : '🔍  Search Name, Email, Phone...'
       }
       style={{
         width: 300,
@@ -2143,7 +2182,7 @@ const filteredData = data.filter(item => {
                 users={users} 
                 currentUser={currentUser} 
                 onStatusChange={handleStatusChange} 
-                onSave={handleSaveRow} 
+                onSave={handleSave} 
                 data={data} 
                 currentLanguage={currentLanguage}
                 onDelete={(id) => setData(prev => prev.filter(r => r.YeuCauID !== id))}
