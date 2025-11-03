@@ -1655,7 +1655,7 @@ useEffect(() => {
 
   socket.on("connect", () => console.log("✅ Socket connected:", socket.id));
 
-  // 🟢 KH gửi form → có thông báo + chuông
+
   socket.on("new_request", (newRequestData) => {
     console.log("📨 Nhận yêu cầu mới từ KH:", newRequestData);
 
@@ -1664,7 +1664,6 @@ useEffect(() => {
       return exists ? prev : [...prev, newRequestData];
     });
 
-    // 🔔 Thông báo + chuông
     const newNotification = {
       id: Date.now(),
       message:
@@ -1685,8 +1684,8 @@ useEffect(() => {
     setShowNotification(true);
     showToast(
       currentLanguage === "vi"
-        ? `🎉 Có yêu cầu mới từ ${newRequestData.HoTen}`
-        : `🎉 New request from ${newRequestData.HoTen}`,
+        ? `Có yêu cầu mới từ ${newRequestData.HoTen}`
+        : `New request from ${newRequestData.HoTen}`,
       "success"
     );
   });
@@ -1944,7 +1943,7 @@ const filteredData = data.filter(item => {
               justifyContent: "space-between"
             }}
           >
-            <span>🔔 {currentLanguage === 'vi' ? 'Thông báo mới' : 'New Notifications'}</span>
+            <span>{currentLanguage === 'vi' ? 'Thông báo mới' : 'New Notifications'}</span>
             <button
               onClick={() => setShowNotification(false)}
               style={{
