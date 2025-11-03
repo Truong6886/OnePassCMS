@@ -2012,8 +2012,8 @@ const filteredData = data.filter(item => {
       className="form-control shadow-sm"
       placeholder={
         currentLanguage === 'vi'
-          ? '🔍  Tìm kiếm Họ tên, Email, SĐT...'
-          : '🔍  Search Name, Email, Phone...'
+          ? 'Tìm kiếm Họ tên, Email, SĐT...'
+          : 'Search Name, Email, Phone...'
       }
       style={{
         width: 300,
