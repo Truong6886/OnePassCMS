@@ -11,7 +11,6 @@ import { Bell } from "lucide-react";
 import { Save, Trash2 } from "lucide-react";
 import * as bootstrap from 'bootstrap';
 window.bootstrap = bootstrap;
-// ✅ Hàm tiện ích hiện thông báo nhỏ dạng popup
 const showToast = (message, type = "info") => {
   const colors = {
     success: "#4caf50",
@@ -2050,8 +2049,8 @@ const filteredData = data.filter(item => {
       className="form-control shadow-sm"
       placeholder={
         currentLanguage === 'vi'
-          ? '🔍  Tìm kiếm Họ tên, Email, SĐT...'
-          : '🔍  Search Name, Email, Phone...'
+          ? 'Tìm kiếm Họ tên, Email, SĐT...'
+          : 'Search Name, Email, Phone...'
       }
       style={{
         width: 300,
