@@ -1,17 +1,18 @@
 import { useState, useEffect } from "react";
 import Login from "./components/Login";
 import CMSDashboard from "./components/CMSDashboard";
-import TraCuuHoSo from "./components/TraCuuHoSo"; // 👈 Thêm import trang tra cứu
+import TraCuuHoSo from "./components/TraCuuHoSo";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../src/components/CMSDashboard.css";
+import DoanhThu from "./components/DoanhThu";
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [loadingUser, setLoadingUser] = useState(true);
 
-  // ✅ Load user từ localStorage khi app mount
+  
   useEffect(() => {
     const storedUser = localStorage.getItem("currentUser");
     if (storedUser) {
@@ -25,7 +26,6 @@ export default function App() {
     setLoadingUser(false);
   }, []);
 
-  // ✅ Cập nhật user trong state + localStorage
   const handleSetCurrentUser = (user) => {
     setCurrentUser(user);
     if (user) {
@@ -61,7 +61,7 @@ export default function App() {
     <BrowserRouter>
       <div className="app-container">
         <Routes>
-          {/* ✅ Route dashboard chính */}
+          {/* ✅ Dashboard chính */}
           <Route
             path="/"
             element={
@@ -78,7 +78,7 @@ export default function App() {
             }
           />
 
-          {/* ✅ Route login */}
+          {/* ✅ Trang đăng nhập */}
           <Route
             path="/login"
             element={
@@ -90,9 +90,27 @@ export default function App() {
             }
           />
 
-          {/* ✅ Route tra cứu hồ sơ — KHÔNG cần đăng nhập */}
+          {/* ✅ Tra cứu hồ sơ (public) */}
           <Route path="/hoso" element={<TraCuuHoSo />} />
-          {/* ✅ Route mặc định fallback */}
+          {/* <Route path="/ky/:mahoso" element={<KyTaiLieu />} /> */}
+
+          {/* ✅ Doanh thu – chỉ cho kế toán */}
+          <Route
+            path="/doanhthu"
+            element={
+              currentUser?.role === "accountant" ? (
+                <DoanhThu
+                  currentUser={currentUser}
+                  showSidebar={showSidebar}
+                  onToggleSidebar={toggleSidebar}
+                />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          {/* ✅ Route fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
