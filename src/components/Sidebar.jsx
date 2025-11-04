@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import logo from "../assets/logo.png";
-import { List, Search } from "lucide-react";
+import { List, Search, DollarSign } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-export default function Sidebar({ collapsed = false, active = "list" }) {
+export default function Sidebar({ collapsed = false, active = "list", user }) {
   const [hoveredItem, setHoveredItem] = useState(null);
   const navigate = useNavigate();
 
@@ -37,6 +37,7 @@ export default function Sidebar({ collapsed = false, active = "list" }) {
       color: "#fff",
       borderRadius: "6px",
       background: "transparent",
+      marginBottom: "4px",
     };
 
     if (active === key) {
@@ -58,6 +59,7 @@ export default function Sidebar({ collapsed = false, active = "list" }) {
 
   return (
     <div style={sidebarStyle}>
+      {/* Logo */}
       <div
         style={{
           width: "100%",
@@ -80,8 +82,9 @@ export default function Sidebar({ collapsed = false, active = "list" }) {
         />
       </div>
 
+      {/* Menu */}
       <div style={{ flex: 1, width: "100%" }}>
-        <ul style={{ listStyle: "none", padding: 0, marginTop: 20 }}>
+        <ul style={{ listStyle: "none", padding: "0 12px", marginTop: 20 }}>
           <li
             style={getItemStyle("list")}
             onMouseEnter={() => setHoveredItem("list")}
@@ -101,6 +104,19 @@ export default function Sidebar({ collapsed = false, active = "list" }) {
             <Search size={20} />
             {!collapsed && "Tra Cứu Hồ Sơ"}
           </li>
+
+          {/* ✅ Chỉ hiện “Doanh Thu” nếu role là accountant */}
+          {user?.role === "accountant" && (
+            <li
+              style={getItemStyle("doanhthu")}
+              onMouseEnter={() => setHoveredItem("doanhthu")}
+              onMouseLeave={() => setHoveredItem(null)}
+              onClick={() => navigate("/doanhthu")}
+            >
+              <DollarSign size={20} />
+              {!collapsed && "Doanh Thu"}
+            </li>
+          )}
         </ul>
       </div>
     </div>
