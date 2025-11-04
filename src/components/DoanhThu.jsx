@@ -38,7 +38,7 @@ export default function DoanhThu() {
     setLoading(true);
     setChartLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/yeucau");
+      const res = await fetch("https://onepasscms-backend.onrender.com/api/yeucau");
       const result = await res.json();
       if (result.success) {
         setRecords(result.data);
@@ -121,7 +121,7 @@ export default function DoanhThu() {
   const handleSaveRow = async (id, value) => {
     setSavingRow(id);
     try {
-      const res = await fetch(`http://localhost:5000/api/yeucau/${id}`, {
+      const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ DoanhThu: value }),
