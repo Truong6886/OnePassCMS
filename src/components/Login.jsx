@@ -205,3 +205,8 @@ export default function Login({ setCurrentUser }) {
                 : "Login"}
             </button>
           </form>
+        </div>
+      </div>
+    </div>
+  );
+}
