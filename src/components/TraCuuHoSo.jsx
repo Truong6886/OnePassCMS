@@ -9,7 +9,7 @@ export default function TraCuuHoSo() {
   const [loading, setLoading] = useState(false);
   const [pdfFile, setPdfFile] = useState(null);
   const navigate = useNavigate();
-
+ const currentUser = JSON.parse(localStorage.getItem("currentUser"));
 const showToast = (message, type = "info") => {
   const colors = {
     success: "#4caf50",
@@ -41,7 +41,7 @@ const showToast = (message, type = "info") => {
     setRecord(null);
 
     try {
-      const res = await fetch("https://onepasscms-backend.onrender.com/api/yeucau");
+      const res = await fetch("http://localhost:5000/api/yeucau");
       const result = await res.json();
 
       if (result.success) {
@@ -69,7 +69,7 @@ const showToast = (message, type = "info") => {
       const formData = new FormData();
       formData.append("pdf", pdfFile);
 
-      const res = await fetch(`https://onepasscms-backend.onrender.com/api/uploadpdf/${record.YeuCauID}`, {
+      const res = await fetch(`http://localhost:5000/api/uploadpdf/${record.YeuCauID}`, {
         method: "POST",
         body: formData,
       });
@@ -92,7 +92,7 @@ const showToast = (message, type = "info") => {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
-      <Sidebar collapsed={collapsed} active="search" />
+      <Sidebar collapsed={collapsed} active="search" user={currentUser}/>
 
       <div
         style={{
@@ -112,6 +112,9 @@ const showToast = (message, type = "info") => {
             type="text"
             value={searchCode}
             onChange={(e) => setSearchCode(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSearch(); 
+            }}
             placeholder="Nhập mã hồ sơ (VD: CT-001)"
             style={{
               flex: 1,
@@ -120,6 +123,7 @@ const showToast = (message, type = "info") => {
               borderRadius: "6px",
             }}
           />
+
           <button
             onClick={handleSearch}
             disabled={loading}
