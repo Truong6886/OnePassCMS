@@ -41,7 +41,7 @@ const showToast = (message, type = "info") => {
     setRecord(null);
 
     try {
-      const res = await fetch("http://localhost:5000/api/yeucau");
+      const res = await fetch("https://onepasscms-backend.onrender.com/api/yeucau");
       const result = await res.json();
 
       if (result.success) {
@@ -69,7 +69,7 @@ const showToast = (message, type = "info") => {
       const formData = new FormData();
       formData.append("pdf", pdfFile);
 
-      const res = await fetch(`http://localhost:5000/api/uploadpdf/${record.YeuCauID}`, {
+      const res = await fetch(`https://onepasscms-backend.onrender.com/api/uploadpdf/${record.YeuCauID}`, {
         method: "POST",
         body: formData,
       });
