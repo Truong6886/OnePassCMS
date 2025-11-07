@@ -256,7 +256,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
                           .toUpperCase()
                       : "HS");
 
-                  const resAll = await fetch(`https://op-backend-60ti.onrender.com/api/yeucau`);
+                  const resAll = await fetch(`https://op-backend-60ti.onrender.com/`);
                   const resultAll = await resAll.json();
                   if (!resultAll.success) throw new Error("Không thể tải danh sách hồ sơ");
 
@@ -285,7 +285,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
                   );
 
                   // ✅ Lưu lên server
-                  const res = await fetch(`https://op-backend-60ti.onrender.com/api/yeucau/${localData.YeuCauID}`, {
+                  const res = await fetch(`https://op-backend-60ti.onrender.com//${localData.YeuCauID}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ TrangThai: newStatus, MaHoSo: generatedCode }),
@@ -316,7 +316,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
                 "info"
               );
 
-              const res = await fetch(`https://op-backend-60ti.onrender.com/api/yeucau/${localData.YeuCauID}`, {
+              const res = await fetch(`https://op-backend-60ti.onrender.com//${localData.YeuCauID}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ TrangThai: newStatus, MaHoSo: null }),
@@ -508,7 +508,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
   modal.querySelector("#confirmBtn").onclick = async () => {
     overlay.remove();
     try {
-      const res = await fetch(`https://op-backend-60ti.onrender.com/api/yeucau/${localData.YeuCauID}`, {
+      const res = await fetch(`https://op-backend-60ti.onrender.com//${localData.YeuCauID}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
       });
@@ -956,7 +956,7 @@ const AddRequestModal = ({ dichvuList, users, data = [], onClose, onSave, curren
 
       console.log("🔄 Đang gửi yêu cầu mới...", newItem);
 
-      const res = await fetch("https://op-backend-60ti.onrender.com/api/yeucau", {
+      const res = await fetch("https://op-backend-60ti.onrender.com/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newItem)
@@ -1574,7 +1574,7 @@ useEffect(() => {
 
  
       const res1 = await fetch(
-        `https://op-backend-60ti.onrender.com/api/yeucau?userId=${currentUser?.id || ""}&is_admin=${currentUser?.is_admin || false}`
+        `https://op-backend-60ti.onrender.com/?userId=${currentUser?.id || ""}&is_admin=${currentUser?.is_admin || false}`
       );
       const result1 = await res1.json();
       if (result1.success) setData(result1.data);
@@ -1619,7 +1619,7 @@ const handleAddRequest = (newItem) => {
 
 const handleSave = async (updatedItem) => {
   try {
-    const res = await fetch(`https://op-backend-60ti.onrender.com/api/yeucau/${updatedItem.YeuCauID}`, {
+    const res = await fetch(`https://op-backend-60ti.onrender.com//${updatedItem.YeuCauID}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedItem),
