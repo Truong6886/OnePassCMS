@@ -256,7 +256,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
                           .toUpperCase()
                       : "HS");
 
-                  const resAll = await fetch(`https://op-backend-60ti.onrender.com/api/yeucau`);
+                  const resAll = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau`);
                   const resultAll = await resAll.json();
                   if (!resultAll.success) throw new Error("Không thể tải danh sách hồ sơ");
 
@@ -285,7 +285,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
                   );
 
                   // ✅ Lưu lên server
-                  const res = await fetch(`https://op-backend-60ti.onrender.com/api/yeucau/${localData.YeuCauID}`, {
+                  const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${localData.YeuCauID}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ TrangThai: newStatus, MaHoSo: generatedCode }),
@@ -316,7 +316,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
                 "info"
               );
 
-              const res = await fetch(`https://op-backend-60ti.onrender.com/api/yeucau/${localData.YeuCauID}`, {
+              const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${localData.YeuCauID}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ TrangThai: newStatus, MaHoSo: null }),
@@ -508,7 +508,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
   modal.querySelector("#confirmBtn").onclick = async () => {
     overlay.remove();
     try {
-      const res = await fetch(`https://op-backend-60ti.onrender.com/api/yeucau/${localData.YeuCauID}`, {
+      const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${localData.YeuCauID}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
       });
@@ -956,7 +956,7 @@ const AddRequestModal = ({ dichvuList, users, data = [], onClose, onSave, curren
 
       console.log("🔄 Đang gửi yêu cầu mới...", newItem);
 
-      const res = await fetch("https://op-backend-60ti.onrender.com/api/yeucau", {
+      const res = await fetch("https://onepasscms-backend.onrender.com/api/yeucau", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newItem)
@@ -1488,7 +1488,7 @@ useEffect(() => {
     try {
       console.log("🔄 Đang cập nhật profile...", { userId, formData });
       
-      const res = await fetch(`https://op-backend-60ti.onrender.com/api/User/${userId}`, { 
+      const res = await fetch(`https://onepasscms-backend.onrender.com/api/User/${userId}`, { 
         method: "PUT", 
         body: formData 
       });
@@ -1545,7 +1545,7 @@ useEffect(() => {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("https://op-backend-60ti.onrender.com/api/dichvu");
+        const res = await fetch("https://onepasscms-backend.onrender.com/api/dichvu");
         const result = await res.json();
         if (result.success) setDichvuList(result.data);
         else setDichvuList([]);
@@ -1574,13 +1574,13 @@ useEffect(() => {
 
  
       const res1 = await fetch(
-        `https://op-backend-60ti.onrender.com/api/yeucau?userId=${currentUser?.id || ""}&is_admin=${currentUser?.is_admin || false}`
+        `https://onepasscms-backend.onrender.com/api/yeucau?userId=${currentUser?.id || ""}&is_admin=${currentUser?.is_admin || false}`
       );
       const result1 = await res1.json();
       if (result1.success) setData(result1.data);
 
     
-      const res2 = await fetch("https://op-backend-60ti.onrender.com/api/User");
+      const res2 = await fetch("https://onepasscms-backend.onrender.com/api/User");
       const result2 = await res2.json();
       if (result2.success) setUsers(result2.data);
     } catch (err) {
@@ -1619,7 +1619,7 @@ const handleAddRequest = (newItem) => {
 
 const handleSave = async (updatedItem) => {
   try {
-    const res = await fetch(`https://op-backend-60ti.onrender.com/api/yeucau/${updatedItem.YeuCauID}`, {
+    const res = await fetch(`https://onepasscms-backend.onrender.comapi/yeucau/${updatedItem.YeuCauID}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedItem),
@@ -1654,7 +1654,7 @@ const handleSave = async (updatedItem) => {
   //   const item = data.find(r => r.YeuCauID === id);
   //   if(!item) return;
   //   try {
-  //     const res = await fetch(`https://op-backend-60ti.onrender.com/api/yeucau/${id}`, {
+  //     const res = await fetch(`https://onepasscms-backend.onrender.comapi/yeucau/${id}`, {
   //       method: 'PUT',
   //       headers: {'Content-Type': 'application/json'},
   //       body: JSON.stringify(item)
