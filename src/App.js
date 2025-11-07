@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import Login from "./components/Login";
 import CMSDashboard from "./components/CMSDashboard";
 import TraCuuHoSo from "./components/TraCuuHoSo";
+import KyHoSo from "./components/KyHoSo";
+import QuanLyNhanVien from "./components/QuanLyNhanVien";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../src/components/CMSDashboard.css";
@@ -93,12 +95,26 @@ export default function App() {
           {/* ✅ Tra cứu hồ sơ (public) */}
           <Route path="/hoso" element={<TraCuuHoSo />} />
           {/* <Route path="/ky/:mahoso" element={<KyTaiLieu />} /> */}
+          <Route
+            path="/nhanvien"
+            element={
+              (currentUser?.is_admin || currentUser?.is_director) ? (
+                <QuanLyNhanVien
+                  currentUser={currentUser}
+                  showSidebar={showSidebar}
+                  onToggleSidebar={toggleSidebar}
+                />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
 
           {/* ✅ Doanh thu – chỉ cho kế toán */}
           <Route
             path="/doanhthu"
             element={
-              currentUser?.role === "accountant" ? (
+              (currentUser?.is_director || currentUser?.is_accountant) ? (
                 <DoanhThu
                   currentUser={currentUser}
                   showSidebar={showSidebar}
@@ -109,6 +125,7 @@ export default function App() {
               )
             }
           />
+           <Route path="/kyhoso/:mahoso" element={<KyHoSo />} />
 
           {/* ✅ Route fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
