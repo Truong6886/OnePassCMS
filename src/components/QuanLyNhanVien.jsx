@@ -21,7 +21,7 @@ export default function QuanLyNhanVien() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/User");
+        const res = await fetch("https://onepasscms-backend.onrender.com/api/User");
         const result = await res.json();
         if (result.success && Array.isArray(result.data)) {
           setUsers(result.data);
@@ -36,7 +36,7 @@ export default function QuanLyNhanVien() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/yeucau");
+        const res = await fetch("https://onepasscms-backend.onrender.com/api/yeucau");
         const result = await res.json();
         if (result.success && Array.isArray(result.data)) {
           setYeuCauList(result.data);
