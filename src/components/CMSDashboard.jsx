@@ -22,7 +22,7 @@ const showToast = (message, type = "info") => {
     info: "#2196F3",
   };
 
-  // 🧱 Tạo container nếu chưa có (đặt ở góc phải dưới)
+  
   let container = document.querySelector("#toast-container");
   if (!container) {
     container = document.createElement("div");
@@ -31,7 +31,7 @@ const showToast = (message, type = "info") => {
     container.style.bottom = "20px";
     container.style.right = "20px";
     container.style.display = "flex";
-    container.style.flexDirection = "column-reverse"; // toast mới lên trên
+    container.style.flexDirection = "column-reverse"; 
     container.style.gap = "10px";
     container.style.zIndex = "9999";
     document.body.appendChild(container);
@@ -94,6 +94,13 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
 
 
   const gioVN = localData.Gio ? new Date(localData.Gio).toLocaleTimeString('vi-VN', { hour12: false, hour: '2-digit', minute:'2-digit' }) : '';
+  const translateBranch = (branch) => {
+  const map = {
+    '서울': 'Seoul',
+    '부산': 'Busan',
+  };
+  return map[branch] || branch || '';
+};
   const translateService = (serviceName) => {
   const map = {
     "인증 센터":"Chứng thực",
@@ -128,7 +135,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
 
       container.addEventListener('scroll', handleScroll);
 
-      // ✅ cleanup an toàn
+   
       return () => {
         if (container) container.removeEventListener('scroll', handleScroll);
       };
@@ -137,7 +144,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
   const handleSave = () => onSave(localData);
   const displayMaHoSo = localData.TrangThai === 'Tư vấn' ? '' : (localData.MaHoSo || '-');
 
-  // Dịch các label theo ngôn ngữ
+
   const statusOptions = currentLanguage === 'vi' 
     ? [
         { value: "Tư vấn", label: "Tư vấn" },
@@ -168,6 +175,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
       </td>
 
       <td>{localData.TenHinhThuc}</td>
+      <td>{translateBranch(localData.CoSoTuVan)}</td>
       <td className="sticky-col">
         <input
           type="text"
@@ -222,134 +230,173 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
       )}
     </td>
 
-      <td>
-      <select
-            className="form-select form-select-sm"
-            style={{ width: 130 }}
-            value={localData.TrangThai}
-            onChange={async (e) => {
-              const newStatus = e.target.value;
-              handleInputChange("TrangThai", newStatus);
+    <td>
+    <select
+      className="form-select form-select-sm"
+      style={{ width: 130 }}
+      value={localData.TrangThai}
+      onChange={async (e) => {
+        const newStatus = e.target.value;
+        handleInputChange("TrangThai", newStatus);
 
-              // ✅ Bảng map mã theo dịch vụ
-              const serviceCodeMap = {
-                "Chứng thực": "CT",
-                "Kết hôn": "KH",
-                "Khai sinh, khai tử": "KS",
-                "Xuất nhập cảnh": "XNC",
-                "Giấy tờ tuỳ thân": "GT",
-                "Nhận nuôi": "NN",
-                "Thị thực": "TT",
-                "Tư vấn pháp lý": "TV",
-                "Dịch vụ B2B": "B2B",
-                "Khác": "KHAC",
-              };
 
-              // ✅ Nếu chuyển sang “Đang xử lý” mà chưa có mã hồ sơ
-              if (newStatus === "Đang xử lý" && !localData.MaHoSo) {
-                try {
-                  const prefix =
-                    serviceCodeMap[localData.TenDichVu?.trim()] ||
-                    (localData.TenDichVu
-                      ? localData.TenDichVu.replace(/\s+/g, "")
-                          .substring(0, 3)
-                          .toUpperCase()
-                      : "HS");
+        const serviceCodeMap = {
+          "Chứng thực": "CT",
+          "Kết hôn": "KH",
+          "Khai sinh, khai tử": "KS",
+          "Xuất nhập cảnh": "XNC",
+          "Giấy tờ tuỳ thân": "GT",
+          "Nhận nuôi": "NN",
+          "Thị thực": "TT",
+          "Tư vấn pháp lý": "TV",
+          "Dịch vụ B2B": "B2B",
+          "Khác": "KHAC",
+        };
 
-                  const resAll = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau`);
-                  const resultAll = await resAll.json();
-                  if (!resultAll.success) throw new Error("Không thể tải danh sách hồ sơ");
 
-                  const related = resultAll.data.filter(
-                    (r) =>
-                      r.TenDichVu &&
-                      r.TenDichVu.trim().toLowerCase() ===
-                        (localData.TenDichVu || "").trim().toLowerCase() &&
-                      r.MaHoSo &&
-                      r.MaHoSo.startsWith(prefix)
-                  );
+        const translateServiceName = (name) => {
+          const map = {
+            "인증 센터": "Chứng thực",
+            "결혼 이민": "Kết hôn",
+            "출생신고 대행": "Khai sinh, khai tử",
+            "출입국 행정 대행": "Xuất nhập cảnh",
+            "신분증명 서류 대행": "Giấy tờ tuỳ thân",
+            "입양 절차 대행": "Nhận nuôi",
+            "비자 대행": "Thị thực",
+            "법률 컨설팅": "Tư vấn pháp lý",
+            "B2B 서비스": "Dịch vụ B2B",
+            "기타": "Khác",
+          };
+          return map[name?.trim()] || name?.trim() || "";
+        };
 
-                  let maxNum = 0;
-                  related.forEach((r) => {
-                    const numPart = parseInt(r.MaHoSo.split("-")[1], 10);
-                    if (!isNaN(numPart) && numPart > maxNum) maxNum = numPart;
-                  });
+       if (newStatus === "Đang xử lý" && !localData.MaHoSo) {
+        try {
+     
+          const rawServiceName = localData.TenDichVu?.trim() || "";
+          const serviceName = translateServiceName(rawServiceName);
 
-                  const nextNum = (maxNum + 1).toString().padStart(3, "0");
-                  const generatedCode = `${prefix}-${nextNum}`;
 
-                  handleInputChange("MaHoSo", generatedCode);
-                  showToast(
-                    `${currentLanguage === "vi" ? "Đã tạo mã hồ sơ:" : "Generated file code:"} ${generatedCode}`,
-                    "success"
-                  );
+          const cleanServiceName = serviceName.replace(/[ㄱ-ㅎㅏ-ㅣ가-힣]/g, "").trim();
 
-                  // ✅ Lưu lên server
-                  const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${localData.YeuCauID}`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ TrangThai: newStatus, MaHoSo: generatedCode }),
-                  });
-                  const result = await res.json();
-                  if (!result.success) throw new Error(result.message || "Update failed");
-                } catch (err) {
-                  console.error("❌ Lỗi tạo mã hồ sơ:", err);
-                  showToast(
-                    currentLanguage === "vi"
-                      ? "Lỗi khi tạo mã hồ sơ!"
-                      : "Error generating record code!",
-                    "error"
-                  );
-                }
-              } 
-              // ✅ Nếu chuyển ngược về “Tư vấn” → reset mã hồ sơ
-          else if (
-            newStatus === "Tư vấn" &&
-            ["Đang xử lý", "Đang nộp hồ sơ", "Hoàn thành"].includes(localData.TrangThai)
-          ) {
-            try {
-              handleInputChange("MaHoSo", "");
-              showToast(
-                currentLanguage === "vi"
-                  ? "Đã xóa mã hồ sơ (chuyển sang Tư vấn)."
-                  : "Record code cleared when returning to Consulting.",
-                "info"
-              );
 
-              const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${localData.YeuCauID}`, {
+          const prefix =
+            serviceCodeMap[cleanServiceName] ||
+            (cleanServiceName
+              ? cleanServiceName.replace(/\s+/g, "").substring(0, 3).toUpperCase()
+              : "HS");
+
+          console.log("🔧 Dịch vụ gốc:", rawServiceName, "→", cleanServiceName, "→ prefix:", prefix);
+
+          const resAll = await fetch(`http://localhost:5000/api/yeucau`);
+          const resultAll = await resAll.json();
+          if (!resultAll.success) throw new Error("Không thể tải danh sách hồ sơ");
+
+ 
+          const related = resultAll.data.filter(
+            (r) =>
+              translateServiceName(r.TenDichVu).replace(/[ㄱ-ㅎㅏ-ㅣ가-힣]/g, "").trim().toLowerCase() ===
+                cleanServiceName.toLowerCase() &&
+              r.MaHoSo &&
+              r.MaHoSo.startsWith(prefix)
+          );
+
+  
+          let maxNum = 0;
+          related.forEach((r) => {
+            const numPart = parseInt(r.MaHoSo.split("-")[1], 10);
+            if (!isNaN(numPart) && numPart > maxNum) maxNum = numPart;
+          });
+
+          const nextNum = (maxNum + 1).toString().padStart(3, "0");
+          const generatedCode = `${prefix}-${nextNum}`;
+
+          handleInputChange("MaHoSo", generatedCode);
+          showToast(
+            `${
+              currentLanguage === "vi"
+                ? "Đã tạo mã hồ sơ:"
+                : "Generated record code:"
+            } ${generatedCode}`,
+            "success"
+          );
+
+       
+          const res = await fetch(
+            `http://localhost:5000/api/yeucau/${localData.YeuCauID}`,
+            {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                TrangThai: newStatus,
+                MaHoSo: generatedCode,
+              }),
+            }
+          );
+          const result = await res.json();
+          if (!result.success)
+            throw new Error(result.message || "Update failed");
+        } catch (err) {
+          console.error("❌ Lỗi tạo mã hồ sơ:", err);
+          showToast(
+            currentLanguage === "vi"
+              ? "Lỗi khi tạo mã hồ sơ!"
+              : "Error generating record code!",
+            "error"
+          );
+        }
+      }
+
+
+        else if (
+          newStatus === "Tư vấn" &&
+          ["Đang xử lý", "Đang nộp hồ sơ", "Hoàn thành"].includes(
+            localData.TrangThai
+          )
+        ) {
+          try {
+            handleInputChange("MaHoSo", "");
+            showToast(
+              currentLanguage === "vi"
+                ? "Đã xóa mã hồ sơ (chuyển sang Tư vấn)."
+                : "Record code cleared when returning to Consulting.",
+              "info"
+            );
+
+            const res = await fetch(
+              `http://localhost:5000/api/yeucau/${localData.YeuCauID}`,
+              {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ TrangThai: newStatus, MaHoSo: null }),
-              });
-              const result = await res.json();
-              if (!result.success) throw new Error(result.message || "Update failed");
-            } catch (err) {
-              console.error("❌ Lỗi reset mã hồ sơ:", err);
-              showToast(
-                currentLanguage === "vi"
-                  ? "Lỗi khi reset mã hồ sơ!"
-                  : "Error resetting record code!",
-                "error"
-              );
-            }
-          }
-
-              // ✅ Trường hợp đổi trạng thái khác
-              else {
-                onStatusChange(localData.YeuCauID, newStatus);
               }
-            }}
-          >
-            {statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            );
+            const result = await res.json();
+            if (!result.success)
+              throw new Error(result.message || "Update failed");
+          } catch (err) {
+            console.error("❌ Lỗi reset mã hồ sơ:", err);
+            showToast(
+              currentLanguage === "vi"
+                ? "Lỗi khi reset mã hồ sơ!"
+                : "Error resetting record code!",
+              "error"
+            );
+          }
+        }
+        else {
+          onStatusChange(localData.YeuCauID, newStatus);
+        }
+      }}
+    >
+      {statusOptions.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  </td>
 
-
-
-      </td>
    {currentUser.is_admin && (
   <td>
       <select
@@ -508,7 +555,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
   modal.querySelector("#confirmBtn").onclick = async () => {
     overlay.remove();
     try {
-      const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${localData.YeuCauID}`, {
+      const res = await fetch(`http://localhost:5000/api/yeucau/${localData.YeuCauID}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
       });
@@ -887,6 +934,7 @@ const AddRequestModal = ({ dichvuList, users, data = [], onClose, onSave, curren
   const [formData, setFormData] = useState({
     TenDichVu: "",
     TenHinhThuc: "",
+    CoSoTuVan:"",
     HoTen: "",
     Email: "",
     MaVung: "+84",
@@ -956,7 +1004,7 @@ const AddRequestModal = ({ dichvuList, users, data = [], onClose, onSave, curren
 
       console.log("🔄 Đang gửi yêu cầu mới...", newItem);
 
-      const res = await fetch("https://onepasscms-backend.onrender.com/api/yeucau", {
+      const res = await fetch("http://localhost:5000/api/yeucau", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newItem)
@@ -1311,10 +1359,12 @@ const AddRequestModal = ({ dichvuList, users, data = [], onClose, onSave, curren
 
 // ================= CMSDashboard =================
 const CMSDashboard = () => {
-  
-  const [filterStatus, setFilterStatus] = useState('');
+  const [subViewMode, setSubViewMode] = useState("request"); 
   const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 20;
+  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const filterMenuRef = useRef(null);
 
@@ -1328,7 +1378,6 @@ const CMSDashboard = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
   const [showSidebar, setShowSidebar] = useState(true);
   const [viewMode, setViewMode] = useState("summary");
   const [fromChart, setFromChart] = useState(false);
@@ -1488,7 +1537,7 @@ useEffect(() => {
     try {
       console.log("🔄 Đang cập nhật profile...", { userId, formData });
       
-      const res = await fetch(`https://onepasscms-backend.onrender.com/api/User/${userId}`, { 
+      const res = await fetch(`http://localhost:5000/api/User/${userId}`, { 
         method: "PUT", 
         body: formData 
       });
@@ -1545,7 +1594,7 @@ useEffect(() => {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("https://onepasscms-backend.onrender.com/api/dichvu");
+        const res = await fetch("http://localhost:5000/api/dichvu");
         const result = await res.json();
         if (result.success) setDichvuList(result.data);
         else setDichvuList([]);
@@ -1558,42 +1607,41 @@ useEffect(() => {
 
   // Fetch data ban đầu
 useEffect(() => {
-  const savedUser = localStorage.getItem("currentUser");
-  if (savedUser) {
-    try {
-      setCurrentUser(JSON.parse(savedUser));
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  // Fetch data
-  (async () => {
+  const fetchData = async (page = 1) => {
     try {
       const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-
- 
+      setLoading(true);
       const res1 = await fetch(
-        `https://onepasscms-backend.onrender.com/api/yeucau?userId=${currentUser?.id || ""}&is_admin=${currentUser?.is_admin || false}`
+        `http://localhost:5000/api/yeucau?page=${page}&limit=${rowsPerPage}&userId=${currentUser?.id || ""}&is_admin=${currentUser?.is_admin || false}`
       );
       const result1 = await res1.json();
-      if (result1.success) setData(result1.data);
+      if (result1.success) {
+        setData(result1.data);
+        setTotalPages(result1.totalPages || 1);
+        setCurrentPage(result1.currentPage || 1);
+      } else {
+        console.warn("⚠️ Lỗi khi tải yêu cầu:", result1.message);
+      }
 
-    
-      const res2 = await fetch("https://onepasscms-backend.onrender.com/api/User");
+
+      const res2 = await fetch("http://localhost:5000/api/User");
       const result2 = await res2.json();
       if (result2.success) setUsers(result2.data);
     } catch (err) {
       console.error("❌ Lỗi khi tải dữ liệu:", err);
       showToast(
-        currentLanguage === "vi"
-          ? "Lỗi tải dữ liệu!"
-          : "Error loading data!",
+        currentLanguage === "vi" ? "Lỗi tải dữ liệu!" : "Error loading data!",
         "danger"
       );
+    } finally {
+      setLoading(false);
     }
-  })();
-}, []);
+  };
+
+  // Gọi khi load lần đầu hoặc khi đổi trang
+  fetchData(currentPage);
+}, [currentPage, rowsPerPage]);
+
 
 
   const handleBellClick = () => {
@@ -1619,7 +1667,7 @@ const handleAddRequest = (newItem) => {
 
 const handleSave = async (updatedItem) => {
   try {
-    const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${updatedItem.YeuCauID}`, {
+    const res = await fetch(`https://onepasscms-backend.onrender.comapi/yeucau/${updatedItem.YeuCauID}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedItem),
@@ -1654,7 +1702,7 @@ const handleSave = async (updatedItem) => {
   //   const item = data.find(r => r.YeuCauID === id);
   //   if(!item) return;
   //   try {
-  //     const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${id}`, {
+  //     const res = await fetch(`https://onepasscms-backend.onrender.comapi/yeucau/${id}`, {
   //       method: 'PUT',
   //       headers: {'Content-Type': 'application/json'},
   //       body: JSON.stringify(item)
@@ -1823,23 +1871,19 @@ const serviceColorMap = {
 };
 
 // const pieColors = ["#60a5fa", "#facc15", "#fb923c", "#34d399"];
-  const indexOfLastRow = currentPage * rowsPerPage;
-  const indexOfFirstRow = indexOfLastRow - rowsPerPage;
-  const totalPages = Math.ceil(filteredData.length / rowsPerPage);
-  const currentRows = filteredData.slice(indexOfFirstRow, indexOfLastRow);
 
 
 
   // Dịch các header của table theo ngôn ngữ
   const tableHeaders = currentLanguage === 'vi' 
     ? [
-        'ID', 'Mã hồ sơ', 'Dịch vụ', 'Hình thức', 'Họ tên', 'Email', 'Mã Vùng', 
+        'ID', 'Mã hồ sơ', 'Dịch vụ', 'Hình thức','Cơ sở tư vấn','Họ tên', 'Email', 'Mã Vùng', 
         'SĐT', 'Tiêu đề', 'Nội dung', 'Chọn ngày', 'Giờ', 'Ngày tạo', 'Trạng thái',
         ...(currentUser.is_admin ? ['Người phụ trách'] : []),
         'Ghi chú', 'Hành động'
       ]
     : [
-        'ID', 'Record ID', 'Service', 'Mode', 'Full Name', 'Email', 'Area Code', 
+        'ID', 'Record ID', 'Service', 'Mode','Consulting Branch', 'Full Name', 'Email', 'Area Code', 
         'Phone', 'Title', 'Content', 'Select Date', 'Time', 'Created Date', 'Status',
         ...(currentUser.is_admin ? ['Assignee'] : []),
         'Note', 'Action'
@@ -2407,342 +2451,342 @@ const serviceColorMap = {
         );
       })()}
     </div>
-      <div
-  style={{
-    background: "#fff",
-    borderRadius: "12px",
-    padding: "20px",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
-  }}
->
-  <h5 className="fw-semibold mb-3 text-primary">
-    {currentLanguage === "vi"
-      ? "Số lượng dịch vụ theo kênh liên hệ"
-      : "Service Count by Contact Channel"}
-  </h5>
+        <div
+    style={{
+      background: "#fff",
+      borderRadius: "12px",
+      padding: "20px",
+      boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+    }}
+  >
+    <h5 className="fw-semibold mb-3 text-primary">
+      {currentLanguage === "vi"
+        ? "Số lượng dịch vụ theo kênh liên hệ"
+        : "Service Count by Contact Channel"}
+    </h5>
 
-  {(() => {
-    const grouped = data.reduce((acc, cur) => {
-      const type = cur.TenHinhThuc || "Không xác định";
-      acc[type] = (acc[type] || 0) + 1;
-      return acc;
-    }, {});
-    const total = Object.values(grouped).reduce((s, v) => s + v, 0);
-    const colorMap = {
-      "Trực tiếp": "#3b82f6",
-      "Gọi điện": "#22c55e",
-      "Email": "#f59e0b",
-      "Tin nhắn": "#9ca3af",
-    };
+    {(() => {
+      const grouped = data.reduce((acc, cur) => {
+        const type = cur.TenHinhThuc || "Không xác định";
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      }, {});
+      const total = Object.values(grouped).reduce((s, v) => s + v, 0);
+      const colorMap = {
+        "Trực tiếp": "#3b82f6",
+        "Gọi điện": "#22c55e",
+        "Email": "#f59e0b",
+        "Tin nhắn": "#9ca3af",
+      };
 
-    return (
-      <>
-        {Object.entries(grouped).map(([type, count], i) => {
-          const percent = ((count / total) * 100).toFixed(1);
-          return (
-            <div
-              key={i}
-              onClick={() => {
-                setFilterMode(type === filterMode ? "" : type);
-                showToast(
-                  type === filterMode
-                    ? currentLanguage === "vi"
-                      ? "Hiển thị tất cả kênh liên hệ"
-                      : "Showing all contact channels"
-                    : currentLanguage === "vi"
-                    ? `Lọc theo kênh liên hệ: ${type}`
-                    : `Filtering by contact channel: ${type}`,
-                  "info"
-                );
-              }}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 12,
-                gap: 12,
-                cursor: "pointer",
-                background:
-                  filterMode === type
-                    ? "rgba(37,99,235,0.08)"
-                    : "transparent",
-                borderRadius: 8,
-                padding: "4px 8px",
-                transition: "background 0.2s ease",
-              }}
-            >
-              <div style={{ width: 160, fontWeight: 500 }}>{type}</div>
+      return (
+        <>
+          {Object.entries(grouped).map(([type, count], i) => {
+            const percent = ((count / total) * 100).toFixed(1);
+            return (
               <div
-                style={{
-                  flex: 1,
-                  background: "#f3f4f6",
-                  borderRadius: 8,
-                  height: 10,
+                key={i}
+                onClick={() => {
+                  setFilterMode(type === filterMode ? "" : type);
+                  showToast(
+                    type === filterMode
+                      ? currentLanguage === "vi"
+                        ? "Hiển thị tất cả kênh liên hệ"
+                        : "Showing all contact channels"
+                      : currentLanguage === "vi"
+                      ? `Lọc theo kênh liên hệ: ${type}`
+                      : `Filtering by contact channel: ${type}`,
+                    "info"
+                  );
                 }}
-              >
-                <div
-                  style={{
-                    width: `${percent}%`,
-                    background: colorMap[type] || "#9ca3af",
-                    height: "100%",
-                    borderRadius: 8,
-                    transition: "width 0.3s ease",
-                  }}
-                ></div>
-              </div>
-              <div
                 style={{
-                  width: 90,
                   display: "flex",
-                  justifyContent: "flex-end",
                   alignItems: "center",
-                  gap: 6,
+                  justifyContent: "space-between",
+                  marginBottom: 12,
+                  gap: 12,
+                  cursor: "pointer",
+                  background:
+                    filterMode === type
+                      ? "rgba(37,99,235,0.08)"
+                      : "transparent",
+                  borderRadius: 8,
+                  padding: "4px 8px",
+                  transition: "background 0.2s ease",
                 }}
               >
-                <strong style={{ color: "#2563eb" }}>{count}</strong>
-                <span style={{ color: "#6b7280" }}>{percent}%</span>
-              </div>
-            </div>
-          );
-        })}
-
-        {/* Tổng cộng */}
-        <div
-          className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top"
-          style={{ fontWeight: "600", color: "#1f2937" }}
-        >
-          <span>
-            {currentLanguage === "vi" ? "Tổng cộng" : "Total"}
-          </span>
-          <span>
-            {total}{" "}
-            <span style={{ color: "#6b7280" }}>
-              {currentLanguage === "vi" ? "yêu cầu" : "requests"}
-            </span>
-          </span>
-        </div>
-      </>
-    );
-  })()}
-</div>
-
-    <div
-      style={{
-        background: "#fff",
-        borderRadius: "12px",
-        padding: "20px",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
-        marginTop: "2rem",
-      }}
-    >
-      {/* 🔹 Tiêu đề + Dropdown */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h5 className="fw-semibold text-primary mb-0">
-          {currentLanguage === "vi"
-            ? "Số lượng dịch vụ theo trạng thái thực hiện"
-            : "Service Count by Status"}
-        </h5>
-
-        <div className="d-flex align-items-center">
-          <select
-            className="form-select form-select-sm"
-            style={{ width: 200 }}
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-          >
-            <option value="">
-              {currentLanguage === "vi" ? "Tất cả trạng thái" : "All statuses"}
-            </option>
-            <option value="Tư vấn">
-              {currentLanguage === "vi" ? "Tư vấn" : "Consulting"}
-            </option>
-            <option value="Đang xử lý">
-              {currentLanguage === "vi" ? "Đang xử lý" : "Processing"}
-            </option>
-            <option value="Đang nộp hồ sơ">
-              {currentLanguage === "vi" ? "Đang nộp hồ sơ" : "Submitting"}
-            </option>
-            <option value="Hoàn thành">
-              {currentLanguage === "vi" ? "Hoàn thành" : "Completed"}
-            </option>
-          </select>
-
-          {filterStatus && (
-            <button
-              className="btn btn-outline-secondary btn-sm ms-2"
-              onClick={() => setFilterStatus("")}
-            >
-              {currentLanguage === "vi" ? "Xóa lọc" : "Reset"}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* 🔹 Hiển thị thanh progress cho từng dịch vụ */}
-      <div>
-        {Object.entries(groupedByService).map(([service, count], i) => {
-          const percent = ((count / total) * 100).toFixed(1);
-          const color = serviceColorMap[service] || "#60a5fa";
-
-          return (
-            <div key={i} className="mb-3">
-              <div className="d-flex justify-content-between align-items-center mb-1">
-                <strong>{service}</strong>
-                <span style={{ fontWeight: 500, color: color }}>
-                  {count} ({percent}%)
-                </span>
-              </div>
-
-              {/* Thanh progress */}
-              <div
-                style={{
-                  height: "8px",
-                  borderRadius: "6px",
-                  background: "#e5e7eb",
-                  overflow: "hidden",
-                }}
-              >
+                <div style={{ width: 160, fontWeight: 500 }}>{type}</div>
                 <div
                   style={{
-                    width: `${percent}%`,
-                    background: color,
-                    height: "100%",
-                    borderRadius: "6px",
-                    transition: "width 0.5s ease",
+                    flex: 1,
+                    background: "#f3f4f6",
+                    borderRadius: 8,
+                    height: 10,
                   }}
-                ></div>
+                >
+                  <div
+                    style={{
+                      width: `${percent}%`,
+                      background: colorMap[type] || "#9ca3af",
+                      height: "100%",
+                      borderRadius: 8,
+                      transition: "width 0.3s ease",
+                    }}
+                  ></div>
+                </div>
+                <div
+                  style={{
+                    width: 90,
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <strong style={{ color: "#2563eb" }}>{count}</strong>
+                  <span style={{ color: "#6b7280" }}>{percent}%</span>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
 
-        {/* 🔹 Tổng cộng */}
-        <div
-          className="d-flex justify-content-end align-items-center mt-3 pt-2 border-top"
-          style={{ fontWeight: 600, color: "#374151" }}
-        >
-          <span>
-            {total}{" "}
-            <span style={{ color: "#6b7280" }}>
-              {currentLanguage === "vi" ? "yêu cầu" : "requests"}
+          {/* Tổng cộng */}
+          <div
+            className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top"
+            style={{ fontWeight: "600", color: "#1f2937" }}
+          >
+            <span>
+              {currentLanguage === "vi" ? "Tổng cộng" : "Total"}
             </span>
-          </span>
-        </div>
-      </div>
-    </div>
-
-
+            <span>
+              {total}{" "}
+              <span style={{ color: "#6b7280" }}>
+                {currentLanguage === "vi" ? "yêu cầu" : "requests"}
+              </span>
+            </span>
+          </div>
+        </>
+      );
+    })()}
   </div>
 
       <div
-      style={{
-        flex: "1 1 48%",
-        background: "#fff",
-        borderRadius: "12px",
-        padding: "20px",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
-        overflowY: "auto",
-        maxHeight: "1000px",
-      }}
-    >
-  
-        <div
-          className="d-flex justify-content-between align-items-center mb-3"
-          style={{ gap: "1rem" }}
-        >
-          <h5 className="fw-semibold mb-0 text-primary">
+        style={{
+          background: "#fff",
+          borderRadius: "12px",
+          padding: "20px",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+          marginTop: "2rem",
+        }}
+      >
+        {/* 🔹 Tiêu đề + Dropdown */}
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h5 className="fw-semibold text-primary mb-0">
             {currentLanguage === "vi"
-              ? filterRegion
-                ? `Danh sách yêu cầu (${filterRegion}${
+              ? "Số lượng dịch vụ theo trạng thái thực hiện"
+              : "Service Count by Status"}
+          </h5>
+
+          <div className="d-flex align-items-center">
+            <select
+              className="form-select form-select-sm"
+              style={{ width: 200 }}
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="">
+                {currentLanguage === "vi" ? "Tất cả trạng thái" : "All statuses"}
+              </option>
+              <option value="Tư vấn">
+                {currentLanguage === "vi" ? "Tư vấn" : "Consulting"}
+              </option>
+              <option value="Đang xử lý">
+                {currentLanguage === "vi" ? "Đang xử lý" : "Processing"}
+              </option>
+              <option value="Đang nộp hồ sơ">
+                {currentLanguage === "vi" ? "Đang nộp hồ sơ" : "Submitting"}
+              </option>
+              <option value="Hoàn thành">
+                {currentLanguage === "vi" ? "Hoàn thành" : "Completed"}
+              </option>
+            </select>
+
+            {filterStatus && (
+              <button
+                className="btn btn-outline-secondary btn-sm ms-2"
+                onClick={() => setFilterStatus("")}
+              >
+                {currentLanguage === "vi" ? "Xóa lọc" : "Reset"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 🔹 Hiển thị thanh progress cho từng dịch vụ */}
+        <div>
+          {Object.entries(groupedByService).map(([service, count], i) => {
+            const percent = ((count / total) * 100).toFixed(1);
+            const color = serviceColorMap[service] || "#60a5fa";
+
+            return (
+              <div key={i} className="mb-3">
+                <div className="d-flex justify-content-between align-items-center mb-1">
+                  <strong>{service}</strong>
+                  <span style={{ fontWeight: 500, color: color }}>
+                    {count} ({percent}%)
+                  </span>
+                </div>
+
+                {/* Thanh progress */}
+                <div
+                  style={{
+                    height: "8px",
+                    borderRadius: "6px",
+                    background: "#e5e7eb",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${percent}%`,
+                      background: color,
+                      height: "100%",
+                      borderRadius: "6px",
+                      transition: "width 0.5s ease",
+                    }}
+                  ></div>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* 🔹 Tổng cộng */}
+          <div
+            className="d-flex justify-content-end align-items-center mt-3 pt-2 border-top"
+            style={{ fontWeight: 600, color: "#374151" }}
+          >
+            <span>
+              {total}{" "}
+              <span style={{ color: "#6b7280" }}>
+                {currentLanguage === "vi" ? "yêu cầu" : "requests"}
+              </span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+
+    </div>
+
+        <div
+        style={{
+          flex: "1 1 48%",
+          background: "#fff",
+          borderRadius: "12px",
+          padding: "20px",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+          overflowY: "auto",
+          maxHeight: "1000px",
+        }}
+      >
+    
+          <div
+            className="d-flex justify-content-between align-items-center mb-3"
+            style={{ gap: "1rem" }}
+          >
+            <h5 className="fw-semibold mb-0 text-primary">
+              {currentLanguage === "vi"
+                ? filterRegion
+                  ? `Danh sách yêu cầu (${filterRegion}${
+                      filterDichVu ? " - " + filterDichVu : ""
+                    })`
+                  : filterDichVu
+                  ? `Danh sách yêu cầu (${filterDichVu})`
+                  : "Danh sách yêu cầu"
+                : filterRegion
+                ? `Request List (${filterRegion}${
                     filterDichVu ? " - " + filterDichVu : ""
                   })`
                 : filterDichVu
-                ? `Danh sách yêu cầu (${filterDichVu})`
-                : "Danh sách yêu cầu"
-              : filterRegion
-              ? `Request List (${filterRegion}${
-                  filterDichVu ? " - " + filterDichVu : ""
-                })`
-              : filterDichVu
-              ? `Request List (${filterDichVu})`
-              : "Request List"}
-          </h5>
+                ? `Request List (${filterDichVu})`
+                : "Request List"}
+            </h5>
 
-         {(filterRegion || filterDichVu) && (
-        <button
-          className="btn btn-sm btn-outline-danger d-flex align-items-center gap-1"
-          onClick={() => {
-            setFilterRegion("");
-            setFilterDichVu("");
-            showToast(
+          {(filterRegion || filterDichVu) && (
+          <button
+            className="btn btn-sm btn-outline-danger d-flex align-items-center gap-1"
+            onClick={() => {
+              setFilterRegion("");
+              setFilterDichVu("");
+              showToast(
+                currentLanguage === "vi"
+                  ? "Đã xóa toàn bộ bộ lọc, hiển thị tất cả yêu cầu"
+                  : "All filters cleared, showing all requests",
+                "info"
+              );
+            }}
+            title={
               currentLanguage === "vi"
-                ? "Đã xóa toàn bộ bộ lọc, hiển thị tất cả yêu cầu"
-                : "All filters cleared, showing all requests",
-              "info"
-            );
-          }}
-          title={
-            currentLanguage === "vi"
-              ? "Xóa toàn bộ bộ lọc"
-              : "Clear all filters"
-          }
-          style={{
-            fontWeight: 500,
-            whiteSpace: "nowrap",
-            transition: "all 0.2s",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-          }}
-        >
-          <FilterX size={16} strokeWidth={2} />
-        </button>
-      )}
+                ? "Xóa toàn bộ bộ lọc"
+                : "Clear all filters"
+            }
+            style={{
+              fontWeight: 500,
+              whiteSpace: "nowrap",
+              transition: "all 0.2s",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <FilterX size={16} strokeWidth={2} />
+          </button>
+        )}
 
-        </div>
+          </div>
 
-        {/* 📋 Bảng dữ liệu yêu cầu */}
-        <table className="table table-hover table-bordered align-middle">
-          <thead className="table-light">
-            <tr>
-              <th>ID</th>
-              <th>{currentLanguage === "vi" ? "Họ tên" : "Name"}</th>
-              <th>{currentLanguage === "vi" ? "Mã vùng" : "Region Code"}</th>
-              <th>{currentLanguage === "vi" ? "Số điện thoại" : "Phone"}</th>
-              <th>Email</th>
-              <th>{currentLanguage === "vi" ? "Dịch vụ" : "Service"}</th>
-              <th>{currentLanguage === "vi" ? "Trạng thái" : "Status"}</th>
-            </tr>
-          </thead>
+          {/* 📋 Bảng dữ liệu yêu cầu */}
+          <table className="table table-hover table-bordered align-middle">
+            <thead className="table-light">
+              <tr>
+                <th>ID</th>
+                <th>{currentLanguage === "vi" ? "Họ tên" : "Name"}</th>
+                <th>{currentLanguage === "vi" ? "Mã vùng" : "Region Code"}</th>
+                <th>{currentLanguage === "vi" ? "Số điện thoại" : "Phone"}</th>
+                <th>Email</th>
+                <th>{currentLanguage === "vi" ? "Dịch vụ" : "Service"}</th>
+                <th>{currentLanguage === "vi" ? "Trạng thái" : "Status"}</th>
+              </tr>
+            </thead>
 
-          <tbody>
-            {data
-              .filter((r) => {
-                // 🔸 Lọc theo dịch vụ
-                const matchService = filterDichVu
-                  ? translateService(r.TenDichVu) === filterDichVu
-                  : true;
+            <tbody>
+              {data
+                .filter((r) => {
+                  // 🔸 Lọc theo dịch vụ
+                  const matchService = filterDichVu
+                    ? translateService(r.TenDichVu) === filterDichVu
+                    : true;
 
-                // 🔸 Lọc theo khu vực
-                const regionMap = { "+84": "Việt Nam", "+82": "Hàn Quốc" };
-                const region = regionMap[r.MaVung] || r.MaVung || "Không xác định";
-                const matchRegion = filterRegion ? region === filterRegion : true;
+                  // 🔸 Lọc theo khu vực
+                  const regionMap = { "+84": "Việt Nam", "+82": "Hàn Quốc" };
+                  const region = regionMap[r.MaVung] || r.MaVung || "Không xác định";
+                  const matchRegion = filterRegion ? region === filterRegion : true;
 
-                return matchService && matchRegion;
-              })
-              .map((r) => (
-                <tr key={r.YeuCauID}>
-                  <td>{r.YeuCauID}</td>
-                  <td>{r.HoTen}</td>
-                  <td>{r.MaVung}</td>
-                  <td>{r.SoDienThoai || "—"}</td>
-                  <td>{r.Email || "—"}</td>
-                  <td>{translateService(r.TenDichVu)}</td>
-                  <td>{r.TrangThai}</td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
+                  return matchService && matchRegion;
+                })
+                .map((r) => (
+                  <tr key={r.YeuCauID}>
+                    <td>{r.YeuCauID}</td>
+                    <td>{r.HoTen}</td>
+                    <td>{r.MaVung}</td>
+                    <td>{r.SoDienThoai || "—"}</td>
+                    <td>{r.Email || "—"}</td>
+                    <td>{translateService(r.TenDichVu)}</td>
+                    <td>{r.TrangThai}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
 
           {data.filter((r) => {
           const date = new Date(r.NgayTao);
@@ -2780,6 +2824,37 @@ const serviceColorMap = {
     {(!currentUser?.is_admin || viewMode === "list") && (
       <>
         <div className="mb-4">
+        <div
+          className="d-flex border-bottom mb-3"
+          style={{
+            gap: "1.5rem",
+            fontSize: "15px",
+            fontWeight: 500,
+          }}
+        >
+          {[
+            { key: "request", labelVi: "Danh sách yêu cầu", labelEn: "Requests" },
+            { key: "email", labelVi: "Danh sách email", labelEn: "Emails" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              className="bg-transparent border-0 position-relative pb-2"
+              style={{
+                color: subViewMode === tab.key ? "#2563eb" : "#6b7280",
+                borderBottom:
+                  subViewMode === tab.key
+                    ? "2px solid #2563eb"
+                    : "2px solid transparent",
+                transition: "all 0.2s ease",
+                cursor: "pointer",
+              }}
+              onClick={() => setSubViewMode(tab.key)}
+            >
+              {currentLanguage === "vi" ? tab.labelVi : tab.labelEn}
+            </button>
+          ))}
+        </div>
+
           <h5 className="fw-semibold mb-3 text-primary">
           {currentLanguage === "vi"
             ? "Danh sách yêu cầu khách hàng"
@@ -3124,8 +3199,8 @@ const serviceColorMap = {
           </thead>
 
           <tbody>
-            {currentRows.length > 0 ? (
-              currentRows.map((item) => (
+            {data.length > 0 ? (
+              data.map((item) => (
                 <TableRow
                   key={item.YeuCauID}
                   item={item}
@@ -3163,52 +3238,81 @@ const serviceColorMap = {
       </div>
  <div className="d-flex justify-content-between align-items-center mt-3 px-2">
 
-          <div className="text-muted small">
-            {currentLanguage === 'vi'
-              ? `Hiển thị ${currentRows.length} / ${filteredData.length} hàng`
-              : `Showing ${currentRows.length} / ${filteredData.length} rows`}
-          </div>
+         <div className="text-muted small">
+          {currentLanguage === 'vi'
+            ? `Hiển thị ${data.length} / 20 hàng (trang ${currentPage}/${totalPages})`
+            : `Showing ${data.length} / 20 rows (page ${currentPage}/${totalPages})`}
+
+        </div>
+
 
           {/* 👉 Phân trang */}
-          <div className="d-flex justify-content-center align-items-center">
-            <nav>
-              <ul className="pagination pagination-sm mb-0 shadow-sm">
-                <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
-                  <button className="page-link" onClick={() => setCurrentPage(p => p - 1)}>
-                    &laquo;
-                  </button>
-                </li>
+         <div className="d-flex justify-content-center align-items-center">
+          <nav>
+            <ul className="pagination pagination-sm mb-0 shadow-sm">
+              {/* Nút trang trước */}
+              <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                <button
+                  className="page-link"
+                  onClick={() => {
+                    if (currentPage > 1) setCurrentPage((p) => p - 1);
+                  }}
+                >
+                  &laquo;
+                </button>
+              </li>
 
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(p => p === 1 || p === totalPages || (p >= currentPage - 1 && p <= currentPage + 1))
-                  .map((p, idx, arr) => (
-                    <React.Fragment key={p}>
-                      {idx > 0 && arr[idx - 1] !== p - 1 && (
-                        <li className="page-item disabled"><span className="page-link">…</span></li>
-                      )}
-                      <li className={`page-item ${currentPage === p ? "active" : ""}`}>
-                        <button className="page-link" onClick={() => setCurrentPage(p)}>
-                          {p}
-                        </button>
+              {/* Hiển thị trang đầu, cuối, và các trang lân cận */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(
+                  (p) =>
+                    p === 1 ||
+                    p === totalPages ||
+                    (p >= currentPage - 1 && p <= currentPage + 1)
+                )
+                .map((p, idx, arr) => (
+                  <React.Fragment key={p}>
+                    {/* Hiển thị dấu “…” khi bỏ qua nhiều trang */}
+                    {idx > 0 && arr[idx - 1] !== p - 1 && (
+                      <li className="page-item disabled">
+                        <span className="page-link">…</span>
                       </li>
-                    </React.Fragment>
-                  ))}
+                    )}
+                    <li className={`page-item ${currentPage === p ? "active" : ""}`}>
+                      <button
+                        className="page-link"
+                        onClick={() => {
+                          if (p !== currentPage) setCurrentPage(p);
+                        }}
+                      >
+                        {p}
+                      </button>
+                    </li>
+                  </React.Fragment>
+                ))}
 
-                <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
-                  <button className="page-link" onClick={() => setCurrentPage(p => p + 1)}>
-                    &raquo;
-                  </button>
-                </li>
-              </ul>
-            </nav>
+              {/* Nút trang kế tiếp */}
+              <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                <button
+                  className="page-link"
+                  onClick={() => {
+                    if (currentPage < totalPages) setCurrentPage((p) => p + 1);
+                  }}
+                >
+                  &raquo;
+                </button>
+              </li>
+            </ul>
+          </nav>
 
-            <div className="ms-3 text-muted small">
-              {currentLanguage === 'vi'
-                ? `Trang ${currentPage}/${totalPages}`
-                : `Page ${currentPage}/${totalPages}`}
-            </div>
+          {/* Hiển thị số trang */}
+          <div className="ms-3 text-muted small">
+            {currentLanguage === "vi"
+              ? `Trang ${currentPage}/${totalPages}`
+              : `Page ${currentPage}/${totalPages}`}
           </div>
         </div>
+                </div>
 
     </>
   )}
