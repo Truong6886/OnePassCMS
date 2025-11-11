@@ -288,7 +288,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
 
           console.log("🔧 Dịch vụ gốc:", rawServiceName, "→", cleanServiceName, "→ prefix:", prefix);
 
-          const resAll = await fetch(`http://localhost:5000/api/yeucau`);
+          const resAll = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau`);
           const resultAll = await resAll.json();
           if (!resultAll.success) throw new Error("Không thể tải danh sách hồ sơ");
 
@@ -323,7 +323,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
 
        
           const res = await fetch(
-            `http://localhost:5000/api/yeucau/${localData.YeuCauID}`,
+            `https://onepasscms-backend.onrender.com/api/yeucau/${localData.YeuCauID}`,
             {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
@@ -364,7 +364,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
             );
 
             const res = await fetch(
-              `http://localhost:5000/api/yeucau/${localData.YeuCauID}`,
+              `https://onepasscms-backend.onrender.com/api/yeucau/${localData.YeuCauID}`,
               {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
@@ -555,7 +555,7 @@ const TableRow = ({ item, dichvuList, users, currentUser, data, onStatusChange, 
   modal.querySelector("#confirmBtn").onclick = async () => {
     overlay.remove();
     try {
-      const res = await fetch(`http://localhost:5000/api/yeucau/${localData.YeuCauID}`, {
+      const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${localData.YeuCauID}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
       });
@@ -1004,7 +1004,7 @@ const AddRequestModal = ({ dichvuList, users, data = [], onClose, onSave, curren
 
       console.log("🔄 Đang gửi yêu cầu mới...", newItem);
 
-      const res = await fetch("http://localhost:5000/api/yeucau", {
+      const res = await fetch("https://onepasscms-backend.onrender.com/api/yeucau", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newItem)
@@ -1458,7 +1458,7 @@ useEffect(() => {
 
 
 useEffect(() => {
-  const socket = io("http://localhost:5000", {
+  const socket = io("https://onepasscms-backend.onrender.com", {
     transports: ["websocket", "polling"],
     withCredentials: false,
   });
@@ -1537,7 +1537,7 @@ useEffect(() => {
     try {
       console.log("🔄 Đang cập nhật profile...", { userId, formData });
       
-      const res = await fetch(`http://localhost:5000/api/User/${userId}`, { 
+      const res = await fetch(`https://onepasscms-backend.onrender.com/api/User/${userId}`, { 
         method: "PUT", 
         body: formData 
       });
@@ -1594,7 +1594,7 @@ useEffect(() => {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/dichvu");
+        const res = await fetch("https://onepasscms-backend.onrender.com/api/dichvu");
         const result = await res.json();
         if (result.success) setDichvuList(result.data);
         else setDichvuList([]);
@@ -1612,7 +1612,7 @@ useEffect(() => {
       const currentUser = JSON.parse(localStorage.getItem("currentUser"));
       setLoading(true);
       const res1 = await fetch(
-        `http://localhost:5000/api/yeucau?page=${page}&limit=${rowsPerPage}&userId=${currentUser?.id || ""}&is_admin=${currentUser?.is_admin || false}`
+        `https://onepasscms-backend.onrender.com/api/yeucau?page=${page}&limit=${rowsPerPage}&userId=${currentUser?.id || ""}&is_admin=${currentUser?.is_admin || false}`
       );
       const result1 = await res1.json();
       if (result1.success) {
@@ -1624,7 +1624,7 @@ useEffect(() => {
       }
 
 
-      const res2 = await fetch("http://localhost:5000/api/User");
+      const res2 = await fetch("https://onepasscms-backend.onrender.com/api/User");
       const result2 = await res2.json();
       if (result2.success) setUsers(result2.data);
     } catch (err) {
