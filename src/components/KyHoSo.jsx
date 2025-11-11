@@ -41,7 +41,7 @@ export default function KyHoSo() {
     if (!mahoso) return;
     const fetchPDF = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/pdf-chuaky/${mahoso}`);
+        const res = await fetch(`https://onepasscms-backend.onrender.com/api/pdf-chuaky/${mahoso}`);
         const data = await res.json();
         if (data.success && data.data?.PdfUrl) {
           setPdfURL(data.data.PdfUrl);
