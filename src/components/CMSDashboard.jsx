@@ -77,14 +77,14 @@ const CMSDashboard = () => {
 
     useEffect(() => {
       if (subViewMode === "email") {
-        fetch("http://localhost:5000/api/email")
+        fetch("https://onepasscms-backend.onrender.com/api/email")
           .then(res => res.json())
           .then(data => data.success && setEmailList(data.data))
           .catch(err => console.error("❌ Lỗi tải email:", err));
       }
     }, [subViewMode]);
   const handleEmailUpdate = async (id, newEmail) => {
-    const res = await fetch(`http://localhost:5000/api/email/${id}`, {
+    const res = await fetch(`https://onepasscms-backend.onrender.com/api/email/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: newEmail }),
@@ -98,7 +98,7 @@ const CMSDashboard = () => {
 
   const handleEmailDelete = async (id) => {
     if (!window.confirm("Xóa email này?")) return;
-    const res = await fetch(`http://localhost:5000/api/email/${id}`, { method: "DELETE" });
+    const res = await fetch(`https://onepasscms-backend.onrender.com/api/email/${id}`, { method: "DELETE" });
     const result = await res.json();
     if (result.success) {
       showToast("Đã xóa email", "success");
@@ -240,7 +240,7 @@ useEffect(() => {
     try {
       console.log("🔄 Đang cập nhật profile...", { userId, formData });
       
-      const res = await fetch(`http://localhost:5000/api/User/${userId}`, { 
+      const res = await fetch(`https://onepasscms-backend.onrender.com/api/User/${userId}`, { 
         method: "PUT", 
         body: formData 
       });
@@ -297,7 +297,7 @@ useEffect(() => {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/dichvu");
+        const res = await fetch("https://onepasscms-backend.onrender.com/api/dichvu");
         const result = await res.json();
         if (result.success) setDichvuList(result.data);
         else setDichvuList([]);
@@ -315,7 +315,7 @@ useEffect(() => {
       const currentUser = JSON.parse(localStorage.getItem("currentUser"));
       setLoading(true);
       const res1 = await fetch(
-        `http://localhost:5000/api/yeucau?page=${page}&limit=${rowsPerPage}&userId=${currentUser?.id || ""}&is_admin=${currentUser?.is_admin || false}`
+        `https://onepasscms-backend.onrender.com/api/yeucau?page=${page}&limit=${rowsPerPage}&userId=${currentUser?.id || ""}&is_admin=${currentUser?.is_admin || false}`
       );
       const result1 = await res1.json();
       if (result1.success) {
@@ -327,7 +327,7 @@ useEffect(() => {
       }
 
 
-      const res2 = await fetch("http://localhost:5000/api/User");
+      const res2 = await fetch("https://onepasscms-backend.onrender.com/api/User");
       const result2 = await res2.json();
       if (result2.success) setUsers(result2.data);
     } catch (err) {
@@ -370,7 +370,7 @@ const handleAddRequest = (newItem) => {
 
 const handleSave = async (updatedItem) => {
   try {
-    const res = await fetch(`http://localhost:5000/api/yeucau/${updatedItem.YeuCauID}`, {
+    const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${updatedItem.YeuCauID}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedItem),
@@ -1017,7 +1017,7 @@ const serviceColorMap = {
                       onClick={async () => {
                         try {
                           const res = await fetch(
-                            `http://localhost:5000/api/email/${item.id}`,
+                            `https://onepasscms-backend.onrender.com/api/email/${item.id}`,
                             {
                               method: "PUT",
                               headers: { "Content-Type": "application/json" },
@@ -1062,7 +1062,7 @@ const serviceColorMap = {
                           return;
                         try {
                           const res = await fetch(
-                            `http://localhost:5000/api/email/${item.id}`,
+                            `https://onepasscms-backend.onrender.com/api/email/${item.id}`,
                             { method: "DELETE" }
                           );
                           const result = await res.json();
