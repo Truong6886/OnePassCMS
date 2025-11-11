@@ -57,7 +57,7 @@ export default function TraCuuHoSo() {
     setRecord(null);
 
     try {
-      const res = await fetch("http://localhost:5000/api/yeucau");
+      const res = await fetch("https://onepasscms-backend.onrender.com/api/yeucau");
       const result = await res.json();
 
       if (result.success) {
@@ -69,7 +69,7 @@ export default function TraCuuHoSo() {
 
         if (found) {
           const pdfRes = await fetch(
-            `http://localhost:5000/api/pdf-chuaky/${found.MaHoSo}`
+            `https://onepasscms-backend.onrender.com/api/pdf-chuaky/${found.MaHoSo}`
           );
           const pdfResult = await pdfRes.json();
 
@@ -102,7 +102,7 @@ export default function TraCuuHoSo() {
       formData.append("pdf", pdfFile);
       formData.append("MaHoSo", record.MaHoSo);
 
-      const res = await fetch("http://localhost:5000/api/upload-pdf", {
+      const res = await fetch("https://onepasscms-backend.onrender.com/api/upload-pdf", {
         method: "POST",
         body: formData,
       });
@@ -110,7 +110,7 @@ export default function TraCuuHoSo() {
       if (!result.success) throw new Error(result.message);
 
       // 2️⃣ Tạo vùng ký PDF
-      const addRes = await fetch("http://localhost:5000/api/add-signature-field", {
+      const addRes = await fetch("https://onepasscms-backend.onrender.com/api/add-signature-field", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pdfUrl: result.url, mahoso: record.MaHoSo }),
