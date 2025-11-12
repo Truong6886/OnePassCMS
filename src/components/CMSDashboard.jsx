@@ -21,6 +21,7 @@ import DashboardSummary from "./CMSDashboard/DashboardSummary";
 import DashboardList from './CMSDashboard/DashboardList';
 import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import useSocketListener from "./CMSDashboard/hooks/useSocketListener";
+import DashboardHeader from "./CMSDashboard/DashboardHeader";
 window.bootstrap = bootstrap;
 
 
