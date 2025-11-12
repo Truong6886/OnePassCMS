@@ -147,7 +147,7 @@ const AddRequestModal = ({ dichvuList, users, data = [], onClose, onSave, curren
       ? ["Trực tiếp", "Gọi điện", "Email"]
       : ["In-person", "Phone Call", "Email"];
 
-  return (
+ return (
     <div
       style={{
         position: "fixed",
@@ -167,8 +167,8 @@ const AddRequestModal = ({ dichvuList, users, data = [], onClose, onSave, curren
           inset: 0,
           background: "rgba(0,0,0,0.45)",
           backdropFilter: "blur(8px)",
-          transition: "opacity 0.3s ease",
           opacity: visible ? 1 : 0,
+          transition: "opacity 0.3s ease",
           cursor: loading ? "not-allowed" : "pointer",
         }}
       />
@@ -225,7 +225,7 @@ const AddRequestModal = ({ dichvuList, users, data = [], onClose, onSave, curren
             : "Add New Request"}
         </h5>
 
-        {/* Form chính */}
+        {/* Form */}
         <div
           style={{
             display: "grid",
@@ -236,111 +236,102 @@ const AddRequestModal = ({ dichvuList, users, data = [], onClose, onSave, curren
           }}
         >
           {/* Dịch vụ */}
-          <div>
-            <label className="form-label small text-secondary fw-semibold">
-              {currentLanguage === "vi" ? "Dịch vụ *" : "Service *"}
-            </label>
-            <select
-              className="form-select form-select-sm rounded-3"
-              value={formData.TenDichVu}
-              onChange={(e) => handleInputChange("TenDichVu", e.target.value)}
-              disabled={loading}
-            >
-              <option value="">
-                {currentLanguage === "vi"
-                  ? "--Chọn dịch vụ--"
-                  : "--Select service--"}
-              </option>
-              {serviceOptions.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </div>
+          <SelectField
+            label={currentLanguage === "vi" ? "Dịch vụ *" : "Service *"}
+            value={formData.TenDichVu}
+            options={serviceOptions}
+            onChange={(v) => handleInputChange("TenDichVu", v)}
+            placeholder={currentLanguage === "vi" ? "--Chọn dịch vụ--" : "--Select service--"}
+          />
 
           {/* Hình thức */}
-          <div>
-            <label className="form-label small text-secondary fw-semibold">
-              {currentLanguage === "vi" ? "Hình thức *" : "Format *"}
-            </label>
-            <select
-              className="form-select form-select-sm rounded-3"
-              value={formData.TenHinhThuc}
-              onChange={(e) => handleInputChange("TenHinhThuc", e.target.value)}
-              disabled={loading}
-            >
-              <option value="">
-                {currentLanguage === "vi"
-                  ? "--Chọn hình thức--"
-                  : "--Select format--"}
-              </option>
-              {formatOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </div>
+          <SelectField
+            label={currentLanguage === "vi" ? "Hình thức *" : "Format *"}
+            value={formData.TenHinhThuc}
+            options={formatOptions}
+            onChange={(v) => handleInputChange("TenHinhThuc", v)}
+            placeholder={currentLanguage === "vi" ? "--Chọn hình thức--" : "--Select format--"}
+          />
 
           {/* Họ tên */}
-          <div>
-            <label className="form-label small fw-semibold text-secondary">
-              {currentLanguage === "vi" ? "Họ tên *" : "Full Name *"}
-            </label>
-            <input
-              type="text"
-              className="form-control form-control-sm rounded-3 shadow-sm border-light"
-              value={formData.HoTen}
-              onChange={(e) => handleInputChange("HoTen", e.target.value)}
-              disabled={loading}
-              placeholder={
-                currentLanguage === "vi" ? "Nhập họ tên" : "Enter full name"
-              }
+          <InputField
+            label={currentLanguage === "vi" ? "Họ tên *" : "Full Name *"}
+            value={formData.HoTen}
+            onChange={(v) => handleInputChange("HoTen", v)}
+            placeholder={currentLanguage === "vi" ? "Nhập họ tên" : "Enter full name"}
+          />
+
+          {/* Email */}
+          <InputField
+            label="Email *"
+            value={formData.Email}
+            onChange={(v) => handleInputChange("Email", v)}
+            placeholder={currentLanguage === "vi" ? "Nhập email" : "Enter email"}
+          />
+
+          {/* SĐT */}
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <SelectField
+              label={currentLanguage === "vi" ? "Mã vùng" : "Area Code"}
+              value={formData.MaVung}
+              options={["+84", "+82"]}
+              onChange={(v) => handleInputChange("MaVung", v)}
+            />
+            <InputField
+              label={currentLanguage === "vi" ? "SĐT *" : "Phone *"}
+              value={formData.SoDienThoai}
+              onChange={(v) => handleInputChange("SoDienThoai", v)}
+              placeholder={currentLanguage === "vi" ? "Nhập số điện thoại" : "Enter phone number"}
             />
           </div>
 
-          {/* Email */}
-          <div>
-            <label className="form-label small text-secondary fw-semibold">
-              {currentLanguage === "vi" ? "Email *" : "Email *"}
-            </label>
-            <input
-              type="email"
-              className="form-control form-control-sm rounded-3"
-              value={formData.Email}
-              onChange={(e) => handleInputChange("Email", e.target.value)}
-              disabled={loading}
-              placeholder={
-                currentLanguage === "vi" ? "Nhập email" : "Enter email"
-              }
-            />
-          </div>
+          <InputField
+            label={currentLanguage === "vi" ? "Tiêu đề" : "Title"}
+            value={formData.TieuDe}
+            onChange={(v) => handleInputChange("TieuDe", v)}
+          />
+
+          <InputField
+            type="date"
+            label={currentLanguage === "vi" ? "Ngày" : "Date"}
+            value={formData.ChonNgay}
+            onChange={(v) => handleInputChange("ChonNgay", v)}
+          />
+
+          <InputField
+            type="time"
+            label={currentLanguage === "vi" ? "Giờ" : "Time"}
+            value={formData.Gio}
+            onChange={(v) => handleInputChange("Gio", v)}
+          />
+
+          <TextAreaField
+            label={currentLanguage === "vi" ? "Nội dung" : "Content"}
+            value={formData.NoiDung}
+            onChange={(v) => handleInputChange("NoiDung", v)}
+          />
+
+          <TextAreaField
+            label={currentLanguage === "vi" ? "Ghi chú" : "Note"}
+            value={formData.GhiChu}
+            onChange={(v) => handleInputChange("GhiChu", v)}
+          />
         </div>
 
         {/* Footer */}
         <div className="d-flex justify-content-center gap-3 mt-4">
-          <button
-            className="btn btn-light border rounded-pill px-4"
-            onClick={handleClose}
-            disabled={loading}
-          >
+          <button className="btn btn-light border rounded-pill px-4" onClick={handleClose} disabled={loading}>
             {currentLanguage === "vi" ? "Hủy" : "Cancel"}
           </button>
           <button
-            className="btn rounded-pill px-4"
-            style={{
-              backgroundColor: "#2563eb",
-              border: "none",
-              color: "white",
-              fontWeight: 600,
-            }}
+            className="btn rounded-pill px-4 text-white"
+            style={{ backgroundColor: "#2563eb", fontWeight: 600 }}
             onClick={handleSubmit}
             disabled={loading}
           >
             {loading ? (
               <>
-                <span className="spinner-border spinner-border-sm me-2" />
+                <span className="spinner-border spinner-border-sm me-2" />{" "}
                 {currentLanguage === "vi" ? "Đang thêm..." : "Adding..."}
               </>
             ) : currentLanguage === "vi" ? (
@@ -354,5 +345,52 @@ const AddRequestModal = ({ dichvuList, users, data = [], onClose, onSave, curren
     </div>
   );
 };
+
+// ==========================
+// 🔸 Reusable Components
+// ==========================
+const InputField = ({ label, type = "text", value, onChange, placeholder }) => (
+  <div>
+    <label className="form-label small text-secondary fw-semibold">{label}</label>
+    <input
+      type={type}
+      className="form-control form-control-sm rounded-3"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+    />
+  </div>
+);
+
+const SelectField = ({ label, value, options = [], onChange, placeholder }) => (
+  <div>
+    <label className="form-label small text-secondary fw-semibold">{label}</label>
+    <select
+      className="form-select form-select-sm rounded-3"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      {placeholder && <option value="">{placeholder}</option>}
+      {options.map((opt) => (
+        <option key={opt} value={opt}>
+          {opt}
+        </option>
+      ))}
+    </select>
+  </div>
+);
+
+const TextAreaField = ({ label, value, onChange, placeholder }) => (
+  <div>
+    <label className="form-label small text-secondary fw-semibold">{label}</label>
+    <textarea
+      rows={2}
+      className="form-control rounded-3"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+    />
+  </div>
+);
 
 export default AddRequestModal;
