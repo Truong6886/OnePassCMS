@@ -73,7 +73,7 @@ const AddRequestModal = ({ dichvuList, users, data = [], onClose, onSave, curren
 
       console.log("🔄 Đang gửi yêu cầu mới...", newItem);
 
-      const res = await fetch("http://localhost:5000/api/yeucau", {
+      const res = await fetch("https://onepasscms-backend.onrender.com/api/yeucau", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newItem),
