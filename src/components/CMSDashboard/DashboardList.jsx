@@ -1,6 +1,7 @@
 import React from "react";
 import TableRow from "../TableRow";
 import { showToast } from "../../utils/toast";
+import "../../styles/DashboardList.css";
 
 const DashboardList = ({
   subViewMode,
@@ -114,131 +115,142 @@ const DashboardList = ({
             )}
           </div>
 
-          <div className="table-responsive mt-3" ref={tableContainerRef}>
-  <table className="table table-bordered table-hover align-middle">
-    <thead>
-      <tr>
-        {tableHeaders.map((header, i) => (
-          <th
-            key={i}
-            className={
-              header === (currentLanguage === "vi" ? "Họ tên" : "Full Name")
-                ? "sticky-col"
-                : ""
-            }
-          >
-            {header}
-          </th>
-        ))}
-      </tr>
-    </thead>
+             <div className="table-wrapper mt-3">
+            <div className="table-responsive" ref={tableContainerRef}>
+              <table className="table table-bordered table-hover align-middle mb-0">
+                <thead>
+                  <tr>
+                    {tableHeaders.map((header, i) => (
+                      <th
+                        key={i}
+                        className={
+                          header ===
+                          (currentLanguage === "vi" ? "Họ tên" : "Full Name")
+                            ? "sticky-col"
+                            : ""
+                        }
+                      >
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.length > 0 ? (
+                    data.map((item) => (
+                      <TableRow
+                        key={item.YeuCauID}
+                        item={item}
+                        dichvuList={dichvuList}
+                        users={users}
+                        currentUser={currentUser}
+                        onStatusChange={handleStatusChange}
+                        onSave={handleSave}
+                        data={data}
+                        currentLanguage={currentLanguage}
+                        onDelete={(id) =>
+                          setData((prev) =>
+                            prev.filter((r) => r.YeuCauID !== id)
+                          )
+                        }
+                      />
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={tableHeaders.length}
+                        className="text-center py-4 text-muted"
+                      >
+                        {currentLanguage === "vi"
+                          ? "Không có dữ liệu"
+                          : "No data available"}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-    <tbody>
-      {data.length > 0 ? (
-        data.map((item) => (
-          <TableRow
-            key={item.YeuCauID}
-            item={item}
-            dichvuList={dichvuList || []}
-            users={users}
-            currentUser={currentUser}
-            onStatusChange={handleStatusChange}
-            onSave={handleSave}
-            data={data}
-            currentLanguage={currentLanguage}
-            onDelete={(id) =>
-              setData((prev) => prev.filter((r) => r.YeuCauID !== id))
-            }
-          />
-        ))
-      ) : (
-        <tr>
-          <td
-            colSpan={tableHeaders.length}
-            className="text-center py-4 text-muted"
-          >
-            {currentLanguage === "vi"
-              ? "Không có dữ liệu"
-              : "No data available"}
-          </td>
-        </tr>
-      )}
-    </tbody>
-  </table>
-</div>
 
-{/* --- Phân trang & thống kê --- */}
-<div className="d-flex justify-content-between align-items-center mt-3 px-2">
-  {/* Hiển thị tổng số hàng */}
-  <div className="text-muted small">
-    {currentLanguage === "vi"
-      ? `Hiển thị ${data.length} / 20 hàng (trang ${currentPage}/${totalPages})`
-      : `Showing ${data.length} / 20 rows (page ${currentPage}/${totalPages})`}
-  </div>
-
-  {/* --- Phân trang --- */}
-  <div className="d-flex justify-content-center align-items-center">
-    <nav>
-      <ul className="pagination pagination-sm mb-0 shadow-sm">
-        {/* Nút trang trước */}
-        <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
-          <button
-            className="page-link"
-            onClick={() => {
-              if (currentPage > 1) setCurrentPage((p) => p - 1);
-            }}
-          >
-            &laquo;
-          </button>
-        </li>
-
-        {/* Hiển thị trang đầu, cuối, và các trang lân cận */}
-        {Array.from({ length: totalPages }, (_, i) => i + 1)
-          .filter(
-            (p) =>
-              p === 1 ||
-              p === totalPages ||
-              (p >= currentPage - 1 && p <= currentPage + 1)
-          )
-          .map((p, idx, arr) => (
-            <React.Fragment key={p}>
-              {idx > 0 && arr[idx - 1] !== p - 1 && (
-                <li className="page-item disabled">
-                  <span className="page-link">…</span>
-                </li>
-              )}
-              <li className={`page-item ${currentPage === p ? "active" : ""}`}>
-                <button
-                  className="page-link"
-                  onClick={() => {
-                    if (p !== currentPage) setCurrentPage(p);
-                  }}
-                >
-                  {p}
-                </button>
-              </li>
-            </React.Fragment>
-          ))}
-
-        {/* Nút trang kế tiếp */}
-        <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
-          <button
-            className="page-link"
-            onClick={() => {
-              if (currentPage < totalPages) setCurrentPage((p) => p + 1);
-            }}
-          >
-            &raquo;
-          </button>
-        </li>
-      </ul>
-    </nav>
-
-    {/* Hiển thị số trang */}
-    <div className="ms-3 text-muted small">
+  {/* --- PHÂN TRANG --- */}
+  <div
+    className="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light"
+    style={{
+      marginTop: "0",
+      borderTop: "1px solid #dee2e6",
+    }}
+  >
+    <div className="text-muted small">
       {currentLanguage === "vi"
-        ? `Trang ${currentPage}/${totalPages}`
-        : `Page ${currentPage}/${totalPages}`}
+        ? `Hiển thị ${data.length} / 20 hàng (trang ${currentPage}/${totalPages})`
+        : `Showing ${data.length} / 20 rows (page ${currentPage}/${totalPages})`}
+    </div>
+
+    <div className="d-flex justify-content-center align-items-center">
+      <nav>
+        <ul className="pagination pagination-sm mb-0 shadow-sm">
+          <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+            <button
+              className="page-link"
+              onClick={() => {
+                if (currentPage > 1) setCurrentPage((p) => p - 1);
+              }}
+            >
+              &laquo;
+            </button>
+          </li>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter(
+              (p) =>
+                p === 1 ||
+                p === totalPages ||
+                (p >= currentPage - 1 && p <= currentPage + 1)
+            )
+            .map((p, idx, arr) => (
+              <React.Fragment key={p}>
+                {idx > 0 && arr[idx - 1] !== p - 1 && (
+                  <li className="page-item disabled">
+                    <span className="page-link">…</span>
+                  </li>
+                )}
+                <li
+                  className={`page-item ${currentPage === p ? "active" : ""}`}
+                >
+                  <button
+                    className="page-link"
+                    onClick={() => {
+                      if (p !== currentPage) setCurrentPage(p);
+                    }}
+                  >
+                    {p}
+                  </button>
+                </li>
+              </React.Fragment>
+            ))}
+
+          <li
+            className={`page-item ${
+              currentPage === totalPages ? "disabled" : ""
+            }`}
+          >
+            <button
+              className="page-link"
+              onClick={() => {
+                if (currentPage < totalPages) setCurrentPage((p) => p + 1);
+              }}
+            >
+              &raquo;
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      <div className="ms-3 text-muted small">
+        {currentLanguage === "vi"
+          ? `Trang ${currentPage}/${totalPages}`
+          : `Page ${currentPage}/${totalPages}`}
+      </div>
     </div>
   </div>
 </div>

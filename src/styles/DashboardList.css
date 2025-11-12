@@ -1,0 +1,107 @@
+/* ====== BẢNG & BỐ CỤC ====== */
+.table-wrapper {
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  overflow: visible;
+}
+
+.table-responsive {
+  overflow: auto;
+  position: relative;
+  scrollbar-width: thin;
+  padding-top: 0px;
+
+}
+
+.table {
+  margin-bottom: 0 !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  min-width: max-content; /* ép scroll ngang */
+}
+
+/* ====== HEADER ====== */
+/* ====== CỐ ĐỊNH HEADER ====== */
+.table thead th {
+  position: sticky;
+  top: 0;
+  background-color: #1e3a8a;
+  color: #fff;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+  z-index: 20; /* header luôn trên cùng */
+}
+
+/* ====== CỘT "HỌ TÊN" TRONG BODY ====== */
+.sticky-col {
+  position: sticky;
+  left: 0;
+  top: auto;
+  background-color: #fff;
+  border-right: 1px solid #dee2e6;
+  z-index: 5; /* thấp hơn header */
+}
+
+/* ====== CỘT "HỌ TÊN" TRONG HEADER ====== */
+.table thead th.sticky-col {
+  left: 0;
+  top: 0;
+  z-index: 30; /* cao nhất */
+  background-color: #1e3a8a !important;
+  color: #fff !important;
+  box-shadow: 2px 0 0 #1e3a8a;
+}
+
+/* ====== HOVER ====== */
+.table-hover tbody tr:hover .sticky-col {
+  background-color: #f8f9fa !important;
+}
+
+
+/* Hover đồng bộ */
+.table-hover tbody tr:hover .sticky-col {
+  background-color: #f8f9fa !important;
+}
+
+/* ====== PHÂN TRANG ====== */
+.table-footer {
+  padding: 8px 12px;
+  border-top: 1px solid #dee2e6;
+  background-color: #f9fafb;
+}
+
+/* ====== TAB HEADER ====== */
+.tab-btn {
+  background: transparent;
+  border: none;
+  position: relative;
+  padding-bottom: 6px;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.tab-btn.active {
+  color: #2563eb;
+  border-bottom: 2px solid #2563eb;
+}
+
+/* ====== NÚT & TÌM KIẾM ====== */
+.search-input {
+  width: 300px;
+  border-radius: 30px;
+  padding-left: 18px;
+}
+
+.btn-add {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 28px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
