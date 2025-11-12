@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Save, Trash2 } from "lucide-react";
 import { showToast } from "../utils/toast";
-
+import "../styles/TableRow.css";
 const TableRow = ({
   item,
   dichvuList,
@@ -18,13 +18,10 @@ const TableRow = ({
   const handleInputChange = (field, value) => {
     setLocalData((prev) => {
       const updated = { ...prev, [field]: value };
-
-      // ✅ Khi chọn người phụ trách, cập nhật cả tên nhân viên
       if (field === "NguoiPhuTrachId") {
         const selectedUser = users.find((u) => String(u.id) === String(value));
         updated.NguoiPhuTrach = selectedUser ? selectedUser.name : "";
       }
-
       return updated;
     });
   };
@@ -61,28 +58,6 @@ const TableRow = ({
     return map[serviceName] || serviceName;
   };
 
-  useEffect(() => {
-    const table = document.querySelector("table.table");
-    if (!table || !table.parentElement) return;
-
-    const container = table.parentElement;
-    const stickyCols = table.querySelectorAll(".sticky-col");
-
-    const handleScroll = () => {
-      const scrollLeft = container.scrollLeft;
-      stickyCols.forEach((col) => {
-        if (scrollLeft > 0) col.classList.add("sticky");
-        else col.classList.remove("sticky");
-      });
-    };
-
-    container.addEventListener("scroll", handleScroll);
-
-    return () => {
-      if (container) container.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
-
   const handleSave = () => onSave(localData);
   const displayMaHoSo =
     localData.TrangThai === "Tư vấn" ? "" : localData.MaHoSo || "-";
@@ -107,17 +82,14 @@ const TableRow = ({
       <td className="text-center fw-semibold">{localData.YeuCauID}</td>
       <td className="text-center">{displayMaHoSo}</td>
 
-      {/* Tên dịch vụ */}
+      {/* Dịch vụ */}
       <td>
         <input
           type="text"
           className="form-control form-control-sm"
-          style={{ width: 110 }}
+          style={{ width: 130 }}
           value={translateService(localData.TenDichVu)}
           onChange={(e) => handleInputChange("TenDichVu", e.target.value)}
-          placeholder={
-            currentLanguage === "vi" ? "Nhập dịch vụ" : "Enter service"
-          }
         />
       </td>
 
@@ -129,7 +101,7 @@ const TableRow = ({
         <input
           type="text"
           className="form-control form-control-sm"
-          style={{ width: 90 }}
+          style={{ width: 120 }}
           value={localData.HoTen}
           onChange={(e) => handleInputChange("HoTen", e.target.value)}
         />
@@ -139,8 +111,8 @@ const TableRow = ({
       <td>
         <input
           type="email"
-          style={{ width: 130 }}
           className="form-control form-control-sm"
+          style={{ width: 150 }}
           value={localData.Email}
           onChange={(e) => handleInputChange("Email", e.target.value)}
         />
@@ -148,8 +120,8 @@ const TableRow = ({
       <td>
         <input
           type="text"
-          style={{ width: 40 }}
           className="form-control form-control-sm"
+          style={{ width: 50 }}
           value={localData.MaVung}
           onChange={(e) => handleInputChange("MaVung", e.target.value)}
         />
@@ -157,29 +129,36 @@ const TableRow = ({
       <td>
         <input
           type="text"
-          style={{ width: 90 }}
           className="form-control form-control-sm"
+          style={{ width: 100 }}
           value={localData.SoDienThoai}
           onChange={(e) => handleInputChange("SoDienThoai", e.target.value)}
         />
       </td>
 
-      {/* Tiêu đề / Nội dung */}
+      {/* Tiêu đề */}
       <td>
         <input
-          style={{ width: 100 }}
           type="text"
           className="form-control form-control-sm"
+          style={{ width: 140 }}
           value={localData.TieuDe}
           onChange={(e) => handleInputChange("TieuDe", e.target.value)}
         />
       </td>
+
+      {/* ✅ Nội dung — textarea */}
       <td>
         <textarea
-          style={{ width: 150 }}
           className="form-control form-control-sm"
+          style={{
+            width: 200,
+            minHeight: "60px",
+            resize: "vertical",
+            lineHeight: "1.4",
+          }}
           rows={2}
-          value={localData.NoiDung}
+          value={localData.NoiDung || ""}
           onChange={(e) => handleInputChange("NoiDung", e.target.value)}
         />
       </td>
@@ -189,7 +168,7 @@ const TableRow = ({
         <input
           type="date"
           className="form-control form-control-sm"
-          style={{ width: "100px" }}
+          style={{ width: 120 }}
           value={
             localData.ChonNgay
               ? new Date(localData.ChonNgay).toISOString().split("T")[0]
@@ -202,14 +181,14 @@ const TableRow = ({
         <input
           type="time"
           className="form-control form-control-sm"
-          style={{ width: "80px" }}
+          style={{ width: 100 }}
           value={gioVN}
           onChange={(e) => handleInputChange("Gio", e.target.value)}
         />
       </td>
 
       {/* Ngày tạo */}
-      <td className="text-nowrap text-center">
+      <td className="text-center text-nowrap">
         {localData.NgayTao && (
           <>
             {new Date(localData.NgayTao).toLocaleDateString("vi-VN", {
@@ -231,54 +210,47 @@ const TableRow = ({
       <td>
         <select
           className="form-select form-select-sm"
-          style={{ width: 130 }}
+          style={{ width: 140 }}
           value={localData.TrangThai}
-          onChange={(e) =>
-            handleInputChange("TrangThai", e.target.value)
-          }
+          onChange={(e) => handleInputChange("TrangThai", e.target.value)}
         >
-          {statusOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
+          {statusOptions.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
             </option>
           ))}
         </select>
       </td>
 
-      {/* Người phụ trách (admin) */}
+      {/* Người phụ trách */}
       {currentUser?.is_admin && (
         <td>
           <select
             className="form-select form-select-sm"
-            style={{ width: 100 }}
-            value={
-              localData.NguoiPhuTrachId
-                ? String(localData.NguoiPhuTrachId)
-                : ""
-            }
-            onChange={(e) =>
-              handleInputChange("NguoiPhuTrachId", e.target.value)
-            }
+            style={{ width: 130 }}
+            value={localData.NguoiPhuTrachId || ""}
+            onChange={(e) => handleInputChange("NguoiPhuTrachId", e.target.value)}
           >
             <option value="">--Chọn--</option>
-            {users.length > 0 ? (
-              users.map((u) => (
-                <option key={u.id} value={String(u.id)}>
-                  {u.name}
-                </option>
-              ))
-            ) : (
-              <option disabled>Đang tải...</option>
-            )}
+            {users.map((u) => (
+              <option key={u.id} value={String(u.id)}>
+                {u.name}
+              </option>
+            ))}
           </select>
         </td>
       )}
 
-      {/* Ghi chú */}
+      {/* ✅ Ghi chú — textarea */}
       <td>
         <textarea
-          style={{ width: 150 }}
           className="form-control form-control-sm"
+          style={{
+            width: 200,
+            minHeight: "60px",
+            resize: "vertical",
+            lineHeight: "1.4",
+          }}
           rows={2}
           value={localData.GhiChu || ""}
           onChange={(e) => handleInputChange("GhiChu", e.target.value)}
@@ -288,13 +260,11 @@ const TableRow = ({
       {/* Hành động */}
       <td className="text-center">
         <div className="d-flex justify-content-center align-items-center gap-2">
-          {/* Nút Lưu */}
           <button
-            className="btn btn-sm d-flex align-items-center justify-content-center"
+            className="btn btn-sm"
             style={{
               backgroundColor: "#2563eb",
-              border: "none",
-              color: "white",
+              color: "#fff",
               width: 36,
               height: 36,
               borderRadius: 6,
@@ -304,13 +274,11 @@ const TableRow = ({
             <Save size={17} strokeWidth={2.3} />
           </button>
 
-          {/* Nút Xóa */}
           <button
-            className="btn btn-sm d-flex align-items-center justify-content-center"
+            className="btn btn-sm"
             style={{
               backgroundColor: "#ef4444",
-              border: "none",
-              color: "white",
+              color: "#fff",
               width: 36,
               height: 36,
               borderRadius: 6,
