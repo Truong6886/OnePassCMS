@@ -22,12 +22,14 @@ export default function useSocketListener({
         return exists ? prev : [...prev, newRequestData];
       });
 
+      const message =
+        currentLanguage === "vi"
+          ? `Yêu cầu mới từ: ${newRequestData.HoTen || "Khách hàng"}`
+          : `New request from: ${newRequestData.HoTen || "Customer"}`;
+
       const newNotification = {
         id: Date.now(),
-        message:
-          currentLanguage === "vi"
-            ? `Yêu cầu mới từ: ${newRequestData.HoTen || "Khách hàng"}`
-            : `New request from: ${newRequestData.HoTen || "Customer"}`,
+        message,
         time: new Date().toLocaleTimeString("vi-VN"),
         requestId: newRequestData.YeuCauID,
       };
@@ -38,12 +40,19 @@ export default function useSocketListener({
         return updated;
       });
 
-      showToast(
-        currentLanguage === "vi"
-          ? `Có yêu cầu mới từ ${newRequestData.HoTen}`
-          : `New request from ${newRequestData.HoTen}`,
-        "success"
-      );
+   
+      showToast(message, "success");
+
+
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("📩 " + message, {
+          body:
+            currentLanguage === "vi"
+              ? "Có yêu cầu mới trong hệ thống CMS"
+              : "A new request has arrived in CMS",
+          icon: "/favicon_logo.png",
+        });
+      }
 
       setHasNewRequest(true);
       setShowNotification(true);
