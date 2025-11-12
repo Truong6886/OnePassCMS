@@ -18,6 +18,9 @@ import TableRow from './TableRow'
 import * as bootstrap from 'bootstrap';
 import EditProfileModal from "./EditProfileModal";
 import DashboardSummary from "./CMSDashboard/DashboardSummary";
+import DashboardList from './CMSDashboard/DashboardList';
+import NotificationPanel from "./CMSDashboard/NotificationPanel";
+import useSocketListener from "./CMSDashboard/hooks/useSocketListener";
 window.bootstrap = bootstrap;
 
 
@@ -160,79 +163,14 @@ useEffect(() => {
 }, []);
 
 
-useEffect(() => {
-  const socket = io("https://onepasscms-backend.onrender.com", {
-    transports: ["websocket", "polling"],
-    withCredentials: false,
+  useSocketListener({
+    currentLanguage,
+    translateService,
+    setData,
+    setNotifications,
+    setHasNewRequest,
+    setShowNotification,
   });
-
-  socket.on("connect", () => console.log("✅ Socket connected:", socket.id));
-
-  // 🟢 Nhận sự kiện yêu cầu mới từ khách hàng
-  socket.on("new_request", (newRequestData) => {
-    console.log("📨 Nhận yêu cầu mới từ KH:", newRequestData);
-
-    // ✅ Thêm yêu cầu vào danh sách nếu chưa có
-    setData((prev) => {
-      const exists = prev.some((r) => r.YeuCauID === newRequestData.YeuCauID);
-      return exists ? prev : [...prev, newRequestData];
-    });
-
-    // ✅ Tạo thông báo trong hệ thống dashboard
-    const newNotification = {
-      id: Date.now(),
-      message:
-        currentLanguage === "vi"
-          ? `Yêu cầu mới từ: ${newRequestData.HoTen || "Khách hàng"}`
-          : `New request from: ${newRequestData.HoTen || "Customer"}`,
-      time: new Date().toLocaleTimeString("vi-VN"),
-      requestId: newRequestData.YeuCauID,
-    };
-
-    setNotifications((prev) => {
-      const updated = [newNotification, ...prev.slice(0, 9)];
-      localStorage.setItem("notifications", JSON.stringify(updated));
-      return updated;
-    });
-
-    // ✅ Hiện toast nội bộ trong dashboard
-    showToast(
-      currentLanguage === "vi"
-        ? `Có yêu cầu mới từ ${newRequestData.HoTen}`
-        : `New request from ${newRequestData.HoTen}`,
-      "success"
-    );
-
-    setHasNewRequest(true);
-    setShowNotification(true);
-
-   
-    if ("Notification" in window && Notification.permission === "granted") {
-    try {
-      const translatedService = translateService(newRequestData.TenDichVu);
-
-      new Notification("Yêu cầu khách hàng mới", {
-        body: `${newRequestData.HoTen || "Khách hàng"} - ${
-          translatedService || "Dịch vụ"
-        }`,
-        icon: "logo192x192.png",
-        badge: "logo192x192.png",
-        requireInteraction: true,
-        silent: false,
-      });
-    } catch (error) {
-      console.error("❌ Lỗi hiển thị Notification:", error);
-    }
-      } else {
-        console.warn("⚠️ Trình duyệt chưa cho phép Notification hoặc không hỗ trợ.");
-      }
-  });
-
-  socket.on("disconnect", () => console.log("❌ Socket disconnected"));
-  socket.on("error", (error) => console.error("Socket error:", error));
-
-  return () => socket.disconnect();
-}, [currentLanguage]);
 
 
 
@@ -418,9 +356,7 @@ const handleSave = async (updatedItem) => {
   //   }
   // };
 
-// 🧃 Hàm hiển thị toast thông báo (duy nhất)
 
-// ✅ Khi thay đổi bộ lọc hoặc tìm kiếm, quay về trang đầu
 useEffect(() => {
   setCurrentPage(1);
 }, [filterStatus, filterDichVu, filterUser, startDate, endDate, searchTerm]);
@@ -606,93 +542,12 @@ const serviceColorMap = {
       />
 
       {/* Notification Dropdown */}
-      {showNotification && (
-        <div
-          style={{
-            position: "fixed",
-            top: "39px",
-            right: "90px",
-            background: "white",
-            borderRadius: "10px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            width: "300px",
-            padding: "15px",
-            zIndex: 3000,
-            animation: "fadeInUp 0.3s ease",
-            border: "1px solid #e5e7eb",
-            maxHeight: "250px",
-            overflowY: "auto"
-          }}
-        >
-          <div
-            style={{
-              fontWeight: "600",
-              color: "#2563eb",
-              marginBottom: "10px",
-              fontSize: "16px",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              justifyContent: "space-between"
-            }}
-          >
-            <span>🔔 {currentLanguage === 'vi' ? 'Thông báo mới' : 'New Notifications'}</span>
-            <button
-              onClick={() => setShowNotification(false)}
-              style={{
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-                color: "#9ca3af",
-                fontSize: "14px"
-              }}
-            >
-              ✕
-            </button>
-          </div>
-
-          {notifications.length === 0 ? (
-            <div style={{ fontSize: "14px", color: "#6b7280" }}>
-              {currentLanguage === 'vi' ? 'Chưa có thông báo' : 'No notifications'}
-            </div>
-          ) : (
-            notifications.map((n, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: "8px 0",
-                  borderBottom: "1px solid #f3f4f6",
-                  cursor: "pointer"
-                }}
-                onClick={() => setShowNotification(false)}
-              >
-                <div style={{ fontSize: "14px", color: "#374151" }}>{n.message}</div>
-                <div
-                  style={{
-                    fontSize: "12px",
-                    color: "#6b7280",
-                    marginTop: "4px",
-                    fontStyle: "italic"
-                  }}
-                >
-                  {n.time}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-    {/* <Header
-        currentUser={currentUser}
-        onToggleSidebar={handleToggleSidebar}
-        showSidebar={showSidebar}
-        onOpenEditModal={handleOpenEditModal}
-        hasNewRequest={hasNewRequest}
-        onBellClick={handleBellClick}
+      <NotificationPanel
+        showNotification={showNotification}
+        setShowNotification={setShowNotification}
+        notifications={notifications}
         currentLanguage={currentLanguage}
-        onLanguageChange={setCurrentLanguage}
-      /> */}
-
+      />
     <Sidebar collapsed={!showSidebar}  user={currentUser} />
 
 
@@ -704,411 +559,66 @@ const serviceColorMap = {
           transition: "margin-left 0.3s",
         }}
       >
-        {/* 🟦 Thanh tab điều hướng — chỉ hiển thị với admin */}
-        {currentUser?.is_admin && (
-          <div
-            className="d-flex border-bottom mb-4"
-            style={{
-              gap: "2rem",
-              borderColor: "#e0e0e0",
-              fontWeight: 500,
-              fontSize: "1rem",
-            }}
-          >
-            {[
-               { key: "summary", labelVi: "Tổng quan", labelEn: "Summary" },
-                { key: "list", labelVi: "Danh sách", labelEn: "List" },
-              ].map((tab) => (
-                <div
-                  key={tab.key}
-                  onClick={() => {
-                    if (tab.key === "list") {
-                      if (!fromChart) {
-                        // 🟢 Nếu KHÔNG đến từ biểu đồ, reset filter về mặc định
-                        setFilterType(null);
-                        setFilterDichVu(null);
-                        setFilterStatus(null);
-                      }
-                    }
-                    setFromChart(false);
-                    setViewMode(tab.key);
-                  }}
-                  style={{
-                    cursor: "pointer",
-                    paddingBottom: "6px",
-                    borderBottom:
-                      viewMode === tab.key
-                        ? "3px solid #2563eb"
-                        : "3px solid transparent",
-                    color: viewMode === tab.key ? "#2563eb" : "#6b7280",
-                    fontWeight: viewMode === tab.key ? "600" : "500",
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  {currentLanguage === "vi" ? tab.labelVi : tab.labelEn}
-              </div>
 
-            ))}
-          </div>
-          
-        )}
+        <DashboardHeader
+          currentUser={currentUser}
+          currentLanguage={currentLanguage}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          fromChart={fromChart}
+          setFromChart={setFromChart}
+          setFilterType={setFilterType}
+          setFilterDichVu={setFilterDichVu}
+          setFilterStatus={setFilterStatus}
+        />
 
-    {currentUser?.is_admin && viewMode === "summary" && (
-      <DashboardSummary
+      {currentUser?.is_admin && viewMode === "summary" && (
+        <DashboardSummary
+          data={data}
+          currentLanguage={currentLanguage}
+          serviceColorMap={serviceColorMap}
+          translateService={translateService}
+          filterDichVu={filterDichVu}
+          setFilterDichVu={setFilterDichVu}
+          filterRegion={filterRegion}
+          setFilterRegion={setFilterRegion}
+          filterMode={filterMode}
+          setFilterMode={setFilterMode}
+          timeRange={timeRange}
+          setTimeRange={setTimeRange}
+          filterStatus={filterStatus}
+          setFilterStatus={setFilterStatus}
+          groupedByService={groupedByService}
+          total={total}
+          chartData={chartData}
+          allServices={allServices}
+        />
+      )}
+
+
+
+    {(!currentUser?.is_admin || viewMode === "list") && (
+      <DashboardList
+        subViewMode={subViewMode}
+        setSubViewMode={setSubViewMode}
         data={data}
+        setData={setData}
+        emailList={emailList}
+        setEmailList={setEmailList}
         currentLanguage={currentLanguage}
-        serviceColorMap={serviceColorMap}
-        translateService={translateService}
-        filterDichVu={filterDichVu}
-        setFilterDichVu={setFilterDichVu}
-        filterRegion={filterRegion}
-        setFilterRegion={setFilterRegion}
-        filterMode={filterMode}
-        setFilterMode={setFilterMode}
-        timeRange={timeRange}
-        setTimeRange={setTimeRange}
-        filterStatus={filterStatus}
-        setFilterStatus={setFilterStatus}
-        groupedByService={groupedByService}
-        total={total}
-        chartData={chartData}
-        allServices={allServices}
+        currentUser={currentUser}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        setShowAddModal={setShowAddModal}
+        tableHeaders={tableHeaders}
+        dichvuList={dichvuList}
+        users={users}
+        handleStatusChange={handleStatusChange}
+        handleSave={handleSave}
+        tableContainerRef={tableContainerRef}
       />
     )}
 
-
-
- {(!currentUser?.is_admin || viewMode === "list") && (
-  <>
-    <div className="mb-4">
-      {/* --- Tabs --- */}
-      <div
-        className="d-flex border-bottom mb-3"
-        style={{
-          gap: "1.5rem",
-          fontSize: "15px",
-          fontWeight: 500,
-        }}
-      >
-        {[
-          { key: "request", labelVi: "Danh sách yêu cầu", labelEn: "Requests" },
-          { key: "email", labelVi: "Danh sách email", labelEn: "Emails" },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            className="bg-transparent border-0 position-relative pb-2"
-            style={{
-              color: subViewMode === tab.key ? "#2563eb" : "#6b7280",
-              borderBottom:
-                subViewMode === tab.key
-                  ? "2px solid #2563eb"
-                  : "2px solid transparent",
-              transition: "all 0.2s ease",
-              cursor: "pointer",
-            }}
-            onClick={() => setSubViewMode(tab.key)}
-          >
-            {currentLanguage === "vi" ? tab.labelVi : tab.labelEn}
-          </button>
-        ))}
-      </div>
-
-      {/* --- Nếu đang ở tab Danh sách yêu cầu --- */}
-      {subViewMode === "request" && (
-        <>
-          <h5 className="fw-semibold mb-3 text-primary">
-            {currentLanguage === "vi"
-              ? "Danh sách yêu cầu khách hàng"
-              : "Customer Request List"}
-          </h5>
-
-          {/* 🔍 Thanh tìm kiếm + ➕ nút thêm */}
-          <div className="d-flex justify-content-between align-items-center">
-            <input
-              type="text"
-              className="form-control shadow-sm"
-              placeholder={
-                currentLanguage === "vi"
-                  ? "Tìm kiếm Họ tên, Email, SĐT..."
-                  : "Search Name, Email, Phone..."
-              }
-              style={{
-                width: 300,
-                borderRadius: "30px",
-                paddingLeft: "18px",
-                transition: "all 0.3s ease",
-              }}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onFocus={(e) =>
-                (e.target.style.boxShadow = "0 0 8px rgba(37,99,235,0.3)")
-              }
-              onBlur={(e) => (e.target.style.boxShadow = "none")}
-            />
-
-            {currentUser?.is_admin && (
-              <button
-                className="btn btn-success shadow-sm"
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: "50%",
-                  fontSize: 28,
-                  fontWeight: "bold",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "all 0.25s ease",
-                  padding: 0,
-                }}
-                onClick={() => setShowAddModal(true)}
-              >
-                <span style={{ transform: "translateY(-1px)" }}>+</span>
-              </button>
-            )}
-          </div>
-
-
-          <div className="table-responsive mt-3" ref={tableContainerRef}>
-            <table className="table table-bordered table-hover align-middle">
-              <thead>
-                <tr>
-                  {tableHeaders.map((header, i) => (
-                    <th
-                      key={i}
-                      className={
-                        header ===
-                        (currentLanguage === "vi" ? "Họ tên" : "Full Name")
-                          ? "sticky-col"
-                          : ""
-                      }
-                    >
-                      {header}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-
-              <tbody>
-                {data.length > 0 ? (
-                  data.map((item) => (
-                    <TableRow
-                      key={item.YeuCauID}
-                      item={item}
-                      dichvuList={dichvuList || []}
-                      users={users}
-                      currentUser={currentUser}
-                      onStatusChange={handleStatusChange}
-                      onSave={handleSave}
-                      data={data}
-                      currentLanguage={currentLanguage}
-                      onDelete={(id) =>
-                        setData((prev) =>
-                          prev.filter((r) => r.YeuCauID !== id)
-                        )
-                      }
-                    />
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={tableHeaders.length}
-                      className="text-center py-4 text-muted"
-                    >
-                      {currentLanguage === "vi"
-                        ? "Không có dữ liệu"
-                        : "No data available"}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-
-      {/* --- Nếu đang ở tab Danh sách email --- */}
-{subViewMode === "email" && (
-  <>
-    <h5 className="fw-semibold mb-3 text-primary">
-      {currentLanguage === "vi" ? "Danh sách email hệ thống" : "System Email List"}
-    </h5>
-
-    <div className="table-responsive" ref={tableContainerRef}>
-      <table className="table table-bordered table-hover align-middle mb-0">
-        <thead
-          style={{
-            backgroundColor: "#1e3a8a",
-            color: "white",
-            fontWeight: 600,
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          <tr>
-            <th style={{ width: 60 }}>#</th>
-            <th>Email</th>
-            <th style={{ width: 220 }}>
-              {currentLanguage === "vi" ? "Ngày tạo" : "Created At"}
-            </th>
-            <th style={{ width: 150 }}>
-              {currentLanguage === "vi" ? "Hành động" : "Actions"}
-            </th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {emailList.length > 0 ? (
-            emailList.map((item, idx) => (
-              <tr key={item.id}>
-                {/* ID */}
-                <td className="text-center fw-semibold">{idx + 1}</td>
-
-                {/* Ô input email */}
-                <td className="text-center align-middle">
-                  <input
-                    type="email"
-                    className="form-control form-control-sm text-center"
-                    style={{
-                      fontSize: "14px",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "4px",
-                      padding: "4px 8px",
-                      width: "100%",
-                      maxWidth: "320px",
-                      margin: "0 auto",
-                    }}
-                    value={item.Email}
-                    onChange={(e) => {
-                      const newEmail = e.target.value;
-                      setEmailList((prev) =>
-                        prev.map((el) =>
-                          el.id === item.id ? { ...el, Email: newEmail } : el
-                        )
-                      );
-                    }}
-                  />
-                </td>
-
-                {/* Ngày tạo */}
-                <td className="text-center text-muted small align-middle">
-                  {item.NgayTao
-                    ? new Date(item.NgayTao).toLocaleString("vi-VN", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "-"}
-                </td>
-
-                {/* Cột hành động */}
-                <td className="text-center">
-                  <div className="d-flex justify-content-center align-items-center gap-2">
-                    {/* Nút lưu */}
-                    <button
-                      className="btn btn-sm btn-primary d-flex align-items-center justify-content-center"
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: "6px",
-                      }}
-                      onClick={async () => {
-                        try {
-                          const res = await fetch(
-                            `https://onepasscms-backend.onrender.com/api/email/${item.id}`,
-                            {
-                              method: "PUT",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ Email: item.Email }),
-                            }
-                          );
-                          const result = await res.json();
-                          if (result.success) {
-                            showToast(
-                              currentLanguage === "vi"
-                                ? "Đã lưu email thành công!"
-                                : "Email saved successfully!",
-                              "success"
-                            );
-                          } else {
-                            showToast(result.message || "Lỗi khi lưu", "error");
-                          }
-                        } catch (err) {
-                          showToast("Server error!", "error");
-                        }
-                      }}
-                    >
-                      <i className="bi bi-floppy-fill fs-6"></i>
-                    </button>
-
-                    {/* Nút xóa */}
-                    <button
-                      className="btn btn-sm btn-danger d-flex align-items-center justify-content-center"
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: "6px",
-                      }}
-                      onClick={async () => {
-                        if (
-                          !window.confirm(
-                            currentLanguage === "vi"
-                              ? "Bạn có chắc muốn xóa email này?"
-                              : "Are you sure to delete this email?"
-                          )
-                        )
-                          return;
-                        try {
-                          const res = await fetch(
-                            `https://onepasscms-backend.onrender.com/api/email/${item.id}`,
-                            { method: "DELETE" }
-                          );
-                          const result = await res.json();
-                          if (result.success) {
-                            setEmailList((prev) =>
-                              prev.filter((e) => e.id !== item.id)
-                            );
-                            showToast(
-                              currentLanguage === "vi"
-                                ? "Đã xóa email"
-                                : "Email deleted",
-                              "success"
-                            );
-                          } else {
-                            showToast(result.message || "Lỗi khi xóa", "error");
-                          }
-                        } catch {
-                          showToast("Server error!", "error");
-                        }
-                      }}
-                    >
-                      <i className="bi bi-trash-fill fs-6"></i>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan={4} className="text-center py-4 text-muted">
-                {currentLanguage === "vi"
-                  ? "Không có email nào."
-                  : "No emails found."}
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  </>
-)}
-
-
-    </div>
-  </>
-)}
 
 </div>
 
@@ -1126,7 +636,7 @@ const serviceColorMap = {
           dichvuList={dichvuList}
           users={users}
           onClose={() => setShowAddModal(false)}
-          onSave={handleAddRequest} // ✅ Gọi hàm riêng này
+          onSave={handleAddRequest} 
           currentLanguage={currentLanguage}
         />
       )}

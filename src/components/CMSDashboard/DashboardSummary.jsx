@@ -14,10 +14,7 @@ import {
 import { FilterX } from "lucide-react";
 import { showToast } from "../../utils/toast";
 
-/**
- * Component hiển thị toàn bộ phần "Tổng quan" (Summary)
- * trong dashboard admin: gồm biểu đồ, thống kê theo dịch vụ, khu vực, thời gian, kênh liên hệ, trạng thái.
- */
+
 const DashboardSummary = ({
   data,
   currentLanguage,
