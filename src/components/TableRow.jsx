@@ -76,20 +76,13 @@
     const displayMaHoSo =
       localData.TrangThai === "Tư vấn" ? "" : localData.MaHoSo || "-";
 
-    const statusOptions =
-      currentLanguage === "vi"
-        ? [
-            { value: "Tư vấn", label: "Tư vấn" },
-            { value: "Đang xử lý", label: "Đang xử lý" },
-            { value: "Đang nộp hồ sơ", label: "Đang nộp hồ sơ" },
-            { value: "Hoàn thành", label: "Hoàn thành" },
-          ]
-        : [
-            { value: "Tư vấn", label: "Consulting" },
-            { value: "Đang xử lý", label: "Processing" },
-            { value: "Đang nộp hồ sơ", label: "Submitting" },
-            { value: "Hoàn thành", label: "Completed" },
-          ];
+    const statusOptions = [
+      { value: "Tư vấn", label: "Tư vấn" },
+      { value: "Đang xử lý", label: "Đang xử lý" },
+      { value: "Đang nộp hồ sơ", label: "Đang nộp hồ sơ" },
+      { value: "Hoàn thành", label: "Hoàn thành" },
+    ];
+
 
     return (
       <tr>

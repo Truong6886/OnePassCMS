@@ -45,7 +45,15 @@ const handleExportExcel = () => {
     "Nội dung": item.NoiDung,
     "Ngày chọn": item.ChonNgay,
     "Giờ": item.Gio,
-    "Ngày tạo": item.NgayTao,
+    "Ngày tạo": item.NgayTao
+    ? new Date(item.NgayTao).toLocaleString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "",
     "Trạng thái": item.TrangThai,
     "Ghi chú": item.GhiChu,
   }));
@@ -69,8 +77,8 @@ const handleExportExcel = () => {
         }}
       >
         {[
-          { key: "request", labelVi: "Danh sách yêu cầu", labelEn: "Requests" },
-          { key: "email", labelVi: "Danh sách email", labelEn: "Emails" },
+          { key: "request", labelVi: "Danh sách yêu cầu", labelEn: "Request List" },
+          { key: "email", labelVi: "Danh sách email", labelEn: "Email List" },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -139,6 +147,7 @@ const handleExportExcel = () => {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    marginBottom: "10px",
                     padding: 0,
                   }}
                   onClick={() => setShowAddModal(true)}
@@ -148,20 +157,30 @@ const handleExportExcel = () => {
               )}
 
           
-              <button
-                className="btn btn-outline-primary shadow-sm d-flex align-items-center"
-                style={{
-                  height: 40,
-                  borderRadius: 8,
-                  fontWeight: 500,
-                  gap: 6,
-                  whiteSpace: "nowrap",
-                  marginRight: "20px"
-                }}
-                onClick={handleExportExcel}
-              >
-                <i className="bi bi-file-earmark-excel"></i> Excel
-              </button>
+             <div style={{ textAlign: "right", marginTop: "10px" }}>
+          <button
+            onClick={handleExportExcel}
+            style={{
+              background: "#16a34a",
+              color: "white",
+              border: "none",
+              borderRadius: "8px",
+              padding: "8px 16px",
+              cursor: "pointer",
+              fontWeight: 500,
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              marginBottom: "20px",
+              marginLeft:"10px",
+              marginRight: "20px"
+            }}
+          >
+         <i className="bi bi-file-earmark-excel"></i>
+      {currentLanguage === "vi" ? "Tải Danh Sách Yêu Cầu" : "Download Request List"}
+
+          </button>
+        </div>
             </div>
 
             )}

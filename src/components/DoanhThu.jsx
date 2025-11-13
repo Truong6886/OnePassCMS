@@ -14,23 +14,9 @@ import {
 } from "recharts";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import translateService from "../utils/translateService";
+import * as XLSX from "xlsx";
 
-// ✅ Dịch tiếng Hàn sang tiếng Việt
-const translateServiceName = (serviceName) => {
-  const map = {
-    "인증 센터": "Chứng thực",
-    "결혼 이민": "Kết hôn",
-    "출생신고 대행": "Khai sinh, khai tử",
-    "출입국 행정 대행": "Xuất nhập cảnh",
-    "신분증명 서류 대행": "Giấy tờ tuỳ thân",
-    "입양 절차 대행": "Nhận nuôi",
-    "비자 대행": "Thị thực",
-    "법률 컨설팅": "Tư vấn pháp lý",
-    "B2B 서비스": "Dịch vụ B2B",
-    "기타": "Khác",
-  };
-  return map[serviceName] || serviceName;
-};
 
 // ✅ Định dạng tiền tệ
 const formatCurrency = (num) => {
@@ -89,6 +75,19 @@ export default function DoanhThu() {
   const rowsPerPage = 10;
 
   const t = translations[currentLanguage];
+  const formatDateForExcel = (isoString) => {
+    if (!isoString) return "";
+    const date = new Date(isoString);
+
+    return date.toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  };
 
   const viewModeLabels = {
     ngay: { vi: "Ngày", en: "Day" },
@@ -118,13 +117,13 @@ export default function DoanhThu() {
           fontSize: "18px",
         }}
       >
-        <p>🚫 Bạn không có quyền truy cập trang “Doanh Thu”.</p>
+        <p>Bạn không có quyền truy cập trang “Doanh Thu”.</p>
         <p>Vui lòng quay lại trang chủ.</p>
       </div>
     );
   }
 
-  // ====== Fetch dữ liệu ======
+
   useEffect(() => {
     fetchRecords();
   }, []);
@@ -172,7 +171,7 @@ export default function DoanhThu() {
           typeof r.TenDichVu === "object"
             ? r.TenDichVu?.name || r.TenDichVu?.ten || ""
             : r.TenDichVu || "";
-        const translated = translateServiceName(dv);
+        const translated = translateService(dv);
         return translated === selectedService;
       });
     }
@@ -226,14 +225,44 @@ export default function DoanhThu() {
     setChartData(Object.values(group));
   };
 
-  // ====== Thay đổi doanh thu theo dòng ======
+
   const handleChange = (id, value) => {
     setFilteredRecords((prev) =>
       prev.map((r) => (r.YeuCauID === id ? { ...r, DoanhThu: value } : r))
     );
   };
 
-  // ====== Lưu doanh thu ======
+const handleExportExcel = () => {
+  if (!filteredRecords || filteredRecords.length === 0) {
+    toast.warning("Không có dữ liệu để xuất Excel!");
+    return;
+  }
+
+  const exportData = filteredRecords.map((r) => ({
+    ID: r.YeuCauID,
+    "Họ tên": r.HoTen,
+    Email: r.Email,
+    "Số điện thoại": r.SoDienThoai,
+    "Dịch vụ": translateService(
+      typeof r.TenDichVu === "object"
+        ? r.TenDichVu?.name || r.TenDichVu?.ten
+        : r.TenDichVu
+    ),
+    "Nhân viên phụ trách":
+      typeof r.NguoiPhuTrach === "object"
+        ? r.NguoiPhuTrach?.name || r.NguoiPhuTrach?.username
+        : r.NguoiPhuTrach,
+    "Doanh thu": r.DoanhThu || 0,
+    "Ngày tạo": formatDateForExcel(r.NgayTao),
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(exportData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "DoanhThu");
+
+  XLSX.writeFile(workbook, "Doanh_thu.xlsx");
+};
+
   const handleSaveRow = async (id, value) => {
     setSavingRow(id);
     try {
@@ -258,7 +287,7 @@ export default function DoanhThu() {
     }
   };
 
-  // ====== Danh sách filter ======
+
   const serviceOptions = [
     "tatca",
     ...new Set(
@@ -268,7 +297,7 @@ export default function DoanhThu() {
             typeof r.TenDichVu === "object"
               ? r.TenDichVu?.name || r.TenDichVu?.ten
               : r.TenDichVu;
-          return translateServiceName(dv);
+          return translateService(dv);
         })
         .filter(Boolean)
     ),
@@ -294,7 +323,6 @@ export default function DoanhThu() {
     currentPage * rowsPerPage
   );
 
-  // ====== Giao diện ======
   return (
     <div style={{ display: "flex", background: "#f8fafc", minHeight: "100vh" }}>
       <Sidebar collapsed={collapsed} user={currentUser} />
@@ -447,6 +475,29 @@ export default function DoanhThu() {
               </ResponsiveContainer>
             )}
           </div>
+        <div style={{ textAlign: "right", marginTop: "10px" }}>
+          <button
+            onClick={handleExportExcel}
+            style={{
+              background: "#16a34a",
+              color: "white",
+              border: "none",
+              borderRadius: "8px",
+              padding: "8px 16px",
+              cursor: "pointer",
+              fontWeight: 500,
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              marginBottom: "20px",
+              marginLeft: "10px"
+            }}
+          >
+          <i className="bi bi-file-earmark-excel"></i>
+          {currentLanguage === "vi" ? "Tải Danh sách Doanh Thu" : "Download Revenue List"}
+
+          </button>
+        </div>
 
           <TableSection
             loading={loading}
@@ -521,7 +572,7 @@ const TableSection = ({
                 typeof r.TenDichVu === "object"
                   ? r.TenDichVu?.name || r.TenDichVu?.ten || "—"
                   : r.TenDichVu || "—";
-              const dv = translateServiceName(rawService);
+              const dv = translateService(rawService);
               const nv =
                 typeof r.NguoiPhuTrach === "object"
                   ? r.NguoiPhuTrach?.name || r.NguoiPhuTrach?.username || "—"
