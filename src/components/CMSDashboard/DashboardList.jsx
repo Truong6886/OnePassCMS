@@ -2,6 +2,8 @@ import React from "react";
 import TableRow from "../TableRow";
 import { showToast } from "../../utils/toast";
 import "../../styles/DashboardList.css";
+import * as XLSX from "xlsx";
+import translateService from "../../utils/translateService";
 
 const DashboardList = ({
   subViewMode,
@@ -25,6 +27,35 @@ const DashboardList = ({
   totalPages,
   setCurrentPage, 
 }) => {
+const handleExportExcel = () => {
+  if (!data || data.length === 0) {
+    showToast("Không có dữ liệu để xuất!", "warning");
+    return;
+  }
+
+  // Chuyển data sang sheet
+  const exportData = data.map((item) => ({
+    ID: item.YeuCauID,
+    "Mã hồ sơ": item.MaHoSo,
+    "Tên dịch vụ": translateService(item.TenDichVu),
+    "Họ tên": item.HoTen,
+    "Email": item.Email,
+    "Số điện thoại": item.SoDienThoai,
+    "Tiêu đề": item.TieuDe,
+    "Nội dung": item.NoiDung,
+    "Ngày chọn": item.ChonNgay,
+    "Giờ": item.Gio,
+    "Ngày tạo": item.NgayTao,
+    "Trạng thái": item.TrangThai,
+    "Ghi chú": item.GhiChu,
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(exportData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Requests");
+
+  XLSX.writeFile(workbook, "Danh_sach_yeu_cau.xlsx");
+};
 
   return (
     <div className="mb-4">
@@ -94,25 +125,47 @@ const DashboardList = ({
             />
 
             {currentUser?.is_admin && (
+              <div className="d-flex align-items-center gap-2">
+              {/* Nút thêm "+" */}
+              {currentUser?.is_admin && (
+                <button
+                  className="btn btn-success shadow-sm"
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: "50%",
+                    fontSize: 28,
+                    fontWeight: "bold",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 0,
+                  }}
+                  onClick={() => setShowAddModal(true)}
+                >
+                  <span style={{ transform: "translateY(-1px)" }}>+</span>
+                </button>
+              )}
+
+          
               <button
-                className="btn btn-success shadow-sm"
+                className="btn btn-outline-primary shadow-sm d-flex align-items-center"
                 style={{
-                  width: 40,
                   height: 40,
-                  borderRadius: "50%",
-                  fontSize: 28,
-                  fontWeight: "bold",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "all 0.25s ease",
-                  padding: 0,
+                  borderRadius: 8,
+                  fontWeight: 500,
+                  gap: 6,
+                  whiteSpace: "nowrap",
+                  marginRight: "20px"
                 }}
-                onClick={() => setShowAddModal(true)}
+                onClick={handleExportExcel}
               >
-                <span style={{ transform: "translateY(-1px)" }}>+</span>
+                <i className="bi bi-file-earmark-excel"></i> Excel
               </button>
+            </div>
+
             )}
+            
           </div>
 
              <div className="table-wrapper mt-3">

@@ -92,6 +92,7 @@ const DashboardSummary = ({
               position: "relative",
             }}
           >
+
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -137,6 +138,7 @@ const DashboardSummary = ({
             </PieChart>
           </ResponsiveContainer>
 
+        
 
 
             <div
@@ -730,7 +732,6 @@ const DashboardSummary = ({
 
           </div>
 
-          {/* 📋 Bảng dữ liệu yêu cầu */}
           <table className="table table-hover table-bordered align-middle">
             <thead className="table-light">
               <tr>

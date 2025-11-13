@@ -22,24 +22,78 @@ import DashboardList from './CMSDashboard/DashboardList';
 import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import useSocketListener from "./CMSDashboard/hooks/useSocketListener";
 import DashboardHeader from "./CMSDashboard/DashboardHeader";
+import useDashboardData from './CMSDashboard/hooks/useDashboardData';
+import translateService from "../utils/translateService";
 window.bootstrap = bootstrap;
 
 
 
-// ================= EditProfileModal =================
 
 
 
 
 
-// ================= CMSDashboard =================
-const CMSDashboard = () => {
-  const [subViewMode, setSubViewMode] = useState("request"); 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(20);
-  const [totalPages, setTotalPages] = useState(1);
+
+export default function CMSDashboard() {
+
+  const {
+    currentUser,
+    showSidebar,
+    setShowSidebar,
+    viewMode,
+    setViewMode,
+    showEditModal,
+    setShowEditModal,
+    showAddModal,
+    setShowAddModal,
+
+
+    data,
+    filteredData,
+    users,
+    dichvuList,
+
+
+    filterStatus,
+    setFilterStatus,
+    filterDichVu,
+    setFilterDichVu,
+    filterUser,
+    setFilterUser,
+    searchTerm,
+    setSearchTerm,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+
+
+    currentPage,
+    setCurrentPage,
+    rowsPerPage,
+    totalPages,
+
+    tableContainerRef,
+    tableHeaders,
+
+    fetchData,
+    handleAddRequest,
+    handleSave,
+    handleStatusChange,
+
+    subViewMode,
+    setSubViewMode,
+    filterRegion,
+    setFilterRegion,
+    filterMode,
+    setFilterMode,
+    timeRange,
+    setTimeRange,
+  } = useDashboardData();
+
+ 
   const [loading, setLoading] = useState(false);
-  const [filterStatus, setFilterStatus] = useState('');
+
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const filterMenuRef = useRef(null);
 
@@ -52,23 +106,17 @@ const CMSDashboard = () => {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-  const [showSidebar, setShowSidebar] = useState(true);
-  const [viewMode, setViewMode] = useState("summary");
+  }, []); 
+
   const [fromChart, setFromChart] = useState(false);
-  const [filterDichVu, setFilterDichVu] = useState("");
-  const [timeRange, setTimeRange] = useState(30); // mặc định 30 ngày
-  const [filterUser, setFilterUser] =useState("")
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+
+ 
+
   const [showRequestList, setShowRequestList] = useState(false);
-  const [filterRegion, setFilterRegion] = useState("");
   const [filterType, setFilterType] = useState("status"); 
-  const [data, setData] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const tableContainerRef = useRef(null);
+
+
+
   const [hasNewRequest, setHasNewRequest] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState('vi'); // 'vi' or 'en'
@@ -121,32 +169,25 @@ const CMSDashboard = () => {
     window.location.href = "/login";
   };
 
-  const [currentUser, setCurrentUser] = useState({
-    id: 1,
-    username: 'admin',
-    email: 'admin@example.com',
-    avatar: null,
-    is_admin: true
-  });
-  const [filterMode, setFilterMode] = useState("");
-  const [searchTerm, setSearchTerm] = useState('');
+
+
+
   const toastContainerRef = useRef(null);
-  const [dichvuList, setDichvuList] = useState([]);
-  
+
   const handleToggleSidebar = () => setShowSidebar(prev => !prev);
 
 useEffect(() => {
   const askPermission = () => {
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission().then((perm) => {
-        console.log("🔔 Quyền thông báo:", perm);
+        console.log("Quyền thông báo:", perm);
         if (perm === "granted") {
-          new Notification("✅ Bật thông báo thành công", {
+          new Notification("Bật thông báo thành công", {
             body: "Bạn sẽ nhận được thông báo khi có yêu cầu mới!",
-            icon: "/logo192x192.png",
+            icon: "/favicon_logo.png",
           });
         } else {
-          alert("⚠️ Vui lòng cho phép trình duyệt gửi thông báo để nhận yêu cầu mới!");
+          alert("Vui lòng cho phép trình duyệt gửi thông báo để nhận yêu cầu mới!");
         }
       });
     }
@@ -164,14 +205,12 @@ useEffect(() => {
 }, []);
 
 
-  useSocketListener({
-    currentLanguage,
-    translateService,
-    setData,
-    setNotifications,
-    setHasNewRequest,
-    setShowNotification,
-  });
+useSocketListener({
+  currentLanguage,
+  setNotifications,
+  setHasNewRequest,
+  setShowNotification,
+});
 
 
 
@@ -216,71 +255,25 @@ useEffect(() => {
   };
 
   // Sửa useEffect cho sticky columns
-  useEffect(() => {
-    const container = tableContainerRef.current;
-    if (!container) return;
+ 
 
-    const stickyCols = container.querySelectorAll('.sticky-col');
-    const handleScroll = () => {
-      stickyCols.forEach(col => {
-        if(container.scrollLeft > 0) col.classList.add('sticky');
-        else col.classList.remove('sticky');
-      });
-    };
+  // // Fetch dịch vụ từ API
+  // useEffect(() => {
+  //   (async () => {
+  //     try {
+  //       const res = await fetch("https://onepasscms-backend.onrender.com/api/dichvu");
+  //       const result = await res.json();
+  //       if (result.success) setDichvuList(result.data);
+  //       else setDichvuList([]);
+  //     } catch (err) {
+  //       console.error(err);
+  //       setDichvuList([]);
+  //     }
+  //   })();
+  // }, []);
 
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, [data]);
 
-  // Fetch dịch vụ từ API
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("https://onepasscms-backend.onrender.com/api/dichvu");
-        const result = await res.json();
-        if (result.success) setDichvuList(result.data);
-        else setDichvuList([]);
-      } catch (err) {
-        console.error(err);
-        setDichvuList([]);
-      }
-    })();
-  }, []);
-
-  // Fetch data ban đầu
 useEffect(() => {
-  const fetchData = async (page = 1) => {
-    try {
-      const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-      setLoading(true);
-      const res1 = await fetch(
-        `https://onepasscms-backend.onrender.com/api/yeucau?page=${page}&limit=${rowsPerPage}&userId=${currentUser?.id || ""}&is_admin=${currentUser?.is_admin || false}`
-      );
-      const result1 = await res1.json();
-      if (result1.success) {
-        setData(result1.data);
-        setTotalPages(result1.totalPages || 1);
-        setCurrentPage(result1.currentPage || 1);
-      } else {
-        console.warn("⚠️ Lỗi khi tải yêu cầu:", result1.message);
-      }
-
-
-      const res2 = await fetch("https://onepasscms-backend.onrender.com/api/User");
-      const result2 = await res2.json();
-      if (result2.success) setUsers(result2.data);
-    } catch (err) {
-      console.error("❌ Lỗi khi tải dữ liệu:", err);
-      showToast(
-        currentLanguage === "vi" ? "Lỗi tải dữ liệu!" : "Error loading data!",
-        "danger"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Gọi khi load lần đầu hoặc khi đổi trang
   fetchData(currentPage);
 }, [currentPage, rowsPerPage]);
 
@@ -292,53 +285,10 @@ useEffect(() => {
   };
 
 // 🟦 Hàm cho ADMIN thêm yêu cầu mới (chỉ thêm hàng + toast)
-const handleAddRequest = (newItem) => {
-  setData(prev => {
-    const exists = prev.some(item => item.YeuCauID === newItem.YeuCauID);
-    if (exists) return prev;
-    return [...prev, newItem]; // thêm cuối bảng
-  });
-
-  // showToast(
-  //   currentLanguage === "vi"
-  //     ? "Thêm yêu cầu mới thành công!"
-  //     : "New request added successfully!",
-  //   "success"
-  // );
-};
-
-const handleSave = async (updatedItem) => {
-  try {
-    const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${updatedItem.YeuCauID}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedItem),
-    });
-    const result = await res.json();
-
-    if (result.success) {
-      setData((prevData) =>
-        prevData.map((item) =>
-          item.YeuCauID === result.data.YeuCauID ? result.data : item
-        )
-      );
-      showToast("Lưu thành công!", "success");
-    } else {
-      showToast(result.message || "Lỗi khi lưu!", "error");
-    }
-  } catch (err) {
-    console.error(err);
-    showToast("Lỗi kết nối máy chủ!", "error");
-  }
-};
 
 
 
-  const handleStatusChange = (id, status) => {
-    setData(prev => prev.map(item => 
-      item.YeuCauID === id ? {...item, TrangThai: status} : item
-    ));
-  };
+
 
   // const handleSaveRow = async (id) => {
   //   const item = data.find(r => r.YeuCauID === id);
@@ -372,22 +322,8 @@ useEffect(() => {
 
 
 // ✅ Hàm dịch TenDichVu từ tiếng Hàn sang tiếng Việt
-const translateService = (serviceName) => {
-  const map = {
-    "인증 센터": "Chứng thực",
-    "결혼 이민": "Kết hôn",
-    "출생신고 대행": "Khai sinh, khai tử",
-    "출입국 행정 대행": "Xuất nhập cảnh",
-    "신분증명 서류 대행": "Giấy tờ tùy thân",
-    "입양 절차 대행": "Nhận nuôi",
-    "비자 대행": "Thị thực",
-    "법률 컨설팅": "Tư vấn pháp lý",
-    "B2B 서비스": "Dịch vụ B2B",
-    "기타": "Khác",
-  };
-  return map[serviceName] || serviceName;
-};
-  const statusFilteredData = data.filter(
+
+const statusFilteredData = data.filter(
       (item) => !filterStatus || item.TrangThai === filterStatus
     );
 
@@ -441,37 +377,6 @@ const allServices = [
 
 
 
-const normalize = (str) =>
-  typeof str === "string"
-    ? str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    : "";
-
-const filteredData = data.filter((item) => {
-  const matchSearch =
-    item.HoTen?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.Email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.SoDienThoai?.toLowerCase().includes(searchTerm.toLowerCase());
-
-  const matchStatus = filterStatus ? item.TrangThai === filterStatus : true;
-
-  const matchService = filterDichVu
-    ? normalize(translateService(item.TenDichVu)).includes(normalize(filterDichVu))
-    : true;
-
-  const itemDate = new Date(item.NgayTao);
-  const matchDate =
-    (!startDate || itemDate >= new Date(startDate)) &&
-    (!endDate || itemDate <= new Date(endDate));
-
-  // ✅ SỬA LẠI: Lọc theo nhân viên phụ trách - so sánh ID
-  let matchUser = true;
-  if (filterUser && filterUser !== "" && filterUser !== "--Chọn--") {
-    // So sánh trực tiếp ID của nhân viên phụ trách
-    matchUser = String(item.NguoiPhuTrachId) === String(filterUser);
-  }
-
-  return matchSearch && matchStatus && matchService && matchDate && matchUser;
-});
 
 
   const pieData = [
@@ -511,23 +416,6 @@ const serviceColorMap = {
 };
 
 // const pieColors = ["#60a5fa", "#facc15", "#fb923c", "#34d399"];
-
-
-
-  // Dịch các header của table theo ngôn ngữ
-  const tableHeaders = currentLanguage === 'vi' 
-    ? [
-        'ID', 'Mã hồ sơ', 'Dịch vụ', 'Hình thức','Cơ sở tư vấn','Họ tên', 'Email', 'Mã Vùng', 
-        'SĐT', 'Tiêu đề', 'Nội dung', 'Chọn ngày', 'Giờ', 'Ngày tạo', 'Trạng thái',
-        ...(currentUser.is_admin ? ['Người phụ trách'] : []),
-        'Ghi chú', 'Hành động'
-      ]
-    : [
-        'ID', 'Record ID', 'Service', 'Mode','Consulting Branch', 'Full Name', 'Email', 'Area Code', 
-        'Phone', 'Title', 'Content', 'Select Date', 'Time', 'Created Date', 'Status',
-        ...(currentUser.is_admin ? ['Assignee'] : []),
-        'Note', 'Action'
-      ];
 
   return (
     <div>
@@ -575,7 +463,7 @@ const serviceColorMap = {
 
       {currentUser?.is_admin && viewMode === "summary" && (
         <DashboardSummary
-          data={data}
+          data={filteredData}
           currentLanguage={currentLanguage}
           serviceColorMap={serviceColorMap}
           translateService={translateService}
@@ -599,25 +487,28 @@ const serviceColorMap = {
 
 
     {(!currentUser?.is_admin || viewMode === "list") && (
-      <DashboardList
-        subViewMode={subViewMode}
-        setSubViewMode={setSubViewMode}
-        data={data}
-        setData={setData}
-        emailList={emailList}
-        setEmailList={setEmailList}
-        currentLanguage={currentLanguage}
-        currentUser={currentUser}
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        setShowAddModal={setShowAddModal}
-        tableHeaders={tableHeaders}
-        dichvuList={dichvuList}
-        users={users}
-        handleStatusChange={handleStatusChange}
-        handleSave={handleSave}
-        tableContainerRef={tableContainerRef}
-      />
+     <DashboardList
+      subViewMode={subViewMode}
+      setSubViewMode={setSubViewMode}
+      data={filteredData}
+      emailList={emailList}
+      setEmailList={setEmailList}
+      currentLanguage={currentLanguage}
+      currentUser={currentUser}
+      searchTerm={searchTerm}
+      setSearchTerm={setSearchTerm}
+      setShowAddModal={setShowAddModal}
+      tableHeaders={tableHeaders}
+      dichvuList={dichvuList}
+      users={users}
+      handleStatusChange={handleStatusChange}
+      handleSave={handleSave}
+      tableContainerRef={tableContainerRef}
+      currentPage={currentPage}
+      totalPages={totalPages}
+      setCurrentPage={setCurrentPage}
+    />
+
     )}
 
 
@@ -646,6 +537,4 @@ const serviceColorMap = {
       <div ref={toastContainerRef} id="toast-container"></div>
     </div>
   );
-};
-
-export default CMSDashboard;
+}

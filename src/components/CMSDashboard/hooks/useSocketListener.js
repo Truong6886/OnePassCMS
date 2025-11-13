@@ -1,27 +1,27 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { io } from "socket.io-client";
 import { showToast } from "../../../utils/toast";
 
 export default function useSocketListener({
   currentLanguage,
-  translateService,
-  setData,
   setNotifications,
   setHasNewRequest,
   setShowNotification,
 }) {
+  const socketRef = useRef(null);
+
   useEffect(() => {
-    const socket = io("https://onepasscms-backend.onrender.com", {
-      transports: ["websocket", "polling"],
-      withCredentials: false,
-    });
 
-    socket.on("new_request", (newRequestData) => {
-      setData((prev) => {
-        const exists = prev.some((r) => r.YeuCauID === newRequestData.YeuCauID);
-        return exists ? prev : [...prev, newRequestData];
+    if (!socketRef.current) {
+      socketRef.current = io("https://onepasscms-backend.onrender.com", {
+        transports: ["websocket"],
       });
+    }
 
+    const socket = socketRef.current;
+
+
+    const handleNewRequest = (newRequestData) => {
       const message =
         currentLanguage === "vi"
           ? `Yêu cầu mới từ: ${newRequestData.HoTen || "Khách hàng"}`
@@ -40,9 +40,8 @@ export default function useSocketListener({
         return updated;
       });
 
-   
-      showToast(message, "success");
 
+      showToast(message, "success");
 
       if ("Notification" in window && Notification.permission === "granted") {
         new Notification("📩 " + message, {
@@ -56,8 +55,13 @@ export default function useSocketListener({
 
       setHasNewRequest(true);
       setShowNotification(true);
-    });
+    };
 
-    return () => socket.disconnect();
-  }, [currentLanguage]);
+    socket.on("new_request", handleNewRequest);
+
+
+    return () => {
+      socket.off("new_request", handleNewRequest);
+    };
+  }, [currentLanguage, setNotifications, setHasNewRequest, setShowNotification]);
 }
