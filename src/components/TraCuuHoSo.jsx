@@ -57,7 +57,7 @@ export default function TraCuuHoSo() {
     setRecord(null);
 
     try {
-      const res = await fetch("https://onepasscms-backend.onrender.com//api/yeucau");
+      const res = await fetch("https://onepasscms-backend.onrender.com/api/yeucau");
       const result = await res.json();
 
       if (result.success) {
@@ -69,7 +69,7 @@ export default function TraCuuHoSo() {
 
         if (found) {
           const pdfRes = await fetch(
-            `https://onepasscms-backend.onrender.com//api/pdf-chuaky/${found.MaHoSo}`
+            `https://onepasscms-backend.onrender.com/api/pdf-chuaky/${found.MaHoSo}`
           );
           const pdfResult = await pdfRes.json();
 
