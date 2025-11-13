@@ -234,6 +234,8 @@ export default function useDashboardData() {
     handleAddRequest,
     handleSave,
     handleStatusChange,
+    currentUser,
+    setCurrentUser,
 };
 
 }
