@@ -15,6 +15,8 @@ import {
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import translateService from "../utils/translateService";
+import EditProfileModal from "./EditProfileModal";
+import useDashboardData from "./CMSDashboard/hooks/useDashboardData";
 import * as XLSX from "xlsx";
 
 
@@ -56,6 +58,7 @@ const translations = {
 
 export default function DoanhThu() {
   const [collapsed, setCollapsed] = useState(false);
+  const {showEditModal,setShowEditModal} = useDashboardData();
   const [records, setRecords] = useState([]);
   const [filteredRecords, setFilteredRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -156,7 +159,16 @@ export default function DoanhThu() {
     }
   };
 
-  // ====== Lọc dữ liệu ======
+  const handleOpenEditModal = () => {
+    console.log("Mở modal chỉnh sửa profile");
+    setShowEditModal(true);
+  };
+
+  // Add the missing profile update function
+  const handleProfileUpdate = (updatedUser) => {
+    setCurrentUser(updatedUser);
+    localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+  };
   const handleFilter = () => {
     let filtered = records;
 
@@ -237,7 +249,11 @@ export default function DoanhThu() {
       prev.map((r) => (r.YeuCauID === id ? { ...r, DoanhThu: value } : r))
     );
   };
-
+  const handleLogout = () => {
+    console.log("🚪 Đang đăng xuất...");
+    localStorage.removeItem("currentUser");
+    window.location.href = "/login";
+  };
 const handleExportExcel = () => {
   if (!filteredRecords || filteredRecords.length === 0) {
     toast.warning("Không có dữ liệu để xuất Excel!");
@@ -346,7 +362,7 @@ const handleExportExcel = () => {
           currentUser={currentUser}
           showSidebar={!collapsed}
           onToggleSidebar={() => setCollapsed((s) => !s)}
-          onOpenEditModal={() => {}}
+          onOpenEditModal={handleOpenEditModal}
           hasNewRequest={false}
           onBellClick={() => {}}
           currentLanguage={currentLanguage}
@@ -355,7 +371,14 @@ const handleExportExcel = () => {
             localStorage.setItem("language", lang);
           }}
         />
-
+      {showEditModal && (
+          <EditProfileModal 
+            currentUser={currentUser} 
+            onUpdate={handleProfileUpdate} 
+            onClose={() => setShowEditModal(false)} 
+            currentLanguage={currentLanguage}
+          />
+        )}
         <div
           style={{
             flex: 1,

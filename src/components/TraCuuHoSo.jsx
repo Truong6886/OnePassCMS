@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+import EditProfileModal from "./EditProfileModal";
 import { useNavigate } from "react-router-dom";
 
+import useDashboardData from "./CMSDashboard/hooks/useDashboardData";
 export default function TraCuuHoSo() {
+  const {showEditModal,setShowEditModal} = useDashboardData();
   const [searchCode, setSearchCode] = useState("");
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -93,7 +96,20 @@ export default function TraCuuHoSo() {
     }
   };
 
-
+ const handleOpenEditModal = () => {
+    console.log("Mở modal chỉnh sửa profile");
+    setShowEditModal(true);
+  };
+  const handleLogout = () => {
+    console.log("🚪 Đang đăng xuất...");
+    localStorage.removeItem("currentUser");
+    window.location.href = "/login";
+  };
+  // Add the missing profile update function
+  const handleProfileUpdate = (updatedUser) => {
+    setCurrentUser(updatedUser);
+    localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+  };
  const handleUpload = async () => {
   if (!pdfFile) return showToast("Vui lòng chọn file PDF!", "warning");
   if (!record) return showToast("Chưa có hồ sơ nào được chọn!", "warning");
@@ -133,10 +149,19 @@ export default function TraCuuHoSo() {
         currentUser={currentUser}
         showSidebar={showSidebar}
         onToggleSidebar={() => setShowSidebar((s) => !s)}
+        onClose={() => setShowEditModal(trư)} 
         currentLanguage={currentLanguage}
         onLanguageChange={setCurrentLanguage}
+        onOpenEditModal={handleOpenEditModal} 
       />
-
+      {showEditModal && (
+          <EditProfileModal 
+            currentUser={currentUser} 
+            onUpdate={handleProfileUpdate} 
+            onClose={() => setShowEditModal(false)} 
+            currentLanguage={currentLanguage}
+          />
+        )}
       <div style={{ display: "flex", minHeight: "100vh" }}>
         <Sidebar collapsed={!showSidebar} user={currentUser} />
         <div

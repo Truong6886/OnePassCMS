@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
-
+import EditProfileModal from "./EditProfileModal";
+import useDashboardData from "./CMSDashboard/hooks/useDashboardData";
 export default function QuanLyNhanVien() {
+  const {showEditModal,setShowEditModal} = useDashboardData();
   const [currentUser, setCurrentUser] = useState(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [currentLanguage, setCurrentLanguage] = useState(
@@ -83,7 +85,21 @@ export default function QuanLyNhanVien() {
     "#3b82f6", "#ec4899", "#f59e0b", "#6366f1", "#10b981",
     "#8b5cf6", "#f97316", "#84cc16", "#06b6d4", "#9ca3af",
   ];
+ const handleOpenEditModal = () => {
+    console.log("Mở modal chỉnh sửa profile");
+    setShowEditModal(true);
+  };
 
+
+  const handleProfileUpdate = (updatedUser) => {
+    setCurrentUser(updatedUser);
+    localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+  };
+  const handleLogout = () => {
+    console.log("🚪 Đang đăng xuất...");
+    localStorage.removeItem("currentUser");
+    window.location.href = "/login";
+  };
   const getServiceCountByTypeForUser = (userIdOrName) => {
     const selectedUserObj = users.find(
       (u) => String(u.id) === String(userIdOrName) || u.name === userIdOrName
@@ -129,8 +145,16 @@ export default function QuanLyNhanVien() {
         onToggleSidebar={() => setShowSidebar((s) => !s)}
         currentLanguage={currentLanguage}
         onLanguageChange={setCurrentLanguage}
+        onOpenEditModal={handleOpenEditModal} 
       />
-
+  {showEditModal && (
+          <EditProfileModal 
+            currentUser={currentUser} 
+            onUpdate={handleProfileUpdate} 
+            onClose={() => setShowEditModal(false)} 
+            currentLanguage={currentLanguage}
+          />
+        )}
       <div style={{ display: "flex", minHeight: "100vh" }}>
         <Sidebar collapsed={!showSidebar} user={currentUser} />
 
