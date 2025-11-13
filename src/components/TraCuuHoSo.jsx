@@ -57,7 +57,7 @@ export default function TraCuuHoSo() {
     setRecord(null);
 
     try {
-      const res = await fetch("https://onepasscms-backend.onrender.com/api/yeucau");
+      const res = await fetch("https://onepasscms-backend.onrender.com//api/yeucau");
       const result = await res.json();
 
       if (result.success) {
@@ -69,14 +69,11 @@ export default function TraCuuHoSo() {
 
         if (found) {
           const pdfRes = await fetch(
-            `https://onepasscms-backend.onrender.com/api/pdf-chuaky/${found.MaHoSo}`
+            `https://onepasscms-backend.onrender.com//api/pdf-chuaky/${found.MaHoSo}`
           );
           const pdfResult = await pdfRes.json();
 
-          if (pdfResult.success && pdfResult.data?.PdfUrl) {
-            found.PdfChuaKy = pdfResult.data.PdfUrl;
-            found.LinkKy = `${window.location.origin}/kyhoso/${found.MaHoSo}`;
-          }
+          
           setRecord(found);
         } else showToast(t("Không tìm thấy hồ sơ!", "Case not found!"), "error");
       }
@@ -88,56 +85,39 @@ export default function TraCuuHoSo() {
     }
   };
 
-  // ✅ Upload PDF (và thêm 2 vùng ký)
-  const handleUpload = async () => {
-    if (!pdfFile || !record)
-      return showToast(
-        t("Vui lòng chọn file PDF!", "Please choose a PDF file!"),
-        "warning"
-      );
 
-    try {
-      // 1️⃣ Upload PDF
-      const formData = new FormData();
-      formData.append("pdf", pdfFile);
-      formData.append("MaHoSo", record.MaHoSo);
+ const handleUpload = async () => {
+  if (!pdfFile) return showToast("Vui lòng chọn file PDF!", "warning");
+  if (!record) return showToast("Chưa có hồ sơ nào được chọn!", "warning");
 
-      const res = await fetch("https://onepasscms-backend.onrender.com/api/upload-pdf", {
-        method: "POST",
-        body: formData,
-      });
-      const result = await res.json();
-      if (!result.success) throw new Error(result.message);
+  const formData = new FormData();
+  formData.append("pdf", pdfFile); 
+  formData.append("MaHoSo", record.MaHoSo);
 
-      // 2️⃣ Tạo vùng ký PDF
-      const addRes = await fetch("https://onepasscms-backend.onrender.com/api/add-signature-field", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pdfUrl: result.url, mahoso: record.MaHoSo }),
-      });
-      const addJson = await addRes.json();
-      if (!addJson.success) throw new Error(addJson.message);
+  try {
+    showToast("Đang tải lên PDF...", "info");
 
-      // 3️⃣ Lưu kết quả
-      const linkKy = `${window.location.origin}/kyhoso/${record.MaHoSo}`;
+    const res = await fetch("https://onepasscms-backend.onrender.com/api/upload-pdf", {
+      method: "POST",
+      body: formData,
+    });
+
+    const result = await res.json();
+    if (result.success) {
       setRecord((prev) => ({
         ...prev,
-        PdfChuaKy: addJson.pdfUrl,
-        LinkKy: linkKy,
+        PdfChuaKy: result.pdfUrl,
+        LinkKy: result.signLink,
       }));
-
-      showToast(
-        t(
-          "✅ Đã upload PDF và tạo 2 vùng ký cho khách hàng!",
-          "✅ PDF uploaded and 2 signature zones created!"
-        ),
-        "success"
-      );
-    } catch (err) {
-      console.error("❌ Upload lỗi:", err);
-      showToast(err.message || "Lỗi upload!", "error");
+      showToast("✅ Upload thành công! Đã tạo link ký.", "success");
+    } else {
+      showToast("❌ Upload lỗi: " + result.message, "error");
     }
-  };
+  } catch (err) {
+    console.error("❌ Upload lỗi:", err);
+    showToast("Lỗi upload!", "error");
+  }
+};
 
   return (
     <div>
@@ -219,7 +199,7 @@ export default function TraCuuHoSo() {
               </table>
 
               <div style={{ marginTop: 20 }}>
-                <h4>📎 {t("Upload file PDF đã điền sẵn", "Upload pre-filled PDF file")}</h4>
+                <h4>{t("Upload file PDF đã điền sẵn", "Upload pre-filled PDF file")}</h4>
                 <input type="file" accept="application/pdf" onChange={(e) => setPdfFile(e.target.files[0])} />
                 <button
                   onClick={handleUpload}
@@ -239,7 +219,7 @@ export default function TraCuuHoSo() {
 
               {record?.PdfChuaKy && record?.LinkKy && !loading && (
                 <div style={{ marginTop: 20 }}>
-                  <h4>🔗 {t("Link ký khách hàng:", "Customer signing link:")}</h4>
+                  <h4>{t("Link ký khách hàng:", "Customer signing link:")}</h4>
                   <a href={record.LinkKy} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb" }}>
                     {record.LinkKy}
                   </a>
