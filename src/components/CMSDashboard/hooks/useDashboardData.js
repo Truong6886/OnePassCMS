@@ -182,7 +182,7 @@ export default function useDashboardData() {
     "Hành động",
   ];
 
-  return {
+ return {
 
     data,
     filteredData,
@@ -190,7 +190,6 @@ export default function useDashboardData() {
     dichvuList,
 
     currentUser,
-
 
     showSidebar,
     setShowSidebar,
@@ -207,7 +206,6 @@ export default function useDashboardData() {
     showAddModal,
     setShowAddModal,
 
-
     filterStatus,
     setFilterStatus,
     filterDichVu,
@@ -221,20 +219,21 @@ export default function useDashboardData() {
     endDate,
     setEndDate,
 
+    timeRange,          
+    setTimeRange,   
 
     currentPage,
     setCurrentPage,
     rowsPerPage,
     totalPages,
 
-
     tableContainerRef,
     tableHeaders,
 
- 
     fetchData,
     handleAddRequest,
     handleSave,
     handleStatusChange,
-  };
+};
+
 }

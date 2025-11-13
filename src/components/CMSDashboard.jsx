@@ -4,7 +4,7 @@ import { Filter, ChevronRight } from "lucide-react";
 import { FilterX } from "lucide-react";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
-import '../components/CMSDashboard.css';
+import "../styles/CMSDashboard.css";
 import Header from "./Header";
 import Sidebar from './Sidebar'; 
 import AddRequestModal from './AddRequestModal';
@@ -24,6 +24,17 @@ import useSocketListener from "./CMSDashboard/hooks/useSocketListener";
 import DashboardHeader from "./CMSDashboard/DashboardHeader";
 import useDashboardData from './CMSDashboard/hooks/useDashboardData';
 import translateService from "../utils/translateService";
+import {
+  statusColors,
+  serviceColorMap,
+  filterByStatus,
+  groupByService,
+  filterByTimeRange,
+  groupChartData,
+  getAllServices,
+  buildPieData,
+} from "../utils/dataProcessing.js";
+
 window.bootstrap = bootstrap;
 
 
@@ -320,110 +331,18 @@ useEffect(() => {
   setCurrentPage(1);
 }, [filterStatus, filterDichVu, filterUser, startDate, endDate, searchTerm]);
 
- const statusColors = {
-    "Tư vấn": "#f59e0b",
-    "Đang xử lý": "#3b82f6",
-    "Đang nộp hồ sơ": "#06b6d4",
-    "Hoàn thành": "#22c55e",
-    "": "#2563eb", // default (xanh lam)
-  };
 
+const statusFilteredData = filterByStatus(data, filterStatus);
+const { grouped, chartData: statusChartData, total } = groupByService(statusFilteredData, translateService);
 
-// ✅ Hàm dịch TenDichVu từ tiếng Hàn sang tiếng Việt
+const chartFilteredData = filterByTimeRange(data, timeRange);
 
-const statusFilteredData = data.filter(
-      (item) => !filterStatus || item.TrangThai === filterStatus
-    );
+const chartData = groupChartData(chartFilteredData, translateService);
 
-    // 🔹 Gom nhóm dịch vụ
-  const groupedByService =  statusFilteredData.reduce((acc, item) => {
-    const service = translateService(item.TenDichVu || "Không xác định");
-    acc[service] = (acc[service] || 0) + 1;
-    return acc;
-  }, {});
+const allServices = getAllServices(chartFilteredData, translateService);
 
-  const total = Object.values(groupedByService).reduce((a, b) => a + b, 0);
-    // 🔹 Dữ liệu biểu đồ
-    const statusChartData = Object.entries(groupedByService).map(
-      ([service, count]) => ({
-        service,
-        count,
-      })
-    );
+const pieData = buildPieData(data, currentLanguage);
 
-const chartFilteredData = data.filter((item) => {
-  if (!item.NgayTao) return false;
-  const date = new Date(item.NgayTao);
-  const now = new Date();
-  const diffDays = (now - date) / (1000 * 60 * 60 * 24);
-  return diffDays <= timeRange;
-});
-
-
-// Gom dữ liệu theo ngày và dịch vụ
-const chartData = Object.values(
-  chartFilteredData.reduce((acc, cur) => {
-    const date = new Date(cur.NgayTao).toLocaleDateString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-    const service = translateService(cur.TenDichVu || "Không xác định");
-    if (!acc[date]) acc[date] = { date };
-    acc[date][service] = (acc[date][service] || 0) + 1;
-    return acc;
-  }, {})
-);
-
-const allServices = [
-  ...new Set(
-    chartFilteredData.map((d) =>
-      translateService(d.TenDichVu || "Không xác định")
-    )
-  ),
-];
-
-
-
-
-
-  const pieData = [
-    {
-      name: currentLanguage === "vi" ? "Tư vấn" : "Consulting",
-      value: data.filter((d) => d.TrangThai === "Tư vấn").length,
-      TrangThai: "Tư vấn",
-    },
-    {
-      name: currentLanguage === "vi" ? "Đang xử lý" : "Processing",
-      value: data.filter((d) => d.TrangThai === "Đang xử lý").length,
-      TrangThai: "Đang xử lý",
-    },
-    {
-      name: currentLanguage === "vi" ? "Đang nộp hồ sơ" : "Submitting",
-      value: data.filter((d) => d.TrangThai === "Đang nộp hồ sơ").length,
-      TrangThai: "Đang nộp hồ sơ",
-    },
-    {
-      name: currentLanguage === "vi" ? "Hoàn thành" : "Completed",
-      value: data.filter((d) => d.TrangThai === "Hoàn thành").length,
-      TrangThai: "Hoàn thành",
-    },
-  ];
-// 🔹 Bảng màu thống nhất toàn dashboard
-const serviceColorMap = {
-  "Chứng thực": "#3b82f6",      // Xanh lam
-  "Kết hôn": "#ec4899",         // Hồng đậm
-  "Dịch vụ B2B": "#06b6d4",     // Xanh ngọc
-  "Tư vấn pháp lý": "#84cc16",  // Xanh lá sáng
-  "Khai sinh, khai tử": "#f59e0b",
-  "Xuất nhập cảnh": "#6366f1",
-  "Giấy tờ tùy thân": "#10b981",
-  "Nhận nuôi": "#8b5cf6",
-  "Thị thực": "#f97316",
-  "Khác": "#9ca3af",
-};
-
-// const pieColors = ["#60a5fa", "#facc15", "#fb923c", "#34d399"];
 
   return (
     <div>
@@ -485,7 +404,7 @@ const serviceColorMap = {
           setTimeRange={setTimeRange}
           filterStatus={filterStatus}
           setFilterStatus={setFilterStatus}
-          groupedByService={groupedByService}
+          groupedByService={grouped}
           total={total}
           chartData={chartData}
           allServices={allServices}

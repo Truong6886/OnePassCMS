@@ -6,7 +6,7 @@ import KyHoSo from "./components/KyHoSo";
 import QuanLyNhanVien from "./components/QuanLyNhanVien";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
-import "../src/components/CMSDashboard.css";
+import "../src/styles/CMSDashboard.css";
 import DoanhThu from "./components/DoanhThu";
 
 export default function App() {
