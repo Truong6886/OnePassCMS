@@ -10,7 +10,15 @@ export default function TraCuuHoSo() {
   const [pdfFile, setPdfFile] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [showSidebar, setShowSidebar] = useState(true);
-  const [currentLanguage, setCurrentLanguage] = useState("vi");
+  const [currentLanguage, setCurrentLanguage] = useState(
+  localStorage.getItem("language") || "vi"
+  );
+
+  useEffect(() => {
+    const saved = localStorage.getItem("language");
+    if (saved) setCurrentLanguage(saved);
+  }, []);
+
   const navigate = useNavigate();
 
   useEffect(() => {

@@ -119,7 +119,15 @@ export default function CMSDashboard() {
 
   const [hasNewRequest, setHasNewRequest] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
-  const [currentLanguage, setCurrentLanguage] = useState('vi'); // 'vi' or 'en'
+  const [currentLanguage, setCurrentLanguage] = useState(
+    localStorage.getItem("language") || "vi"
+  );
+
+  useEffect(() => {
+    const saved = localStorage.getItem("language");
+    if (saved) setCurrentLanguage(saved);
+  }, []);
+
   const [notifications, setNotifications] = useState(() => {
     const saved = localStorage.getItem("notifications");
     return saved ? JSON.parse(saved) : [];

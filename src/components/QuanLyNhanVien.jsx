@@ -5,7 +5,15 @@ import Header from "./Header";
 export default function QuanLyNhanVien() {
   const [currentUser, setCurrentUser] = useState(null);
   const [showSidebar, setShowSidebar] = useState(true);
-  const [currentLanguage, setCurrentLanguage] = useState("vi");
+  const [currentLanguage, setCurrentLanguage] = useState(
+    localStorage.getItem("language") || "vi"
+  );
+
+  useEffect(() => {
+    const saved = localStorage.getItem("language");
+    if (saved) setCurrentLanguage(saved);
+  }, []);
+
   const [users, setUsers] = useState([]);
   const [yeuCauList, setYeuCauList] = useState([]);
   const [selectedUser, setSelectedUser] = useState("");

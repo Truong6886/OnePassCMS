@@ -18,7 +18,7 @@ const Header = ({ currentUser, onToggleSidebar, showSidebar, onOpenEditModal, ha
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, []);   
 
   const handleLogout = () => {
     localStorage.removeItem("currentUser");
@@ -31,10 +31,13 @@ const Header = ({ currentUser, onToggleSidebar, showSidebar, onOpenEditModal, ha
     else if (action === "logout") handleLogout();
   };
 
-  const handleLanguageChange = (lang) => {
-    setLanguageDropdownOpen(false);
-    onLanguageChange(lang);
-  };
+const handleLanguageChange = (lang) => {
+  localStorage.setItem("language", lang);
+
+  window.dispatchEvent(new Event("language-change"));
+
+  onLanguageChange(lang);
+};
 
   return (
   <header
@@ -145,7 +148,7 @@ const Header = ({ currentUser, onToggleSidebar, showSidebar, onOpenEditModal, ha
           {/* 🇻🇳 Vietnamese */}
           <button
             type="button"
-            onClick={() => onLanguageChange("vi")}
+            onClick={() => handleLanguageChange("vi")}
             style={{
               width: "25px",
               height: "25px",
@@ -185,7 +188,7 @@ const Header = ({ currentUser, onToggleSidebar, showSidebar, onOpenEditModal, ha
           {/* 🇬🇧 English */}
           <button
             type="button"
-            onClick={() => onLanguageChange("en")}
+            onClick={() => handleLanguageChange("en")}
             style={{
               width: "25px",
               height: "25px",

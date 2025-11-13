@@ -69,8 +69,14 @@ export default function DoanhThu() {
   const [selectedStaff, setSelectedStaff] = useState("tatca");
   const [currentPage, setCurrentPage] = useState(1);
   const [currentLanguage, setCurrentLanguage] = useState(
-    localStorage.getItem("language") || "vi"
-  );
+      localStorage.getItem("language") || "vi"
+    );
+
+    useEffect(() => {
+      const saved = localStorage.getItem("language");
+      if (saved) setCurrentLanguage(saved);
+    }, []);
+
   const [showSidebar, setShowSidebar] = useState(true);
   const rowsPerPage = 10;
 

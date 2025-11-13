@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import logo from "../assets/logo.png";
 import { useNavigate, useLocation } from "react-router-dom";
 import { List, Search, DollarSign } from "lucide-react";
@@ -8,6 +8,40 @@ export default function Sidebar({ collapsed = false, user }) {
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname;
+  const [currentLanguage, setCurrentLanguage] = useState(
+    localStorage.getItem("language") || "vi"
+  );
+
+useEffect(() => {
+  const updateLanguage = () => {
+    const lang = localStorage.getItem("language") || "vi";
+    setCurrentLanguage(lang);
+  };
+
+
+  window.addEventListener("language-change", updateLanguage);
+
+
+  window.addEventListener("storage", updateLanguage);
+
+  updateLanguage();
+
+  return () => {
+    window.removeEventListener("language-change", updateLanguage);
+    window.removeEventListener("storage", updateLanguage);
+  };
+}, []);
+
+
+  const texts = {
+    list: {
+      vi: user?.is_admin ? "Quản Lý Yêu Cầu" : "Danh Sách Yêu Cầu",
+      en: user?.is_admin ? "Manage Requests" : "Request List",
+    },
+    hoso: { vi: "Tra Cứu Hồ Sơ", en: "Record Lookup" },
+    nhanvien: { vi: "Quản Lý Nhân Viên", en: "Employee Management" },
+    doanhthu: { vi: "Doanh Thu", en: "Revenue" },
+  };
 
   const sidebarStyle = {
     width: collapsed ? "60px" : "250px",
@@ -93,7 +127,7 @@ export default function Sidebar({ collapsed = false, user }) {
       {/* 🔹 Menu */}
       <div style={{ flex: 1, width: "100%" }}>
         <ul style={{ listStyle: "none", padding: "0 10px", marginTop: 20 }}>
-          {/* ✅ Nếu là admin → đổi tên */}
+          {/* Danh sách yêu cầu */}
           <li
             style={getItemStyle("list")}
             onMouseEnter={() => setHoveredItem("list")}
@@ -101,13 +135,10 @@ export default function Sidebar({ collapsed = false, user }) {
             onClick={() => navigate("/")}
           >
             <List size={22} />
-            {!collapsed && (
-              <span>
-                {user?.is_admin ? "Quản Lý Yêu Cầu" : "Danh Sách Yêu Cầu"}
-              </span>
-            )}
+            {!collapsed && <span>{texts.list[currentLanguage]}</span>}
           </li>
 
+          {/* Tra cứu hồ sơ */}
           <li
             style={getItemStyle("hoso")}
             onMouseEnter={() => setHoveredItem("hoso")}
@@ -115,20 +146,23 @@ export default function Sidebar({ collapsed = false, user }) {
             onClick={() => navigate("/hoso")}
           >
             <Search size={22} />
-            {!collapsed && <span>Tra Cứu Hồ Sơ</span>}
+            {!collapsed && <span>{texts.hoso[currentLanguage]}</span>}
           </li>
-         {(user?.is_admin|| user?.is_director) && (
-          <li
-            style={getItemStyle("nhanvien")}
-            onMouseEnter={() => setHoveredItem("nhanvien")}
-            onMouseLeave={() => setHoveredItem(null)}
-            onClick={() => navigate("/nhanvien")}
-          >
-            <i className="bi bi-people" style={{ fontSize: 20 }}></i>
-            {!collapsed && <span>Quản Lý Nhân Viên</span>}
-          </li>
-         )}
-          {/* ✅ Hiển thị Doanh Thu nếu accountant hoặc director */}
+
+          {/* Quản lý nhân viên */}
+          {(user?.is_admin || user?.is_director) && (
+            <li
+              style={getItemStyle("nhanvien")}
+              onMouseEnter={() => setHoveredItem("nhanvien")}
+              onMouseLeave={() => setHoveredItem(null)}
+              onClick={() => navigate("/nhanvien")}
+            >
+              <i className="bi bi-people" style={{ fontSize: 20 }}></i>
+              {!collapsed && <span>{texts.nhanvien[currentLanguage]}</span>}
+            </li>
+          )}
+
+          {/* Doanh thu */}
           {(user?.is_accountant || user?.is_director) && (
             <li
               style={getItemStyle("doanhthu")}
@@ -137,7 +171,7 @@ export default function Sidebar({ collapsed = false, user }) {
               onClick={() => navigate("/doanhthu")}
             >
               <DollarSign size={22} />
-              {!collapsed && <span>Doanh Thu</span>}
+              {!collapsed && <span>{texts.doanhthu[currentLanguage]}</span>}
             </li>
           )}
         </ul>
