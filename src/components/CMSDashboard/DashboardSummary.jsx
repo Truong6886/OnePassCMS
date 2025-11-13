@@ -984,8 +984,8 @@ useEffect(() => {
           <tr>
             <td colSpan="7" className="text-center text-muted py-3">
               {currentLanguage === "vi"
-                ? "Không có yêu cầu nào trong khoảng thời gian hoặc bộ lọc đã chọn"
-                : "No requests found for selected filters"}
+                ? "Không có yêu cầu nào"
+                : "No requests found"}
             </td>
           </tr>
         )}
