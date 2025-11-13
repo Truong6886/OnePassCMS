@@ -232,7 +232,7 @@ export default function DoanhThu() {
       );
       const result = await res.json();
       if (result.success) {
-        toast.success(`Lưu thành công YeuCauID #${id}`);
+        toast.success(`Lưu thành công YeuCauID ${id}`);
         fetchData(currentPage);
       } else {
         toast.error("❌ Lỗi khi cập nhật dữ liệu!");
