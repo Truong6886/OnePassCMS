@@ -19,7 +19,6 @@ import EditProfileModal from "./EditProfileModal";
 import useDashboardData from "./CMSDashboard/hooks/useDashboardData";
 import * as XLSX from "xlsx";
 
-
 // ✅ Định dạng tiền tệ
 const formatCurrency = (num) => {
   if (num == null || num === "") return "";
@@ -58,9 +57,14 @@ const translations = {
 
 export default function DoanhThu() {
   const [collapsed, setCollapsed] = useState(false);
-  const {showEditModal,setShowEditModal} = useDashboardData();
-  const [records, setRecords] = useState([]);
-  const [filteredRecords, setFilteredRecords] = useState([]);
+  const {
+    showEditModal,
+    setShowEditModal,
+    currentPage,
+    setCurrentPage,
+    rowsPerPage,
+  } = useDashboardData();
+
   const [loading, setLoading] = useState(true);
   const [savingRow, setSavingRow] = useState(null);
   const [chartData, setChartData] = useState([]);
@@ -70,46 +74,21 @@ export default function DoanhThu() {
   const [endDate, setEndDate] = useState("");
   const [selectedService, setSelectedService] = useState("tatca");
   const [selectedStaff, setSelectedStaff] = useState("tatca");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [records, setRecords] = useState([]);
+  const [filteredRecords, setFilteredRecords] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
+
   const [currentLanguage, setCurrentLanguage] = useState(
-      localStorage.getItem("language") || "vi"
-    );
-
-    useEffect(() => {
-      const saved = localStorage.getItem("language");
-      if (saved) setCurrentLanguage(saved);
-    }, []);
-
-  const [showSidebar, setShowSidebar] = useState(true);
-  const rowsPerPage = 10;
+    localStorage.getItem("language") || "vi"
+  );
 
   const t = translations[currentLanguage];
-  const formatDateForExcel = (isoString) => {
-    if (!isoString) return "";
-    const date = new Date(isoString);
 
-    return date.toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  };
-
-  const viewModeLabels = {
-    ngay: { vi: "Ngày", en: "Day" },
-    tuan: { vi: "Tuần", en: "Week" },
-    thang: { vi: "Tháng", en: "Month" },
-    nam: { vi: "Năm", en: "Year" },
-  };
-
-  // ✅ Lưu user
+  // 🧠 Lấy user
   const savedUser = localStorage.getItem("currentUser");
   const currentUser = savedUser ? JSON.parse(savedUser) : null;
 
-  // Quyền truy cập
+  // 🚫 Giới hạn quyền truy cập
   if (!currentUser?.is_director && !currentUser?.is_accountant) {
     return (
       <div
@@ -132,21 +111,20 @@ export default function DoanhThu() {
     );
   }
 
-
-  useEffect(() => {
-    fetchRecords();
-  }, []);
-
-  const fetchRecords = async () => {
+  // 📡 Gọi API có phân trang
+  const fetchData = async (page = 1) => {
     setLoading(true);
     setChartLoading(true);
     try {
-      const res = await fetch("https://onepasscms-backend.onrender.com/api/yeucau");
+      const res = await fetch(
+        `https://onepasscms-backend.onrender.com/api/yeucau?page=${page}&limit=${rowsPerPage}`
+      );
       const result = await res.json();
       if (result.success) {
         setRecords(result.data);
         setFilteredRecords(result.data);
         prepareChartData(result.data, viewMode);
+        setTotalPages(result.totalPages || 1);
       } else {
         toast.error("Không thể tải danh sách!");
       }
@@ -159,63 +137,16 @@ export default function DoanhThu() {
     }
   };
 
-  const handleOpenEditModal = () => {
-    console.log("Mở modal chỉnh sửa profile");
-    setShowEditModal(true);
-  };
+  useEffect(() => {
+    fetchData(currentPage);
+  }, [currentPage, rowsPerPage]);
 
-  // Add the missing profile update function
-  const handleProfileUpdate = (updatedUser) => {
-    setCurrentUser(updatedUser);
-    localStorage.setItem("currentUser", JSON.stringify(updatedUser));
-  };
-  const handleFilter = () => {
-    let filtered = records;
-
-    if (startDate || endDate) {
-      filtered = filtered.filter((r) => {
-        const date = new Date(r.NgayTao);
-        const s = startDate ? new Date(startDate) : null;
-        const e = endDate ? new Date(endDate) : null;
-        if (s && date < s) return false;
-        if (e && date > e) return false;
-        return true;
-      });
-    }
-
-    if (selectedService !== "tatca") {
-      filtered = filtered.filter((r) => {
-        const dv =
-          typeof r.TenDichVu === "object"
-            ? r.TenDichVu?.name || r.TenDichVu?.ten || ""
-            : r.TenDichVu || "";
-        const translated = translateService(dv);
-        return translated === selectedService;
-      });
-    }
-
-    if (selectedStaff !== "tatca") {
-      filtered = filtered.filter((r) => {
-        const nv =
-          typeof r.NguoiPhuTrach === "object"
-            ? r.NguoiPhuTrach?.name || r.NguoiPhuTrach?.username || ""
-            : r.NguoiPhuTrach || "";
-        return nv === selectedStaff;
-      });
-    }
-
-    setFilteredRecords(filtered);
-    prepareChartData(filtered, viewMode);
-    setCurrentPage(1);
-  };
-
-  // ====== Dữ liệu biểu đồ ======
+  // 🧮 Chuẩn bị dữ liệu biểu đồ
   const prepareChartData = (data, mode) => {
     if (!data || data.length === 0) {
       setChartData([]);
       return;
     }
-
     const group = {};
     data.forEach((r) => {
       const date = new Date(r.NgayTao || Date.now());
@@ -239,65 +170,70 @@ export default function DoanhThu() {
       if (!group[key]) group[key] = { name: key, doanhthu: 0 };
       group[key].doanhthu += Number(r.DoanhThu || 0);
     });
-
     setChartData(Object.values(group));
   };
 
+  // 🔍 Bộ lọc
+  const handleFilter = () => {
+    let filtered = records;
+    if (startDate || endDate) {
+      filtered = filtered.filter((r) => {
+        const date = new Date(r.NgayTao);
+        const s = startDate ? new Date(startDate) : null;
+        const e = endDate ? new Date(endDate) : null;
+        if (s && date < s) return false;
+        if (e && date > e) return false;
+        return true;
+      });
+    }
+    if (selectedService !== "tatca") {
+      filtered = filtered.filter((r) => {
+        const dv =
+          typeof r.TenDichVu === "object"
+            ? r.TenDichVu?.name || r.TenDichVu?.ten || ""
+            : r.TenDichVu || "";
+        const translated = translateService(dv);
+        return translated === selectedService;
+      });
+    }
+    if (selectedStaff !== "tatca") {
+      filtered = filtered.filter((r) => {
+        const nv =
+          typeof r.NguoiPhuTrach === "object"
+            ? r.NguoiPhuTrach?.name || r.NguoiPhuTrach?.username || ""
+            : r.NguoiPhuTrach || "";
+        return nv === selectedStaff;
+      });
+    }
+    setFilteredRecords(filtered);
+    prepareChartData(filtered, viewMode);
+    setCurrentPage(1);
+  };
 
+  // ✏️ Sửa doanh thu
   const handleChange = (id, value) => {
     setFilteredRecords((prev) =>
       prev.map((r) => (r.YeuCauID === id ? { ...r, DoanhThu: value } : r))
     );
   };
-  const handleLogout = () => {
-    console.log("🚪 Đang đăng xuất...");
-    localStorage.removeItem("currentUser");
-    window.location.href = "/login";
-  };
-const handleExportExcel = () => {
-  if (!filteredRecords || filteredRecords.length === 0) {
-    toast.warning("Không có dữ liệu để xuất Excel!");
-    return;
-  }
 
-  const exportData = filteredRecords.map((r) => ({
-    ID: r.YeuCauID,
-    "Họ tên": r.HoTen,
-    Email: r.Email,
-    "Số điện thoại": r.SoDienThoai,
-    "Dịch vụ": translateService(
-      typeof r.TenDichVu === "object"
-        ? r.TenDichVu?.name || r.TenDichVu?.ten
-        : r.TenDichVu
-    ),
-    "Nhân viên phụ trách":
-      typeof r.NguoiPhuTrach === "object"
-        ? r.NguoiPhuTrach?.name || r.NguoiPhuTrach?.username
-        : r.NguoiPhuTrach,
-    "Doanh thu": r.DoanhThu || 0,
-    "Ngày tạo": formatDateForExcel(r.NgayTao),
-  }));
-
-  const worksheet = XLSX.utils.json_to_sheet(exportData);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "DoanhThu");
-
-  XLSX.writeFile(workbook, "Doanh_thu.xlsx");
-};
-
+  // 💾 Lưu doanh thu
   const handleSaveRow = async (id, value) => {
     setSavingRow(id);
     try {
       const numericValue = parseFloat(value) || 0;
-      const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ DoanhThu: numericValue }),
-      });
+      const res = await fetch(
+        `https://onepasscms-backend.onrender.com/api/yeucau/${id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ DoanhThu: numericValue }),
+        }
+      );
       const result = await res.json();
       if (result.success) {
         toast.success(`Lưu thành công YeuCauID #${id}`);
-        fetchRecords();
+        fetchData(currentPage);
       } else {
         toast.error("❌ Lỗi khi cập nhật dữ liệu!");
       }
@@ -309,7 +245,38 @@ const handleExportExcel = () => {
     }
   };
 
+  // 🧾 Xuất Excel
+  const handleExportExcel = () => {
+    if (!filteredRecords || filteredRecords.length === 0) {
+      toast.warning("Không có dữ liệu để xuất Excel!");
+      return;
+    }
 
+    const exportData = filteredRecords.map((r) => ({
+      ID: r.YeuCauID,
+      "Họ tên": r.HoTen,
+      Email: r.Email,
+      "Số điện thoại": r.SoDienThoai,
+      "Dịch vụ": translateService(
+        typeof r.TenDichVu === "object"
+          ? r.TenDichVu?.name || r.TenDichVu?.ten
+          : r.TenDichVu
+      ),
+      "Nhân viên phụ trách":
+        typeof r.NguoiPhuTrach === "object"
+          ? r.NguoiPhuTrach?.name || r.NguoiPhuTrach?.username
+          : r.NguoiPhuTrach,
+      "Doanh thu": r.DoanhThu || 0,
+      "Ngày tạo": new Date(r.NgayTao).toLocaleString("vi-VN"),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "DoanhThu");
+    XLSX.writeFile(workbook, "Doanh_thu.xlsx");
+  };
+
+  // Danh sách dịch vụ & nhân viên
   const serviceOptions = [
     "tatca",
     ...new Set(
@@ -324,7 +291,6 @@ const handleExportExcel = () => {
         .filter(Boolean)
     ),
   ];
-
   const staffOptions = [
     "tatca",
     ...new Set(
@@ -339,16 +305,9 @@ const handleExportExcel = () => {
     ),
   ];
 
-  const totalPages = Math.ceil(filteredRecords.length / rowsPerPage);
-  const paginatedRecords = filteredRecords.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  );
-
   return (
     <div style={{ display: "flex", background: "#f8fafc", minHeight: "100vh" }}>
       <Sidebar collapsed={collapsed} user={currentUser} />
-
       <div
         style={{
           flex: 1,
@@ -362,23 +321,25 @@ const handleExportExcel = () => {
           currentUser={currentUser}
           showSidebar={!collapsed}
           onToggleSidebar={() => setCollapsed((s) => !s)}
-          onOpenEditModal={handleOpenEditModal}
+          onOpenEditModal={() => setShowEditModal(true)}
           hasNewRequest={false}
-          onBellClick={() => {}}
           currentLanguage={currentLanguage}
           onLanguageChange={(lang) => {
             setCurrentLanguage(lang);
             localStorage.setItem("language", lang);
           }}
         />
-      {showEditModal && (
-          <EditProfileModal 
-            currentUser={currentUser} 
-            onUpdate={handleProfileUpdate} 
-            onClose={() => setShowEditModal(false)} 
+        {showEditModal && (
+          <EditProfileModal
+            currentUser={currentUser}
+            onUpdate={(u) => {
+              localStorage.setItem("currentUser", JSON.stringify(u));
+            }}
+            onClose={() => setShowEditModal(false)}
             currentLanguage={currentLanguage}
           />
         )}
+
         <div
           style={{
             flex: 1,
@@ -402,17 +363,9 @@ const handleExportExcel = () => {
             <h3 style={{ color: "#1e3a8a", fontWeight: 700 }}>{t.title}</h3>
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
               <span>→</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
 
               <select
                 value={viewMode}
@@ -421,16 +374,13 @@ const handleExportExcel = () => {
                   prepareChartData(filteredRecords, e.target.value);
                 }}
               >
-                <option value="ngay">{viewModeLabels.ngay[currentLanguage]}</option>
-                <option value="tuan">{viewModeLabels.tuan[currentLanguage]}</option>
-                <option value="thang">{viewModeLabels.thang[currentLanguage]}</option>
-                <option value="nam">{viewModeLabels.nam[currentLanguage]}</option>
+                <option value="ngay">Ngày</option>
+                <option value="tuan">Tuần</option>
+                <option value="thang">Tháng</option>
+                <option value="nam">Năm</option>
               </select>
 
-              <select
-                value={selectedService}
-                onChange={(e) => setSelectedService(e.target.value)}
-              >
+              <select value={selectedService} onChange={(e) => setSelectedService(e.target.value)}>
                 {serviceOptions.map((s, i) => (
                   <option key={i} value={s}>
                     {s === "tatca" ? t.allServices : s}
@@ -438,10 +388,7 @@ const handleExportExcel = () => {
                 ))}
               </select>
 
-              <select
-                value={selectedStaff}
-                onChange={(e) => setSelectedStaff(e.target.value)}
-              >
+              <select value={selectedStaff} onChange={(e) => setSelectedStaff(e.target.value)}>
                 {staffOptions.map((s, i) => (
                   <option key={i} value={s}>
                     {s === "tatca" ? t.allStaff : s}
@@ -477,7 +424,7 @@ const handleExportExcel = () => {
             }}
           >
             <h5 style={{ color: "#2563eb", fontWeight: 600, marginBottom: "10px" }}>
-              {t.chartTitle} ({viewModeLabels[viewMode][currentLanguage]})
+              {t.chartTitle}
             </h5>
             {chartLoading ? (
               <p>{t.loadingChart}</p>
@@ -494,49 +441,46 @@ const handleExportExcel = () => {
                     formatter={(v) => [formatCurrency(v) + " " + t.revenueUnit, t.revenue]}
                   />
                   <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="doanhthu"
-                    stroke="#2563eb"
-                    strokeWidth={2}
-                  />
+                  <Line type="monotone" dataKey="doanhthu" stroke="#2563eb" strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
             )}
           </div>
-        <div style={{ textAlign: "right", marginTop: "10px" }}>
-          <button
-            onClick={handleExportExcel}
-            style={{
-              background: "#16a34a",
-              color: "white",
-              border: "none",
-              borderRadius: "8px",
-              padding: "8px 16px",
-              cursor: "pointer",
-              fontWeight: 500,
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              marginBottom: "20px",
-              marginLeft: "10px"
-            }}
-          >
-          <i className="bi bi-file-earmark-excel"></i>
-          {currentLanguage === "vi" ? "Tải Danh sách Doanh Thu" : "Download Revenue List"}
 
-          </button>
-        </div>
+          {/* Export */}
+          <div style={{ textAlign: "right", marginBottom: "20px" }}>
+            <button
+              onClick={handleExportExcel}
+              style={{
+                background: "#16a34a",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                padding: "8px 16px",
+                cursor: "pointer",
+                fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                marginLeft: "auto",
+              }}
+            >
+              <i className="bi bi-file-earmark-excel"></i>
+              {currentLanguage === "vi" ? "Tải Danh sách Doanh Thu" : "Download Revenue List"}
+            </button>
+          </div>
 
+          {/* Bảng dữ liệu */}
           <TableSection
             loading={loading}
-            data={paginatedRecords}
+            data={filteredRecords}
             handleChange={handleChange}
             handleSaveRow={handleSaveRow}
             savingRow={savingRow}
             totalPages={totalPages}
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
+            currentLanguage={currentLanguage}
           />
         </div>
       </div>
@@ -555,6 +499,7 @@ const TableSection = ({
   totalPages,
   currentPage,
   setCurrentPage,
+  currentLanguage,
 }) => (
   <div
     style={{
@@ -661,22 +606,81 @@ const TableSection = ({
     )}
 
     {/* Phân trang */}
-    <div style={{ display: "flex", justifyContent: "center", marginTop: "10px", gap: "6px" }}>
-      {Array.from({ length: totalPages }, (_, i) => (
-        <button
-          key={i}
-          onClick={() => setCurrentPage(i + 1)}
-          style={{
-            background: currentPage === i + 1 ? "#2563eb" : "white",
-            color: currentPage === i + 1 ? "white" : "black",
-            border: "1px solid #d1d5db",
-            padding: "6px 12px",
-            borderRadius: "6px",
-          }}
-        >
-          {i + 1}
-        </button>
-      ))}
+    <div
+      className="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light"
+      style={{
+        marginTop: "0",
+        borderTop: "1px solid #dee2e6",
+      }}
+    >
+      <div className="text-muted small">
+        {currentLanguage === "vi"
+          ? `Hiển thị ${data.length} / 20 hàng (trang ${currentPage}/${totalPages})`
+          : `Showing ${data.length} / 20 rows (page ${currentPage}/${totalPages})`}
+      </div>
+
+      <div className="d-flex justify-content-center align-items-center">
+        <nav>
+          <ul className="pagination pagination-sm mb-0 shadow-sm">
+            <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+              <button
+                className="page-link"
+                onClick={() => {
+                  if (currentPage > 1) setCurrentPage((p) => p - 1);
+                }}
+              >
+                &laquo;
+              </button>
+            </li>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(
+                (p) =>
+                  p === 1 ||
+                  p === totalPages ||
+                  (p >= currentPage - 1 && p <= currentPage + 1)
+              )
+              .map((p, idx, arr) => (
+                <React.Fragment key={p}>
+                  {idx > 0 && arr[idx - 1] !== p - 1 && (
+                    <li className="page-item disabled">
+                      <span className="page-link">…</span>
+                    </li>
+                  )}
+                  <li className={`page-item ${currentPage === p ? "active" : ""}`}>
+                    <button
+                      className="page-link"
+                      onClick={() => {
+                        if (p !== currentPage) setCurrentPage(p);
+                      }}
+                    >
+                      {p}
+                    </button>
+                  </li>
+                </React.Fragment>
+              ))}
+
+            <li
+              className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}
+            >
+              <button
+                className="page-link"
+                onClick={() => {
+                  if (currentPage < totalPages) setCurrentPage((p) => p + 1);
+                }}
+              >
+                &raquo;
+              </button>
+            </li>
+          </ul>
+        </nav>
+
+        <div className="ms-3 text-muted small">
+          {currentLanguage === "vi"
+            ? `Trang ${currentPage}/${totalPages}`
+            : `Page ${currentPage}/${totalPages}`}
+        </div>
+      </div>
     </div>
   </div>
 );
