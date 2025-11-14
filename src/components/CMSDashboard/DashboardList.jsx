@@ -45,7 +45,9 @@ const handleExportExcel = () => {
       >
         {[
           { key: "request", labelVi: "Danh sách yêu cầu", labelEn: "Request List" },
+          { key: "B2B",labelVi: "Danh sách khách hàng B2B", labelEn: "B2B List"},
           { key: "email", labelVi: "Danh sách email", labelEn: "Email List" },
+
         ].map((tab) => (
           <button
             key={tab.key}
