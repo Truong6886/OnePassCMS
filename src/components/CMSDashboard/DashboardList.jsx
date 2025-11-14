@@ -99,10 +99,9 @@ const handleExportExcel = () => {
               onBlur={(e) => (e.target.style.boxShadow = "none")}
             />
 
-            {currentUser?.is_admin && (
+            {currentUser && (
               <div className="d-flex align-items-center gap-2">
               {/* Nút thêm "+" */}
-              {currentUser?.is_admin && (
                 <button
                   className="btn btn-success shadow-sm"
                   style={{
@@ -121,7 +120,6 @@ const handleExportExcel = () => {
                 >
                   <span style={{ transform: "translateY(-1px)" }}>+</span>
                 </button>
-              )}
 
           
              <div style={{ textAlign: "right", marginTop: "10px" }}>
