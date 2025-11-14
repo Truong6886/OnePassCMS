@@ -50,6 +50,20 @@ const {
   setCurrentPage,
   rowsPerPage,
 } = useDashboardData();
+const filteredPaginatedData = paginatedData.filter(r => {
+  const matchService = filterDichVu
+    ? translateService(r.TenDichVu) === filterDichVu
+    : true;
+
+  const regionMap = { "+84": "Việt Nam", "+82": "Hàn Quốc" };
+  const region = regionMap[r.MaVung] || r.MaVung || "Không xác định";
+  const matchRegion = filterRegion ? region === filterRegion : true;
+
+  const matchStatus = filterStatus ? r.TrangThai === filterStatus : true;
+
+  return matchService && matchRegion && matchStatus;
+});
+
 const filteredByStatus = data
   .filter(r => {
     const date = new Date(r.NgayTao);
@@ -102,7 +116,7 @@ const chartDataByTime = allDates.map(date => {
   });
   return dayData;
 });
-const groupedByStatus = paginatedData.reduce((acc, cur) => {
+const groupedByStatus = filteredPaginatedData.reduce((acc, cur) => {
   const status = cur.TrangThai || "Không xác định";
   acc[status] = (acc[status] || 0) + 1;
   return acc;
@@ -112,7 +126,7 @@ const totalStatus = Object.values(groupedByStatus).reduce((sum, v) => sum + v, 0
 
 
 const filteredChartData = chartData.map(d => {
-  const filtered = paginatedData.filter(r => r.TenDichVu === d.service);
+  const filtered = filteredPaginatedData.filter(r => r.TenDichVu === d.service);
   return {
     ...d,
     value: filtered.length
@@ -531,7 +545,7 @@ useEffect(() => {
               className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top"
               style={{ fontWeight: "600", color: "#1f2937" }}
             >
-              <span>{currentLanguage === "vi" ? "Tổng cộng" : "Total"}</span>
+              <span>Tổng cộng</span>
               <span>
                 {total}{" "}
                 <span style={{ color: "#6b7280" }}>
