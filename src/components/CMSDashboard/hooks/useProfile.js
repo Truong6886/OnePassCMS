@@ -12,11 +12,12 @@ export default function useProfile(currentUser, setCurrentUser, currentLanguage)
       });
       
       const result = await res.json();
-      console.log("📨 Kết quả cập nhật:", result);
+      console.log("Kết quả cập nhật:", result);
 
       if (result.success) {
         const updatedUser = {
           ...currentUser,
+          name: formData.get("name")?.trim() || currentUser.name,
           username: formData.get("username") || currentUser.username,
           email: formData.get("email") || currentUser.email,
           avatar: result.data?.[0]?.avatar || currentUser.avatar
@@ -24,6 +25,7 @@ export default function useProfile(currentUser, setCurrentUser, currentLanguage)
 
         setCurrentUser(updatedUser);
         localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+
 
         showToast(
           currentLanguage === "vi"
