@@ -86,8 +86,8 @@
 
     return (
       <tr>
-        <td className="text-center fw-semibold">{localData.YeuCauID}</td>
-        <td className="text-center">{displayMaHoSo}</td>
+        <td className="text-center fw-semibold border-target">{localData.YeuCauID}</td>
+        <td className="text-center border-target">{displayMaHoSo}</td>
           <td style={{ width: "130px" }}>
             <input
               type="text"
@@ -96,8 +96,8 @@
               onChange={(e) => handleInputChange("TenDichVu", e.target.value)}
             />
           </td>
-          <td style={{textAlign:"center"}}>{localData.TenHinhThuc}</td>
-          <td style={{textAlign:"center"}}>{translateBranch(localData.CoSoTuVan)}</td>
+          <td className="border-target" style={{textAlign:"center"}}>{localData.TenHinhThuc}</td>
+          <td className="border-target" style={{textAlign:"center"}}>{translateBranch(localData.CoSoTuVan)}</td>
           <td className="sticky-col" style={{ width: "110px" }}>
             <input
               type="text"
@@ -176,7 +176,7 @@
               onChange={(e) => handleInputChange("Gio", e.target.value)}
             />
           </td>
-          <td className="text-center text-nowrap">
+          <td className="text-center text-nowrap border-target">
             {localData.NgayTao && (
               <> {new Date(localData.NgayTao).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", })} 
               <br /> {new Date(localData.NgayTao).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false, })} 
@@ -184,7 +184,8 @@
               </td>
           <td>
             <select
-              className="form-select form-select-sm w-140"
+              className="form-select form-select-sm"
+              style={{width: 143}}
               value={localData.TrangThai}
               onChange={(e) => handleInputChange("TrangThai", e.target.value)}
             >

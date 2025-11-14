@@ -82,7 +82,17 @@
   font-size: 15px;
   font-weight: 500;
 }
+.border-target {
+  border-left: 1px solid #ccc !important;
+  border-top: 1px solid #ccc !important;
+  border-right: 1px solid #ccc !important;
+}
 
+/* Áp dụng cho body */
+/* .table tbody td.border-target {
+  border-left: 1px solid #000 !important;
+  border-right: 1px solid #000 !important;
+} */
 .tab-btn.active {
   color: #2563eb;
   border-bottom: 2px solid #2563eb;

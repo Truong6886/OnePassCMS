@@ -258,22 +258,22 @@ const EditProfileModal = ({ currentUser, onUpdate, onClose, currentLanguage }) =
           disabled={loading}
         />
 
-        {/* Form */}
+            {/* Form */}
         <div className="mb-3">
-          <label className="form-label fw-semibold">
-            {currentLanguage === "vi" ? "Họ và tên" : "Full Name"}
-          </label>
-          <input
-            type="text"
-            className="form-control rounded-pill"
-            value={formData.name}
-            onChange={(e) => handleInputChange("name", e.target.value)}
-            placeholder={
-              currentLanguage === "vi" ? "Nhập họ và tên" : "Enter full name"
-            }
-            disabled={loading}
-          />
-        </div>
+            <label className="form-label fw-semibold">
+              {currentLanguage === "vi" ? "Họ và tên" : "Full Name"}
+            </label>
+            <input
+              type="text"
+              className="form-control rounded-pill"
+              value={formData.name}
+              onChange={(e) => handleInputChange("name", e.target.value)}
+              placeholder={
+                currentLanguage === "vi" ? "Nhập họ và tên" : "Enter full name"
+              }
+              disabled={loading}
+            />
+          </div>
 
         <div className="mb-3">
           <label className="form-label fw-semibold">Username</label>
