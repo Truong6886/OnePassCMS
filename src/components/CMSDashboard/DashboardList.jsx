@@ -153,7 +153,7 @@ const handleExportExcel = () => {
           </div>
 
              <div className="table-wrapper mt-3">
-            <div className="table-responsive" ref={tableContainerRef}>
+            <div className="table-responsive" style={{paddingLeft: "0px"}} ref={tableContainerRef}>
               <table className="table table-bordered table-hover align-middle mb-0">
                 <thead>
                   <tr>
