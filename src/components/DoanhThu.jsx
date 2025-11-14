@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import { Save } from "lucide-react";
+
+
 import {
   LineChart,
   Line,
@@ -77,7 +79,7 @@ export default function DoanhThu() {
   const [records, setRecords] = useState([]);
   const [filteredRecords, setFilteredRecords] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
-
+  const [searchTerm, setSearchTerm] = useState("");
   const [currentLanguage, setCurrentLanguage] = useState(
     localStorage.getItem("language") || "vi"
   );
@@ -176,6 +178,19 @@ export default function DoanhThu() {
   // 🔍 Bộ lọc
   const handleFilter = () => {
     let filtered = records;
+    if (searchTerm.trim() !== "") {
+      const keyword = searchTerm.toLowerCase();
+      filtered = filtered.filter((r) => {
+        const hoten = r.HoTen?.toLowerCase() || "";
+        const email = r.Email?.toLowerCase() || "";
+        const sdt = r.SoDienThoai?.toLowerCase() || "";
+        return (
+          hoten.includes(keyword) ||
+          email.includes(keyword) ||
+          sdt.includes(keyword)
+        );
+      });
+    }
     if (startDate || endDate) {
       filtered = filtered.filter((r) => {
         const date = new Date(r.NgayTao);
@@ -446,9 +461,61 @@ export default function DoanhThu() {
               </ResponsiveContainer>
             )}
           </div>
+       
+      
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "20px",
+              gap: "12px",
+              flexWrap: "wrap",
+            }}
+          >
+            {/* Input search */}
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <input
+                  type="text"
+                  placeholder={
+                    currentLanguage === "vi"
+                      ? "Tìm theo họ tên, email, số điện thoại..."
+                      : "Search name, email, phone..."
+                  }
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    handleFilter();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleFilter();
+                  }}
+                  style={{
+                    width: "320px",
+                    padding: "10px 14px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "8px",
+                  }}
+                />
 
-          {/* Export */}
-          <div style={{ textAlign: "right", marginBottom: "20px" }}>
+
+              {/* <button
+                onClick={handleFilter}
+                style={{
+                  background: "#2563eb",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "8px 14px",
+                  cursor: "pointer",
+                  fontWeight: 500,
+                }}
+              >
+                {currentLanguage === "vi" ? "Tìm kiếm" : "Search"}
+              </button> */}
+            </div>
+
+
             <button
               onClick={handleExportExcel}
               style={{
@@ -462,15 +529,16 @@ export default function DoanhThu() {
                 display: "flex",
                 alignItems: "center",
                 gap: "6px",
-                marginLeft: "auto",
               }}
             >
               <i className="bi bi-file-earmark-excel"></i>
-              {currentLanguage === "vi" ? "Tải Danh sách Doanh Thu" : "Download Revenue List"}
+              {currentLanguage === "vi"
+                ? "Tải Danh Sách Doanh Thu"
+                : "Download Revenue List"}
             </button>
           </div>
 
-          {/* Bảng dữ liệu */}
+  
           <TableSection
             loading={loading}
             data={filteredRecords}
