@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import logo from "../assets/logo.png";
 import { useNavigate, useLocation } from "react-router-dom";
 import { List, Search, DollarSign } from "lucide-react";
-
+import { Handshake } from 'lucide-react';
 export default function Sidebar({ collapsed = false, user }) {
   const [hoveredItem, setHoveredItem] = useState(null);
   const navigate = useNavigate();
@@ -41,6 +41,7 @@ useEffect(() => {
     hoso: { vi: "Tra Cứu Hồ Sơ", en: "Record Lookup" },
     nhanvien: { vi: "Quản Lý Nhân Viên", en: "Employee Management" },
     doanhthu: { vi: "Doanh Thu", en: "Revenue" },
+    b2b: {vi:"Quản lý B2B", en: "B2B Management"}
   };
 
   const sidebarStyle = {
@@ -80,6 +81,7 @@ useEffect(() => {
     const isActive =
       (key === "list" && currentPath === "/") ||
       (key === "hoso" && currentPath.startsWith("/hoso")) ||
+      (key === "b2b" && currentPath.startsWith("/b2b")) ||
       (key === "nhanvien" && currentPath.startsWith("/nhanvien")) ||
       (key === "doanhthu" && currentPath.startsWith("/doanhthu"));
 
@@ -149,7 +151,7 @@ useEffect(() => {
             {!collapsed && <span>{texts.hoso[currentLanguage]}</span>}
           </li>
 
-          {/* Quản lý nhân viên */}
+        
           {(user?.is_admin || user?.is_director) && (
             <li
               style={getItemStyle("nhanvien")}
@@ -162,7 +164,7 @@ useEffect(() => {
             </li>
           )}
 
-          {/* Doanh thu */}
+  
           {(user?.is_accountant || user?.is_director) && (
             <li
               style={getItemStyle("doanhthu")}
@@ -174,6 +176,18 @@ useEffect(() => {
               {!collapsed && <span>{texts.doanhthu[currentLanguage]}</span>}
             </li>
           )}
+          {(user?.is_admin || user?.is_director) && (
+            <li
+              style={getItemStyle("b2b")}
+              onMouseEnter={() => setHoveredItem("b2b")}
+              onMouseLeave={() => setHoveredItem(null)}
+              onClick={() => navigate("/b2b")}
+            >
+                <Handshake  style={{ fontSize: 20 }} />
+                {!collapsed && <span>{texts.b2b[currentLanguage]}</span>}
+            </li>
+          )}
+
         </ul>
       </div>
     </div>

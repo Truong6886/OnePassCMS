@@ -4,9 +4,11 @@ import CMSDashboard from "./components/CMSDashboard";
 import TraCuuHoSo from "./components/TraCuuHoSo";
 import KyHoSo from "./components/KyHoSo";
 import QuanLyNhanVien from "./components/QuanLyNhanVien";
+import B2BPage from "./components/B2BPage";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../src/styles/CMSDashboard.css";
+import "./components/B2BPage"
 import DoanhThu from "./components/DoanhThu";
 
 export default function App() {
@@ -94,7 +96,7 @@ export default function App() {
 
           {/* ✅ Tra cứu hồ sơ (public) */}
           <Route path="/hoso" element={<TraCuuHoSo />} />
-          {/* <Route path="/ky/:mahoso" element={<KyTaiLieu />} /> */}
+          
           <Route
             path="/nhanvien"
             element={
@@ -110,7 +112,7 @@ export default function App() {
             }
           />
 
-          {/* ✅ Doanh thu – chỉ cho kế toán */}
+       
           <Route
             path="/doanhthu"
             element={
@@ -126,8 +128,22 @@ export default function App() {
             }
           />
            <Route path="/kyhoso/:mahoso" element={<KyHoSo />} />
+           <Route
+              path="/b2b"
+              element={
+                (currentUser?.is_director || currentUser?.is_admin) ? (
+                  <B2BPage
+                    currentUser={currentUser}
+                    showSidebar={showSidebar}
+                    onToggleSidebar={toggleSidebar}
+                  />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              }
+            />
 
-          {/* ✅ Route fallback */}
+         
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
