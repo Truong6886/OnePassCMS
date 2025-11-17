@@ -81,7 +81,7 @@ useEffect(() => {
     const isActive =
       (key === "list" && currentPath === "/") ||
       (key === "hoso" && currentPath.startsWith("/hoso")) ||
-      (key === "b2b" && currentPath.startsWith("/b2b")) ||
+      (key === "B2B" && currentPath.startsWith("/B2B")) ||
       (key === "nhanvien" && currentPath.startsWith("/nhanvien")) ||
       (key === "doanhthu" && currentPath.startsWith("/doanhthu"));
 
@@ -178,10 +178,10 @@ useEffect(() => {
           )}
           {(user?.is_admin || user?.is_director) && (
             <li
-              style={getItemStyle("b2b")}
-              onMouseEnter={() => setHoveredItem("b2b")}
+              style={getItemStyle("B2B")}
+              onMouseEnter={() => setHoveredItem("B2B")}
               onMouseLeave={() => setHoveredItem(null)}
-              onClick={() => navigate("/b2b")}
+              onClick={() => navigate("/B2B")}
             >
                 <Handshake  style={{ fontSize: 20 }} />
                 {!collapsed && <span>{texts.b2b[currentLanguage]}</span>}
