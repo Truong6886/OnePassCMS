@@ -73,6 +73,7 @@ export default function CMSDashboard() {
     filterMode,
     setFilterMode,
     timeRange,
+    handleDelete,
     setTimeRange, 
     setCurrentUser,
   } = useDashboardData();
@@ -246,6 +247,7 @@ export default function CMSDashboard() {
       users={users}
       handleStatusChange={handleStatusChange}
       handleSave={handleSave}
+      handleDelete={handleDelete}
       tableContainerRef={tableContainerRef}
       currentPage={currentPage}
       totalPages={totalPages}

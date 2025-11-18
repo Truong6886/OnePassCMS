@@ -2,6 +2,7 @@
   import { Save, Trash2 } from "lucide-react";
   import { showToast } from "../utils/toast";
   import "../styles/TableRow.css";
+  import Swal from "sweetalert2";
   const TableRow = ({
     item,
     dichvuList,
@@ -28,7 +29,27 @@
         textRef.current.style.height = textRef.current.scrollHeight + "px";
       }
     }, [value]);
+   const handleDeleteClick = () => {
+    Swal.fire({
+      title: currentLanguage === "vi" ? "Bạn chắc chắn chứ?" : "Are you sure?",
+      text: currentLanguage === "vi" 
+        ? "Hành động này không thể hoàn tác!" 
+        : "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444", 
+      cancelButtonColor: "#6b7280", 
+      confirmButtonText: currentLanguage === "vi" ? "Xoá" : "Delete",
+      cancelButtonText: currentLanguage === "vi" ? "Hủy" : "Cancel",
+      reverseButtons: false 
+    }).then((result) => {
+      if (result.isConfirmed) {
 
+        onDelete(localData.YeuCauID);
+       
+      }
+    });
+  };
     const handleInputChange = (field, value) => {
       setLocalData((prev) => {
         const updated = { ...prev, [field]: value };
@@ -233,9 +254,10 @@
                <button className="btn btn-sm" style={{ backgroundColor: "#2563eb", color: "#fff", width: 36, height: 36, borderRadius: 6, }} 
                onClick={handleSave} > <Save size={17} strokeWidth={2.3} /> 
                </button> 
-               <button className="btn btn-sm" style={{ backgroundColor: "#ef4444", color: "#fff", width: 36, height: 36, borderRadius: 6, }} 
-               onClick={() => onDelete(localData.YeuCauID)} > <Trash2 size={17} strokeWidth={2.3} /> 
-               </button> 
+             <button className="btn btn-sm" style={{ backgroundColor: "#ef4444", color: "#fff", width: 36, height: 36, borderRadius: 6, }} 
+               onClick={handleDeleteClick} > 
+                 <Trash2 size={17} strokeWidth={2.3} /> 
+               </button>
             </div> 
           </td>
       </tr>

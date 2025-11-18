@@ -4,6 +4,7 @@ import { showToast } from "../../utils/toast";
 import "../../styles/DashboardList.css";
 import * as XLSX from "xlsx";
 import EmailList from "./EmailList";
+
 import { exportRequestsToExcel } from "../../utils/exportExcel";
 const DashboardList = ({
   subViewMode,
@@ -22,6 +23,7 @@ const DashboardList = ({
   users,
   handleStatusChange,
   handleSave,
+  handleDelete,
   tableContainerRef,
   currentPage,
   totalPages,
@@ -186,11 +188,7 @@ const handleExportExcel = () => {
                         onSave={handleSave}
                         data={data}
                         currentLanguage={currentLanguage}
-                        onDelete={(id) =>
-                          setData((prev) =>
-                            prev.filter((r) => r.YeuCauID !== id)
-                          )
-                        }
+                        onDelete={handleDelete}
                       />
                     ))
                   ) : (

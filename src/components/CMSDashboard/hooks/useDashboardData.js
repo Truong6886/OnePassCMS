@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { showToast } from "../../../utils/toast";
-
+import translateService from "../../../utils/translateService";
 export default function useDashboardData() {
 
   const [subViewMode, setSubViewMode] = useState("request");
@@ -159,7 +159,28 @@ export default function useDashboardData() {
       matchSearch && matchStatus && matchService && matchDate && matchUser
     );
   });
+const handleDelete = async (id) => {
+    try {
+      const res = await fetch(
+        `https://onepasscms-backend.onrender.com/api/yeucau/${id}`,
+        {
+          method: "DELETE",
+        }
+      );
+      const result = await res.json();
 
+      if (result.success) {
+        // Cập nhật lại state data sau khi xóa thành công trên server
+        setData((prev) => prev.filter((item) => item.YeuCauID !== id));
+        showToast("Xóa thành công!", "success");
+      } else {
+        showToast(result.message || "Lỗi khi xóa!", "danger");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Lỗi kết nối server!", "danger");
+    }
+  };
 
   const tableHeaders = [
     "ID",
@@ -185,10 +206,11 @@ export default function useDashboardData() {
  return {
 
     data,
+    setData, 
     filteredData,
     users,
     dichvuList,
-
+    handleDelete,
     currentUser,
 
     showSidebar,

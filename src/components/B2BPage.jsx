@@ -184,28 +184,28 @@ const handleServiceChange = (id, field, value) => {
       .filter(service => service.length > 0);
   };
 
-  // Function to transform services data into individual rows
+ 
   const transformServicesData = (servicesData) => {
     const transformed = [];
     let serviceCounter = 1;
     
     servicesData.forEach(company => {
-      // Get the services string from company data
+   
       const servicesString = company.DichVu || company.TenDichVu || "";
       
-      // Split services into individual service names
+
       const individualServices = splitServices(servicesString);
       
       if (individualServices.length > 0) {
-        // Create a row for each individual service
+   
         individualServices.forEach((serviceName, serviceIndex) => {
           transformed.push({
-            ID: `${company.ID}-${serviceCounter}`, // Unique ID for each service row
+            ID: `${company.ID}-${serviceCounter}`,
             CompanyID: company.ID,
             TenDoanhNghiep: company.TenDoanhNghiep,
             SoDKKD: company.SoDKKD,
             NguoiDaiDien: company.NguoiDaiDien,
-            // Service details - each service gets its own row
+   
             TenDichVu: serviceName,
             NgayThucHien: company.NgayThucHien || company.NgayDangKyB2B,
             NgayHoanThanh: company.NgayHoanThanh,
@@ -250,7 +250,7 @@ const handleServiceChange = (id, field, value) => {
   const saveRow = async (id) => {
     if (!editingRows[id]) return;
     try {
-      const res = await fetch(`https://onepasscms-backend.onrender.com/api/b2b/update/${id}`, {
+      const res = await fetch(`http://localhost:5000/api/b2b/update/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editingRows[id]),
@@ -276,7 +276,7 @@ const handleServiceChange = (id, field, value) => {
   const approve = async (id) => {
     if (!window.confirm(t("Duyệt doanh nghiệp này?", "Approve this company?"))) return;
     try {
-      const res = await fetch(`https://onepasscms-backend.onrender.com/api/b2b/approve/${id}`, { method: "POST" }).then(r => r.json());
+      const res = await fetch(`http://localhost:5000/api/b2b/approve/${id}`, { method: "POST" }).then(r => r.json());
       if (res.success) {
         showToast(t("Duyệt thành công", "Approved successfully"), "success");
         loadData();
@@ -292,7 +292,7 @@ const handleServiceChange = (id, field, value) => {
   const deleteRow = async (id) => {
     if (!window.confirm(t("Xóa doanh nghiệp này?", "Delete this company?"))) return;
     try {
-      const res = await fetch(`https://onepasscms-backend.onrender.com/api/b2b/delete/${id}`, { method: "DELETE" }).then(r => r.json());
+      const res = await fetch(`http://localhost:5000/api/b2b/delete/${id}`, { method: "DELETE" }).then(r => r.json());
       if (res.success) {
         showToast(t("Xóa thành công", "Deleted successfully"), "success");
         loadData();
@@ -305,7 +305,7 @@ const handleServiceChange = (id, field, value) => {
     }
   };
 
-  // Lấy dữ liệu đã lọc theo tab hiện tại
+  
   const getFilteredList = () => {
     const list = activeTab === "pending" ? pendingList : 
                  activeTab === "approved" ? approvedList : 
@@ -316,20 +316,19 @@ const handleServiceChange = (id, field, value) => {
     );
   };
 
-  // Lấy dữ liệu phân trang theo tab hiện tại
+
   const getPaginatedList = () => {
     const filteredList = getFilteredList();
     const startIndex = (currentPages[activeTab] - 1) * itemsPerPage;
     return filteredList.slice(startIndex, startIndex + itemsPerPage);
   };
 
-  // Tính tổng số trang theo tab hiện tại
+  
   const getTotalPages = () => {
     const filteredList = getFilteredList();
     return Math.ceil(filteredList.length / itemsPerPage);
   };
 
-  // Hàm xử lý chuyển trang
   const handlePageChange = (newPage) => {
     setCurrentPages(prev => ({
       ...prev,
@@ -337,10 +336,10 @@ const handleServiceChange = (id, field, value) => {
     }));
   };
 
-  // Reset trang về 1 khi chuyển tab
+
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    // Không reset trang về 1 khi chuyển tab để giữ trạng thái phân trang của từng tab
+
   };
 
   const columns = activeTab === "pending"
@@ -349,7 +348,7 @@ const handleServiceChange = (id, field, value) => {
 
   const renderDichVu = (item) => [item.DichVu, item.DichVuKhac].filter(Boolean).join(", ") || "—";
 
-  // Hàm để nhóm các dịch vụ theo công ty
+
   const groupServicesByCompany = (services) => {
     const grouped = {};
     

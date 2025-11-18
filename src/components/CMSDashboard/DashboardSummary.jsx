@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import translateService from "../../utils/translateService";
 import {
   ResponsiveContainer,
   PieChart,
@@ -26,13 +27,9 @@ const DashboardSummary = ({
   data,
   currentLanguage,
   serviceColorMap,
-  translateService,
   filterDichVu,
   setFilterDichVu,
-  filterRegion,
-  setFilterRegion,
-  filterMode,
-  setFilterMode,
+  
   timeRange,
   setTimeRange,
   filterStatus,
@@ -45,6 +42,8 @@ const DashboardSummary = ({
 const [paginatedData, setPaginatedData] = useState([]);
 const [totalPages, setTotalPages] = useState(1);
 const [loading, setLoading] = useState(false);
+const [filterRegion, setFilterRegion] = useState("");
+const [filterMode,setFilterMode]= useState("");
 const {
   currentPage,
   setCurrentPage,
@@ -58,7 +57,7 @@ const filteredPaginatedData = paginatedData.filter(r => {
   const regionMap = { "+84": "Việt Nam", "+82": "Hàn Quốc" };
   const region = regionMap[r.MaVung] || r.MaVung || "Không xác định";
   const matchRegion = filterRegion ? region === filterRegion : true;
-
+  const matchMode = filterMode ? r.TenHinhThuc === filterMode : true; 
   const matchStatus = filterStatus ? r.TrangThai === filterStatus : true;
 
   return matchService && matchRegion && matchStatus;
@@ -237,21 +236,27 @@ useEffect(() => {
                   return acc;
                 }, {})
               ).map(([name], i) => (
-                <Cell
-                  key={i}
-                  fill={serviceColorMap[name] || "#60a5fa"}
-                  cursor="pointer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setFilterDichVu(name);
-                    showToast(
-                      currentLanguage === "vi"
-                        ? `Đang lọc danh sách theo dịch vụ: ${name}`
-                        : `Filtering requests for: ${name}`,
-                      "info"
-                    );
-                  }}
-                />
+                  <Cell
+                    key={i}
+                    fill={serviceColorMap[name] || "#60a5fa"}
+                    cursor="pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const newFilter = name === filterDichVu ? "" : name;
+                      setFilterDichVu(newFilter);
+                      showToast(
+                        currentLanguage === "vi"
+                          ? newFilter
+                            ? `Đang lọc danh sách theo dịch vụ: ${name}`
+                            : "Hiển thị toàn bộ danh sách yêu cầu"
+                          : newFilter
+                          ? `Filtering requests for: ${name}`
+                          : "Showing all requests",
+                        "info"
+                      );
+                    }}
+                  />
+
               ))}
             </Pie>
               <Tooltip />
@@ -844,53 +849,44 @@ useEffect(() => {
 ) : (
   <div>
     <table className="table table-hover table-bordered align-middle">
-      <thead className="table-light">
-        <tr>
-          <th>ID</th>
-          <th>{currentLanguage === "vi" ? "Họ tên" : "Name"}</th>
-          <th>{currentLanguage === "vi" ? "Mã vùng" : "Region Code"}</th>
-          <th>{currentLanguage === "vi" ? "Số điện thoại" : "Phone"}</th>
-          <th>Email</th>
-          <th>{currentLanguage === "vi" ? "Dịch vụ" : "Service"}</th>
-          <th>{currentLanguage === "vi" ? "Trạng thái" : "Status"}</th>
-        </tr>
-      </thead>
+    <thead className="table-light">
+      <tr>
+        <th>ID</th>
+        <th>{currentLanguage === "vi" ? "Họ tên" : "Name"}</th>
+        <th>{currentLanguage === "vi" ? "Mã vùng" : "Region Code"}</th>
+        <th>{currentLanguage === "vi" ? "Số điện thoại" : "Phone"}</th>
+        <th>Email</th>
+        <th>{currentLanguage === "vi" ? "Dịch vụ" : "Service"}</th>
+        <th>{currentLanguage === "vi" ? "Trạng thái" : "Status"}</th>
+        <th>{currentLanguage === "vi" ? "Hình thức" : "Contact Channel"}</th> {/* thêm cột */}
+      </tr>
+    </thead>
 
-      <tbody>
-        {paginatedData
-          .filter((r) => {
-            const matchService = filterDichVu
-              ? translateService(r.TenDichVu) === filterDichVu
-              : true;
 
-            const regionMap = { "+84": "Việt Nam", "+82": "Hàn Quốc" };
-            const region = regionMap[r.MaVung] || r.MaVung || "Không xác định";
-            const matchRegion = filterRegion ? region === filterRegion : true;
+          <tbody>
+  {filteredPaginatedData.length > 0 ? (
+    filteredPaginatedData.map((r) => (
+      <tr key={r.YeuCauID}>
+        <td>{r.YeuCauID}</td>
+        <td>{r.HoTen}</td>
+        <td>{r.MaVung}</td>
+        <td>{r.SoDienThoai || "—"}</td>
+        <td>{r.Email || "—"}</td>
+        <td>{translateService(r.TenDichVu)}</td>
+        <td>{r.TrangThai}</td>
+        <td>{r.TenHinhThuc || "—"}</td>
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan="8" className="text-center text-muted py-3">
+        {currentLanguage === "vi" ? "Không có yêu cầu nào" : "No requests found"}
+      </td>
+    </tr>
+  )}
+</tbody>
 
-            return matchService && matchRegion;
-          })
-          .map((r) => (
-            <tr key={r.YeuCauID}>
-              <td>{r.YeuCauID}</td>
-              <td>{r.HoTen}</td>
-              <td>{r.MaVung}</td>
-              <td>{r.SoDienThoai || "—"}</td>
-              <td>{r.Email || "—"}</td>
-              <td>{translateService(r.TenDichVu)}</td>
-              <td>{r.TrangThai}</td>
-            </tr>
-          ))}
 
-        {paginatedData.length === 0 && (
-          <tr>
-            <td colSpan="7" className="text-center text-muted py-3">
-              {currentLanguage === "vi"
-                ? "Không có yêu cầu nào"
-                : "No requests found"}
-            </td>
-          </tr>
-        )}
-      </tbody>
     </table>
 
     {/* --- PHÂN TRANG --- */}
