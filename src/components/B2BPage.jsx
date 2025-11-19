@@ -7,7 +7,7 @@ import EditProfileModal from "./EditProfileModal";
 import { showToast } from "../utils/toast";
 import { Save, Trash2, XCircle, Check, File } from "lucide-react";
 
-// --- Helper Functions ---
+
 const formatDateTime = (isoString) => {
   if (!isoString) return "—";
   try {
@@ -33,30 +33,28 @@ const calculateServiceValues = (revenueBefore, discountRate) => {
 const API_BASE = "https://onepasscms-backend.onrender.com/api";
 
 export default function B2BPage() {
-  // --- State Layout & User ---
+ 
   const [showSidebar, setShowSidebar] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [currentLanguage, setCurrentLanguage] = useState(localStorage.getItem("language") || "vi");
   const [loading, setLoading] = useState(false);
 
-  // --- State Data ---
+
   const [pendingList, setPendingList] = useState([]);
   const [approvedList, setApprovedList] = useState([]); 
   const [serviceRecords, setServiceRecords] = useState([]); 
 
-  // --- State View Control ---
   const [activeTab, setActiveTab] = useState("pending");
   const [searchTerm, setSearchTerm] = useState("");
   const [itemsPerPage] = useState(10);
   const [currentPages, setCurrentPages] = useState({ pending: 1, approved: 1, services: 1 });
   
-  // --- Notification & Modal ---
+
   const [hasNewRequest, setHasNewRequest] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotification, setShowNotification] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // --- TRANSLATION DICTIONARY (Thêm mới đoạn này) ---
   const translations = {
     vi: {
       pendingTab: "Danh sách chờ duyệt",
@@ -65,15 +63,14 @@ export default function B2BPage() {
       addServiceBtn: "+ Thêm dịch vụ",
     },
     en: {
-      pendingTab: "Pending Requests",
+      pendingTab: "Pending List",
       approvedTab: "Approved List",
       servicesTab: "Performed Services",
       addServiceBtn: "+ Add Service",
     },
-    // Bạn có thể thêm các ngôn ngữ khác như cn, jp ở đây
+   
   };
 
-  // Helper lấy text theo ngôn ngữ hiện tại
   const t = translations[currentLanguage] || translations["vi"];
 
 
