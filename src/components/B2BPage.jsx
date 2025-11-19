@@ -30,7 +30,7 @@ const calculateServiceValues = (revenueBefore, discountRate) => {
   return { discountAmount, revenueAfter, totalRevenue: revenueAfter };
 };
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "https://onepasscms-backend.onrender.com/api";
 
 export default function B2BPage() {
   // --- State Layout & User ---
@@ -586,7 +586,7 @@ export default function B2BPage() {
               <Pagination totalItems={getFilteredList(serviceRecords).length} tabName="services" />
             </div>
           ) : (
-            // --- PHẦN DANH SÁCH CHỜ DUYỆT & ĐÃ DUYỆT (INLINE EDITABLE) ---
+       
             <div className="table-responsive shadow-sm rounded overflow-hidden">
               <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: '12px', tableLayout: 'auto' }}>
                 <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}>
