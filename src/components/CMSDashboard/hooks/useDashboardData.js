@@ -55,14 +55,17 @@ export default function useDashboardData() {
     setLoading(true);
 
     // Xác định xem có phải admin hoặc director
-    const isAdminOrDirector = user?.is_admin || user?.role === "director";
+   const isAdminDirectorOrAccountant = user?.is_admin || user?.is_director || user?.is_accountant;
+
 
     const queryParams = new URLSearchParams({
       page,
       limit: rowsPerPage,
       is_admin: user?.is_admin || false,
+      is_director: user?.is_director || false,
+      is_accountant: user?.is_accountant || false,
     });
-    if (!isAdminOrDirector) {
+    if (!isAdminDirectorOrAccountant) {
       queryParams.append("userId", user?.id || "");
     }
 

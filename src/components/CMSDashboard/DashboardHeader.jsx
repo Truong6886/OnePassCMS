@@ -11,7 +11,7 @@ const DashboardHeader = ({
   setFilterDichVu,
   setFilterStatus,
 }) => {
-  if (!currentUser?.is_admin && !currentUser?.is_director)return null;
+  if (!currentUser?.is_admin && !currentUser?.is_director && !currentUser?.is_accountant) return null;
 
   const tabs = [
     { key: "summary", labelVi: "Tổng quan", labelEn: "Summary" },
