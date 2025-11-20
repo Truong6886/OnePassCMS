@@ -205,7 +205,7 @@ export default function CMSDashboard() {
           setFilterStatus={setFilterStatus}
         />
 
-      {currentUser?.is_admin && viewMode === "summary" && (
+      {(currentUser?.is_admin || currentUser?.is_director)  && viewMode === "summary" && (
         <DashboardSummary
           data={filteredData}
           currentLanguage={currentLanguage}
@@ -230,7 +230,7 @@ export default function CMSDashboard() {
 
 
 
-    {(!currentUser?.is_admin || viewMode === "list") && (
+    {(currentUser?.is_admin || currentUser?.is_director)  &&  viewMode === "list" && (
      <DashboardList
       subViewMode={subViewMode}
       setSubViewMode={setSubViewMode}

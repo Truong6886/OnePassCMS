@@ -6,18 +6,83 @@ import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import EditProfileModal from "./EditProfileModal";
 import { showToast } from "../utils/toast";
 import { Save, Trash2, XCircle, Check, FileText } from "lucide-react";
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
+const MySwal = withReactContent(Swal);
+function Pagination({ current = 1, total = 0, pageSize = 20, onChange }) {
+  const totalPages = Math.ceil(total / pageSize) || 1;
 
+  const goTo = (page) => {
+    if (page < 1 || page > totalPages) return;
+    if (onChange) onChange(page);
+  };
+
+  return (
+    <div className="d-flex justify-content-center align-items-center gap-2 mt-3">
+      
+      {/* Prev */}
+      <button
+        className="btn btn-sm btn-outline-primary"
+        disabled={current === 1}
+        onClick={() => goTo(current - 1)}
+      >
+        ‹
+      </button>
+
+      {/* Page number */}
+      <span style={{ fontSize: 13 }}>
+        Trang <b>{current}</b> / {totalPages}
+      </span>
+
+      {/* Next */}
+      <button
+        className="btn btn-sm btn-outline-primary"
+        disabled={current === totalPages}
+        onClick={() => goTo(current + 1)}
+      >
+        ›
+      </button>
+    </div>
+  );
+}
 
 const formatDateTime = (isoString) => {
-  if (!isoString) return "—";
+  if (!isoString) return "";
   try {
     const date = new Date(isoString.endsWith("Z") ? isoString : isoString + "Z");
     return new Intl.DateTimeFormat("vi-VN", {
-      day: "2-digit", month: "2-digit", year: "numeric",
-      hour: "2-digit", minute: "2-digit"
+      day: "2-digit", 
+      month: "2-digit", 
+      year: "numeric",
+      hour: "2-digit", 
+      minute: "2-digit",
+      hour12: false // Để hiển thị 24h format
     }).format(date);
-  } catch { return isoString; }
+  } catch (error) { 
+    console.error("Error formatting date:", error);
+    return isoString; 
+  }
 };
+const formatDateTimeReject = (isoString) => {
+  if (!isoString) return "";
+  try {
+    const date = new Date(isoString);  // KHÔNG thêm "Z"
+
+    return new Intl.DateTimeFormat("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: "Asia/Ho_Chi_Minh"   // ép về giờ VN
+    }).format(date);
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return isoString;
+  }
+};
+
 
 const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
 const unformatNumber = (value) => (value ? value.toString().replace(/\./g, "") : "");
@@ -30,114 +95,188 @@ const calculateServiceValues = (revenueBefore, discountRate) => {
   return { discountAmount, revenueAfter, totalRevenue: revenueAfter };
 };
 
-const API_BASE = "https://onepasscms-backend.onrender.com/api";
+const API_BASE = "http://localhost:5000/api";
 
 export default function B2BPage() {
- 
   const [showSidebar, setShowSidebar] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [currentLanguage, setCurrentLanguage] = useState(localStorage.getItem("language") || "vi");
   const [loading, setLoading] = useState(false);
 
-
   const [pendingList, setPendingList] = useState([]);
   const [approvedList, setApprovedList] = useState([]); 
   const [serviceRecords, setServiceRecords] = useState([]); 
+  const [rejectedList, setRejectedList] = useState([]);
 
   const [activeTab, setActiveTab] = useState("pending");
   const [searchTerm, setSearchTerm] = useState("");
-  const [itemsPerPage] = useState(10);
-  const [currentPages, setCurrentPages] = useState({ pending: 1, approved: 1, services: 1 });
-  
 
+  const [pendingData, setPendingData] = useState([]);
+  const [pendingTotal, setPendingTotal] = useState(0);
+
+  const [approvedData, setApprovedData] = useState([]);
+  const [approvedTotal, setApprovedTotal] = useState(0);
+
+  const [rejectedData, setRejectedData] = useState([]);
+  const [rejectedTotal, setRejectedTotal] = useState(0);
+
+  const [serviceData, setServiceData] = useState([]);
+  const [serviceTotal, setServiceTotal] = useState(0);
+
+  const [currentPage, setCurrentPage] = useState({
+    pending: 1,
+    approved: 1,
+    rejected: 1,
+    services: 1
+  });
   const [hasNewRequest, setHasNewRequest] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotification, setShowNotification] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-
-const translations = {
-  vi: {
-    pendingTab: "Danh sách chờ duyệt",
-    approvedTab: "Danh sách đã duyệt",
-    servicesTab: "Danh sách dịch vụ đã thực hiện",
-    addServiceBtn: "+ Thêm dịch vụ",
-
-    // Cột chung
-    stt: "STT",
-    tenDN: "Tên Doanh Nghiệp",
-    soDKKD: "Số ĐKKD",
-    nguoiDaiDien: "Người Đại Diện Pháp Luật",
-    ngayDangKy: "Ngày Đăng Ký",
-    tongDoanhThu: "Tổng Doanh Thu",
-    lyDoTuChoi: "Lý do từ chối",
-
-    // Pending
-    dichVu: "Dịch Vụ",
-    giayPhep: "Giấy Phép ĐKKD",
-
-    // Approved
-    nganhNgheChinh: "Ngành Nghề Chính",
-    diaChi: "Địa Chỉ",
-
-    // Services
-    chonDN: "Chọn Doanh Nghiệp",
-    loaiDichVu: "Loại Dịch Vụ",
-    tenDichVu: "Tên Dịch Vụ",
-    maDichVu: "Mã Dịch Vụ",
-    ngayBatDau: "Ngày Bắt Đầu",
-    ngayKetThuc: "Ngày Kết Thúc",
-    doanhThuTruoc: "Doanh Thu Trước Chiết Khấu",
-    mucChietKhau: "Mức Chiết Khấu",
-    soTienChietKhau: "Số Tiền Chiết Khấu",
-    doanhThuSau: "Doanh Thu Sau Chiết Khấu",
-    tongDoanhThuTichLuy: "Tổng Doanh Thu",
-    hanhDong: "Hành động",
-  },
-  en: {
-    pendingTab: "Pending List",
-    approvedTab: "Approved List",
-    servicesTab: "Performed Services",
-    addServiceBtn: "+ Add Service",
-
-    // Cột chung
-    stt: "No.",
-    tenDN: "Company Name",
-    soDKKD: "Business Reg. No.",
-    nguoiDaiDien: "Legal Representative",
-    ngayDangKy: "Registration Date",
-    tongDoanhThu: "Total Revenue",
-    lyDoTuChoi: "Rejection Reason",
-
-    // Pending
-    dichVu: "Services",
-    giayPhep: "Business License",
-
-    // Approved
-    nganhNgheChinh: "Main Business Lines",
-    diaChi: "Address",
-
-    // Services
-    chonDN: "Select Company",
-    loaiDichVu: "Service Type",
-    tenDichVu: "Service Name",
-    maDichVu: "Service ID",
-    ngayBatDau: "Start Date",
-    ngayKetThuc: "End Date",
-    doanhThuTruoc: "Revenue Before Discount",
-    mucChietKhau: "Discount Rate",
-    soTienChietKhau: "Discount Amount",
-    doanhThuSau: "Revenue After Discount",
-    tongDoanhThuTichLuy: "Total Revenue",
-    hanhDong: "Actions",
+  const loadPending = async (page = 1) => {
+    const res = await fetch(`${API_BASE}/b2b/pending?page=${page}&limit=20`);
+    const json = await res.json();
+    if (json.success) {
+      setPendingData(json.data);
+      setPendingTotal(json.total);
+    }
+  };
+const loadApproved = async (page = 1) => {
+  const res = await fetch(`${API_BASE}/b2b/approved?page=${page}&limit=20`);
+  const json = await res.json();
+  if (json.success) {
+    setApprovedData(json.data);
+    setApprovedTotal(json.total);
+  }
+};
+const loadRejected = async (page = 1) => {
+  const res = await fetch(`${API_BASE}/b2b/reject?page=${page}&limit=20`);
+  const json = await res.json();
+  if (json.success) {
+    setRejectedData(json.data);
+    setRejectedTotal(json.total);
+  }
+};
+const loadServices = async (page = 1) => {
+  try {
+    setLoading(true);
+    const res = await fetch(
+      `${API_BASE}/b2b/services?page=${page}&limit=20`
+    );
+    const json = await res.json();
+    if (json.success) {
+      setServiceData(json.data);
+      setServiceTotal(json.total);
+    } else {
+      console.error("Lỗi load services:", json.message);
+      setServiceData([]);
+    }
+  } catch (error) {
+    console.error("Lỗi load services:", error);
+    setServiceData([]);
+    showToast("Lỗi tải danh sách dịch vụ", "error");
+  } finally {
+    setLoading(false);
   }
 };
 
+  const translations = {
+    vi: {
+      pendingTab: "Danh sách chờ duyệt",
+      approvedTab: "Danh sách đã duyệt",
+      rejectedTab: "Danh sách từ chối",
+      servicesTab: "Danh sách dịch vụ đã thực hiện",
+      addServiceBtn: "+ Thêm dịch vụ",
+
+      // Cột chung
+      stt: "STT",
+      tenDN: "Tên Doanh Nghiệp",
+      soDKKD: "Số ĐKKD",
+      nguoiDaiDien: "Người Đại Diện Pháp Luật",
+      ngayDangKy: "Ngày Đăng Ký",
+      tongDoanhThu: "Tổng Doanh Thu",
+      lyDoTuChoi: "Lý do từ chối",
+
+      // Pending
+      dichVu: "Dịch Vụ",
+      giayPhep: "Giấy Phép ĐKKD",
+      email: "Email",
+      soDienThoai: "Số Điện Thoai",
+      // Approved
+      nganhNgheChinh: "Ngành Nghề Chính",
+      diaChi: "Địa Chỉ",
+
+      // Services
+      chonDN: "Chọn Doanh Nghiệp",
+      loaiDichVu: "Loại Dịch Vụ",
+      tenDichVu: "Tên Dịch Vụ",
+      maDichVu: "Mã Dịch Vụ",
+      ngayBatDau: "Ngày Bắt Đầu",
+      ngayKetThuc: "Ngày Kết Thúc",
+      doanhThuTruoc: "Doanh Thu Trước Chiết Khấu",
+      mucChietKhau: "Mức Chiết Khấu",
+      soTienChietKhau: "Số Tiền Chiết Khấu",
+      doanhThuSau: "Doanh Thu Sau Chiết Khấu",
+      tongDoanhThuTichLuy: "Tổng Doanh Thu",
+      hanhDong: "Hành động",
+    },
+    en: {
+      pendingTab: "Pending List",
+      approvedTab: "Approved List",
+      rejectedTab: "Rejected List",
+      servicesTab: "Performed Services",
+      addServiceBtn: "+ Add Service",
+
+      // Cột chung
+      stt: "No.",
+      tenDN: "Company Name",
+      soDKKD: "Business Reg. No.",
+      nguoiDaiDien: "Legal Representative",
+      email: "Email",
+      soDienThoai: "Phone Number",
+      ngayDangKy: "Registration Date",
+      tongDoanhThu: "Total Revenue",
+      lyDoTuChoi: "Rejection Reason",
+
+      // Pending
+      dichVu: "Services",
+      giayPhep: "Business License",
+
+      // Approved
+      nganhNgheChinh: "Main Business Lines",
+      diaChi: "Address",
+
+      // Services
+      chonDN: "Select Company",
+      loaiDichVu: "Service Type",
+      tenDichVu: "Service Name",
+      maDichVu: "Service ID",
+      ngayBatDau: "Start Date",
+      ngayKetThuc: "End Date",
+      doanhThuTruoc: "Revenue Before Discount",
+      mucChietKhau: "Discount Rate",
+      soTienChietKhau: "Discount Amount",
+      doanhThuSau: "Revenue After Discount",
+      tongDoanhThuTichLuy: "Total Revenue",
+      hanhDong: "Actions",
+    }
+  };
 
   const t = translations[currentLanguage] || translations["vi"];
 
-
   useSocketListener({ currentLanguage, setNotifications, setHasNewRequest, setShowNotification });
+useEffect(() => {
+  if (!currentUser) return;
 
+  if (activeTab === "pending") loadPending(currentPage.pending);
+  if (activeTab === "approved") loadApproved(currentPage.approved);
+  if (activeTab === "rejected") loadRejected(currentPage.rejected);
+  if (activeTab === "services") loadServices(currentPage.services);
+}, [activeTab, currentPage, currentUser]);
+
+const handlePageChange = (tab, page) => {
+  setCurrentPage(prev => ({ ...prev, [tab]: page }));
+};
   useEffect(() => {
     const savedUser = localStorage.getItem("currentUser");
     if (savedUser) setCurrentUser(JSON.parse(savedUser));
@@ -147,64 +286,78 @@ const translations = {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [pendingRes, approvedRes] = await Promise.all([
+      const [pendingRes, approvedRes, rejectedRes] = await Promise.all([
         fetch(`${API_BASE}/b2b/pending`),
         fetch(`${API_BASE}/b2b/approved`),
+        fetch(`${API_BASE}/b2b/reject`)
       ]);
+      
       const p = await pendingRes.json();
       const a = await approvedRes.json();
+      const r = await rejectedRes.json();
       
       const formattedPending = (p.data || []).map(item => ({
-          ...item,
-          rejectionReason: "" 
+        ...item,
+        rejectionReason: "" 
       }));
 
       setPendingList(formattedPending);
       setApprovedList(a.data || []);
+      setRejectedList(r.data || []);
 
       const approvedData = a.data || [];
       if (approvedData.length > 0) {
         const servicesPromises = approvedData.map(async (company) => {
-            try {
-                const res = await fetch(`${API_BASE}/b2b/services?DoanhNghiepID=${company.ID}`);
-                const json = await res.json();
-                if (json.success && Array.isArray(json.data)) {
-                    return json.data.map(s => ({
-                        ...s,
-                        companyId: company.ID,
-                        TenDoanhNghiep: company.TenDoanhNghiep 
-                    }));
-                }
-                return [];
-            } catch (e) { return []; }
+          try {
+            const res = await fetch(`${API_BASE}/b2b/services?DoanhNghiepID=${company.ID}`);
+            const json = await res.json();
+            if (json.success && Array.isArray(json.data)) {
+              return json.data.map(s => ({
+                ...s,
+                companyId: company.ID,
+                TenDoanhNghiep: company.TenDoanhNghiep 
+              }));
+            }
+            return [];
+          } catch (e) { 
+            console.error("Error loading services:", e);
+            return []; 
+          }
         });
+        
         const allServicesArrays = await Promise.all(servicesPromises);
         const flatServices = allServicesArrays.flat();
         const formatted = flatServices.map(r => ({
-            id: r.ID, 
-            companyId: r.companyId,
-            serviceType: r.LoaiDichVu || "",
-            serviceName: r.TenDichVu || "",
-            code: r.MaDichVu || r.ServiceID || "",
-            startDate: r.NgayThucHien?.split("T")[0] || "",
-            endDate: r.NgayHoanThanh?.split("T")[0] || "",
-            revenueBefore: r.DoanhThuTruocChietKhau?.toString() || "",
-            discountRate: r.MucChietKhau?.toString() || "",
-            discountAmount: r.SoTienChietKhau?.toString() || "0",
-            revenueAfter: r.DoanhThuSauChietKhau?.toString() || "0",
-            totalRevenue: r.TongDoanhThuTichLuy?.toString() || "0",
-            isNew: false
+          id: r.ID, 
+          companyId: r.companyId,
+          serviceType: r.LoaiDichVu || "",
+          serviceName: r.TenDichVu || "",
+          code: r.MaDichVu || r.ServiceID || "",
+          startDate: r.NgayThucHien?.split("T")[0] || "",
+          endDate: r.NgayHoanThanh?.split("T")[0] || "",
+          revenueBefore: r.DoanhThuTruocChietKhau?.toString() || "",
+          discountRate: r.MucChietKhau?.toString() || "",
+          discountAmount: r.SoTienChietKhau?.toString() || "0",
+          revenueAfter: r.DoanhThuSauChietKhau?.toString() || "0",
+          totalRevenue: r.TongDoanhThuTichLuy?.toString() || "0",
+          isNew: false
         }));
+        
         formatted.sort((a, b) => {
-            if (a.companyId !== b.companyId) return a.companyId - b.companyId;
-            return a.id - b.id;
+          if (a.companyId !== b.companyId) return a.companyId - b.companyId;
+          return a.id - b.id;
         });
-        setServiceRecords(formatted); 
+        
+        setServiceRecords(formatted);
       } else {
         setServiceRecords([]);
       }
-    } catch (err) { showToast("Lỗi tải dữ liệu", "error"); } 
-    finally { setLoading(false); }
+    } catch (err) { 
+      console.error("Error loading data:", err);
+      showToast("Lỗi tải dữ liệu", "error"); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const calculateCompanyTotalRevenue = (companyId) => {
@@ -213,127 +366,173 @@ const translations = {
       .reduce((sum, r) => sum + (parseFloat(r.revenueAfter) || 0), 0);
   };
 
-  // --- XỬ LÝ TAB PENDING & APPROVED ---
-
-  // 1. Handle input change (Pending)
   const handlePendingChange = (id, field, value) => {
     setPendingList(prev => prev.map(item => 
-        item.ID === id ? { ...item, [field]: value } : item
+      item.ID === id ? { ...item, [field]: value } : item
     ));
   };
 
-  // 2. Handle input change (Approved)
   const handleApprovedChange = (id, field, value) => {
     setApprovedList(prev => prev.map(item => 
-        item.ID === id ? { ...item, [field]: value } : item
+      item.ID === id ? { ...item, [field]: value } : item
     ));
   };
 
-  // 3. Save Row (Pending)
-  const savePendingRow = async (item) => {
-      if (!item.TenDoanhNghiep || !item.SoDKKD) {
-          return showToast("Tên doanh nghiệp và Số ĐKKD không được để trống!", "warning");
-      }
-      try {
-          const res = await fetch(`${API_BASE}/b2b/pending/${item.ID}`, { 
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                  TenDoanhNghiep: item.TenDoanhNghiep,
-                  SoDKKD: item.SoDKKD,
-                  NguoiDaiDien: item.NguoiDaiDien,
-                  DichVu: item.DichVu,
-                  PdfPath: item.PdfPath
-              })
-          });
+const savePendingRow = async (item) => {
+  if (!item.TenDoanhNghiep || !item.SoDKKD) {
+    return showToast("Tên doanh nghiệp và Số ĐKKD không được để trống!", "warning");
+  }
+  
+  try {
+    const res = await fetch(`${API_BASE}/b2b/pending/${item.ID}`, { 
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        TenDoanhNghiep: item.TenDoanhNghiep,
+        SoDKKD: item.SoDKKD,
+        NguoiDaiDien: item.NguoiDaiDien,
+        DichVu: item.DichVu,
+        DichVuKhac: item.DichVuKhac,
+        PdfPath: item.PdfPath
+      })
+    });
 
-          const json = await res.json();
+    const json = await res.json();
 
-          if (json.success) {
-              showToast("Đã lưu thông tin chỉnh sửa!", "success");
-              setPendingList(prev => prev.map(p => 
-                  p.ID === item.ID ? { ...p, ...json.data } : p
-              ));
-          } else {
-              showToast(json.message || "Lỗi khi lưu", "error");
-          }
-      } catch (error) {
-          console.error(error);
-          showToast("Lỗi server khi lưu thông tin", "error");
-      }
-  };
-
-  // 4. Save Row (Approved)
+    if (json.success) {
+      showToast("Đã lưu thông tin chỉnh sửa!", "success");
+      setPendingList(prev => prev.map(p => 
+        p.ID === item.ID ? { ...p, ...json.data } : p
+      ));
+    } else {
+      showToast(json.message || "Lỗi khi lưu", "error");
+    }
+  } catch (error) {
+    console.error(error);
+    showToast("Lỗi server khi lưu thông tin", "error");
+  }
+};
   const saveApprovedRow = async (item) => {
-      if (!item.TenDoanhNghiep || !item.SoDKKD) {
-          return showToast("Tên doanh nghiệp và Số ĐKKD không được để trống", "warning");
+    if (!item.TenDoanhNghiep || !item.SoDKKD) {
+      return showToast("Tên doanh nghiệp và Số ĐKKD không được để trống", "warning");
+    }
+    
+    try {
+      const res = await fetch(`${API_BASE}/b2b/approved/${item.ID}`, { 
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          TenDoanhNghiep: item.TenDoanhNghiep,
+          SoDKKD: item.SoDKKD,
+          NguoiDaiDien: item.NguoiDaiDien,
+          NganhNgheChinh: item.NganhNgheChinh,
+          DiaChi: item.DiaChi 
+        })
+      });
+      
+      const json = await res.json();
+      
+      if (json.success) {
+        showToast("Cập nhật thành công!", "success");
+        setServiceRecords(prev => prev.map(svc => 
+          svc.companyId === item.ID ? { ...svc, TenDoanhNghiep: item.TenDoanhNghiep } : svc
+        ));
+      } else {
+        showToast(json.message || "Lỗi cập nhật", "error");
       }
-      try {
-          const res = await fetch(`${API_BASE}/b2b/approved/${item.ID}`, { 
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                  TenDoanhNghiep: item.TenDoanhNghiep,
-                  SoDKKD: item.SoDKKD,
-                  NguoiDaiDien: item.NguoiDaiDien,
-                  NganhNgheChinh: item.NganhNgheChinh,
-                  DiaChi: item.DiaChi 
-              })
-          });
-          const json = await res.json();
-          if (json.success) {
-              showToast("Cập nhật thành công!", "success");
-              setServiceRecords(prev => prev.map(svc => 
-                  svc.companyId === item.ID ? { ...svc, TenDoanhNghiep: item.TenDoanhNghiep } : svc
-              ));
-          } else {
-              showToast(json.message || "Lỗi cập nhật", "error");
-          }
-      } catch (error) {
-          console.error(error);
-          showToast("Lỗi server khi lưu", "error");
-      }
+    } catch (error) {
+      console.error(error);
+      showToast("Lỗi server khi lưu", "error");
+    }
   };
 
   const approve = async (id) => {
-    if (!window.confirm("Xác nhận duyệt doanh nghiệp này?")) return;
+    const result = await MySwal.fire({
+      title: "Xác nhận",
+      text: "Xác nhận duyệt doanh nghiệp này?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#22c55e",
+      cancelButtonColor: "#ef4444",
+      confirmButtonText: "Duyệt",
+      cancelButtonText: "Hủy"
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
-      const res = await fetch(`${API_BASE}/b2b/approve/${id}`, { method: "POST" }).then(r => r.json());
-      if (res.success) {
+      const res = await fetch(`${API_BASE}/b2b/approve/${id}`, { method: "POST" });
+      const json = await res.json();
+      
+      if (json.success) {
         showToast("Duyệt thành công", "success");
         loadData();
-      } else { showToast(res.message, "error"); }
-    } catch (err) { showToast("Lỗi server", "error"); }
-  };
-
-  const reject = async (item) => {
-    if (!item.rejectionReason || item.rejectionReason.trim() === "") {
-        return showToast("Vui lòng nhập lý do từ chối!", "warning");
+      } else { 
+        showToast(json.message, "error"); 
+      }
+    } catch (err) { 
+      console.error(err);
+      showToast("Lỗi server", "error"); 
     }
-    if (!window.confirm(`Từ chối doanh nghiệp ${item.TenDoanhNghiep}?`)) return;
-
-    try {
-        const res = await fetch(`${API_BASE}/b2b/reject/${item.ID}`, { 
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ reason: item.rejectionReason })
-        }).then(r => r.json());
-
-        if (res.success) {
-            showToast("Đã từ chối doanh nghiệp", "success");
-            loadData();
-        } else {
-            showToast("Chức năng từ chối đang phát triển (API Mock)", "info");
-            setPendingList(prev => prev.filter(i => i.ID !== item.ID));
-        }
-    } catch (err) { showToast("Lỗi server", "error"); }
   };
 
+const reject = async (item) => {
+  if (!item.rejectionReason || item.rejectionReason.trim() === "") {
+    return showToast("Vui lòng nhập lý do từ chối!", "warning");
+  }
+
+  const result = await MySwal.fire({
+    title: "Xác nhận",
+    text: `Từ chối doanh nghiệp ${item.TenDoanhNghiep}?`,
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#ef4444",
+    cancelButtonColor: "#2563eb",
+    confirmButtonText: "Từ chối",
+    cancelButtonText: "Hủy"
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+    // Sử dụng endpoint mới
+    const res = await fetch(`${API_BASE}/b2b/pending/${item.ID}/reject`, { 
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: item.rejectionReason })
+    });
+
+    const json = await res.json();
+
+    if (json.success) {
+      showToast("Đã từ chối doanh nghiệp", "success");
+      setPendingList(prev => prev.filter(i => i.ID !== item.ID));
+    } else {
+      showToast(json.message || "Lỗi từ chối doanh nghiệp", "error");
+    }
+  } catch (err) { 
+    console.error(err);
+    showToast("Lỗi server", "error"); 
+  }
+};
   const deleteRow = async (id) => {
-    if (!window.confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa doanh nghiệp này?\nTất cả dịch vụ liên quan cũng sẽ bị xóa.")) return;
+    const result = await MySwal.fire({
+      title: "CẢNH BÁO",
+      text: "Bạn có chắc chắn muốn xóa doanh nghiệp này? Tất cả dịch vụ liên quan cũng sẽ bị xóa.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#2563eb",
+      confirmButtonText: "Xóa",
+      cancelButtonText: "Hủy"
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       const res = await fetch(`${API_BASE}/b2b/approved/${id}`, { method: "DELETE" });
       const json = await res.json();
+      
       if (json.success) {
         showToast("Xóa doanh nghiệp thành công", "success");
         setApprovedList(prev => prev.filter(item => item.ID !== id));
@@ -342,16 +541,17 @@ const translations = {
         showToast(json.message || "Lỗi xóa", "error"); 
       }
     } catch (error) { 
-        console.error(error);
-        showToast("Lỗi server khi xóa", "error"); 
+      console.error(error);
+      showToast("Lỗi server khi xóa", "error"); 
     }
   };
 
-  // --- XỬ LÝ TAB SERVICES ---
   const handleRecordChange = (id, field, value) => {
     setServiceRecords(prev => prev.map(record => {
       if (record.id !== id) return record;
+      
       const updated = { ...record };
+      
       if (field === "revenueBefore") {
         const raw = unformatNumber(value);
         updated.revenueBefore = raw;
@@ -368,6 +568,7 @@ const translations = {
       } else {
         updated[field] = value;
       }
+      
       return updated;
     }));
   };
@@ -378,8 +579,17 @@ const translations = {
       ...prev,
       {
         id: newId,
-        companyId: "", serviceType: "", serviceName: "", code: "", startDate: "", endDate: "",
-        revenueBefore: "", discountRate: "0", discountAmount: "0", revenueAfter: "0", totalRevenue: "0",
+        companyId: "", 
+        serviceType: "", 
+        serviceName: "", 
+        code: "", 
+        startDate: "", 
+        endDate: "",
+        revenueBefore: "", 
+        discountRate: "0", 
+        discountAmount: "0", 
+        revenueAfter: "0", 
+        totalRevenue: "0",
         isNew: true,
       },
     ]);
@@ -388,6 +598,7 @@ const translations = {
   const saveServiceRow = async (rec) => {
     if (!rec.companyId) return showToast("Vui lòng chọn doanh nghiệp!", "warning");
     if (!rec.serviceType) return showToast("Vui lòng chọn loại dịch vụ!", "warning");
+    
     try {
       const payload = {
         DoanhNghiepID: rec.companyId,
@@ -402,23 +613,33 @@ const translations = {
         DoanhThuSauChietKhau: parseFloat(rec.revenueAfter) || 0,
         TongDoanhThuTichLuy: parseFloat(rec.totalRevenue) || 0,
       };
-      let url = `${API_BASE}/b2b/services/${rec.id}`;
-      let method = "PUT";
-      if (rec.isNew) {
-        url = `${API_BASE}/b2b/services`;
-        method = "POST";
+      
+      let url = `${API_BASE}/b2b/services`;
+      let method = "POST";
+      
+      if (!rec.isNew) {
+        url = `${API_BASE}/b2b/services/${rec.id}`;
+        method = "PUT";
       }
+      
       const res = await fetch(url, {
         method: method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
+      
       const json = await res.json();
+      
       if (json.success) {
         showToast("Lưu thành công!", "success");
-        loadData(); 
-      } else { showToast("Lỗi: " + json.message, "error"); }
-    } catch (error) { showToast("Lỗi server", "error"); }
+        loadData();
+      } else { 
+        showToast("Lỗi: " + json.message, "error"); 
+      }
+    } catch (error) { 
+      console.error(error);
+      showToast("Lỗi server", "error"); 
+    }
   };
 
   const deleteServiceRow = async (id, isNew) => {
@@ -426,46 +647,45 @@ const translations = {
       setServiceRecords(prev => prev.filter(r => r.id !== id));
       return;
     }
-    if (!window.confirm("Bạn xóa dịch vụ này?")) return;
+
+    const result = await MySwal.fire({
+      title: "Xác nhận",
+      text: "Bạn có chắc chắn muốn xóa dịch vụ này?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#2563eb",
+      confirmButtonText: "Xóa",
+      cancelButtonText: "Hủy"
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       const res = await fetch(`${API_BASE}/b2b/services/${id}`, { method: "DELETE" });
       const json = await res.json();
+      
       if (json.success) {
         showToast("Xóa thành công", "success");
         setServiceRecords(prev => prev.filter(r => r.id !== id));
-      } else { showToast("Lỗi xóa", "error"); }
-    } catch (error) { showToast("Lỗi server", "error"); }
+      } else {
+        showToast("Lỗi xóa", "error");
+      }
+    } catch (error) {
+      console.error(error);
+      showToast("Lỗi server", "error");
+    }
   };
 
   const getFilteredList = (list) => {
     if (!list) return [];
-    return list.filter(item => Object.values(item).join(" ").toLowerCase().includes(searchTerm.toLowerCase()));
-  };
-  const getPaginatedList = (list, tabName) => {
-    const filtered = getFilteredList(list);
-    const startIndex = (currentPages[tabName] - 1) * itemsPerPage;
-    return filtered.slice(startIndex, startIndex + itemsPerPage);
-  };
-  const Pagination = ({ totalItems, tabName }) => { 
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-    const currentPage = currentPages[tabName];
-    if (totalPages <= 1) return null;
-    return (
-      <div className="d-flex justify-content-end py-2">
-        <nav>
-          <ul className="pagination pagination-sm mb-0">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-              <li key={p} className={`page-item ${currentPage === p ? "active" : ""}`}>
-                <button className="page-link" onClick={() => setCurrentPages(prev => ({ ...prev, [tabName]: p }))}>{p}</button>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </div>
+    return list.filter(item => 
+      Object.values(item).join(" ").toLowerCase().includes(searchTerm.toLowerCase())
     );
   };
 
-  // --- STYLE ---
+
+  
   const baseCellStyle = {
     width: "100%",
     height: "100%",
@@ -491,6 +711,518 @@ const translations = {
     ...baseCellStyle,
   };
 
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "services":
+        return renderServicesTab();
+      case "rejected":
+        return renderRejectedTab();
+      default:
+        return renderPendingApprovedTab();
+    }
+  };
+
+const renderServicesTab = () => (
+  <div>
+    <div className="d-flex justify-content-end mb-2" style={{height: 40, marginRight: 10}}>
+      <button className="btn btn-primary btn-sm" onClick={handleAddNewRow} style={{ fontSize: '12px' }}>
+        {t.addServiceBtn}
+      </button>
+    </div>
+    
+    {loading ? (
+      <div className="text-center py-4">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    ) : (
+      <>
+        <div className="table-responsive shadow-sm rounded overflow-hidden">
+          <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: '12px', tableLayout: 'auto' }}>
+            <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}>
+              <tr>
+                <th className="py-2 border" style={{ width: '35px' }}>{t.stt}</th>
+                <th className="py-2 border" style={{ minWidth: "120px" }}>{t.chonDN}</th>
+                <th className="py-2 border" style={{ width: '140px' }}>{t.loaiDichVu}</th>
+                <th className="py-2 border" style={{ width: '140px' }}>{t.tenDichVu}</th>
+                <th className="py-2 border" style={{ width: '60px' }}>{t.maDichVu}</th>
+                <th className="py-2 border" style={{ width: '85px' }}>{t.ngayBatDau}</th>
+                <th className="py-2 border" style={{ width: '85px' }}>{t.ngayKetThuc}</th>
+                <th className="py-2 border" style={{ width: '100px' }}>{t.doanhThuTruoc}</th>
+                <th className="py-2 border" style={{ width: '60px' }}>{t.mucChietKhau}</th>
+                <th className="py-2 border" style={{ width: '80px' }}>{t.soTienChietKhau}</th>
+                <th className="py-2 border" style={{ width: '100px' }}>{t.doanhThuSau}</th>
+                <th className="py-2 border" style={{ width: '90px' }}>{t.tongDoanhThuTichLuy}</th>
+                <th className="py-2 border" style={{ width: '100px' }}>{t.hanhDong}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {serviceData && serviceData.length > 0 ? (
+                serviceData.map((rec, idx) => {
+                  const globalIndex = idx + 1 + (currentPage.services - 1) * 20;
+                  
+                  return (
+                    <tr key={rec.id || rec.ID} className="bg-white hover:bg-gray-50" style={{ height: '30px' }}>
+                      <td className="text-center border p-0 align-middle">{globalIndex}</td>
+                      <td className="border p-0 align-middle">
+                        <select 
+                          className="form-select form-select-sm shadow-none"
+                          style={{ ...baseCellStyle, width: "100%", minWidth: "120px" }}
+                          value={rec.companyId || rec.DoanhNghiepID || ""}
+                          onChange={(e) => handleRecordChange(rec.id || rec.ID, "companyId", e.target.value)}
+                        >
+                          <option value="">-- Chọn DN --</option>
+                          {approvedList.map(c => (
+                            <option key={c.ID} value={c.ID}>{c.TenDoanhNghiep}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="border p-0 align-middle">
+                        <input 
+                          type="text" 
+                          className="form-control form-control-sm shadow-none" 
+                          style={baseCellStyle} 
+                          value={rec.serviceType || rec.LoaiDichVu || ""} 
+                          onChange={(e) => handleRecordChange(rec.id || rec.ID, "serviceType", e.target.value)} 
+                          placeholder="Loại dịch vụ"
+                        />
+                      </td>
+                      <td className="border p-0 align-middle" style={{width:160}}>
+                        <input 
+                          type="text" 
+                          className="form-control form-control-sm shadow-none" 
+                          style={baseCellStyle} 
+                          value={rec.serviceName || rec.TenDichVu || ""} 
+                          onChange={(e) => handleRecordChange(rec.id || rec.ID, "serviceName", e.target.value)} 
+                          placeholder="Nhập Tên Dịch Vụ"
+                        />
+                      </td>
+                      <td className="border p-0 align-middle">
+                        <input 
+                          type="text" 
+                          className="form-control form-control-sm text-center shadow-none" 
+                          style={baseCellStyle} 
+                          value={rec.code || rec.MaDichVu || rec.ServiceID || ""} 
+                          onChange={(e) => handleRecordChange(rec.id || rec.ID, "code", e.target.value)}
+                        />
+                      </td>
+                      <td className="border p-0 align-middle">
+                        <input 
+                          type="date" 
+                          className="form-control form-control-sm text-center shadow-none" 
+                          style={{...baseCellStyle, padding: '0 1px', fontSize: '12px'}} 
+                          value={rec.startDate || rec.NgayThucHien?.split('T')[0] || ""} 
+                          onChange={(e) => handleRecordChange(rec.id || rec.ID, "startDate", e.target.value)}
+                        />
+                      </td>
+                      <td className="border p-0 align-middle">
+                        <input 
+                          type="date" 
+                          className="form-control form-control-sm text-center shadow-none" 
+                          style={{...baseCellStyle, padding: '0 1px', fontSize: '12px'}} 
+                          value={rec.endDate || rec.NgayHoanThanh?.split('T')[0] || ""} 
+                          onChange={(e) => handleRecordChange(rec.id || rec.ID, "endDate", e.target.value)}
+                        />
+                      </td>
+                      <td className="border p-0 align-middle">
+                        <input 
+                          type="text" 
+                          className="form-control form-control-sm text-center shadow-none" 
+                          style={{...baseCellStyle, textAlign: 'center'}} 
+                          value={formatNumber(rec.revenueBefore || rec.DoanhThuTruocChietKhau || "")} 
+                          onChange={(e) => handleRecordChange(rec.id || rec.ID, "revenueBefore", e.target.value)}
+                        />
+                      </td>
+                      <td className="border p-0 align-middle">
+                        <select 
+                          className="form-select form-select-sm text-center shadow-none" 
+                          style={{...baseCellStyle, padding: '0'}} 
+                          value={rec.discountRate || rec.MucChietKhau || ""} 
+                          onChange={(e) => handleRecordChange(rec.id || rec.ID, "discountRate", e.target.value)}
+                        >
+                          <option value="">%</option>
+                          <option value="5">5%</option>
+                          <option value="10">10%</option>
+                          <option value="15">15%</option>
+                          <option value="20">20%</option>
+                        </select>
+                      </td>
+                      <td className="text-center align-middle border px-2 bg-light" style={{ fontSize: '12px', padding: '2px 4px' }}>
+                        {formatNumber(rec.discountAmount || rec.SoTienChietKhau || "0")}
+                      </td>
+                      <td className="text-center align-middle fw-bold border px-2 bg-light" style={{ fontSize: '12px', padding: '2px 4px' }}>
+                        {formatNumber(rec.revenueAfter || rec.DoanhThuSauChietKhau || "0")}
+                      </td>
+                      <td className="text-center align-middle fw-bold border px-2 text-primary bg-white" style={{ fontSize: '12px', padding: '2px 4px'}}>
+                        {formatNumber(rec.totalRevenue || rec.TongDoanhThuTichLuy || "0")}
+                      </td>
+                      <td className="text-center border p-1 align-middle">
+                        <div className="d-flex gap-1 justify-content-center">
+                          <button 
+                            className="btn btn-sm" 
+                            style={{ backgroundColor: "#2563eb", color: "#fff", width: 36, height: 36, borderRadius: 6 }} 
+                            onClick={() => saveServiceRow(rec)}
+                          >
+                            <Save size={17} strokeWidth={2.3} />
+                          </button> 
+                          <button 
+                            className="btn btn-sm" 
+                            style={{ backgroundColor: "#ef4444", color: "#fff", width: 36, height: 36, borderRadius: 6 }} 
+                            onClick={() => deleteServiceRow(rec.id || rec.ID, rec.isNew)}
+                          >
+                            <Trash2 size={17} strokeWidth={2.3} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="13" className="text-center py-4 text-muted border">
+                    Chưa có dữ liệu dịch vụ
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <Pagination 
+          current={currentPage.services}
+          total={serviceTotal}
+          pageSize={20}
+          onChange={(page) => handlePageChange("services", page)}
+        />
+      </>
+    )}
+  </div>
+);
+
+const renderRejectedTab = () => (
+  <div className="table-responsive shadow-sm rounded overflow-hidden">
+    <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: '12px', tableLayout: 'auto' }}>
+      <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}>
+        <tr>
+          <th className="py-2 border">{t.stt}</th>
+          <th className="py-2 border" style={{ minWidth: '150px' }}>{t.tenDN}</th>
+          <th className="py-2 border">{t.soDKKD}</th>
+          <th className="py-2 border">{t.email}</th>
+          <th className="py-2 border">{t.soDienThoai}</th>
+          <th className="py-2 border">{t.nguoiDaiDien}</th>
+          <th className="py-2 border">{t.nganhNgheChinh}</th>
+          <th className="py-2 border" style={{ minWidth: '200px' }}>{t.lyDoTuChoi}</th>
+          <th className="py-2 border">{t.ngayDangKy}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rejectedData.map((item, idx) => (
+          <tr key={item.ID} className="bg-white hover:bg-gray-50">
+            <td className="text-center border align-middle" style={{ height: '30px' }}>
+              {idx + 1 + (currentPage.rejected - 1) * 20}
+            </td>
+            <td className="border align-middle" style={{ height: '30px' }}>
+              <div className="text-center" style={baseCellStyle}>
+                {item.TenDoanhNghiep || ""}
+              </div>
+            </td>
+            <td className="border align-middle" style={{ height: '30px' }}>
+              <div className="text-center" style={baseCellStyle}>
+                {item.SoDKKD || ""}
+              </div>
+            </td>
+            <td className="border align-middle" style={{ height: '30px' }}>
+              <div className="text-center" style={baseCellStyle}>
+                {item.Email || ""}
+              </div>
+            </td>
+            <td className="border align-middle" style={{ height: '30px' }}>
+              <div className="text-center" style={baseCellStyle}>
+                {item.SoDienThoai || ""}
+              </div>
+            </td>
+            <td className="border align-middle" style={{ height: '30px' }}>
+              <div className="text-center" style={baseCellStyle}>
+                {item.NguoiDaiDien || ""}
+              </div>
+            </td>
+            <td className="border align-middle" style={{ height: '30px' }}>
+              <div className="text-center" style={baseCellStyle}>
+                {item.NganhNgheChinh || ""}
+              </div>
+            </td>
+            <td className="border align-middle" style={{ height: '30px' }}>
+              <div className="text-center" style={baseCellStyle}>
+                {item.LyDoTuChoi || ""}
+              </div>
+            </td>
+            <td className="text-center border align-middle" style={{ height: '30px' }}>
+              {formatDateTimeReject(item.NgayTao)}
+            </td>
+          </tr>
+        ))}
+        {rejectedData.length === 0 && (
+          <tr>
+            <td colSpan="9" className="text-center py-3 text-muted">
+              {currentLanguage === "vi" ? "Không có dữ liệu" : "No data"}
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+    <Pagination
+      current={currentPage.rejected}
+      total={rejectedTotal}
+      pageSize={20}
+      onChange={(page) => handlePageChange("rejected", page)}
+    />
+
+  </div>
+);
+
+  const renderPendingApprovedTab = () => (
+    <div className="table-responsive shadow-sm rounded overflow-hidden">
+      <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: '12px', tableLayout: 'auto' }}>
+        <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}>
+          <tr>
+            <th className="py-2 border">{t.stt}</th>
+            <th className="py-2 border" style={{ minWidth: '150px' }}>{t.tenDN}</th>
+            <th className="py-2 border">{t.soDKKD}</th>
+            <th className="py-2 border">{t.nguoiDaiDien}</th>
+            
+            {activeTab === "pending" && (
+              <>
+                <th className="py-2 border" style={{ minWidth: '120px' }}>{t.dichVu}</th>
+                <th className="py-2 border" style={{ minWidth: '100px' }}>{t.giayPhep}</th>
+              </>
+            )}
+            
+            {activeTab === "approved" && (
+              <>
+                <th className="py-2 border" style={{ minWidth: '150px' }}>{t.nganhNgheChinh}</th>
+                <th className="py-2 border" style={{ minWidth: '180px' }}>{t.diaChi}</th>
+              </>
+            )}
+
+            <th className="py-2 border" style={{ minWidth: '110px' }}>{t.ngayDangKy}</th>
+
+            {activeTab === "approved" && (
+              <th className="py-2 border" style={{ minWidth: '120px' }}>{t.tongDoanhThuTichLuy}</th>
+            )}
+            
+            {activeTab === "pending" && (
+              <th className="py-2 border" style={{ minWidth: '150px' }}>{t.lyDoTuChoi}</th>
+            )}
+            <th className="py-2 border" style={{ width: '120px' }}>{t.hanhDong}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(activeTab === "pending" ? pendingData : approvedData).map((item, idx) => {
+            const globalIndex = idx + 1 + (currentPage[activeTab] - 1) * 20;
+            return (
+              <tr key={item.ID} className="bg-white hover:bg-gray-50" style={{ height: '30px' }}>
+                <td className="text-center border p-0 align-middle">{globalIndex}</td>
+                
+                {/* Tên Doanh Nghiệp */}
+                <td className="border p-0 align-middle">
+                  <input 
+                    type="text" 
+                    className="form-control form-control-sm text-center shadow-none" 
+                    style={{...baseCellStyle, textAlign: 'center'}} 
+                    value={item.TenDoanhNghiep}
+                    onChange={(e) => { 
+                      if(activeTab === "pending") 
+                        handlePendingChange(item.ID, "TenDoanhNghiep", e.target.value); 
+                      else 
+                        handleApprovedChange(item.ID, "TenDoanhNghiep", e.target.value); 
+                    }}
+                  />
+                </td>
+
+                {/* Số ĐKKD */}
+                <td className="border p-0 align-middle">
+                  <input 
+                    type="text" 
+                    className="form-control form-control-sm text-center shadow-none" 
+                    style={{...baseCellStyle, textAlign: 'center'}} 
+                    value={item.SoDKKD}
+                    onChange={(e) => { 
+                      if(activeTab === "pending") 
+                        handlePendingChange(item.ID, "SoDKKD", e.target.value); 
+                      else 
+                        handleApprovedChange(item.ID, "SoDKKD", e.target.value); 
+                    }}
+                  />
+                </td>
+
+                {/* Người Đại Diện (Giám đốc) */}
+                <td className="border p-0 align-middle">
+                  <input 
+                    type="text" 
+                    className="form-control form-control-sm text-center shadow-none" 
+                    style={{...baseCellStyle, textAlign: 'center'}} 
+                    value={item.NguoiDaiDien}
+                    onChange={(e) => { 
+                      if(activeTab === "pending") 
+                        handlePendingChange(item.ID, "NguoiDaiDien", e.target.value); 
+                      else 
+                        handleApprovedChange(item.ID, "NguoiDaiDien", e.target.value); 
+                    }}
+                  />
+                </td>
+
+                {/* --- CỘT CHO TAB PENDING --- */}
+                {activeTab === "pending" && (
+                  <>
+                    {/* Cột Dịch Vụ - Editable */}
+                    <td className="border p-0 align-middle" style={{ minWidth: '180px' }}>
+                      <input 
+                        type="text" 
+                        className="form-control form-control-sm text-center shadow-none"
+                        style={{...baseCellStyle, textAlign: 'center'}}
+                        value={item.DichVu || ""}
+                        onChange={(e) => handlePendingChange(item.ID, "DichVu", e.target.value)}
+                      />
+                    </td>
+                    
+                    {/* Cột Giấy Phép - Read-only (Link) */}
+                    <td className="border p-0 align-middle text-center">
+                      {item.PdfPath ? (
+                        <a href={item.PdfPath} target="_blank" rel="noreferrer" className="text-primary" title="Xem PDF">
+                          <FileText size={18} />
+                        </a>
+                      ) : (
+                        <span className="text-muted" style={{fontSize: '11px'}}>—</span>
+                      )}
+                    </td>
+                  </>
+                )}
+
+                {/* --- CỘT CHO TAB APPROVED --- */}
+                {activeTab === "approved" && (
+                  <>
+                    {/* Ngành Nghề Chính */}
+                    <td className="border p-0 align-middle">
+                      <input 
+                        type="text" 
+                        className="form-control form-control-sm text-center shadow-none" 
+                        style={{...baseCellStyle, textAlign: 'center'}} 
+                        value={item.NganhNgheChinh || ""} 
+                        onChange={(e) => handleApprovedChange(item.ID, "NganhNgheChinh", e.target.value)} 
+                      />
+                    </td>
+                    {/* Địa Chỉ - Mới */}
+                    <td className="border p-0 align-middle">
+                      <input 
+                        type="text" 
+                        className="form-control form-control-sm text-center shadow-none" 
+                        style={{...baseCellStyle, textAlign: 'center'}} 
+                        value={item.DiaChi || ""} 
+                        onChange={(e) => handleApprovedChange(item.ID, "DiaChi", e.target.value)} 
+                        placeholder="Nhập địa chỉ..." 
+                      />
+                    </td>
+                  </>
+                )}
+
+                <td className="text-center border align-middle px-2">
+                  {formatDateTime(item.NgayTao || item.NgayDangKyB2B)}
+                </td>
+
+                {/* Tổng Doanh Thu - Read-only (Approved Tab) */}
+                {activeTab === "approved" && (
+                  <td className="text-center border align-middle fw-bold text-primary px-2">
+                    {formatNumber(item.TongDoanhThu || calculateCompanyTotalRevenue(item.ID))}
+                  </td>
+                )}
+
+                {activeTab === "pending" && (
+                  <td className="border p-0 align-middle">
+                    <input 
+                      type="text" 
+                      className="form-control form-control-sm shadow-none" 
+                      style={{...baseCellStyle, padding: '2px 8px'}} 
+                      placeholder="Nhập lý do..." 
+                      value={item.rejectionReason || ""} 
+                      onChange={(e) => handlePendingChange(item.ID, "rejectionReason", e.target.value)} 
+                    />
+                  </td>
+                )}
+
+                <td className="text-center border p-1 align-middle">
+                  <div className="d-flex gap-1 justify-content-center">
+                    {activeTab === "pending" && (
+                      <>
+                        <button 
+                          className="btn btn-sm" 
+                          style={{ backgroundColor: "#2563eb", color: "#fff", width: 32, height: 32, borderRadius: 6 }} 
+                          onClick={() => savePendingRow(item)} 
+                          title="Lưu chỉnh sửa"
+                        >
+                          <Save size={16} strokeWidth={2.3} />
+                        </button>
+                        <button 
+                          className="btn btn-sm" 
+                          style={{ backgroundColor: "#22c55e", color: "#fff", width: 32, height: 32, borderRadius: 6 }} 
+                          onClick={() => approve(item.ID)} 
+                          title="Duyệt"
+                        >
+                          <Check size={16} strokeWidth={2.3} />
+                        </button>
+                        <button 
+                          className="btn btn-sm" 
+                          style={{ backgroundColor: "#ef4444", color: "#fff", width: 32, height: 32, borderRadius: 6 }} 
+                          onClick={() => reject(item)} 
+                          title="Không duyệt"
+                        >
+                          <XCircle size={16} strokeWidth={2.3} />
+                        </button>
+                      </>
+                    )}
+                    {activeTab === "approved" && (
+                      <>
+                        <button 
+                          className="btn btn-sm" 
+                          style={{ backgroundColor: "#2563eb", color: "#fff", width: 32, height: 32, borderRadius: 6 }} 
+                          onClick={() => saveApprovedRow(item)} 
+                          title="Lưu thay đổi"
+                        >
+                          <Save size={16} strokeWidth={2.3} />
+                        </button>
+                        <button 
+                          className="btn btn-sm" 
+                          style={{ backgroundColor: "#ef4444", color: "#fff", width: 32, height: 32, borderRadius: 6 }} 
+                          onClick={() => deleteRow(item.ID)} 
+                          title="Xóa"
+                        >
+                          <Trash2 size={16} strokeWidth={2.3} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+          {(activeTab === "pending" ? pendingData : approvedData).length === 0 && (
+            <tr>
+              <td colSpan={activeTab === "pending" ? 10 : 11} className="text-center py-3 text-muted">
+                Không có dữ liệu
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    <Pagination
+        current={currentPage[activeTab]}
+        total={activeTab === "pending" ? pendingTotal : approvedTotal}
+        pageSize={20}
+        onChange={(page) => handlePageChange(activeTab, page)}
+    />
+
+    </div>
+  );
+
   return (
     <div className="flex">
       <div className="fixed left-0 top-0 h-full z-40">
@@ -508,12 +1240,24 @@ const translations = {
           onLanguageChange={setCurrentLanguage}
         />
         
-        <NotificationPanel showNotification={showNotification} setShowNotification={setShowNotification} notifications={notifications} currentLanguage={currentLanguage} />
-        {showEditModal && <EditProfileModal currentUser={currentUser} onUpdate={u => setCurrentUser(u)} onClose={() => setShowEditModal(false)} currentLanguage={currentLanguage} />}
+        <NotificationPanel 
+          showNotification={showNotification} 
+          setShowNotification={setShowNotification} 
+          notifications={notifications} 
+          currentLanguage={currentLanguage} 
+        />
+        
+        {showEditModal && (
+          <EditProfileModal 
+            currentUser={currentUser} 
+            onUpdate={u => setCurrentUser(u)} 
+            onClose={() => setShowEditModal(false)} 
+            currentLanguage={currentLanguage} 
+          />
+        )}
 
         <div className="d-flex border-bottom mb-3 gap-4 mt-3 px-4">
-          {/* --- CẬP NHẬT HIỂN THỊ NGÔN NGỮ CHO TAB --- */}
-          {["pending", "approved", "services"].map(tab => (
+          {["pending", "approved", "rejected", "services"].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -523,264 +1267,15 @@ const translations = {
                 ? t.pendingTab 
                 : tab === "approved" 
                   ? t.approvedTab 
-                  : t.servicesTab}
+                  : tab === "rejected"
+                    ? t.rejectedTab
+                    : t.servicesTab}
             </button>
           ))}
         </div>
 
         <div className="px-4 pb-5">
-          {activeTab === "services" ? (
-            <div>
-              <div className="d-flex justify-content-end mb-2" style={{height: 40,marginRight: 10}}>
-
-                <button className="btn btn-primary btn-sm" onClick={handleAddNewRow} style={{ fontSize: '12px' }}>
-                  {t.addServiceBtn}
-                </button>
-              </div>
-              
-              <div className="table-responsive shadow-sm rounded overflow-hidden">
-                <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: '12px', tableLayout: 'auto' }}>
-                  <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}>
-                    <tr>
-                      <th className="py-2 border" style={{ width: '35px' }}>{t.stt}</th>
-                      <th className="py-2 border" style={{ minWidth: "120px" }}>{t.chonDN}</th>
-                      <th className="py-2 border" style={{ width: '140px' }}>{t.loaiDichVu}</th>
-                      <th className="py-2 border" style={{ width: '140px' }}>{t.tenDichVu}</th>
-                      <th className="py-2 border" style={{ width: '60px' }}>{t.maDichVu}</th>
-                      <th className="py-2 border" style={{ width: '85px' }}>{t.ngayBatDau}</th>
-                      <th className="py-2 border" style={{ width: '85px' }}>{t.ngayKetThuc}</th>
-                      <th className="py-2 border" style={{ width: '100px' }}>{t.doanhThuTruoc}</th>
-                      <th className="py-2 border" style={{ width: '60px' }}>{t.mucChietKhau}</th>
-                      <th className="py-2 border" style={{ width: '80px' }}>{t.soTienChietKhau}</th>
-                      <th className="py-2 border" style={{ width: '100px' }}>{t.doanhThuSau}</th>
-                      <th className="py-2 border" style={{ width: '90px' }}>{t.tongDoanhThuTichLuy}</th>
-                      <th className="py-2 border" style={{ width: '100px' }}>{t.hanhDong}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {getPaginatedList(serviceRecords, "services").map((rec, idx, arr) => {
-                      const globalIndex = idx + 1 + (currentPages.services - 1) * itemsPerPage;
-                      const selectedCompany = approvedList.find(c => c.ID == rec.companyId);
-                      const availableServices = selectedCompany && selectedCompany.DichVu 
-                        ? selectedCompany.DichVu.split(',').map(s => s.trim()).filter(s => s) 
-                        : [];
-
-                      const isFirstOccurrence = idx === 0 || rec.companyId !== arr[idx - 1].companyId;
-                      let rowSpan = 0;
-                      if (isFirstOccurrence) {
-                        rowSpan = 1;
-                        for (let i = idx + 1; i < arr.length; i++) {
-                          if (arr[i].companyId === rec.companyId) rowSpan++; else break;
-                        }
-                      }
-
-                      return (
-                        <tr key={rec.id} className="bg-white hover:bg-gray-50" style={{ height: '30px' }}>
-                          <td className="text-center border p-0 align-middle">{globalIndex}</td>
-                          <td className="border p-0 align-middle">
-                            <select 
-                              className="form-select form-select-sm shadow-none"
-                              style={{ ...baseCellStyle, width: "100%", minWidth: "120px" }}
-                              value={rec.companyId || ""}
-                              onChange={(e) => handleRecordChange(rec.id, "companyId", e.target.value)}
-                            >
-                              <option value="">-- Chọn DN --</option>
-                              {approvedList.map(c => (<option key={c.ID} value={c.ID}>{c.TenDoanhNghiep}</option>))}
-                            </select>
-                          </td>
-                          <td className="border p-0 align-middle">
-                            <select 
-                                className="form-select form-select-sm shadow-none"
-                                style={{...rec.isNew ? newSelectStyle : savedSelectStyle,width: 162}}
-                                value={rec.serviceType || ""}
-                                onChange={(e) => handleRecordChange(rec.id, "serviceType", e.target.value)}
-                                disabled={!rec.companyId}
-                            >
-                                <option value="">-- Loại --</option>
-                                {availableServices.map((svc, i) => (<option key={i} value={svc}>{svc}</option>))}
-                                {rec.serviceType && !availableServices.includes(rec.serviceType) && (<option value={rec.serviceType}>{rec.serviceType}</option>)}
-                            </select>
-                          </td>
-                          <td className="border p-0 align-middle" style={{width:160}}>
-                            <input type="text" className="form-control form-control-sm shadow-none" style={baseCellStyle} value={rec.serviceName} onChange={(e) => handleRecordChange(rec.id, "serviceName", e.target.value)} placeholder="Nhập Tên Dịch Vụ"/>
-                          </td>
-                          <td className="border p-0 align-middle">
-                            <input type="text" className="form-control form-control-sm text-center shadow-none" style={baseCellStyle} value={rec.code} onChange={(e) => handleRecordChange(rec.id, "code", e.target.value)}/>
-                          </td>
-                          <td className="border p-0 align-middle">
-                            <input type="date" className="form-control form-control-sm text-center shadow-none" style={{...baseCellStyle, padding: '0 1px', fontSize: '12px'}} value={rec.startDate} onChange={(e) => handleRecordChange(rec.id, "startDate", e.target.value)}/>
-                          </td>
-                          <td className="border p-0 align-middle">
-                            <input type="date" className="form-control form-control-sm text-center shadow-none" style={{...baseCellStyle, padding: '0 1px', fontSize: '12px'}} value={rec.endDate} onChange={(e) => handleRecordChange(rec.id, "endDate", e.target.value)}/>
-                          </td>
-                          <td className="border p-0 align-middle">
-                            <input type="text" className="form-control form-control-sm text-center shadow-none" style={{...baseCellStyle, textAlign: 'center'}} value={formatNumber(rec.revenueBefore)} onChange={(e) => handleRecordChange(rec.id, "revenueBefore", e.target.value)}/>
-                          </td>
-                          <td className="border p-0 align-middle">
-                            <select className="form-select form-select-sm text-center shadow-none" style={{...baseCellStyle, padding: '0'}} value={rec.discountRate} onChange={(e) => handleRecordChange(rec.id, "discountRate", e.target.value)}>
-                              <option value="">%</option><option value="5">5%</option><option value="10">10%</option><option value="15">15%</option><option value="20">20%</option>
-                            </select>
-                          </td>
-                          <td className="text-center align-middle border px-2 bg-light" style={{ fontSize: '12px', padding: '2px 4px' }}>{formatNumber(rec.discountAmount)}</td>
-                          <td className="text-center align-middle fw-bold border px-2 bg-light" style={{ fontSize: '12px', padding: '2px 4px' }}>{formatNumber(rec.revenueAfter)}</td>
-                          {isFirstOccurrence && (
-                            <td className="text-center align-middle fw-bold border px-2 text-primary bg-white" rowSpan={rowSpan} style={{ fontSize: '12px', padding: '2px 4px'}}>
-                                {formatNumber(calculateCompanyTotalRevenue(rec.companyId))}
-                            </td>
-                          )}
-                          <td className="text-center border p-1 align-middle">
-                            <div className="d-flex gap-1 justify-content-center">
-                              <button className="btn btn-sm" style={{ backgroundColor: "#2563eb", color: "#fff", width: 36, height: 36, borderRadius: 6, }} onClick={() => saveServiceRow(rec)} > <Save size={17} strokeWidth={2.3} /> </button> 
-                               <button className="btn btn-sm" style={{ backgroundColor: "#ef4444", color: "#fff", width: 36, height: 36, borderRadius: 6, }} onClick={() => deleteServiceRow(rec.id, rec.isNew)} > <Trash2 size={17} strokeWidth={2.3} /> </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    {serviceRecords.length === 0 && (<tr><td colSpan="13" className="text-center py-4 text-muted border">Chưa có dữ liệu dịch vụ</td></tr>)}
-                  </tbody>
-                </table>
-              </div>
-              <Pagination totalItems={getFilteredList(serviceRecords).length} tabName="services" />
-            </div>
-          ) : (
-       
-            <div className="table-responsive shadow-sm rounded overflow-hidden">
-              <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: '12px', tableLayout: 'auto' }}>
-                <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}>
-                  <tr>
-                    <th className="py-2 border">{t.stt}</th>
-                    <th className="py-2 border" style={{ minWidth: '150px' }}>{t.tenDN}</th>
-                    <th className="py-2 border">{t.soDKKD}</th>
-                    <th className="py-2 border">{t.nguoiDaiDien}</th>
-                    
-                    {activeTab === "pending" && <th className="py-2 border" style={{ minWidth: '120px' }}>{t.dichVu}</th>}
-                    {activeTab === "pending" && <th className="py-2 border" style={{ minWidth: '100px' }}>{t.giayPhep}</th>}
-                    
-                  {activeTab === "approved" && <th className="py-2 border" style={{ minWidth: '150px' }}>{t.nganhNgheChinh}</th>}
-                    
-                    {activeTab === "approved" && <th className="py-2 border" style={{ minWidth: '180px' }}>{t.diaChi}</th>}
-
-                    <th className="py-2 border" style={{ minWidth: '110px' }}>{t.ngayDangKy}</th>
-
-                    {activeTab === "approved" && <th className="py-2 border" style={{ minWidth: '120px' }}>{t.tongDoanhThuTichLuy}</th>}
-                    
-                    {activeTab === "pending" && <th className="py-2 border" style={{ minWidth: '150px' }}>{t.lyDoTuChoi}</th>}
-                    <th className="py-2 border" style={{ width: '120px' }}>{t.hanhDong}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {getPaginatedList(activeTab === "pending" ? pendingList : approvedList, activeTab).map((item, idx) => {
-                      const globalIndex = idx + 1 + (currentPages[activeTab] - 1) * itemsPerPage;
-                      return (
-                        <tr key={item.ID} className="bg-white hover:bg-gray-50" style={{ height: '30px' }}>
-                          <td className="text-center border p-0 align-middle">{globalIndex}</td>
-                          
-                          {/* Tên Doanh Nghiệp */}
-                          <td className="border p-0 align-middle">
-                            <input type="text" className="form-control form-control-sm text-center shadow-none" style={{...baseCellStyle, textAlign: 'center'}} value={item.TenDoanhNghiep}
-                                onChange={(e) => { if(activeTab === "pending") handlePendingChange(item.ID, "TenDoanhNghiep", e.target.value); else handleApprovedChange(item.ID, "TenDoanhNghiep", e.target.value); }}
-                            />
-                          </td>
-
-                          {/* Số ĐKKD */}
-                          <td className="border p-0 align-middle">
-                            <input type="text" className="form-control form-control-sm text-center shadow-none" style={{...baseCellStyle, textAlign: 'center'}} value={item.SoDKKD}
-                                onChange={(e) => { if(activeTab === "pending") handlePendingChange(item.ID, "SoDKKD", e.target.value); else handleApprovedChange(item.ID, "SoDKKD", e.target.value); }}
-                            />
-                          </td>
-
-                          {/* Người Đại Diện (Giám đốc) */}
-                          <td className="border p-0 align-middle">
-                            <input type="text" className="form-control form-control-sm text-center shadow-none" style={{...baseCellStyle, textAlign: 'center'}} value={item.NguoiDaiDien}
-                                onChange={(e) => { if(activeTab === "pending") handlePendingChange(item.ID, "NguoiDaiDien", e.target.value); else handleApprovedChange(item.ID, "NguoiDaiDien", e.target.value); }}
-                            />
-                          </td>
-
-                          {/* --- CỘT MỚI CHO TAB PENDING --- */}
-                          {activeTab === "pending" && (
-                              <>
-                                {/* Cột Dịch Vụ - Editable */}
-                                <td className="border p-0 align-middle"  style={{ minWidth: '180px' }}>
-                                    <input 
-                                        type="text" className="form-control form-control-sm text-center shadow-none"
-                                        style={{...baseCellStyle, textAlign: 'center'}}
-                                        value={item.DichVu || ""}
-                                        onChange={(e) => handlePendingChange(item.ID, "DichVu", e.target.value)}
-                                    />
-                                </td>
-                                
-                                {/* Cột Giấy Phép - Read-only (Link) */}
-                                <td className="border p-0 align-middle text-center">
-                                   {item.PdfPath ? (
-                                      <a href={item.PdfPath} target="_blank" rel="noreferrer" className="text-primary" title="Xem PDF">
-                                          <FileText size={18} />
-                                      </a>
-                                   ) : (
-                                      <span className="text-muted" style={{fontSize: '11px'}}>—</span>
-                                   )}
-                                </td>
-                              </>
-                          )}
-
-               
-                          {activeTab === "approved" && (
-                              <>
-                                {/* Ngành Nghề Chính */}
-                                <td className="border p-0 align-middle">
-                                    <input type="text" className="form-control form-control-sm text-center shadow-none" style={{...baseCellStyle, textAlign: 'center'}} value={item.NganhNgheChinh || ""} onChange={(e) => handleApprovedChange(item.ID, "NganhNgheChinh", e.target.value)} />
-                                </td>
-                                {/* Địa Chỉ - Mới */}
-                                <td className="border p-0 align-middle">
-                                    <input type="text" className="form-control form-control-sm text-center shadow-none" style={{...baseCellStyle, textAlign: 'center'}} value={item.DiaChi || ""} onChange={(e) => handleApprovedChange(item.ID, "DiaChi", e.target.value)} placeholder="Nhập địa chỉ..." />
-                                </td>
-                              </>
-                          )}
-
-
-                          <td className="text-center border align-middle px-2">
-                            {formatDateTime(item.NgayTao || item.NgayDangKyB2B)}
-                          </td>
-
-                           {/* Tổng Doanh Thu - Read-only (Approved Tab) */}
-                           {activeTab === "approved" && (
-                               <td className="text-center border align-middle fw-bold text-primary px-2">
-                                   {formatNumber(item.TongDoanhThu || calculateCompanyTotalRevenue(item.ID))}
-                               </td>
-                           )}
-
-                          {activeTab === "pending" && (
-                              <td className="border p-0 align-middle">
-                                  <input type="text" className="form-control form-control-sm shadow-none" style={{...baseCellStyle, padding: '2px 8px'}} placeholder="Nhập lý do..." value={item.rejectionReason || ""} onChange={(e) => handlePendingChange(item.ID, "rejectionReason", e.target.value)} />
-                              </td>
-                          )}
-
-                          <td className="text-center border p-1 align-middle">
-                             <div className="d-flex gap-1 justify-content-center">
-                                {activeTab === "pending" && (
-                                    <>
-                                        <button className="btn btn-sm" style={{ backgroundColor: "#2563eb", color: "#fff", width: 32, height: 32, borderRadius: 6 }} onClick={() => savePendingRow(item)} title="Lưu chỉnh sửa"> <Save size={16} strokeWidth={2.3} /> </button>
-                                        <button className="btn btn-sm" style={{ backgroundColor: "#22c55e", color: "#fff", width: 32, height: 32, borderRadius: 6 }} onClick={() => approve(item.ID)} title="Duyệt"> <Check size={16} strokeWidth={2.3} /> </button>
-                                        <button className="btn btn-sm" style={{ backgroundColor: "#ef4444", color: "#fff", width: 32, height: 32, borderRadius: 6 }} onClick={() => reject(item)} title="Không duyệt"> <XCircle size={16} strokeWidth={2.3} /> </button>
-                                    </>
-                                )}
-                                {activeTab === "approved" && (
-                                    <>
-                                        <button className="btn btn-sm" style={{ backgroundColor: "#2563eb", color: "#fff", width: 32, height: 32, borderRadius: 6 }} onClick={() => saveApprovedRow(item)} title="Lưu thay đổi"> <Save size={16} strokeWidth={2.3} /> </button>
-                                        <button className="btn btn-sm" style={{ backgroundColor: "#ef4444", color: "#fff", width: 32, height: 32, borderRadius: 6 }} onClick={() => deleteRow(item.ID)} title="Xóa"> <Trash2 size={16} strokeWidth={2.3} /> </button>
-                                    </>
-                                )}
-                             </div>
-                          </td>
-                        </tr>
-                    );
-                  })}
-                  {getPaginatedList(activeTab === "pending" ? pendingList : approvedList, activeTab).length === 0 && (<tr><td colSpan={activeTab === "pending" ? 9 : 10} className="text-center py-3 text-muted">Không có dữ liệu</td></tr>)}
-                </tbody>
-              </table>
-              <Pagination totalItems={getFilteredList(activeTab === "pending" ? pendingList : approvedList).length} tabName={activeTab} />
-            </div>
-          )}
+          {renderTabContent()}
         </div>
       </div>
     </div>
