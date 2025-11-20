@@ -126,7 +126,7 @@ const calculateServiceValues = (revenueBefore, discountRate) => {
   return { discountAmount, revenueAfter, totalRevenue: revenueAfter };
 };
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "https://onepasscms-backend.onrender.com/api";
 
 export default function B2BPage() {
   const [showSidebar, setShowSidebar] = useState(true);
