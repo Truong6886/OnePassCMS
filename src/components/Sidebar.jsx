@@ -152,7 +152,7 @@ useEffect(() => {
           </li>
 
         
-          {(user?.is_admin ||user?.is_directorI|| user?.is_director) && (
+          {(user?.is_admin ||user?.is_accountant|| user?.is_director) && (
             <li
               style={getItemStyle("nhanvien")}
               onMouseEnter={() => setHoveredItem("nhanvien")}
