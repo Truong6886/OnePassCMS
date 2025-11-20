@@ -9,39 +9,70 @@ import { Save, Trash2, XCircle, Check, FileText } from "lucide-react";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 const MySwal = withReactContent(Swal);
-function Pagination({ current = 1, total = 0, pageSize = 20, onChange }) {
+function Pagination({ current = 1, total = 0, pageSize = 20, onChange, language = "vi" }) {
   const totalPages = Math.ceil(total / pageSize) || 1;
+  const currentPage = Math.min(Math.max(current, 1), totalPages);
 
   const goTo = (page) => {
     if (page < 1 || page > totalPages) return;
-    if (onChange) onChange(page);
+    onChange?.(page);
   };
 
+  // Tạo mảng các trang hiển thị (giữ 1, total và 1 trang trước/sau current)
+  const pages = Array.from({ length: totalPages }, (_, i) => i + 1).filter(
+    (p) => p === 1 || p === totalPages || (p >= currentPage - 1 && p <= currentPage + 1)
+  );
+
   return (
-    <div className="d-flex justify-content-center align-items-center gap-2 mt-3">
-      
-      {/* Prev */}
-      <button
-        className="btn btn-sm btn-outline-primary"
-        disabled={current === 1}
-        onClick={() => goTo(current - 1)}
-      >
-        ‹
-      </button>
+    <div className="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light">
+      {/* Thông tin số hàng */}
+      <div className="text-muted small">
+        {language === "vi"
+          ? `Hiển thị ${Math.min(total, currentPage * pageSize)} / ${total} hàng (trang ${currentPage}/${totalPages})`
+          : `Showing ${Math.min(total, currentPage * pageSize)} / ${total} rows (page ${currentPage}/${totalPages})`}
+      </div>
 
-      {/* Page number */}
-      <span style={{ fontSize: 13 }}>
-        Trang <b>{current}</b> / {totalPages}
-      </span>
+      {/* Nút phân trang */}
+      <div className="d-flex justify-content-center align-items-center">
+        <nav>
+          <ul className="pagination pagination-sm mb-0 shadow-sm">
+            {/* Prev */}
+            <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+              <button className="page-link" onClick={() => goTo(currentPage - 1)}>
+                &laquo;
+              </button>
+            </li>
 
-      {/* Next */}
-      <button
-        className="btn btn-sm btn-outline-primary"
-        disabled={current === totalPages}
-        onClick={() => goTo(current + 1)}
-      >
-        ›
-      </button>
+            {/* Trang số */}
+            {pages.map((p, idx, arr) => (
+              <React.Fragment key={p}>
+                {idx > 0 && arr[idx - 1] !== p - 1 && (
+                  <li className="page-item disabled">
+                    <span className="page-link">…</span>
+                  </li>
+                )}
+                <li className={`page-item ${currentPage === p ? "active" : ""}`}>
+                  <button className="page-link" onClick={() => goTo(p)}>
+                    {p}
+                  </button>
+                </li>
+              </React.Fragment>
+            ))}
+
+            {/* Next */}
+            <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+              <button className="page-link" onClick={() => goTo(currentPage + 1)}>
+                &raquo;
+              </button>
+            </li>
+          </ul>
+        </nav>
+
+        {/* Thông tin trang */}
+        <div className="ms-3 text-muted small">
+          {language === "vi" ? `Trang ${currentPage}/${totalPages}` : `Page ${currentPage}/${totalPages}`}
+        </div>
+      </div>
     </div>
   );
 }
