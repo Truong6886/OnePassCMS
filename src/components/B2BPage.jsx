@@ -5,7 +5,7 @@ import useSocketListener from "./CMSDashboard/hooks/useSocketListener";
 import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import EditProfileModal from "./EditProfileModal";
 import { showToast } from "../utils/toast";
-import { Save, Trash2, XCircle, Check, File } from "lucide-react";
+import { Save, Trash2, XCircle, Check, FileText } from "lucide-react";
 
 
 const formatDateTime = (isoString) => {
@@ -55,21 +55,83 @@ export default function B2BPage() {
   const [showNotification, setShowNotification] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  const translations = {
-    vi: {
-      pendingTab: "Danh sách chờ duyệt",
-      approvedTab: "Danh sách đã duyệt",
-      servicesTab: "Danh sách dịch vụ đã thực hiện",
-      addServiceBtn: "+ Thêm dịch vụ",
-    },
-    en: {
-      pendingTab: "Pending List",
-      approvedTab: "Approved List",
-      servicesTab: "Performed Services",
-      addServiceBtn: "+ Add Service",
-    },
-   
-  };
+const translations = {
+  vi: {
+    pendingTab: "Danh sách chờ duyệt",
+    approvedTab: "Danh sách đã duyệt",
+    servicesTab: "Danh sách dịch vụ đã thực hiện",
+    addServiceBtn: "+ Thêm dịch vụ",
+
+    // Cột chung
+    stt: "STT",
+    tenDN: "Tên Doanh Nghiệp",
+    soDKKD: "Số ĐKKD",
+    nguoiDaiDien: "Người Đại Diện Pháp Luật",
+    ngayDangKy: "Ngày Đăng Ký",
+    tongDoanhThu: "Tổng Doanh Thu",
+    lyDoTuChoi: "Lý do từ chối",
+
+    // Pending
+    dichVu: "Dịch Vụ",
+    giayPhep: "Giấy Phép ĐKKD",
+
+    // Approved
+    nganhNgheChinh: "Ngành Nghề Chính",
+    diaChi: "Địa Chỉ",
+
+    // Services
+    chonDN: "Chọn Doanh Nghiệp",
+    loaiDichVu: "Loại Dịch Vụ",
+    tenDichVu: "Tên Dịch Vụ",
+    maDichVu: "Mã Dịch Vụ",
+    ngayBatDau: "Ngày Bắt Đầu",
+    ngayKetThuc: "Ngày Kết Thúc",
+    doanhThuTruoc: "Doanh Thu Trước Chiết Khấu",
+    mucChietKhau: "Mức Chiết Khấu",
+    soTienChietKhau: "Số Tiền Chiết Khấu",
+    doanhThuSau: "Doanh Thu Sau Chiết Khấu",
+    tongDoanhThuTichLuy: "Tổng Doanh Thu",
+    hanhDong: "Hành động",
+  },
+  en: {
+    pendingTab: "Pending List",
+    approvedTab: "Approved List",
+    servicesTab: "Performed Services",
+    addServiceBtn: "+ Add Service",
+
+    // Cột chung
+    stt: "No.",
+    tenDN: "Company Name",
+    soDKKD: "Business Reg. No.",
+    nguoiDaiDien: "Legal Representative",
+    ngayDangKy: "Registration Date",
+    tongDoanhThu: "Total Revenue",
+    lyDoTuChoi: "Rejection Reason",
+
+    // Pending
+    dichVu: "Services",
+    giayPhep: "Business License",
+
+    // Approved
+    nganhNgheChinh: "Main Business Lines",
+    diaChi: "Address",
+
+    // Services
+    chonDN: "Select Company",
+    loaiDichVu: "Service Type",
+    tenDichVu: "Service Name",
+    maDichVu: "Service ID",
+    ngayBatDau: "Start Date",
+    ngayKetThuc: "End Date",
+    doanhThuTruoc: "Revenue Before Discount",
+    mucChietKhau: "Discount Rate",
+    soTienChietKhau: "Discount Amount",
+    doanhThuSau: "Revenue After Discount",
+    tongDoanhThuTichLuy: "Total Revenue",
+    hanhDong: "Actions",
+  }
+};
+
 
   const t = translations[currentLanguage] || translations["vi"];
 
@@ -470,7 +532,7 @@ export default function B2BPage() {
           {activeTab === "services" ? (
             <div>
               <div className="d-flex justify-content-end mb-2" style={{height: 40,marginRight: 10}}>
-                {/* --- CẬP NHẬT HIỂN THỊ NGÔN NGỮ CHO NÚT ADD --- */}
+
                 <button className="btn btn-primary btn-sm" onClick={handleAddNewRow} style={{ fontSize: '12px' }}>
                   {t.addServiceBtn}
                 </button>
@@ -480,20 +542,19 @@ export default function B2BPage() {
                 <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: '12px', tableLayout: 'auto' }}>
                   <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}>
                     <tr>
-                      <th className="py-2 border" style={{ width: '35px' }}>STT</th>
-                      <th className="py-2 border" style={{ minWidth: "120px" }}>Chọn Doanh Nghiệp</th>
-                      <th className="py-2 border" style={{ width: '140px' }}>Loại Dịch Vụ</th>
-                      <th className="py-2 border" style={{ width: '140px' }}>Tên Dịch Vụ</th>
-                      <th className="py-2 border" style={{ width: '60px' }}>Mã Dịch Vụ</th>
-                      <th className="py-2 border" style={{ width: '85px' }}>Ngày Bắt Đầu</th>
-                      <th className="py-2 border" style={{ width: '85px' }}>Ngày Kết Thúc</th>
-                      
-                      <th className="py-2 border" style={{ width: '100px' }}>Doanh Thu Trước Chiết Khấu</th>
-                      <th className="py-2 border" style={{ width: '60px' }}>Mức Chiết Khấu</th>
-                      <th className="py-2 border" style={{ width: '80px' }}>Số Tiền Chiết Khấu</th>
-                      <th className="py-2 border" style={{ width: '100px' }}>Doanh Thu Sau Chiết Khấu</th>
-                      <th className="py-2 border" style={{ width: '90px' }}>Tổng Doanh Thu</th>
-                      <th className="py-2 border" style={{ width: '100px' }}>Hành động</th>
+                      <th className="py-2 border" style={{ width: '35px' }}>{t.stt}</th>
+                      <th className="py-2 border" style={{ minWidth: "120px" }}>{t.chonDN}</th>
+                      <th className="py-2 border" style={{ width: '140px' }}>{t.loaiDichVu}</th>
+                      <th className="py-2 border" style={{ width: '140px' }}>{t.tenDichVu}</th>
+                      <th className="py-2 border" style={{ width: '60px' }}>{t.maDichVu}</th>
+                      <th className="py-2 border" style={{ width: '85px' }}>{t.ngayBatDau}</th>
+                      <th className="py-2 border" style={{ width: '85px' }}>{t.ngayKetThuc}</th>
+                      <th className="py-2 border" style={{ width: '100px' }}>{t.doanhThuTruoc}</th>
+                      <th className="py-2 border" style={{ width: '60px' }}>{t.mucChietKhau}</th>
+                      <th className="py-2 border" style={{ width: '80px' }}>{t.soTienChietKhau}</th>
+                      <th className="py-2 border" style={{ width: '100px' }}>{t.doanhThuSau}</th>
+                      <th className="py-2 border" style={{ width: '90px' }}>{t.tongDoanhThuTichLuy}</th>
+                      <th className="py-2 border" style={{ width: '100px' }}>{t.hanhDong}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -530,7 +591,7 @@ export default function B2BPage() {
                           <td className="border p-0 align-middle">
                             <select 
                                 className="form-select form-select-sm shadow-none"
-                                style={rec.isNew ? newSelectStyle : savedSelectStyle}
+                                style={{...rec.isNew ? newSelectStyle : savedSelectStyle,width: 162}}
                                 value={rec.serviceType || ""}
                                 onChange={(e) => handleRecordChange(rec.id, "serviceType", e.target.value)}
                                 disabled={!rec.companyId}
@@ -540,7 +601,7 @@ export default function B2BPage() {
                                 {rec.serviceType && !availableServices.includes(rec.serviceType) && (<option value={rec.serviceType}>{rec.serviceType}</option>)}
                             </select>
                           </td>
-                          <td className="border p-0 align-middle">
+                          <td className="border p-0 align-middle" style={{width:160}}>
                             <input type="text" className="form-control form-control-sm shadow-none" style={baseCellStyle} value={rec.serviceName} onChange={(e) => handleRecordChange(rec.id, "serviceName", e.target.value)} placeholder="Nhập Tên Dịch Vụ"/>
                           </td>
                           <td className="border p-0 align-middle">
@@ -563,7 +624,7 @@ export default function B2BPage() {
                           <td className="text-center align-middle border px-2 bg-light" style={{ fontSize: '12px', padding: '2px 4px' }}>{formatNumber(rec.discountAmount)}</td>
                           <td className="text-center align-middle fw-bold border px-2 bg-light" style={{ fontSize: '12px', padding: '2px 4px' }}>{formatNumber(rec.revenueAfter)}</td>
                           {isFirstOccurrence && (
-                            <td className="text-center align-middle fw-bold border px-2 text-primary bg-white" rowSpan={rowSpan} style={{ fontSize: '12px', padding: '2px 4px' }}>
+                            <td className="text-center align-middle fw-bold border px-2 text-primary bg-white" rowSpan={rowSpan} style={{ fontSize: '12px', padding: '2px 4px'}}>
                                 {formatNumber(calculateCompanyTotalRevenue(rec.companyId))}
                             </td>
                           )}
@@ -588,24 +649,24 @@ export default function B2BPage() {
               <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: '12px', tableLayout: 'auto' }}>
                 <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}>
                   <tr>
-                    <th className="py-2 border">STT</th>
-                    <th className="py-2 border" style={{ minWidth: '150px' }}>Tên Doanh Nghiệp</th>
-                    <th className="py-2 border">Số ĐKKD</th>
-                    <th className="py-2 border">{activeTab === "pending" ? "Người Đại Diện" : "Tên Giám Đốc"}</th>
+                    <th className="py-2 border">{t.stt}</th>
+                    <th className="py-2 border" style={{ minWidth: '150px' }}>{t.tenDN}</th>
+                    <th className="py-2 border">{t.soDKKD}</th>
+                    <th className="py-2 border">{t.nguoiDaiDien}</th>
                     
-                    {activeTab === "pending" && <th className="py-2 border" style={{ minWidth: '120px' }}>Dịch Vụ</th>}
-                    {activeTab === "pending" && <th className="py-2 border" style={{ minWidth: '100px' }}>Giấy Phép ĐKKD</th>}
+                    {activeTab === "pending" && <th className="py-2 border" style={{ minWidth: '120px' }}>{t.dichVu}</th>}
+                    {activeTab === "pending" && <th className="py-2 border" style={{ minWidth: '100px' }}>{t.giayPhep}</th>}
                     
-                    {activeTab === "approved" && <th className="py-2 border" style={{ minWidth: '150px' }}>Ngành Nghề Chính</th>}
+                  {activeTab === "approved" && <th className="py-2 border" style={{ minWidth: '150px' }}>{t.nganhNgheChinh}</th>}
                     
-                    {activeTab === "approved" && <th className="py-2 border" style={{ minWidth: '180px' }}>Địa Chỉ</th>}
+                    {activeTab === "approved" && <th className="py-2 border" style={{ minWidth: '180px' }}>{t.diaChi}</th>}
 
-                    <th className="py-2 border" style={{ minWidth: '110px' }}>Ngày Đăng Ký</th>
+                    <th className="py-2 border" style={{ minWidth: '110px' }}>{t.ngayDangKy}</th>
 
-                    {activeTab === "approved" && <th className="py-2 border" style={{ minWidth: '120px' }}>Tổng Doanh Thu</th>}
+                    {activeTab === "approved" && <th className="py-2 border" style={{ minWidth: '120px' }}>{t.tongDoanhThuTichLuy}</th>}
                     
-                    {activeTab === "pending" && <th className="py-2 border" style={{ minWidth: '150px' }}>Lý do từ chối</th>}
-                    <th className="py-2 border" style={{ width: '120px' }}>Thao tác</th>
+                    {activeTab === "pending" && <th className="py-2 border" style={{ minWidth: '150px' }}>{t.lyDoTuChoi}</th>}
+                    <th className="py-2 border" style={{ width: '120px' }}>{t.hanhDong}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -640,7 +701,7 @@ export default function B2BPage() {
                           {activeTab === "pending" && (
                               <>
                                 {/* Cột Dịch Vụ - Editable */}
-                                <td className="border p-0 align-middle">
+                                <td className="border p-0 align-middle"  style={{ minWidth: '180px' }}>
                                     <input 
                                         type="text" className="form-control form-control-sm text-center shadow-none"
                                         style={{...baseCellStyle, textAlign: 'center'}}
@@ -653,7 +714,7 @@ export default function B2BPage() {
                                 <td className="border p-0 align-middle text-center">
                                    {item.PdfPath ? (
                                       <a href={item.PdfPath} target="_blank" rel="noreferrer" className="text-primary" title="Xem PDF">
-                                          <File size={18} />
+                                          <FileText size={18} />
                                       </a>
                                    ) : (
                                       <span className="text-muted" style={{fontSize: '11px'}}>—</span>

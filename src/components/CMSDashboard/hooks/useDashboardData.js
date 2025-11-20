@@ -50,32 +50,45 @@ export default function useDashboardData() {
 
 
   const fetchData = async (page = 1) => {
-    try {
-      const user = JSON.parse(localStorage.getItem("currentUser"));
-      setLoading(true);
+  try {
+    const user = JSON.parse(localStorage.getItem("currentUser"));
+    setLoading(true);
 
-      const res1 = await fetch(
-        `https://onepasscms-backend.onrender.com/api/yeucau?page=${page}&limit=${rowsPerPage}&userId=${user?.id || ""}&is_admin=${user?.is_admin || false}`
-      );
-      const result1 = await res1.json();
+    // Xác định xem có phải admin hoặc director
+    const isAdminOrDirector = user?.is_admin || user?.role === "director";
 
-      if (result1.success) {
-        setData(result1.data);
-        setTotalPages(result1.totalPages || 1);
-        setCurrentPage(result1.currentPage || 1);
-      }
-
-      const res2 = await fetch("https://onepasscms-backend.onrender.com/api/User");
-      const result2 = await res2.json();
-
-      if (result2.success) setUsers(result2.data);
-    } catch (err) {
-      console.error("❌ Lỗi fetch:", err);
-      showToast("Lỗi tải dữ liệu!", "danger");
-    } finally {
-      setLoading(false);
+    const queryParams = new URLSearchParams({
+      page,
+      limit: rowsPerPage,
+      is_admin: user?.is_admin || false,
+    });
+    if (!isAdminOrDirector) {
+      queryParams.append("userId", user?.id || "");
     }
-  };
+
+    const res1 = await fetch(
+      `https://onepasscms-backend.onrender.com/api/yeucau?${queryParams.toString()}`
+    );
+    const result1 = await res1.json();
+
+    if (result1.success) {
+      setData(result1.data);
+      setTotalPages(result1.totalPages || 1);
+      setCurrentPage(result1.currentPage || 1);
+    }
+
+    const res2 = await fetch("https://onepasscms-backend.onrender.com/api/User");
+    const result2 = await res2.json();
+
+    if (result2.success) setUsers(result2.data);
+  } catch (err) {
+    console.error("❌ Lỗi fetch:", err);
+    showToast("Lỗi tải dữ liệu!", "danger");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     fetchData(currentPage);

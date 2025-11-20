@@ -370,15 +370,16 @@ export default function QuanLyNhanVien() {
                         <td>{i + 1}</td>
                         <td>{u.name || u.username}</td>
                         <td>{u.email}</td>
-                        <td>
-                          {u.is_admin
-                            ? "Admin"
-                            : u.is_director
-                            ? "Giám đốc"
-                            : u.is_accountant
-                            ? "Kế toán"
-                            : "Nhân viên"}
-                        </td>
+                       <td>
+                        {u.is_admin === true || u.is_admin === "1" || u.is_admin === 1
+                          ? "Admin"
+                          : u.is_director === true || u.is_director === "1" || u.is_director === 1
+                          ? "Giám đốc"
+                          : u.is_accountant === true || u.is_accountant === "1" || u.is_accountant === 1
+                          ? "Kế toán"
+                          : "Nhân viên"}
+                      </td>
+
                         <td>{total}</td>
                       </tr>
                     );
