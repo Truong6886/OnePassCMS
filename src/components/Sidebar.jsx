@@ -176,7 +176,7 @@ useEffect(() => {
               {!collapsed && <span>{texts.doanhthu[currentLanguage]}</span>}
             </li>
           )}
-          {(user?.is_admin || user?.is_director) && (
+          {(user?.is_admin ||user?.is_accountant|| user?.is_director) && (
             <li
               style={getItemStyle("B2B")}
               onMouseEnter={() => setHoveredItem("B2B")}
