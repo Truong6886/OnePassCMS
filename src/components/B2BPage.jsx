@@ -126,7 +126,7 @@ const calculateServiceValues = (revenueBefore, discountRate) => {
   return { discountAmount, revenueAfter, totalRevenue: revenueAfter };
 };
 
-const API_BASE = "https://onepasscms-backend.onrender.com/api";
+const API_BASE = "http://localhost:5000/api";
 
 export default function B2BPage() {
   const [showSidebar, setShowSidebar] = useState(true);
@@ -604,110 +604,118 @@ const reject = async (item) => {
     }));
   };
 
-  const handleAddNewRow = () => {
-    const newId = Date.now();
-    setServiceRecords(prev => [
-      ...prev,
-      {
-        id: newId,
-        companyId: "", 
-        serviceType: "", 
-        serviceName: "", 
-        code: "", 
-        startDate: "", 
-        endDate: "",
-        revenueBefore: "", 
-        discountRate: "0", 
-        discountAmount: "0", 
-        revenueAfter: "0", 
-        totalRevenue: "0",
-        isNew: true,
-      },
-    ]);
+const handleAddNewRow = () => {
+  const newId = Date.now();
+  const newRecord = {
+    id: newId,
+    companyId: "", 
+    serviceType: "", 
+    serviceName: "", 
+    code: "", 
+    startDate: "", 
+    endDate: "",
+    revenueBefore: "", 
+    discountRate: "0", 
+    discountAmount: "0", 
+    revenueAfter: "0", 
+    totalRevenue: "0",
+    isNew: true,
   };
+  
+  
 
-  const saveServiceRow = async (rec) => {
-    if (!rec.companyId) return showToast("Vui lòng chọn doanh nghiệp!", "warning");
-    if (!rec.serviceType) return showToast("Vui lòng chọn loại dịch vụ!", "warning");
+  setServiceData(prev => [...prev, newRecord]);
+  setServiceTotal(prev => prev + 1);
+};
+
+
+
+ const saveServiceRow = async (rec) => {
+     if (!rec.companyId) return showToast("Vui lòng chọn doanh nghiệp!", "warning");
+     if (!rec.serviceType) return showToast("Vui lòng chọn loại dịch vụ!", "warning");
+     
+     try {
+       const payload = {
+         DoanhNghiepID: rec.companyId,
+         LoaiDichVu: rec.serviceType,
+         TenDichVu: rec.serviceName,
+         MaDichVu: rec.code,
+         NgayThucHien: rec.startDate ? `${rec.startDate}T00:00:00.000Z` : null,
+         NgayHoanThanh: rec.endDate ? `${rec.endDate}T00:00:00.000Z` : null,
+         DoanhThuTruocChietKhau: parseFloat(rec.revenueBefore) || 0,
+         MucChietKhau: parseFloat(rec.discountRate) || 0,
+         SoTienChietKhau: parseFloat(rec.discountAmount) || 0,
+         DoanhThuSauChietKhau: parseFloat(rec.revenueAfter) || 0,
+         TongDoanhThuTichLuy: parseFloat(rec.totalRevenue) || 0,
+       };
+       
+       let url = `${API_BASE}/b2b/services`;
+       let method = "POST";
+       
+       if (!rec.isNew) {
+         url = `${API_BASE}/b2b/services/${rec.id}`;
+         method = "PUT";
+       }
+       
+       const res = await fetch(url, {
+         method: method,
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify(payload)
+       });
+       
+       const json = await res.json();
+       
+       if (json.success) {
+         showToast("Lưu thành công!", "success");
+         loadData();
+       } else { 
+         showToast("Lỗi: " + json.message, "error"); 
+       }
+     } catch (error) { 
+       console.error(error);
+       showToast("Lỗi server", "error"); 
+     }
+   };
+ 
+   const deleteServiceRow = async (id, isNew) => {
+  if (isNew) {
+    // Xóa cả trong serviceRecords và serviceData
+    setServiceRecords(prev => prev.filter(r => r.id !== id));
+    setServiceData(prev => prev.filter(r => r.id !== id));
+    setServiceTotal(prev => prev - 1);
+    return;
+  }
+
+  const result = await MySwal.fire({
+    title: "Xác nhận",
+    text: "Bạn có chắc chắn muốn xóa dịch vụ này?",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#ef4444",
+    cancelButtonColor: "#2563eb",
+    confirmButtonText: "Xóa",
+    cancelButtonText: "Hủy"
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/b2b/services/${id}`, { method: "DELETE" });
+    const json = await res.json();
     
-    try {
-      const payload = {
-        DoanhNghiepID: rec.companyId,
-        LoaiDichVu: rec.serviceType,
-        TenDichVu: rec.serviceName,
-        MaDichVu: rec.code,
-        NgayThucHien: rec.startDate ? `${rec.startDate}T00:00:00.000Z` : null,
-        NgayHoanThanh: rec.endDate ? `${rec.endDate}T00:00:00.000Z` : null,
-        DoanhThuTruocChietKhau: parseFloat(rec.revenueBefore) || 0,
-        MucChietKhau: parseFloat(rec.discountRate) || 0,
-        SoTienChietKhau: parseFloat(rec.discountAmount) || 0,
-        DoanhThuSauChietKhau: parseFloat(rec.revenueAfter) || 0,
-        TongDoanhThuTichLuy: parseFloat(rec.totalRevenue) || 0,
-      };
-      
-      let url = `${API_BASE}/b2b/services`;
-      let method = "POST";
-      
-      if (!rec.isNew) {
-        url = `${API_BASE}/b2b/services/${rec.id}`;
-        method = "PUT";
-      }
-      
-      const res = await fetch(url, {
-        method: method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      
-      const json = await res.json();
-      
-      if (json.success) {
-        showToast("Lưu thành công!", "success");
-        loadData();
-      } else { 
-        showToast("Lỗi: " + json.message, "error"); 
-      }
-    } catch (error) { 
-      console.error(error);
-      showToast("Lỗi server", "error"); 
-    }
-  };
-
-  const deleteServiceRow = async (id, isNew) => {
-    if (isNew) {
+    if (json.success) {
+      showToast("Xóa thành công", "success");
       setServiceRecords(prev => prev.filter(r => r.id !== id));
-      return;
+      setServiceData(prev => prev.filter(r => r.id !== id));
+      setServiceTotal(prev => prev - 1);
+    } else {
+      showToast("Lỗi xóa", "error");
     }
-
-    const result = await MySwal.fire({
-      title: "Xác nhận",
-      text: "Bạn có chắc chắn muốn xóa dịch vụ này?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#ef4444",
-      cancelButtonColor: "#2563eb",
-      confirmButtonText: "Xóa",
-      cancelButtonText: "Hủy"
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      const res = await fetch(`${API_BASE}/b2b/services/${id}`, { method: "DELETE" });
-      const json = await res.json();
-      
-      if (json.success) {
-        showToast("Xóa thành công", "success");
-        setServiceRecords(prev => prev.filter(r => r.id !== id));
-      } else {
-        showToast("Lỗi xóa", "error");
-      }
-    } catch (error) {
-      console.error(error);
-      showToast("Lỗi server", "error");
-    }
-  };
-
+  } catch (error) {
+    console.error(error);
+    showToast("Lỗi server", "error");
+  }
+};
   const getFilteredList = (list) => {
     if (!list) return [];
     return list.filter(item => 
@@ -794,14 +802,14 @@ const renderServicesTab = () => (
                   const globalIndex = idx + 1 + (currentPage.services - 1) * 20;
                   
                   return (
-                    <tr key={rec.id || rec.ID} className="bg-white hover:bg-gray-50" style={{ height: '30px' }}>
+                    <tr tr key={rec.id}  className="bg-white hover:bg-gray-50" style={{ height: '30px' }}>
                       <td className="text-center border p-0 align-middle">{globalIndex}</td>
                       <td className="border p-0 align-middle">
                         <select 
                           className="form-select form-select-sm shadow-none"
                           style={{ ...baseCellStyle, width: "100%", minWidth: "120px" }}
                           value={rec.companyId || rec.DoanhNghiepID || ""}
-                          onChange={(e) => handleRecordChange(rec.id || rec.ID, "companyId", e.target.value)}
+                          onChange={(e) => handleRecordChange(rec.id, "companyId", e.target.value)}
                         >
                           <option value="">-- Chọn DN --</option>
                           {approvedList.map(c => (
@@ -815,7 +823,7 @@ const renderServicesTab = () => (
                           className="form-control form-control-sm shadow-none" 
                           style={baseCellStyle} 
                           value={rec.serviceType || rec.LoaiDichVu || ""} 
-                          onChange={(e) => handleRecordChange(rec.id || rec.ID, "serviceType", e.target.value)} 
+                          onChange={(e) => handleRecordChange(rec.id, "serviceType", e.target.value)} 
                           placeholder="Loại dịch vụ"
                         />
                       </td>
@@ -825,7 +833,7 @@ const renderServicesTab = () => (
                           className="form-control form-control-sm shadow-none" 
                           style={baseCellStyle} 
                           value={rec.serviceName || rec.TenDichVu || ""} 
-                          onChange={(e) => handleRecordChange(rec.id || rec.ID, "serviceName", e.target.value)} 
+                          onChange={(e) => handleRecordChange(rec.id, "serviceName", e.target.value)} 
                           placeholder="Nhập Tên Dịch Vụ"
                         />
                       </td>

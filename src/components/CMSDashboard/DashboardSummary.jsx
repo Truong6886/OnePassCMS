@@ -239,7 +239,7 @@ const DashboardSummary = ({
               <div style={{ flex: "1 1 45%", minWidth: 240 }}>
                 <h6 className="fw-semibold mb-3 text-secondary">
                   {currentLanguage === "vi" ? "Tổng quan số lượng dịch vụ" : "Service Summary"}
-                </h6>
+                </h6> 
                 {(() => {
                   const grouped = filteredData.reduce((acc, cur) => {
                     const name = translateService(cur.TenDichVu || "Không xác định");
