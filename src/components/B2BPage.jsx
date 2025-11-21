@@ -677,10 +677,8 @@ const handleAddNewRow = () => {
      }
    };
  
-   const deleteServiceRow = async (id, isNew) => {
+const deleteServiceRow = async (id, isNew) => {
   if (isNew) {
-    // Xóa cả trong serviceRecords và serviceData
-    setServiceRecords(prev => prev.filter(r => r.id !== id));
     setServiceData(prev => prev.filter(r => r.id !== id));
     setServiceTotal(prev => prev - 1);
     return;
@@ -705,8 +703,7 @@ const handleAddNewRow = () => {
     
     if (json.success) {
       showToast("Xóa thành công", "success");
-      setServiceRecords(prev => prev.filter(r => r.id !== id));
-      setServiceData(prev => prev.filter(r => r.id !== id));
+      setServiceData(prev => prev.filter(r => r.id !== id && r.ID !== id));
       setServiceTotal(prev => prev - 1);
     } else {
       showToast("Lỗi xóa", "error");
