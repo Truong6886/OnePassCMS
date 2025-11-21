@@ -11,14 +11,33 @@ export default function useSocketListener({
   const socketRef = useRef(null);
 
   useEffect(() => {
+    //
 
     if (!socketRef.current) {
+    
       socketRef.current = io("https://onepasscms-backend.onrender.com", {
-        transports: ["websocket"],
+        transports: ["websocket", "polling"],
+        reconnection: true,             
+        reconnectionAttempts: Infinity, 
+        reconnectionDelay: 1000,       
+        reconnectionDelayMax: 5000,    
+        timeout: 20000,             
       });
     }
 
     const socket = socketRef.current;
+
+    const handleConnect = () => console.log("🟢 Socket connected:", socket.id);
+    const handleDisconnect = (reason) => console.log("🔴 Socket disconnected. Reason:", reason);
+    const handleError = (error) => console.error("❌ Socket error:", error);
+    const handleReconnectAttempt = (attempt) => console.log(`🔄 Reconnect attempt #${attempt}...`);
+    const handleReconnect = (attempt) => console.log(`✅ Reconnected successfully after ${attempt} attempts.`);
+
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("connect_error", handleError);
+    socket.on("reconnect_attempt", handleReconnectAttempt);
+    socket.on("reconnect", handleReconnect);
 
 
     const handleNewRequest = (newRequestData) => {
@@ -40,7 +59,6 @@ export default function useSocketListener({
         return updated;
       });
 
-
       showToast(message, "success");
 
       if ("Notification" in window && Notification.permission === "granted") {
@@ -59,9 +77,17 @@ export default function useSocketListener({
 
     socket.on("new_request", handleNewRequest);
 
-
     return () => {
       socket.off("new_request", handleNewRequest);
+      
+  
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("connect_error", handleError);
+      socket.off("reconnect_attempt", handleReconnectAttempt);
+      socket.off("reconnect", handleReconnect);
+      
+     
     };
   }, [currentLanguage, setNotifications, setHasNewRequest, setShowNotification]);
 }
