@@ -26,7 +26,6 @@ const statusColorMap = {
 };
 
 const DashboardSummary = ({
-  data, // Lưu ý: Nếu bạn dùng fetch bên trong component này thì prop data này có thể không cần thiết hoặc dùng để fallback
   currentLanguage,
   serviceColorMap,
   filterDichVu,
@@ -35,7 +34,6 @@ const DashboardSummary = ({
   setTimeRange,
   filterStatus,
   setFilterStatus,
-  chartData,
   allServices,
 }) => {
   // State chứa TOÀN BỘ dữ liệu từ API
@@ -64,27 +62,21 @@ const DashboardSummary = ({
     const region = regionMap[r.MaVung] || r.MaVung || "Không xác định";
     const matchRegion = filterRegion ? region === filterRegion : true;
 
-    // Lọc theo Hình thức
     const matchMode = filterMode ? r.TenHinhThuc === filterMode : true; 
     
-    // Lọc theo Trạng thái
+  
     const matchStatus = filterStatus ? r.TrangThai === filterStatus : true;
 
     return matchService && matchRegion && matchStatus && matchMode;
   });
 
-  // 2. Tính toán phân trang (Client-side Pagination)
-  // Tổng số trang dựa trên dữ liệu đã lọc
+
   const totalPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
-  
-  // Cắt dữ liệu để hiển thị trong bảng
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
   const currentTableRows = filteredData.slice(indexOfFirstRow, indexOfLastRow);
 
-  // --- Xử lý dữ liệu cho Biểu đồ (Dùng filteredData để biểu đồ phản ánh đúng bộ lọc hiện tại) ---
-  
-  // Lọc theo thời gian cho biểu đồ
+ 
   const filteredForChart = filteredData.filter(r => {
     const date = new Date(r.NgayTao);
     const now = new Date();
@@ -96,7 +88,6 @@ const DashboardSummary = ({
     new Set(filteredForChart.map(r => new Date(r.NgayTao).toISOString().slice(0,10)))
   ).sort();
 
-  // Tạo dữ liệu BarChart
   const chartDataByTime = allDates.map(date => {
     const dayData = { date };
     allServices.forEach(service => {
@@ -108,7 +99,6 @@ const DashboardSummary = ({
     return dayData;
   });
 
-  // Group theo Trạng thái (Progress bar)
   const groupedByStatus = filteredData.reduce((acc, cur) => {
     const status = cur.TrangThai || "Không xác định";
     acc[status] = (acc[status] || 0) + 1;
@@ -116,17 +106,16 @@ const DashboardSummary = ({
   }, {});
   const totalStatus = Object.values(groupedByStatus).reduce((sum, v) => sum + v, 0);
 
-  // 📡 Lấy TOÀN BỘ dữ liệu (Bỏ page/limit)
+
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      // Gọi API không tham số phân trang để lấy tất cả
+     
       const res = await fetch(
-        `https://onepasscms-backend.onrender.com/api/yeucau` 
+        `https://onepasscms-backend.onrender.com/api/yeucau?limit=1000` 
       );
       const result = await res.json();
       if (result.success) {
-        // Lưu toàn bộ dữ liệu vào state
         setAllData(result.data);
       }
     } catch (error) {
@@ -136,12 +125,10 @@ const DashboardSummary = ({
     }
   };
 
-  // Chạy 1 lần khi mount (hoặc khi cần reload)
   useEffect(() => {
     fetchAllData();
   }, []);
 
-  // Reset về trang 1 khi thay đổi bộ lọc
   useEffect(() => {
     setCurrentPage(1);
   }, [filterDichVu, filterRegion, filterMode, filterStatus, rowsPerPage]);
@@ -158,7 +145,7 @@ const DashboardSummary = ({
         }}
       >
         <div style={{ flex: "1 1 48%", display: "flex", flexDirection: "column", gap: "2rem" }}>
-          {/* --- KHỐI TỔNG QUAN DỊCH VỤ (PIE CHART) --- */}
+          {/* --- PIE CHART --- */}
           <div
             style={{
               background: "#fff",
@@ -185,7 +172,6 @@ const DashboardSummary = ({
                   <PieChart>
                     <Pie
                       dataKey="value"
-                      // Sử dụng filteredData (toàn bộ data đã lọc) để vẽ biểu đồ chính xác
                       data={Object.entries(
                         filteredData.reduce((acc, cur) => {
                           const name = translateService(cur.TenDichVu || "Không xác định");
@@ -235,7 +221,7 @@ const DashboardSummary = ({
                 </div>
               </div>
 
-              {/* Legend bên phải Pie Chart */}
+              {/* Legend */}
               <div style={{ flex: "1 1 45%", minWidth: 240 }}>
                 <h6 className="fw-semibold mb-3 text-secondary">
                   {currentLanguage === "vi" ? "Tổng quan số lượng dịch vụ" : "Service Summary"}
@@ -257,19 +243,14 @@ const DashboardSummary = ({
                           className="d-flex justify-content-between align-items-center mb-2"
                           style={{
                             cursor: "pointer",
-    
                             background: filterDichVu === name ? "rgba(37,99,235,0.1)" : "transparent",
                             borderRadius: 6,
                             padding: "4px 8px",
                           }}
                           onClick={(e) => {
                             e.stopPropagation(); 
-                            
-                        
                             const newFilter = filterDichVu === name ? "" : name;
                             setFilterDichVu(newFilter);
-
-                    
                             showToast(
                               currentLanguage === "vi"
                                 ? newFilter 
@@ -287,7 +268,7 @@ const DashboardSummary = ({
                             {count} <span style={{ color: "#6b7280" }}>({percent}%)</span>
                           </strong>
                         </div>
-                                                );
+                        );
                       })}
                       <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top" style={{ fontWeight: "600", color: "#1f2937" }}>
                         <span>{currentLanguage === "vi" ? "Tổng cộng" : "Total"}</span>
@@ -302,7 +283,7 @@ const DashboardSummary = ({
             </div>
           </div>
 
-          {/* --- BAR CHART THEO THỜI GIAN --- */}
+          {/* --- BAR CHART --- */}
           <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h5 className="fw-semibold text-primary mb-0">
@@ -351,7 +332,7 @@ const DashboardSummary = ({
             )}
           </div>
 
-          {/* --- THỐNG KÊ THEO KHU VỰC --- */}
+          {/* --- KHU VỰC --- */}
           <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
             <h5 className="fw-semibold mb-3 text-primary">
               {currentLanguage === "vi" ? "Số lượng dịch vụ theo khu vực" : "Service Count by Region"}
@@ -403,7 +384,7 @@ const DashboardSummary = ({
             })()}
           </div>
 
-          {/* --- THỐNG KÊ THEO KÊNH LIÊN HỆ --- */}
+          {/* --- KÊNH LIÊN HỆ --- */}
           <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
             <h5 className="fw-semibold mb-3 text-primary">
               {currentLanguage === "vi" ? "Số lượng dịch vụ theo kênh liên hệ" : "Service Count by Contact Channel"}
@@ -454,7 +435,7 @@ const DashboardSummary = ({
             })()}
           </div>
 
-          {/* --- THỐNG KÊ THEO TRẠNG THÁI (PROGRESS BARS) --- */}
+          {/* --- TRẠNG THÁI --- */}
           <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", marginTop: "2rem" }}>
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h5 className="fw-semibold text-primary mb-0">
@@ -504,7 +485,7 @@ const DashboardSummary = ({
           </div>
         </div>
 
-        {/* --- BẢNG DANH SÁCH YÊU CẦU (TABLE) --- */}
+        {/* --- BẢNG DANH SÁCH YÊU CẦU --- */}
         <div style={{ flex: "1 1 48%", background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflowY: "auto", maxHeight: "1000px" }}>
           <div className="d-flex justify-content-between align-items-center mb-3" style={{ gap: "1rem" }}>
             <h5 className="fw-semibold mb-0 text-primary">
@@ -517,15 +498,14 @@ const DashboardSummary = ({
                   : filterDichVu ? `Request List (${filterDichVu})` : "Request List"}
             </h5>
 
-    
               {(filterRegion || filterDichVu || filterMode || filterStatus) && (
                 <button
                   className="btn btn-sm btn-outline-danger d-flex align-items-center gap-1"
                   onClick={() => {
                     setFilterRegion("");
                     setFilterDichVu("");
-                    setFilterMode("");   // <--- Thêm dòng này để xóa lọc Kênh liên hệ
-                    setFilterStatus(""); // <--- Thêm dòng này để xóa lọc Trạng thái (nếu cần)
+                    setFilterMode(""); 
+                    setFilterStatus(""); 
                     
                     showToast(
                       currentLanguage === "vi"
@@ -534,19 +514,8 @@ const DashboardSummary = ({
                       "info"
                     );
                   }}
-                  title={
-                    currentLanguage === "vi"
-                      ? "Xóa toàn bộ bộ lọc"
-                      : "Clear all filters"
-                  }
-                  style={{
-                    fontWeight: 500,
-                    whiteSpace: "nowrap",
-                    transition: "all 0.2s",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                  }}
+                  title={currentLanguage === "vi" ? "Xóa toàn bộ bộ lọc" : "Clear all filters"}
+                  style={{ fontWeight: 500, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "6px" }}
                 >
                   <FilterX size={16} strokeWidth={2} />
                 </button>
@@ -596,7 +565,7 @@ const DashboardSummary = ({
                 </tbody>
               </table>
 
-              {/* --- PHÂN TRANG (CLIENT SIDE) --- */}
+              {/* --- PHÂN TRANG --- */}
               <div className="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light" style={{ marginTop: "0", borderTop: "1px solid #dee2e6" }}>
                 <div className="text-muted small">
                   {currentLanguage === "vi"
