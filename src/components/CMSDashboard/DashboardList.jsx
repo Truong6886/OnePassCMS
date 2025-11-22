@@ -18,7 +18,6 @@ const DashboardList = ({
   searchTerm,
   setSearchTerm,
   setShowAddModal,
-  // tableHeaders, // Không dùng props này nữa, tự định nghĩa trong state
   dichvuList,
   users,
   handleStatusChange,
@@ -31,7 +30,7 @@ const DashboardList = ({
 }) => {
   const [showColumnSettings, setShowColumnSettings] = useState(false);
 
-  // 1. Định nghĩa cấu hình cột ban đầu (Key, Label, Width ước lượng)
+  
   const initialColumns = useMemo(() => [
     { key: "id", labelVi: "ID", labelEn: "ID", width: 50, visible: true, pinned: false },
     { key: "code", labelVi: "Mã HS", labelEn: "Code", width: 80, visible: true, pinned: false },
@@ -55,7 +54,6 @@ const DashboardList = ({
 
   const [columns, setColumns] = useState(initialColumns);
 
-  // Cập nhật lại columns nếu quyền admin thay đổi (để hiện/ẩn cột Phụ trách)
   useEffect(() => {
     setColumns(prevCols => {
         const picCol = prevCols.find(c => c.key === 'pic');
@@ -71,21 +69,20 @@ const DashboardList = ({
     if (!ok) showToast("Không có dữ liệu để xuất", "warning");
   };
 
-  // Toggle Visibility
+
   const toggleColumnVisibility = (key) => {
     setColumns(cols => cols.map(col => 
       col.key === key ? { ...col, visible: !col.visible } : col
     ));
   };
 
-  // Toggle Pinning
+
   const toggleColumnPinning = (key) => {
     setColumns(cols => cols.map(col => 
       col.key === key ? { ...col, pinned: !col.pinned } : col
     ));
   };
 
-  // Tính toán vị trí left cho các cột pinned (để chúng xếp chồng nhau đúng cách)
   const getStickyLeft = (index) => {
     let left = 0;
     for (let i = 0; i < index; i++) {
@@ -139,7 +136,7 @@ const DashboardList = ({
             {currentUser && (
               <div className="d-flex align-items-center gap-2 position-relative">
                 
-                {/* Nút Layout Grid */}
+               
                 <div className="position-relative">
                     <button 
                         className="btn btn-light shadow-sm border"
@@ -152,7 +149,7 @@ const DashboardList = ({
                         </span>
                     </button>
 
-                    {/* Dropdown Cấu hình Cột */}
+                    
                     {showColumnSettings && (
                         <div className="shadow-lg border bg-white rounded p-3" 
                              style={{ 
@@ -171,7 +168,7 @@ const DashboardList = ({
                             <div className="d-flex flex-column gap-2">
                                 {columns.map((col) => (
                                     <div key={col.key} className="d-flex justify-content-between align-items-center hover-bg-light p-1 rounded">
-                                        {/* Cột Ẩn/Hiện */}
+                                       
                                         <div className="form-check">
                                             <input 
                                                 className="form-check-input" 
@@ -185,7 +182,7 @@ const DashboardList = ({
                                             </label>
                                         </div>
 
-                                        {/* Cột Ghim */}
+                                  
                                         <div className="form-check form-switch">
                                             <input 
                                                 className="form-check-input" 
@@ -230,7 +227,7 @@ const DashboardList = ({
           </div>
 
           <div className="table-wrapper mt-3">
-            {/* Thêm style maxHeight và overflow để cuộn giữ header */}
+            
             <div className="table-responsive" style={{ paddingLeft: "0px", maxHeight: "70vh", overflowY: "auto", border: "1px solid #e5e7eb" }} ref={tableContainerRef}>
               <table className="table table-bordered table-hover align-middle mb-0" style={{borderCollapse: "separate", borderSpacing: 0}}>
                 <thead style={{ position: "sticky", top: 0, zIndex: 20, backgroundColor: "#f8f9fa" }}>
@@ -245,8 +242,8 @@ const DashboardList = ({
                                 style={{
                                     position: col.pinned ? "sticky" : "static",
                                     left: col.pinned ? leftPos : undefined,
-                                    zIndex: col.pinned ? 30 : 20, // Header pinned phải cao hơn header thường
-                                    backgroundColor: "#1e3a8a", // Màu nền header
+                                    zIndex: col.pinned ? 30 : 20, 
+                                    backgroundColor: "#1e3a8a", 
                                     borderRight: col.pinned ? "2px solid #e5e7eb" : "1px solid #dee2e6",
                                     minWidth: col.width,
                                     top: 0
