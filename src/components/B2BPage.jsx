@@ -790,7 +790,7 @@ const renderServicesTab = () => {
   const safeParse = (val) => {
     if (!val) return 0;
     try {
-      const cleanStr = String(val).replace(/\./g, '');
+      const cleanStr = String(val).replace(/\./g, "");
       const num = parseFloat(cleanStr);
       return isNaN(num) ? 0 : num;
     } catch (e) {
@@ -798,10 +798,17 @@ const renderServicesTab = () => {
     }
   };
 
+  // Sắp xếp dữ liệu theo ID doanh nghiệp để các dòng cùng cty nằm cạnh nhau
+  const displayData = [...(serviceData || [])].sort((a, b) => {
+    const compA = String(a.companyId || a.DoanhNghiepID || "");
+    const compB = String(b.companyId || b.DoanhNghiepID || "");
+    return compA.localeCompare(compB);
+  });
+
   return (
     <div>
       <div className="d-flex justify-content-end mb-2" style={{ height: 40, marginRight: 10 }}>
-        <button className="btn btn-primary btn-sm" onClick={handleAddNewRow} style={{ fontSize: '12px' }}>
+        <button className="btn btn-primary btn-sm" onClick={handleAddNewRow} style={{ fontSize: "12px" }}>
           {t.addServiceBtn}
         </button>
       </div>
@@ -815,176 +822,143 @@ const renderServicesTab = () => {
       ) : (
         <>
           <div className="table-responsive shadow-sm rounded overflow-hidden">
-            <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: '12px', tableLayout: 'auto' }}>
-              <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}>
+            <table
+              className="table table-bordered table-sm mb-0 align-middle"
+              style={{ fontSize: "12px", tableLayout: "auto", borderCollapse: "collapse" }}
+            >
+              <thead
+                className="text-white text-center align-middle"
+                style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}
+              >
                 <tr>
-                  <th className="py-2 border" style={{ width: '35px' }}>{t.stt}</th>
+                  <th className="py-2 border" style={{ width: "35px" }}>{t.stt}</th>
                   <th className="py-2 border" style={{ minWidth: "120px" }}>{t.chonDN}</th>
-                  <th className="py-2 border" style={{ width: '140px' }}>{t.loaiDichVu}</th>
-                  <th className="py-2 border" style={{ width: '140px' }}>{t.tenDichVu}</th>
-                  <th className="py-2 border" style={{ width: '60px' }}>{t.maDichVu}</th>
-                  <th className="py-2 border" style={{ width: '85px' }}>{t.ngayBatDau}</th>
-                  <th className="py-2 border" style={{ width: '85px' }}>{t.ngayKetThuc}</th>
-                  <th className="py-2 border" style={{ width: '100px' }}>{t.doanhThuTruoc}</th>
-                  <th className="py-2 border" style={{ width: '60px' }}>{t.mucChietKhau}</th>
-                  <th className="py-2 border" style={{ width: '80px' }}>{t.soTienChietKhau}</th>
-                  <th className="py-2 border" style={{ width: '100px' }}>{t.doanhThuSau}</th>
-                  <th className="py-2 border" style={{ width: '110px' }}>{t.tongDoanhThuTichLuy}</th>
-                  <th className="py-2 border" style={{ width: '100px' }}>{t.hanhDong}</th>
+                  <th className="py-2 border" style={{ width: "140px" }}>{t.loaiDichVu}</th>
+                  <th className="py-2 border" style={{ width: "140px" }}>{t.tenDichVu}</th>
+                  <th className="py-2 border" style={{ width: "60px" }}>{t.maDichVu}</th>
+                  <th className="py-2 border" style={{ width: "85px" }}>{t.ngayBatDau}</th>
+                  <th className="py-2 border" style={{ width: "85px" }}>{t.ngayKetThuc}</th>
+                  <th className="py-2 border" style={{ width: "100px" }}>{t.doanhThuTruoc}</th>
+                  <th className="py-2 border" style={{ width: "60px" }}>{t.mucChietKhau}</th>
+                  <th className="py-2 border" style={{ width: "80px" }}>{t.soTienChietKhau}</th>
+                  <th className="py-2 border" style={{ width: "100px" }}>{t.doanhThuSau}</th>
+                  <th className="py-2 border" style={{ width: "110px" }}>{t.tongDoanhThuTichLuy}</th>
+                  <th className="py-2 border" style={{ width: "100px" }}>{t.hanhDong}</th>
                 </tr>
               </thead>
               <tbody>
-                {serviceData && serviceData.length > 0 ? (
-                  serviceData.map((rec, idx) => {
+                {displayData && displayData.length > 0 ? (
+                  displayData.map((rec, idx) => {
                     const globalIndex = idx + 1 + (currentPage.services - 1) * 20;
 
+                    const currentCompanyId = String(rec.companyId || rec.DoanhNghiepID || "");
+                    const prevCompanyId = idx > 0 ? String(displayData[idx - 1].companyId || displayData[idx - 1].DoanhNghiepID || "") : null;
+
+                    // --- FIXED LOGIC: Xác định dòng cuối cùng của nhóm ---
+                    // Tìm tất cả các dòng có cùng companyId
+                    const sameCompanyRows = displayData.filter(row => 
+                      String(row.companyId || row.DoanhNghiepID || "") === currentCompanyId
+                    );
                     
-                                        const currentCompanyId = rec.companyId || rec.DoanhNghiepID;
-                    const prevCompanyId = idx > 0 ? (serviceData[idx - 1].companyId || serviceData[idx - 1].DoanhNghiepID) : null;
+                    // Lấy index của dòng hiện tại trong nhóm
+                    const currentIndexInGroup = sameCompanyRows.findIndex(row => 
+                      row.id === rec.id || row.ID === rec.ID
+                    );
+                    
+                    // Nếu đây là dòng cuối cùng trong nhóm cùng companyId
+                    const isLastRowOfGroup = currentIndexInGroup === sameCompanyRows.length - 1;
+                    // ------------------------------------------
 
                     let shouldRenderTotalCell = false;
                     let rowSpan = 1;
                     let groupTotalRevenue = 0;
 
-                    if (!currentCompanyId) {
-  
+                    if (!currentCompanyId || currentCompanyId === "") {
                       shouldRenderTotalCell = true;
                       rowSpan = 1;
                       groupTotalRevenue = safeParse(rec.revenueAfter || rec.DoanhThuSauChietKhau);
                     } else {
-                      
-                      const isFirstOfGroup = idx === 0 || String(currentCompanyId) !== String(prevCompanyId);
+                      const isFirstOfGroup = idx === 0 || currentCompanyId !== prevCompanyId;
 
                       if (isFirstOfGroup) {
                         shouldRenderTotalCell = true;
-             
                         groupTotalRevenue = safeParse(rec.revenueAfter || rec.DoanhThuSauChietKhau);
-                        
-                        for (let i = idx + 1; i < serviceData.length; i++) {
-                          const nextRecord = serviceData[i];
-                          const nextId = nextRecord.companyId || nextRecord.DoanhNghiepID;
 
-                     
-                          if (!nextId || String(nextId) !== String(currentCompanyId)) break;
-
+                        for (let i = idx + 1; i < displayData.length; i++) {
+                          const nextRec = displayData[i];
+                          const nextId = String(nextRec.companyId || nextRec.DoanhNghiepID || "");
+                          if (nextId !== currentCompanyId) break;
                           rowSpan++;
-                          groupTotalRevenue += safeParse(nextRecord.revenueAfter || nextRecord.DoanhThuSauChietKhau);
+                          groupTotalRevenue += safeParse(nextRec.revenueAfter || nextRec.DoanhThuSauChietKhau);
                         }
                       }
                     }
 
-
-                    // --- LOGIC LẤY DANH SÁCH DỊCH VỤ CỦA CÔNG TY ---
-                    // 1. Tìm công ty trong danh sách Approved
-                    const selectedCompany = approvedList.find(c => String(c.ID) === String(currentCompanyId));
-                    
-                    // 2. Tạo mảng options từ trường DichVu và DichVuKhac
+                    const selectedCompany = approvedList.find((c) => String(c.ID) === currentCompanyId);
                     let serviceOptions = [];
                     if (selectedCompany) {
-                        if (selectedCompany.DichVu) {
-                            // Tách chuỗi bằng dấu phẩy và xóa khoảng trắng thừa
-                            serviceOptions = [...serviceOptions, ...selectedCompany.DichVu.split(',').map(s => s.trim())];
-                        }
-                        if (selectedCompany.DichVuKhac) {
-                             serviceOptions = [...serviceOptions, ...selectedCompany.DichVuKhac.split(',').map(s => s.trim())];
-                        }
+                      if (selectedCompany.DichVu) serviceOptions.push(...selectedCompany.DichVu.split(",").map(s => s.trim()));
+                      if (selectedCompany.DichVuKhac) serviceOptions.push(...selectedCompany.DichVuKhac.split(",").map(s => s.trim()));
                     }
-                    // Lọc trùng lặp và loại bỏ chuỗi rỗng
-                    serviceOptions = [...new Set(serviceOptions)].filter(item => item && item !== "");
+                    serviceOptions = [...new Set(serviceOptions)].filter(Boolean);
 
                     return (
-                      <tr key={rec.id || idx} className="bg-white hover:bg-gray-50" style={{ height: '30px' }}>
+                      <tr 
+                        key={rec.id || idx} 
+                        className="bg-white hover:bg-gray-50" 
+                        style={{ 
+                          height: "30px",
+                          // Kẻ border đậm ở dưới nếu là dòng cuối của nhóm công ty
+                          borderBottom: isLastRowOfGroup ? "2px solid #6b7280" : "1px solid #e5e7eb"
+                        }}
+                      >
                         <td className="text-center border p-0 align-middle">{globalIndex}</td>
-                        
-                        {/* Cột Chọn Doanh Nghiệp */}
                         <td className="border p-0 align-middle">
                           <select
                             className="form-select form-select-sm shadow-none"
                             style={{ ...baseCellStyle, width: "100%", minWidth: "120px" }}
-                            value={currentCompanyId || ""}
+                            value={rec.companyId || rec.DoanhNghiepID || ""}
                             onChange={(e) => handleRecordChange(rec.id, "companyId", e.target.value)}
                           >
                             <option value="">-- Chọn DN --</option>
-                            {approvedList.map(c => (
+                            {approvedList.map((c) => (
                               <option key={c.ID} value={c.ID}>{c.TenDoanhNghiep}</option>
                             ))}
                           </select>
                         </td>
-
-                        {/* Cột Loại Dịch Vụ - ĐÃ SỬA THÀNH DROPDOWN */}
                         <td className="border p-0 align-middle">
                           <select
                             className="form-select form-select-sm shadow-none"
                             style={{ ...baseCellStyle, width: 150 }}
                             value={rec.serviceType || rec.LoaiDichVu || ""}
                             onChange={(e) => handleRecordChange(rec.id, "serviceType", e.target.value)}
-                            disabled={!currentCompanyId} 
+                            disabled={!currentCompanyId}
                           >
                             <option value="">-- Chọn dịch vụ --</option>
                             {serviceOptions.length > 0 ? (
-                                serviceOptions.map((svc, i) => (
-                                    <option key={i} value={svc}>{svc}</option>
-                                ))
+                              serviceOptions.map((svc, i) => <option key={i} value={svc}>{svc}</option>)
                             ) : (
-                                <option value="" disabled>Không có dịch vụ đăng ký</option>
+                              <option value="" disabled>Không có dịch vụ</option>
                             )}
-                        
                           </select>
                         </td>
-
                         <td className="border p-0 align-middle" style={{ width: 160 }}>
-                          <input
-                            type="text"
-                            className="form-control form-control-sm shadow-none"
-                            style={baseCellStyle}
-                            value={rec.serviceName || rec.TenDichVu || ""}
-                            onChange={(e) => handleRecordChange(rec.id, "serviceName", e.target.value)}
-                            placeholder="Nhập Tên Dịch Vụ"
-                          />
+                          <input type="text" className="form-control form-control-sm shadow-none" style={baseCellStyle} value={rec.serviceName || rec.TenDichVu || ""} onChange={(e) => handleRecordChange(rec.id, "serviceName", e.target.value)} placeholder="Nhập Tên Dịch Vụ" />
                         </td>
                         <td className="border p-0 align-middle">
-                          <input
-                            type="text"
-                            className="form-control form-control-sm text-center shadow-none"
-                            style={baseCellStyle}
-                            value={rec.code || rec.MaDichVu || rec.ServiceID || ""}
-                            onChange={(e) => handleRecordChange(rec.id || rec.ID, "code", e.target.value)}
-                          />
+                          <input type="text" className="form-control form-control-sm text-center shadow-none" style={baseCellStyle} value={rec.code || rec.MaDichVu || rec.ServiceID || ""} onChange={(e) => handleRecordChange(rec.id || rec.ID, "code", e.target.value)} />
                         </td>
                         <td className="border p-0 align-middle">
-                          <input
-                            type="date"
-                            className="form-control form-control-sm text-center shadow-none"
-                            style={{ ...baseCellStyle, padding: '0 1px', fontSize: '12px' }}
-                            value={rec.startDate || rec.NgayThucHien?.split('T')[0] || ""}
-                            onChange={(e) => handleRecordChange(rec.id || rec.ID, "startDate", e.target.value)}
-                          />
+                          <input type="date" className="form-control form-control-sm text-center shadow-none" style={{ ...baseCellStyle, padding: "0 1px", fontSize: "12px" }} value={rec.startDate || rec.NgayThucHien?.split("T")[0] || ""} onChange={(e) => handleRecordChange(rec.id || rec.ID, "startDate", e.target.value)} />
                         </td>
                         <td className="border p-0 align-middle">
-                          <input
-                            type="date"
-                            className="form-control form-control-sm text-center shadow-none"
-                            style={{ ...baseCellStyle, padding: '0 1px', fontSize: '12px' }}
-                            value={rec.endDate || rec.NgayHoanThanh?.split('T')[0] || ""}
-                            onChange={(e) => handleRecordChange(rec.id || rec.ID, "endDate", e.target.value)}
-                          />
+                          <input type="date" className="form-control form-control-sm text-center shadow-none" style={{ ...baseCellStyle, padding: "0 1px", fontSize: "12px" }} value={rec.endDate || rec.NgayHoanThanh?.split("T")[0] || ""} onChange={(e) => handleRecordChange(rec.id || rec.ID, "endDate", e.target.value)} />
                         </td>
                         <td className="border p-0 align-middle">
-                          <input
-                            type="text"
-                            className="form-control form-control-sm text-center shadow-none"
-                            style={{ ...baseCellStyle, textAlign: 'center' }}
-                            value={formatNumber(rec.revenueBefore || rec.DoanhThuTruocChietKhau || "")}
-                            onChange={(e) => handleRecordChange(rec.id || rec.ID, "revenueBefore", e.target.value)}
-                          />
+                          <input type="text" className="form-control form-control-sm text-center shadow-none" style={{ ...baseCellStyle, textAlign: "center" }} value={formatNumber(rec.revenueBefore || rec.DoanhThuTruocChietKhau || "")} onChange={(e) => handleRecordChange(rec.id || rec.ID, "revenueBefore", e.target.value)} />
                         </td>
                         <td className="border p-0 align-middle">
-                          <select
-                            className="form-select form-select-sm text-center shadow-none"
-                            style={{ ...baseCellStyle, padding: '0' }}
-                            value={rec.discountRate || rec.MucChietKhau || ""}
-                            onChange={(e) => handleRecordChange(rec.id || rec.ID, "discountRate", e.target.value)}
-                          >
+                          <select className="form-select form-select-sm text-center shadow-none" style={{ ...baseCellStyle, padding: "0" }} value={rec.discountRate || rec.MucChietKhau || ""} onChange={(e) => handleRecordChange(rec.id || rec.ID, "discountRate", e.target.value)}>
                             <option value="">%</option>
                             <option value="5">5%</option>
                             <option value="10">10%</option>
@@ -992,36 +966,35 @@ const renderServicesTab = () => {
                             <option value="20">20%</option>
                           </select>
                         </td>
-                        <td className="text-center align-middle border px-2 bg-light" style={{ fontSize: '12px', padding: '2px 4px' }}>
+                        <td className="text-center align-middle border px-2 bg-light" style={{ fontSize: "12px", padding: "2px 4px" }}>
                           {formatNumber(rec.discountAmount || rec.SoTienChietKhau || "0")}
                         </td>
-                        <td className="text-center align-middle fw-bold border px-2 bg-light" style={{ fontSize: '12px', padding: '2px 4px' }}>
+                        <td className="text-center align-middle fw-bold border px-2 bg-light" style={{ fontSize: "12px", padding: "2px 4px" }}>
                           {formatNumber(rec.revenueAfter || rec.DoanhThuSauChietKhau || "0")}
                         </td>
 
                         {shouldRenderTotalCell && (
                           <td
                             rowSpan={rowSpan}
-                            className="text-center align-middle fw-bold border px-2 text-primary bg-white"
-                            style={{ fontSize: '13px', padding: '2px 4px' }}
+                            className="text-center align-middle fw-bold px-2 text-primary border"
+                            style={{
+                              fontSize: "13px",
+                              padding: "2px 4px",
+                              backgroundColor: "#fff",
+                              // Đảm bảo ô gộp (rowspan) cũng có viền đáy nếu nó kết thúc tại dòng này
+                              borderBottom: isLastRowOfGroup ? "2px solid #6b7280" : undefined 
+                            }}
                           >
                             {formatNumber(groupTotalRevenue)}
                           </td>
                         )}
+
                         <td className="text-center border p-1 align-middle">
                           <div className="d-flex gap-1 justify-content-center">
-                            <button
-                              className="btn btn-sm"
-                              style={{ backgroundColor: "#2563eb", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
-                              onClick={() => saveServiceRow(rec)}
-                            >
+                            <button className="btn btn-sm" style={{ backgroundColor: "#2563eb", color: "#fff", width: 36, height: 36, borderRadius: 6 }} onClick={() => saveServiceRow(rec)}>
                               <Save size={17} strokeWidth={2.3} />
                             </button>
-                            <button
-                              className="btn btn-sm"
-                              style={{ backgroundColor: "#ef4444", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
-                              onClick={() => deleteServiceRow(rec.id || rec.ID, rec.isNew)}
-                            >
+                            <button className="btn btn-sm" style={{ backgroundColor: "#ef4444", color: "#fff", width: 36, height: 36, borderRadius: 6 }} onClick={() => deleteServiceRow(rec.id || rec.ID, rec.isNew)}>
                               <Trash2 size={17} strokeWidth={2.3} />
                             </button>
                           </div>
@@ -1031,20 +1004,13 @@ const renderServicesTab = () => {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="13" className="text-center py-4 text-muted border">
-                      Chưa có dữ liệu dịch vụ
-                    </td>
+                    <td colSpan="13" className="text-center py-4 text-muted border">Chưa có dữ liệu dịch vụ</td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
-          <Pagination
-            current={currentPage.services}
-            total={serviceTotal}
-            pageSize={20}
-            onChange={(page) => handlePageChange("services", page)}
-          />
+          <Pagination current={currentPage.services} total={serviceTotal} pageSize={20} onChange={(page) => handlePageChange("services", page)} />
         </>
       )}
     </div>

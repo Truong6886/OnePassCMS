@@ -765,7 +765,7 @@ const customerTabs = [
 
                   {/* Details (Legend) */}
                   <div style={{ flex: "1 1 45%", minWidth: 200 }}>
-                    <h6 className="fw-semibold mb-3 text-secondary">{currentLanguage === "vi" ? (selectedCompanyId ? "Chi tiết theo công ty" : "Chi tiết tổng hợp") : "Details"}</h6>
+                    <h6 className="fw-semibold mb-3 text-secondary">{currentLanguage === "vi" ? (selectedCompanyId ? "Tổng quan theo công ty" : "Tổng quan theo dịch vụ") : "Details"}</h6>
                     <div style={{ maxHeight: "300px", overflowY: "auto" }}>
                       {b2bPieData.map((item, i) => {
                         const percent = b2bTotal > 0 ? ((item.value / b2bTotal) * 100).toFixed(1) : 0;
