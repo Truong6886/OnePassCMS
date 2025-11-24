@@ -394,18 +394,18 @@ const handlePageChange = (tab, page) => {
 
 
   const calculateCompanyTotalRevenue = (companyId) => {
-    // Nếu chưa load xong services thì trả về 0
+    
     if (!serviceRecords || serviceRecords.length === 0) return 0;
 
     return serviceRecords
       .filter(r => String(r.companyId || r.DoanhNghiepID) === String(companyId))
       .reduce((sum, r) => {
-        // Lấy giá trị doanh thu sau chiết khấu
+      
         const val = r.revenueAfter || r.DoanhThuSauChietKhau;
         if (!val) return sum;
 
         try {
-          // Xóa dấu chấm (285.000 -> 285000) trước khi cộng
+        
           const cleanStr = String(val).replace(/\./g, '');
           const num = parseFloat(cleanStr);
           return sum + (isNaN(num) ? 0 : num);
