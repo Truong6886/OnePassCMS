@@ -206,30 +206,43 @@ const b2bFilteredForChart = filteredB2BServices.filter((r) => {
     return dayData;
   });
 
-
+const customerTabs = [
+  { key: "personal", labelVi: "Khách Hàng Cá Nhân", labelEn: "Personal" },
+  { key: "b2b", labelVi: "Khách Hàng Doanh Nghiệp", labelEn: "B2B" },
+];
 
   return (
     <div className="mb-4">
       {/* TABS */}
-      <div className="d-flex gap-3 mb-3">
-        <button
-          className={`btn ${
-            activeTab === "personal" ? "btn-primary" : "btn-outline-primary"
-          }`}
-          onClick={() => setActiveTab("personal")}
-        >
-          Khách Hàng Cá Nhân
-        </button>
-
-        <button
-          className={`btn ${
-            activeTab === "b2b" ? "btn-primary" : "btn-outline-primary"
-          }`}
-          onClick={() => setActiveTab("b2b")}
-        >
-          Khách hàng Doanh Nghiệp
-        </button>
+     <div
+    className="d-flex border-bottom mb-4"
+    style={{
+      gap: "2rem",
+      borderColor: "#e0e0e0",
+      fontWeight: 500,
+      fontSize: "1rem",
+    }}
+  >
+    {customerTabs.map((tab) => (
+      <div
+        key={tab.key}
+        onClick={() => setActiveTab(tab.key)}
+        style={{
+          cursor: "pointer",
+          paddingBottom: "6px",
+          borderBottom:
+            activeTab === tab.key
+              ? "3px solid #2563eb"
+              : "3px solid transparent",
+          color: activeTab === tab.key ? "#2563eb" : "#6b7280",
+          fontWeight: activeTab === tab.key ? "600" : "500",
+          transition: "all 0.2s ease",
+        }}
+      >
+        {currentLanguage === "vi" ? tab.labelVi : tab.labelEn}
       </div>
+    ))}
+  </div>
 
       
       {activeTab === "personal" && (

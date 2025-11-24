@@ -87,37 +87,40 @@ const DashboardList = ({
   };
 
   return (
-    <div className="mb-4">
+   <div className="mb-4">
+  <div
+    className="d-flex border-bottom mb-3"
+    style={{
+      gap: "1.5rem",
+      fontSize: "15px",
+      fontWeight: 500,
+    }}
+  >
+    {[
+      { key: "request", labelVi: "Danh sách yêu cầu", labelEn: "Request List" },
+      { key: "email", labelVi: "Danh sách email", labelEn: "Email List" },
+    ].map((tab) => (
       <div
-        className="d-flex border-bottom mb-3"
+        key={tab.key}
+        onClick={() => setSubViewMode(tab.key)}
         style={{
-          gap: "1.5rem",
-          fontSize: "15px",
-          fontWeight: 500,
+          cursor: "pointer",
+          paddingBottom: "6px",
+          borderBottom:
+            subViewMode === tab.key
+              ? "2px solid #2563eb"
+              : "2px solid transparent",
+          color: subViewMode === tab.key ? "#2563eb" : "#6b7280",
+          fontWeight: subViewMode === tab.key ? "600" : "500",
+          transition: "all 0.2s ease",
         }}
       >
-        {[
-          { key: "request", labelVi: "Danh sách yêu cầu", labelEn: "Request List" },
-          { key: "email", labelVi: "Danh sách email", labelEn: "Email List" },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            className="bg-transparent border-0 position-relative pb-2"
-            style={{
-              color: subViewMode === tab.key ? "#2563eb" : "#6b7280",
-              borderBottom:
-                subViewMode === tab.key
-                  ? "2px solid #2563eb"
-                  : "2px solid transparent",
-              transition: "all 0.2s ease",
-              cursor: "pointer",
-            }}
-            onClick={() => setSubViewMode(tab.key)}
-          >
-            {currentLanguage === "vi" ? tab.labelVi : tab.labelEn}
-          </button>
-        ))}
+        {currentLanguage === "vi" ? tab.labelVi : tab.labelEn}
       </div>
+    ))}
+  </div>
+
+
 
       {subViewMode === "request" && (
         <>
