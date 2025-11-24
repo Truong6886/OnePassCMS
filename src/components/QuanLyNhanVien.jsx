@@ -39,10 +39,10 @@ export default function QuanLyNhanVien() {
     })();
   }, []);
 
-  useEffect(() => {
+useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("https://onepasscms-backend.onrender.com/api/yeucau");
+        const res = await fetch("https://onepasscms-backend.onrender.com/api/yeucau?limit=1000");
         const result = await res.json();
         if (result.success && Array.isArray(result.data)) setYeuCauList(result.data);
       } catch (err) {

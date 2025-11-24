@@ -595,7 +595,8 @@ const reject = async (item) => {
   };
 
   const handleRecordChange = (id, field, value) => {
-    setServiceRecords(prev => prev.map(record => {
+   setServiceData(prev => prev.map(record => {
+
       if (record.id !== id) return record;
       
       const updated = { ...record };
@@ -620,7 +621,15 @@ const reject = async (item) => {
       return updated;
     }));
   };
+const sortServicesByCompany = (data) => {
+  return [...data].sort((a, b) => {
+    const compA = a.companyId || "";
+    const compB = b.companyId || "";
+    if (compA !== compB) return compA.localeCompare(compB);
 
+    return (a.id || a.ID) - (b.id || b.ID);
+  });
+};
 const handleAddNewRow = () => {
   const newId = Date.now();
   const newRecord = {
@@ -684,6 +693,7 @@ const handleAddNewRow = () => {
        
        if (json.success) {
          showToast("Lưu thành công!", "success");
+         loadServices(currentPage.services);
          loadData();
        } else { 
          showToast("Lỗi: " + json.message, "error"); 
@@ -828,27 +838,41 @@ const renderServicesTab = () => {
                   serviceData.map((rec, idx) => {
                     const globalIndex = idx + 1 + (currentPage.services - 1) * 20;
 
-                    // --- LOGIC TÍNH TOÁN GỘP CỘT & TỔNG TIỀN ---
-                    const currentCompanyId = rec.companyId || rec.DoanhNghiepID;
+                    
+                                        const currentCompanyId = rec.companyId || rec.DoanhNghiepID;
                     const prevCompanyId = idx > 0 ? (serviceData[idx - 1].companyId || serviceData[idx - 1].DoanhNghiepID) : null;
-                    const isFirstOfGroup = idx === 0 || String(currentCompanyId) !== String(prevCompanyId);
 
-                    let rowSpan = 0;
+                    let shouldRenderTotalCell = false;
+                    let rowSpan = 1;
                     let groupTotalRevenue = 0;
 
-                    if (isFirstOfGroup && currentCompanyId) {
-                      for (let i = idx; i < serviceData.length; i++) {
-                        const nextRecord = serviceData[i];
-                        const nextId = nextRecord.companyId || nextRecord.DoanhNghiepID;
+                    if (!currentCompanyId) {
+  
+                      shouldRenderTotalCell = true;
+                      rowSpan = 1;
+                      groupTotalRevenue = safeParse(rec.revenueAfter || rec.DoanhThuSauChietKhau);
+                    } else {
+                      
+                      const isFirstOfGroup = idx === 0 || String(currentCompanyId) !== String(prevCompanyId);
 
-                        if (String(nextId) === String(currentCompanyId)) {
+                      if (isFirstOfGroup) {
+                        shouldRenderTotalCell = true;
+             
+                        groupTotalRevenue = safeParse(rec.revenueAfter || rec.DoanhThuSauChietKhau);
+                        
+                        for (let i = idx + 1; i < serviceData.length; i++) {
+                          const nextRecord = serviceData[i];
+                          const nextId = nextRecord.companyId || nextRecord.DoanhNghiepID;
+
+                     
+                          if (!nextId || String(nextId) !== String(currentCompanyId)) break;
+
                           rowSpan++;
                           groupTotalRevenue += safeParse(nextRecord.revenueAfter || nextRecord.DoanhThuSauChietKhau);
-                        } else {
-                          break;
                         }
                       }
                     }
+
 
                     // --- LOGIC LẤY DANH SÁCH DỊCH VỤ CỦA CÔNG TY ---
                     // 1. Tìm công ty trong danh sách Approved
@@ -975,8 +999,7 @@ const renderServicesTab = () => {
                           {formatNumber(rec.revenueAfter || rec.DoanhThuSauChietKhau || "0")}
                         </td>
 
-                        {/* --- HIỂN THỊ CỘT TỔNG DOANH THU ĐÃ CỘNG DỒN --- */}
-                        {isFirstOfGroup ? (
+                        {shouldRenderTotalCell && (
                           <td
                             rowSpan={rowSpan}
                             className="text-center align-middle fw-bold border px-2 text-primary bg-white"
@@ -984,8 +1007,7 @@ const renderServicesTab = () => {
                           >
                             {formatNumber(groupTotalRevenue)}
                           </td>
-                        ) : null}
-
+                        )}
                         <td className="text-center border p-1 align-middle">
                           <div className="d-flex gap-1 justify-content-center">
                             <button

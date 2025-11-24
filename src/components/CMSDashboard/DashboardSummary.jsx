@@ -1,6 +1,3 @@
-// FIXED DashboardSummary.jsx
-// (Full corrected component with B2B tab)
-
 import React, { useState, useEffect } from "react";
 import translateService from "../../utils/translateService";
 import {
@@ -49,9 +46,9 @@ const DashboardSummary = ({
   const [b2bLoading, setB2bLoading] = useState(false);
   const [filterRegion, setFilterRegion] = useState("");
   const [filterMode, setFilterMode] = useState("");
-
+  const [b2bTimeRange, setB2bTimeRange] = useState(7);
   const { currentPage, setCurrentPage, rowsPerPage } = useDashboardData();
-
+const [selectedTimeCompanyId, setSelectedTimeCompanyId] = useState("");
 
   const filteredData = allData.filter((r) => {
     const matchService = filterDichVu
@@ -178,12 +175,36 @@ const groupedByStatus = filteredData.reduce((acc, cur) => { const status = cur.T
   const b2bTotal = filteredB2BServices.length;
   const b2bPieData = Object.entries(
     filteredB2BServices.reduce((acc, cur) => {
-      const name = cur.LoaiDichVu || cur.serviceName || "Không xác định";
+      const name = cur.LoaiDichVu || cur.serviceName || "";
       acc[name] = (acc[name] || 0) + 1;
       return acc;
     }, {})
   ).map(([name, value]) => ({ name, value }));
+const filteredB2BTimeChart = selectedTimeCompanyId
+    ? b2bServices.filter((s) => String(s.DoanhNghiepID) === String(selectedTimeCompanyId))
+    : b2bServices; // If no company selected for chart, show ALL companies aggregated
+const b2bFilteredForChart = filteredB2BServices.filter((r) => {
+    if (!r.NgayTao) return false;
+    const date = new Date(r.NgayTao);
+    const now = new Date();
+    const diffDays = (now - date) / (1000 * 60 * 60 * 24);
+    return diffDays <= b2bTimeRange;
+  });
 
+  const b2bDates = Array.from(new Set(b2bFilteredForChart.map((r) => new Date(r.NgayTao).toISOString().slice(0, 10)))).sort();
+  
+  // Get all unique service types for the stack
+  const b2bUniqueServiceTypes = Array.from(new Set(b2bServices.map(s => s.LoaiDichVu || s.serviceName || "Khác")));
+
+  const b2bChartData = b2bDates.map((date) => {
+    const dayData = { date };
+    b2bUniqueServiceTypes.forEach((serviceType) => {
+      dayData[serviceType] = b2bFilteredForChart.filter(
+        (r) => new Date(r.NgayTao).toISOString().slice(0, 10) === date && (r.LoaiDichVu || r.serviceName) === serviceType
+      ).length;
+    });
+    return dayData;
+  });
 
 
 
@@ -197,7 +218,7 @@ const groupedByStatus = filteredData.reduce((acc, cur) => { const status = cur.T
           }`}
           onClick={() => setActiveTab("personal")}
         >
-          Khách hàng cá nhân
+          Khách Hàng Cá Nhân
         </button>
 
         <button
@@ -206,7 +227,7 @@ const groupedByStatus = filteredData.reduce((acc, cur) => { const status = cur.T
           }`}
           onClick={() => setActiveTab("b2b")}
         >
-          Khách hàng doanh nghiệp
+          Khách hàng Doanh Nghiệp
         </button>
       </div>
 
@@ -687,144 +708,77 @@ const groupedByStatus = filteredData.reduce((acc, cur) => { const status = cur.T
       )}
 
      
-      {activeTab === "b2b" && (
-     <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            gap: "2rem",
-            flexWrap: "wrap",
-          }}
-        >
-          {/* LEFT: B2B CHART */}
-          <div
-            style={{
-              flex: "1 1 40%",
-              display: "flex",
-              flexDirection: "column",
-              gap: "2rem",
-            }}
-          >
-            <div
-              style={{
-                background: "#fff",
-                borderRadius: 12,
-                padding: 20,
-                boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
-              }}
-            >
-              <h5 className="fw-semibold mb-3 text-primary">
-                {currentLanguage === "vi"
-                  ? "Tổng quan dịch vụ Doanh nghiệp"
-                  : "B2B Service Overview"}
-              </h5>
-              <select 
-                    className="form-select form-select-sm" 
-                    style={{ width: '200px' }}
-                    value={selectedCompanyId}
-                    onChange={(e) => setSelectedCompanyId(e.target.value)}
-                    disabled={b2bLoading}
-                >
-                    <option value="">{currentLanguage === "vi" ? "Tất cả công ty" : "All Companies"}</option>
-                    {uniqueCompanies.map((c) => (
-                        <option key={c.id} value={c.id}>
-                            {c.name.length > 25 ? c.name.substring(0, 25) + "..." : c.name}
-                        </option>
-                    ))}
+  {activeTab === "b2b" && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "2rem", flexWrap: "wrap" }}>
+          
+          {/* LEFT: B2B CHARTs */}
+          <div style={{ flex: "1 1 40%", display: "flex", flexDirection: "column", gap: "2rem" }}>
+            
+            {/* 1. B2B OVERVIEW (Pie) */}
+            <div style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h5 className="fw-semibold text-primary mb-0">{currentLanguage === "vi" ? "Tổng quan dịch vụ Doanh nghiệp" : "B2B Service Overview"}</h5>
+              </div>
+              <div className="mb-3">
+                <select className="form-select form-select-sm" style={{ width: "100%" }} value={selectedCompanyId} onChange={(e) => setSelectedCompanyId(e.target.value)} disabled={b2bLoading}>
+                  <option value="">{currentLanguage === "vi" ? "Tất cả công ty" : "All Companies"}</option>
+                  {uniqueCompanies.map((c) => (<option key={c.id} value={c.id}>{c.name.substring(0, 50)}</option>))}
                 </select>
-                  {b2bLoading ? (
-                 <div className="text-center py-5 text-muted">Loading...</div>
+              </div>
+
+              {b2bLoading ? (
+                <div className="text-center py-5 text-muted">Loading...</div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                  <div style={{ width: "100%", height: 320, position: "relative" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
+                  {/* Pie Chart */}
+                  <div style={{ flex: "1 1 50%", minWidth: 200, height: 320, position: "relative" }}>
                     {b2bPieData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
-                            <Pie
-                            data={b2bPieData}
-                            dataKey="value"
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={100}
-                            paddingAngle={2}
-                            >
-                            {b2bPieData.map((entry, i) => (
-                                <Cell key={i} fill={serviceColorMap[entry.name] || "#60a5fa"} />
-                            ))}
-                            </Pie>
-                            <Tooltip />
+                          <Pie data={b2bPieData} dataKey="value" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2}>
+                            {b2bPieData.map((entry, i) => (<Cell key={i} fill={serviceColorMap[entry.name] || "#60a5fa"} />))}
+                          </Pie>
+                          <Tooltip />
                         </PieChart>
-                        </ResponsiveContainer>
+                      </ResponsiveContainer>
                     ) : (
-                        <div className="d-flex align-items-center justify-content-center h-100 text-muted">
-                            {currentLanguage === "vi" ? "Không có dịch vụ" : "No services"}
-                        </div>
+                      <div className="d-flex align-items-center justify-content-center h-100 text-muted">{currentLanguage === "vi" ? "Không có dịch vụ" : "No services"}</div>
                     )}
-                    
-                    {/* Center Text */}
                     <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", textAlign: "center" }}>
-                      <h4 style={{ fontSize: "2rem", fontWeight: 700, color: "#2563eb", margin: 0 }}>
-                        {b2bTotal}
-                      </h4>
-                      <span className="text-muted small">
-                        {currentLanguage === "vi" ? "Dịch vụ" : "Services"}
-                      </span>
+                      <h4 style={{ fontSize: "1.8rem", fontWeight: 700, color: "#2563eb", margin: 0 }}>{b2bTotal}</h4>
+                      <span className="text-muted small">{currentLanguage === "vi" ? "Dịch vụ" : "Services"}</span>
                     </div>
                   </div>
 
-                  {/* B2B Legend - Details */}
-                  <div>
-                    <h6 className="fw-semibold mb-2 text-secondary">
-                      {currentLanguage === "vi" 
-                        ? selectedCompanyId ? "Chi tiết theo công ty" : "Chi tiết tổng hợp"
-                        : "Details"}
-                    </h6>
+                  {/* Details (Legend) */}
+                  <div style={{ flex: "1 1 45%", minWidth: 200 }}>
+                    <h6 className="fw-semibold mb-3 text-secondary">{currentLanguage === "vi" ? (selectedCompanyId ? "Chi tiết theo công ty" : "Chi tiết tổng hợp") : "Details"}</h6>
                     <div style={{ maxHeight: "300px", overflowY: "auto" }}>
                       {b2bPieData.map((item, i) => {
                         const percent = b2bTotal > 0 ? ((item.value / b2bTotal) * 100).toFixed(1) : 0;
                         return (
-                          <div key={i} className="d-flex justify-content-between align-items-center mb-2 p-2 rounded" style={{ background: "#f9fafb" }}>
-                            <div className="d-flex align-items-center gap-2">
-                              <div style={{ width: 10, height: 10, borderRadius: "50%", background: serviceColorMap[item.name] || "#60a5fa" }}></div>
-                              <span className="small fw-medium">{item.name}</span>
-                            </div>
-                            <div className="text-end">
-                              <strong className="d-block">{item.value}</strong>
-                              <span className="text-muted" style={{ fontSize: "0.75rem" }}>
-                                {percent}%
-                              </span>
-                            </div>
+                          <div key={i} className="d-flex justify-content-between align-items-center mb-2" style={{ padding: "2px 0" }}>
+                            <span style={{ fontWeight: 500, color: "#374151" }} title={item.name}>{item.name}</span>
+                            <strong>{item.value} <span style={{ color: "#6b7280", fontWeight: 400 }}>({percent}%)</span></strong>
                           </div>
                         );
                       })}
+                    </div>
+                    <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top" style={{ fontWeight: "700", color: "#1f2937" }}>
+                      <span>{currentLanguage === "vi" ? "Tổng cộng" : "Total"}</span>
+                      <span>{b2bTotal} <span style={{ color: "#6b7280", fontWeight: 400 }}>{currentLanguage === "vi" ? "yêu cầu" : "requests"}</span></span>
                     </div>
                   </div>
                 </div>
               )}
             </div>
-          
+
+         
           </div>
 
-       
-          <div
-            style={{
-              flex: "1 1 55%",
-              background: "#fff",
-              borderRadius: 12,
-              padding: 20,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
-              maxHeight: 900,
-              overflowY: "auto",
-            }}
-          >
-            <h5 className="fw-semibold mb-3 text-primary">
-              {currentLanguage === "vi"
-                ? "Danh sách khách hàng Doanh nghiệp"
-                : "B2B Client List"}
-            </h5>
-
+          {/* RIGHT: B2B LIST */}
+          <div style={{ flex: "1 1 55%", background: "#fff", borderRadius: 12, padding: 20, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", maxHeight: 900, overflowY: "auto" }}>
+            <h5 className="fw-semibold mb-3 text-primary">{currentLanguage === "vi" ? "Danh Sách Dịch Vụ Khách Hàng Doanh Nghiệp" : "B2B Client List"}</h5>
             <table className="table table-hover table-bordered align-middle small">
               <thead className="table-light">
                 <tr>
@@ -838,16 +792,12 @@ const groupedByStatus = filteredData.reduce((acc, cur) => { const status = cur.T
                 </tr>
               </thead>
               <tbody>
-                {b2bServices.length > 0 ? (
-                  b2bServices.map((r, index) => (
+                {filteredB2BServices.length > 0 ? (
+                  filteredB2BServices.map((r, index) => (
                     <tr key={index}>
                       <td className="text-center">{index + 1}</td>
                       <td className="fw-medium">{r.TenDoanhNghiep || r.companyName || "—"}</td>
-                      <td>
-                        <span className="badge bg-light text-dark border">
-                           {r.LoaiDichVu || r.serviceType || "—"}
-                        </span>
-                      </td>
+                      <td><span className="badge bg-light text-dark border">{r.LoaiDichVu || r.serviceType || "—"}</span></td>
                       <td className="text-primary fw-medium">{r.TenDichVu || r.serviceName || "—"}</td>
                       <td>{r.SoDienThoai || r.phone || "—"}</td>
                       <td>{r.Email || r.email || "—"}</td>
@@ -856,21 +806,16 @@ const groupedByStatus = filteredData.reduce((acc, cur) => { const status = cur.T
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="7" className="text-center text-muted py-4">
-                      {currentLanguage === "vi"
-                        ? "Không có dữ liệu doanh nghiệp"
-                        : "No B2B data found"}
-                    </td>
+                    <td colSpan="7" className="text-center text-muted py-4">{currentLanguage === "vi" ? "Không có dữ liệu doanh nghiệp" : "No B2B data found"}</td>
                   </tr>
                 )}
               </tbody>
             </table>
-            <div className="text-muted small mt-2">
-               Total: {b2bServices.length} records
-            </div>
+            <div className="text-muted small mt-2">Total: {filteredB2BServices.length} records</div>
           </div>
         </div>
       )}
+    
     </div>
   );
 };
