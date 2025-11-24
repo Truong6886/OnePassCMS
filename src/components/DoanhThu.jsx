@@ -277,7 +277,7 @@ export default function DoanhThu() {
       });
     }
 
-    // 2. Lọc theo ngày
+
     if (startDate || endDate) {
       filtered = filtered.filter((r) => {
         const date = new Date(r.NgayTao);
@@ -291,7 +291,6 @@ export default function DoanhThu() {
       });
     }
 
-    // 3. Các bộ lọc riêng cho cá nhân
     if (isPersonal) {
       if (selectedService !== "tatca") {
         filtered = filtered.filter((r) => {
@@ -307,7 +306,6 @@ export default function DoanhThu() {
       }
     }
 
-    // Set state
     if (isPersonal) {
       setFilteredRecords(filtered);
       prepareChartData(filtered, viewMode, "personal");
@@ -315,7 +313,7 @@ export default function DoanhThu() {
     } else {
       setFilteredCompanyRecords(filtered); 
       
-      // Tính lại bảng tổng hợp và biểu đồ cho doanh nghiệp
+
       const aggregated = aggregateCompanyData(filtered, approvedCompanies);
       
       let finalAggregated = aggregated;
@@ -458,7 +456,7 @@ export default function DoanhThu() {
             </button>
           </div>
 
-          {/* --- BỘ LỌC CHUNG --- */}
+
           <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
               <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
@@ -501,7 +499,7 @@ export default function DoanhThu() {
             </div>
           </div>
 
-          {/* --- BIỂU ĐỒ --- */}
+       
           <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", minHeight: "360px", marginBottom: "30px" }}>
             <h5 style={{ color: "#2563eb", fontWeight: 600, marginBottom: "10px" }}>
                {activeTab === "personal" ? t.chartTitle + " (Cá nhân)" : t.chartTitle + " (Doanh nghiệp)"}
@@ -575,7 +573,7 @@ export default function DoanhThu() {
           ) : (
             <CompanyTable 
               loading={loading}
-              data={aggregatedCompanyData} // Dữ liệu đã gộp chuẩn xác
+              data={aggregatedCompanyData} 
               currentPage={companyCurrentPage}
               setCurrentPage={setCompanyCurrentPage}
               totalPages={companyTotalPages}
@@ -637,7 +635,7 @@ const PersonalTable = ({
   </div>
 )};
 
-/* ====== BẢNG DOANH NGHIỆP (ĐÃ GỘP CHUẨN) ====== */
+
 const CompanyTable = ({
   loading, data, currentPage, setCurrentPage, totalPages, currentLanguage, t
 }) => {
@@ -678,7 +676,7 @@ const CompanyTable = ({
     );
 }
 
-/* ====== Component Phân Trang Chung ====== */
+
 const PaginationControls = ({ currentPage, totalPages, setCurrentPage, totalItems, currentLanguage }) => (
     <div className="d-flex justify-content-between align-items-center px-3 py-3 border-top mt-2">
       <div className="text-muted small">
