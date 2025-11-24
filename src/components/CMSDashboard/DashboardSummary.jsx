@@ -145,7 +145,7 @@ const DashboardSummary = ({
         }}
       >
         <div style={{ flex: "1 1 48%", display: "flex", flexDirection: "column", gap: "2rem" }}>
-          {/* --- PIE CHART --- */}
+      
           <div
             style={{
               background: "#fff",

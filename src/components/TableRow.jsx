@@ -14,8 +14,8 @@ const TableRow = ({
   onSave,
   onDelete,
   currentLanguage,
-  columns,        // Props mới
-  getStickyLeft,  // Props mới
+  columns,        
+  getStickyLeft,  
 }) => {
   const [localData, setLocalData] = useState(item);
   const textRef = React.useRef(); 
@@ -96,9 +96,9 @@ const TableRow = ({
     { value: "Hoàn thành", label: "Hoàn thành" },
   ];
 
-  // Hàm helper để render TD với style sticky động
+
   const RenderTd = ({ colKey, children, className = "", style = {} }) => {
-    // Tìm cấu hình cột hiện tại
+
     const colIndex = columns.findIndex(c => c.key === colKey);
     const colConfig = columns[colIndex];
 
@@ -108,8 +108,8 @@ const TableRow = ({
         position: "sticky",
         left: getStickyLeft(colIndex),
         zIndex: 10,
-        backgroundColor: "#fff", // Nền trắng để che nội dung khi cuộn
-        borderRight: "2px solid #e5e7eb" // Border phân cách phần sticky
+        backgroundColor: "#fff", 
+        borderRight: "2px solid #e5e7eb" 
     } : {};
 
     return (
@@ -241,7 +241,7 @@ const TableRow = ({
         </select>
       </RenderTd>
 
-      {/* Cột phụ trách có logic riêng kiểm tra visible trong DashboardList nên chỉ cần check key */}
+  
       <RenderTd colKey="pic">
         <select
           className="form-select form-select-sm w-130"

@@ -4,7 +4,7 @@ import { showToast } from "../../utils/toast";
 import "../../styles/DashboardList.css";
 import EmailList from "./EmailList";
 import { exportRequestsToExcel } from "../../utils/exportExcel";
-import { LayoutGrid } from "lucide-react"; // Import Icon
+import { LayoutGrid } from "lucide-react"; 
 
 const DashboardList = ({
   subViewMode,
@@ -37,7 +37,7 @@ const DashboardList = ({
     { key: "service", labelVi: "Dịch Vụ", labelEn: "Service", width: 130, visible: true, pinned: false },
     { key: "type", labelVi: "Hình thức", labelEn: "Type", width: 100, visible: true, pinned: false },
     { key: "branch", labelVi: "Cơ sở", labelEn: "Branch", width: 80, visible: true, pinned: false },
-    { key: "name", labelVi: "Họ tên", labelEn: "Full Name", width: 150, visible: true, pinned: false }, // Mặc định không pinned
+    { key: "name", labelVi: "Họ tên", labelEn: "Full Name", width: 150, visible: true, pinned: false }, 
     { key: "email", labelVi: "Email", labelEn: "Email", width: 150, visible: true, pinned: false },
     { key: "region", labelVi: "Mã vùng", labelEn: "Region", width: 70, visible: true, pinned: false },
     { key: "phone", labelVi: "SĐT", labelEn: "Phone", width: 120, visible: true, pinned: false },
@@ -49,7 +49,7 @@ const DashboardList = ({
     { key: "status", labelVi: "Trạng thái", labelEn: "Status", width: 150, visible: true, pinned: false },
     { key: "pic", labelVi: "Phụ trách", labelEn: "PIC", width: 130, visible: currentUser?.is_admin, pinned: false },
     { key: "note", labelVi: "Ghi chú", labelEn: "Note", width: 200, visible: true, pinned: false },
-    { key: "action", labelVi: "Hành động", labelEn: "Action", width: 100, visible: true, pinned: true }, // Hành động thường nên pinned phải
+    { key: "action", labelVi: "Hành động", labelEn: "Action", width: 100, visible: true, pinned: true }, 
   ], [currentUser]);
 
   const [columns, setColumns] = useState(initialColumns);
