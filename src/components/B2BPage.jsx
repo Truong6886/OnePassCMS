@@ -784,9 +784,8 @@ const deleteServiceRow = async (id, isNew) => {
         return renderPendingApprovedTab();
     }
   };
-
 const renderServicesTab = () => {
-  // Hàm phụ: Chuyển đổi an toàn chuỗi tiền
+
   const safeParse = (val) => {
     if (!val) return 0;
     try {
@@ -798,11 +797,18 @@ const renderServicesTab = () => {
     }
   };
 
-  // Sắp xếp dữ liệu theo ID doanh nghiệp để các dòng cùng cty nằm cạnh nhau
+  // Sắp xếp dữ liệu để gom nhóm các công ty lại với nhau
   const displayData = [...(serviceData || [])].sort((a, b) => {
     const compA = String(a.companyId || a.DoanhNghiepID || "");
     const compB = String(b.companyId || b.DoanhNghiepID || "");
-    return compA.localeCompare(compB);
+
+    if (compA !== "" && compB === "") return -1;
+    if (compA === "" && compB !== "") return 1;
+
+    if (compA !== "" && compB !== "") {
+      return compA.localeCompare(compB);
+    }
+    return (a.id || 0) - (b.id || 0);
   });
 
   return (
@@ -854,25 +860,37 @@ const renderServicesTab = () => {
                     const currentCompanyId = String(rec.companyId || rec.DoanhNghiepID || "");
                     const prevCompanyId = idx > 0 ? String(displayData[idx - 1].companyId || displayData[idx - 1].DoanhNghiepID || "") : null;
 
-                    // --- FIXED LOGIC: Xác định dòng cuối cùng của nhóm ---
-                    // Tìm tất cả các dòng có cùng companyId
-                    const sameCompanyRows = displayData.filter(row => 
+                    // --- LOGIC XÁC ĐỊNH NHÓM ---
+                    const sameCompanyRows = displayData.filter(row =>
                       String(row.companyId || row.DoanhNghiepID || "") === currentCompanyId
                     );
-                    
-                    // Lấy index của dòng hiện tại trong nhóm
-                    const currentIndexInGroup = sameCompanyRows.findIndex(row => 
+
+                    const currentIndexInGroup = sameCompanyRows.findIndex(row =>
                       row.id === rec.id || row.ID === rec.ID
                     );
-                    
-                    // Nếu đây là dòng cuối cùng trong nhóm cùng companyId
+
                     const isLastRowOfGroup = currentIndexInGroup === sameCompanyRows.length - 1;
-                    // ------------------------------------------
+                    // ----------------------------
+
+                    // *** FIX LOGIC BORDER (QUAN TRỌNG) ***
+                    // Nếu là dòng cuối nhóm: Viền đậm màu xám (#6b7280).
+                    // Nếu KHÔNG phải dòng cuối: Viền trong suốt (transparent) để ẩn đi, tạo cảm giác liền khối.
+                    // Sử dụng borderBottomColor thay vì borderBottom để override table-bordered tốt hơn.
+                    const borderBottomColor = isLastRowOfGroup ? "#6b7280" : "transparent";
+                    const borderBottomWidth = isLastRowOfGroup ? "2px" : "1px";
+                    
+                    // Style chung cho các ô td để ẩn/hiện border
+                    const cellBorderStyle = {
+                        borderBottomColor: borderBottomColor,
+                        borderBottomWidth: borderBottomWidth,
+                        borderBottomStyle: "solid"
+                    };
 
                     let shouldRenderTotalCell = false;
                     let rowSpan = 1;
                     let groupTotalRevenue = 0;
 
+                    // Logic tính toán rowSpan và tổng doanh thu
                     if (!currentCompanyId || currentCompanyId === "") {
                       shouldRenderTotalCell = true;
                       rowSpan = 1;
@@ -903,17 +921,14 @@ const renderServicesTab = () => {
                     serviceOptions = [...new Set(serviceOptions)].filter(Boolean);
 
                     return (
-                      <tr 
-                        key={rec.id || idx} 
-                        className="bg-white hover:bg-gray-50" 
-                        style={{ 
-                          height: "30px",
-                          // Kẻ border đậm ở dưới nếu là dòng cuối của nhóm công ty
-                          borderBottom: isLastRowOfGroup ? "2px solid #6b7280" : "1px solid #e5e7eb"
-                        }}
+                      <tr
+                        key={rec.id || idx}
+                        className="bg-white hover:bg-gray-50"
+                        style={{ height: "30px" }}
                       >
-                        <td className="text-center border p-0 align-middle">{globalIndex}</td>
-                        <td className="border p-0 align-middle">
+                        <td className="text-center border p-0 align-middle" style={cellBorderStyle}>{globalIndex}</td>
+
+                        <td className="border p-0 align-middle" style={cellBorderStyle}>
                           <select
                             className="form-select form-select-sm shadow-none"
                             style={{ ...baseCellStyle, width: "100%", minWidth: "120px" }}
@@ -926,7 +941,8 @@ const renderServicesTab = () => {
                             ))}
                           </select>
                         </td>
-                        <td className="border p-0 align-middle">
+
+                        <td className="border p-0 align-middle" style={cellBorderStyle}>
                           <select
                             className="form-select form-select-sm shadow-none"
                             style={{ ...baseCellStyle, width: 150 }}
@@ -942,22 +958,28 @@ const renderServicesTab = () => {
                             )}
                           </select>
                         </td>
-                        <td className="border p-0 align-middle" style={{ width: 160 }}>
+
+                        <td className="border p-0 align-middle" style={{ width: 160, ...cellBorderStyle }}>
                           <input type="text" className="form-control form-control-sm shadow-none" style={baseCellStyle} value={rec.serviceName || rec.TenDichVu || ""} onChange={(e) => handleRecordChange(rec.id, "serviceName", e.target.value)} placeholder="Nhập Tên Dịch Vụ" />
                         </td>
-                        <td className="border p-0 align-middle">
+
+                        <td className="border p-0 align-middle" style={cellBorderStyle}>
                           <input type="text" className="form-control form-control-sm text-center shadow-none" style={baseCellStyle} value={rec.code || rec.MaDichVu || rec.ServiceID || ""} onChange={(e) => handleRecordChange(rec.id || rec.ID, "code", e.target.value)} />
                         </td>
-                        <td className="border p-0 align-middle">
+
+                        <td className="border p-0 align-middle" style={cellBorderStyle}>
                           <input type="date" className="form-control form-control-sm text-center shadow-none" style={{ ...baseCellStyle, padding: "0 1px", fontSize: "12px" }} value={rec.startDate || rec.NgayThucHien?.split("T")[0] || ""} onChange={(e) => handleRecordChange(rec.id || rec.ID, "startDate", e.target.value)} />
                         </td>
-                        <td className="border p-0 align-middle">
+
+                        <td className="border p-0 align-middle" style={cellBorderStyle}>
                           <input type="date" className="form-control form-control-sm text-center shadow-none" style={{ ...baseCellStyle, padding: "0 1px", fontSize: "12px" }} value={rec.endDate || rec.NgayHoanThanh?.split("T")[0] || ""} onChange={(e) => handleRecordChange(rec.id || rec.ID, "endDate", e.target.value)} />
                         </td>
-                        <td className="border p-0 align-middle">
+
+                        <td className="border p-0 align-middle" style={cellBorderStyle}>
                           <input type="text" className="form-control form-control-sm text-center shadow-none" style={{ ...baseCellStyle, textAlign: "center" }} value={formatNumber(rec.revenueBefore || rec.DoanhThuTruocChietKhau || "")} onChange={(e) => handleRecordChange(rec.id || rec.ID, "revenueBefore", e.target.value)} />
                         </td>
-                        <td className="border p-0 align-middle">
+
+                        <td className="border p-0 align-middle" style={cellBorderStyle}>
                           <select className="form-select form-select-sm text-center shadow-none" style={{ ...baseCellStyle, padding: "0" }} value={rec.discountRate || rec.MucChietKhau || ""} onChange={(e) => handleRecordChange(rec.id || rec.ID, "discountRate", e.target.value)}>
                             <option value="">%</option>
                             <option value="5">5%</option>
@@ -966,10 +988,12 @@ const renderServicesTab = () => {
                             <option value="20">20%</option>
                           </select>
                         </td>
-                        <td className="text-center align-middle border px-2 bg-light" style={{ fontSize: "12px", padding: "2px 4px" }}>
+
+                        <td className="text-center align-middle border px-2 bg-light" style={{ fontSize: "12px", padding: "2px 4px", ...cellBorderStyle }}>
                           {formatNumber(rec.discountAmount || rec.SoTienChietKhau || "0")}
                         </td>
-                        <td className="text-center align-middle fw-bold border px-2 bg-light" style={{ fontSize: "12px", padding: "2px 4px" }}>
+
+                        <td className="text-center align-middle fw-bold border px-2 bg-light" style={{ fontSize: "12px", padding: "2px 4px", ...cellBorderStyle }}>
                           {formatNumber(rec.revenueAfter || rec.DoanhThuSauChietKhau || "0")}
                         </td>
 
@@ -981,15 +1005,16 @@ const renderServicesTab = () => {
                               fontSize: "13px",
                               padding: "2px 4px",
                               backgroundColor: "#fff",
-                              // Đảm bảo ô gộp (rowspan) cũng có viền đáy nếu nó kết thúc tại dòng này
-                              borderBottom: isLastRowOfGroup ? "2px solid #6b7280" : undefined 
+                              // Viền dưới của ô Total phải luôn tuân theo dòng cuối cùng của nhóm đó
+                              borderBottom: "2px solid #6b7280", 
+                              verticalAlign: "middle"
                             }}
                           >
                             {formatNumber(groupTotalRevenue)}
                           </td>
                         )}
 
-                        <td className="text-center border p-1 align-middle">
+                        <td className="text-center border p-1 align-middle" style={cellBorderStyle}>
                           <div className="d-flex gap-1 justify-content-center">
                             <button className="btn btn-sm" style={{ backgroundColor: "#2563eb", color: "#fff", width: 36, height: 36, borderRadius: 6 }} onClick={() => saveServiceRow(rec)}>
                               <Save size={17} strokeWidth={2.3} />
