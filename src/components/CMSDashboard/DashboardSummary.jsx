@@ -1,20 +1,22 @@
+// FIXED DashboardSummary.jsx
+// (Full corrected component with B2B tab)
+
 import React, { useState, useEffect } from "react";
 import translateService from "../../utils/translateService";
 import {
   ResponsiveContainer,
   PieChart,
-  Pie,
-  Cell,
-  Tooltip,
   BarChart,
   XAxis,
   YAxis,
-  Bar,
   Legend,
+  Bar,
+  Pie,
+  Cell,
+  Tooltip,
 } from "recharts";
 import { FilterX } from "lucide-react";
 import { showToast } from "../../utils/toast";
-
 import useDashboardData from "./hooks/useDashboardData";
 
 const statusColorMap = {
@@ -22,8 +24,10 @@ const statusColorMap = {
   "Đang xử lý": "#f59e0b",
   "Đang nộp hồ sơ": "#10b981",
   "Hoàn thành": "#8b5cf6",
-  "Không xác định": "#9ca3af"
+  "Không xác định": "#9ca3af",
 };
+
+
 
 const DashboardSummary = ({
   currentLanguage,
@@ -36,90 +40,68 @@ const DashboardSummary = ({
   setFilterStatus,
   allServices,
 }) => {
-  // State chứa TOÀN BỘ dữ liệu từ API
-  const [allData, setAllData] = useState([]); 
+
+
+  const [activeTab, setActiveTab] = useState("personal");
+  const [b2bServices, setB2bServices] = useState([]);
+  const [allData, setAllData] = useState([]);
   const [loading, setLoading] = useState(false);
-  
-  // State bộ lọc local
+  const [b2bLoading, setB2bLoading] = useState(false);
   const [filterRegion, setFilterRegion] = useState("");
   const [filterMode, setFilterMode] = useState("");
 
-  const {
-    currentPage,
-    setCurrentPage,
-    rowsPerPage,
-  } = useDashboardData();
+  const { currentPage, setCurrentPage, rowsPerPage } = useDashboardData();
 
-  // 1. Lọc dữ liệu (Filter) trên toàn bộ tập dữ liệu (allData)
-  const filteredData = allData.filter(r => {
-    // Lọc theo Dịch vụ
+
+  const filteredData = allData.filter((r) => {
     const matchService = filterDichVu
       ? translateService(r.TenDichVu) === filterDichVu
       : true;
 
-    // Lọc theo Vùng
     const regionMap = { "+84": "Việt Nam", "+82": "Hàn Quốc" };
     const region = regionMap[r.MaVung] || r.MaVung || "Không xác định";
     const matchRegion = filterRegion ? region === filterRegion : true;
 
-    const matchMode = filterMode ? r.TenHinhThuc === filterMode : true; 
-    
-  
+    const matchMode = filterMode ? r.TenHinhThuc === filterMode : true;
+
     const matchStatus = filterStatus ? r.TrangThai === filterStatus : true;
 
     return matchService && matchRegion && matchStatus && matchMode;
   });
+const filteredForChart = filteredData.filter(r => {
+   const date = new Date(r.NgayTao); 
+   const now = new Date(); 
+   const diffDays = (now - date) / (1000 * 60 * 60 * 24); 
+   return diffDays <= timeRange; 
+  });
+const allDates = Array.from( new Set(filteredForChart.map(r => new Date(r.NgayTao).toISOString().slice(0,10))) ).sort();
+const chartDataByTime = allDates.map(date => {
+   const dayData = { date };
+    allServices.forEach(service => { 
+      dayData[service] = filteredForChart.filter( 
+        r => new Date(r.NgayTao).toISOString().slice(0,10) === date &&
+         translateService(r.TenDichVu) === service ).length; 
+        }); 
+      return dayData;
+     });
 
-
+const groupedByStatus = filteredData.reduce((acc, cur) => { const status = cur.TrangThai || "Không xác định"; acc[status] = (acc[status] || 0) + 1; return acc; }, {}); const totalStatus = Object.values(groupedByStatus).reduce((sum, v) => sum + v, 0);
   const totalPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
   const currentTableRows = filteredData.slice(indexOfFirstRow, indexOfLastRow);
 
- 
-  const filteredForChart = filteredData.filter(r => {
-    const date = new Date(r.NgayTao);
-    const now = new Date();
-    const diffDays = (now - date) / (1000 * 60 * 60 * 24);
-    return diffDays <= timeRange;
-  });
-
-  const allDates = Array.from(
-    new Set(filteredForChart.map(r => new Date(r.NgayTao).toISOString().slice(0,10)))
-  ).sort();
-
-  const chartDataByTime = allDates.map(date => {
-    const dayData = { date };
-    allServices.forEach(service => {
-      dayData[service] = filteredForChart.filter(
-        r => new Date(r.NgayTao).toISOString().slice(0,10) === date &&
-             translateService(r.TenDichVu) === service
-      ).length;
-    });
-    return dayData;
-  });
-
-  const groupedByStatus = filteredData.reduce((acc, cur) => {
-    const status = cur.TrangThai || "Không xác định";
-    acc[status] = (acc[status] || 0) + 1;
-    return acc;
-  }, {});
-  const totalStatus = Object.values(groupedByStatus).reduce((sum, v) => sum + v, 0);
-
-
+ const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const fetchAllData = async () => {
     setLoading(true);
     try {
-     
       const res = await fetch(
-        `https://onepasscms-backend.onrender.com/api/yeucau?limit=1000` 
+        `https://onepasscms-backend.onrender.com/api/yeucau?limit=1000`
       );
       const result = await res.json();
-      if (result.success) {
-        setAllData(result.data);
-      }
-    } catch (error) {
-      console.error("❌ Lỗi khi tải dữ liệu:", error);
+      if (result.success) setAllData(result.data);
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -133,8 +115,104 @@ const DashboardSummary = ({
     setCurrentPage(1);
   }, [filterDichVu, filterRegion, filterMode, filterStatus, rowsPerPage]);
 
+ const fetchB2BData = async () => {
+    setB2bLoading(true);
+    try {
+      // 1. Fetch Services (B2B_SERVICE)
+      const serviceRes = await fetch(
+        "https://onepasscms-backend.onrender.com/api/b2b/services?limit=1000"
+      );
+      const serviceJson = await serviceRes.json();
+      const rawServices = serviceJson.success ? serviceJson.data : [];
+
+      // 2. Fetch Companies (B2B_APPROVED)
+      const companyRes = await fetch(
+        "https://onepasscms-backend.onrender.com/api/b2b/approved"
+      );
+      const companyJson = await companyRes.json();
+      const rawCompanies = companyJson.success ? companyJson.data : [];
+
+      // 3. Merge Data: Enrich service with company info
+      const merged = rawServices.map((service) => {
+        // Find company by ID
+        const company = rawCompanies.find(
+          (c) => c.ID === service.DoanhNghiepID
+        ) || {};
+        
+        return {
+            ...service,
+            // Prioritize company info from B2B_APPROVED
+            TenDoanhNghiep: company.TenDoanhNghiep || service.TenDoanhNghiep, 
+            SoDienThoai: company.SoDienThoai || service.SoDienThoai,
+            Email: company.Email || service.Email,
+            NguoiDaiDien: company.NguoiDaiDien || service.NguoiDaiDien,
+            LoaiDichVu: service.LoaiDichVu,
+            TenDichVu: service.TenDichVu
+        };
+      });
+
+      setB2bServices(merged);
+    } catch (err) {
+      console.error("B2B load error", err);
+    } finally {
+      setB2bLoading(false);
+    }
+  };
+ useEffect(() => {
+    fetchB2BData();
+  }, []);
+
+ 
+
+
+  const uniqueCompanies = Array.from(
+    new Map(b2bServices.map(item => [item.DoanhNghiepID, item.TenDoanhNghiep])).entries()
+  ).map(([id, name]) => ({ id, name })).filter(c => c.id && c.name !== "Chưa xác định");
+
+  // 2. Lọc danh sách dịch vụ dựa trên selectedCompanyId
+  const filteredB2BServices = selectedCompanyId 
+    ? b2bServices.filter(s => String(s.DoanhNghiepID) === String(selectedCompanyId))
+    : b2bServices;
+
+  // 3. Tính toán lại số liệu cho PieChart dựa trên filteredB2BServices
+  const b2bTotal = filteredB2BServices.length;
+  const b2bPieData = Object.entries(
+    filteredB2BServices.reduce((acc, cur) => {
+      const name = cur.LoaiDichVu || cur.serviceName || "Không xác định";
+      acc[name] = (acc[name] || 0) + 1;
+      return acc;
+    }, {})
+  ).map(([name, value]) => ({ name, value }));
+
+
+
+
   return (
     <div className="mb-4">
+      {/* TABS */}
+      <div className="d-flex gap-3 mb-3">
+        <button
+          className={`btn ${
+            activeTab === "personal" ? "btn-primary" : "btn-outline-primary"
+          }`}
+          onClick={() => setActiveTab("personal")}
+        >
+          Khách hàng cá nhân
+        </button>
+
+        <button
+          className={`btn ${
+            activeTab === "b2b" ? "btn-primary" : "btn-outline-primary"
+          }`}
+          onClick={() => setActiveTab("b2b")}
+        >
+          Khách hàng doanh nghiệp
+        </button>
+      </div>
+
+      
+      {activeTab === "personal" && (
+         <div className="mb-4">
       <div
         style={{
           display: "flex",
@@ -605,6 +683,194 @@ const DashboardSummary = ({
           )}
         </div>
       </div>
+    </div>
+      )}
+
+     
+      {activeTab === "b2b" && (
+     <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: "2rem",
+            flexWrap: "wrap",
+          }}
+        >
+          {/* LEFT: B2B CHART */}
+          <div
+            style={{
+              flex: "1 1 40%",
+              display: "flex",
+              flexDirection: "column",
+              gap: "2rem",
+            }}
+          >
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: 12,
+                padding: 20,
+                boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+              }}
+            >
+              <h5 className="fw-semibold mb-3 text-primary">
+                {currentLanguage === "vi"
+                  ? "Tổng quan dịch vụ Doanh nghiệp"
+                  : "B2B Service Overview"}
+              </h5>
+              <select 
+                    className="form-select form-select-sm" 
+                    style={{ width: '200px' }}
+                    value={selectedCompanyId}
+                    onChange={(e) => setSelectedCompanyId(e.target.value)}
+                    disabled={b2bLoading}
+                >
+                    <option value="">{currentLanguage === "vi" ? "Tất cả công ty" : "All Companies"}</option>
+                    {uniqueCompanies.map((c) => (
+                        <option key={c.id} value={c.id}>
+                            {c.name.length > 25 ? c.name.substring(0, 25) + "..." : c.name}
+                        </option>
+                    ))}
+                </select>
+                  {b2bLoading ? (
+                 <div className="text-center py-5 text-muted">Loading...</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                  <div style={{ width: "100%", height: 320, position: "relative" }}>
+                    {b2bPieData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                            <Pie
+                            data={b2bPieData}
+                            dataKey="value"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={100}
+                            paddingAngle={2}
+                            >
+                            {b2bPieData.map((entry, i) => (
+                                <Cell key={i} fill={serviceColorMap[entry.name] || "#60a5fa"} />
+                            ))}
+                            </Pie>
+                            <Tooltip />
+                        </PieChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="d-flex align-items-center justify-content-center h-100 text-muted">
+                            {currentLanguage === "vi" ? "Không có dịch vụ" : "No services"}
+                        </div>
+                    )}
+                    
+                    {/* Center Text */}
+                    <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", textAlign: "center" }}>
+                      <h4 style={{ fontSize: "2rem", fontWeight: 700, color: "#2563eb", margin: 0 }}>
+                        {b2bTotal}
+                      </h4>
+                      <span className="text-muted small">
+                        {currentLanguage === "vi" ? "Dịch vụ" : "Services"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* B2B Legend - Details */}
+                  <div>
+                    <h6 className="fw-semibold mb-2 text-secondary">
+                      {currentLanguage === "vi" 
+                        ? selectedCompanyId ? "Chi tiết theo công ty" : "Chi tiết tổng hợp"
+                        : "Details"}
+                    </h6>
+                    <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+                      {b2bPieData.map((item, i) => {
+                        const percent = b2bTotal > 0 ? ((item.value / b2bTotal) * 100).toFixed(1) : 0;
+                        return (
+                          <div key={i} className="d-flex justify-content-between align-items-center mb-2 p-2 rounded" style={{ background: "#f9fafb" }}>
+                            <div className="d-flex align-items-center gap-2">
+                              <div style={{ width: 10, height: 10, borderRadius: "50%", background: serviceColorMap[item.name] || "#60a5fa" }}></div>
+                              <span className="small fw-medium">{item.name}</span>
+                            </div>
+                            <div className="text-end">
+                              <strong className="d-block">{item.value}</strong>
+                              <span className="text-muted" style={{ fontSize: "0.75rem" }}>
+                                {percent}%
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          
+          </div>
+
+       
+          <div
+            style={{
+              flex: "1 1 55%",
+              background: "#fff",
+              borderRadius: 12,
+              padding: 20,
+              boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+              maxHeight: 900,
+              overflowY: "auto",
+            }}
+          >
+            <h5 className="fw-semibold mb-3 text-primary">
+              {currentLanguage === "vi"
+                ? "Danh sách khách hàng Doanh nghiệp"
+                : "B2B Client List"}
+            </h5>
+
+            <table className="table table-hover table-bordered align-middle small">
+              <thead className="table-light">
+                <tr>
+                  <th style={{ width: 40 }}>#</th>
+                  <th>{currentLanguage === "vi" ? "Tên doanh nghiệp" : "Company Name"}</th>
+                  <th>{currentLanguage === "vi" ? "Loại dịch vụ" : "Service Type"}</th>
+                  <th>{currentLanguage === "vi" ? "Tên dịch vụ" : "Service Name"}</th>
+                  <th>{currentLanguage === "vi" ? "Số điện thoại" : "Phone"}</th>
+                  <th>Email</th>
+                  <th>{currentLanguage === "vi" ? "Người đại diện" : "Representative"}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {b2bServices.length > 0 ? (
+                  b2bServices.map((r, index) => (
+                    <tr key={index}>
+                      <td className="text-center">{index + 1}</td>
+                      <td className="fw-medium">{r.TenDoanhNghiep || r.companyName || "—"}</td>
+                      <td>
+                        <span className="badge bg-light text-dark border">
+                           {r.LoaiDichVu || r.serviceType || "—"}
+                        </span>
+                      </td>
+                      <td className="text-primary fw-medium">{r.TenDichVu || r.serviceName || "—"}</td>
+                      <td>{r.SoDienThoai || r.phone || "—"}</td>
+                      <td>{r.Email || r.email || "—"}</td>
+                      <td>{r.NguoiDaiDien || r.contactName || "—"}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="7" className="text-center text-muted py-4">
+                      {currentLanguage === "vi"
+                        ? "Không có dữ liệu doanh nghiệp"
+                        : "No B2B data found"}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            <div className="text-muted small mt-2">
+               Total: {b2bServices.length} records
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
