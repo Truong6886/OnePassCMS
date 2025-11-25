@@ -24,8 +24,6 @@ const statusColorMap = {
   "Không xác định": "#9ca3af",
 };
 
-
-
 const DashboardSummary = ({
   currentLanguage,
   serviceColorMap,
@@ -37,8 +35,6 @@ const DashboardSummary = ({
   setFilterStatus,
   allServices,
 }) => {
-
-
   const [activeTab, setActiveTab] = useState("personal");
   const [b2bServices, setB2bServices] = useState([]);
   const [allData, setAllData] = useState([]);
@@ -48,7 +44,11 @@ const DashboardSummary = ({
   const [filterMode, setFilterMode] = useState("");
   const [b2bTimeRange, setB2bTimeRange] = useState(7);
   const { currentPage, setCurrentPage, rowsPerPage } = useDashboardData();
-const [selectedTimeCompanyId, setSelectedTimeCompanyId] = useState("");
+  const [selectedTimeCompanyId, setSelectedTimeCompanyId] = useState("");
+
+  // --- STATE MỚI CHO PHÂN TRANG B2B ---
+  const [b2bCurrentPage, setB2bCurrentPage] = useState(1);
+  const b2bRowsPerPage = 20;
 
   const filteredData = allData.filter((r) => {
     const matchService = filterDichVu
@@ -65,30 +65,44 @@ const [selectedTimeCompanyId, setSelectedTimeCompanyId] = useState("");
 
     return matchService && matchRegion && matchStatus && matchMode;
   });
-const filteredForChart = filteredData.filter(r => {
-   const date = new Date(r.NgayTao); 
-   const now = new Date(); 
-   const diffDays = (now - date) / (1000 * 60 * 60 * 24); 
-   return diffDays <= timeRange; 
+  const filteredForChart = filteredData.filter((r) => {
+    const date = new Date(r.NgayTao);
+    const now = new Date();
+    const diffDays = (now - date) / (1000 * 60 * 60 * 24);
+    return diffDays <= timeRange;
   });
-const allDates = Array.from( new Set(filteredForChart.map(r => new Date(r.NgayTao).toISOString().slice(0,10))) ).sort();
-const chartDataByTime = allDates.map(date => {
-   const dayData = { date };
-    allServices.forEach(service => { 
-      dayData[service] = filteredForChart.filter( 
-        r => new Date(r.NgayTao).toISOString().slice(0,10) === date &&
-         translateService(r.TenDichVu) === service ).length; 
-        }); 
-      return dayData;
-     });
+  const allDates = Array.from(
+    new Set(
+      filteredForChart.map((r) => new Date(r.NgayTao).toISOString().slice(0, 10))
+    )
+  ).sort();
+  const chartDataByTime = allDates.map((date) => {
+    const dayData = { date };
+    allServices.forEach((service) => {
+      dayData[service] = filteredForChart.filter(
+        (r) =>
+          new Date(r.NgayTao).toISOString().slice(0, 10) === date &&
+          translateService(r.TenDichVu) === service
+      ).length;
+    });
+    return dayData;
+  });
 
-const groupedByStatus = filteredData.reduce((acc, cur) => { const status = cur.TrangThai || "Không xác định"; acc[status] = (acc[status] || 0) + 1; return acc; }, {}); const totalStatus = Object.values(groupedByStatus).reduce((sum, v) => sum + v, 0);
+  const groupedByStatus = filteredData.reduce((acc, cur) => {
+    const status = cur.TrangThai || "Không xác định";
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+  const totalStatus = Object.values(groupedByStatus).reduce(
+    (sum, v) => sum + v,
+    0
+  );
   const totalPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
   const currentTableRows = filteredData.slice(indexOfFirstRow, indexOfLastRow);
 
- const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const fetchAllData = async () => {
     setLoading(true);
     try {
@@ -112,7 +126,12 @@ const groupedByStatus = filteredData.reduce((acc, cur) => { const status = cur.T
     setCurrentPage(1);
   }, [filterDichVu, filterRegion, filterMode, filterStatus, rowsPerPage]);
 
- const fetchB2BData = async () => {
+  // Reset trang B2B về 1 khi đổi bộ lọc công ty
+  useEffect(() => {
+    setB2bCurrentPage(1);
+  }, [selectedCompanyId]);
+
+  const fetchB2BData = async () => {
     setB2bLoading(true);
     try {
       // 1. Fetch Services (B2B_SERVICE)
@@ -132,19 +151,18 @@ const groupedByStatus = filteredData.reduce((acc, cur) => { const status = cur.T
       // 3. Merge Data: Enrich service with company info
       const merged = rawServices.map((service) => {
         // Find company by ID
-        const company = rawCompanies.find(
-          (c) => c.ID === service.DoanhNghiepID
-        ) || {};
-        
+        const company =
+          rawCompanies.find((c) => c.ID === service.DoanhNghiepID) || {};
+
         return {
-            ...service,
-            // Prioritize company info from B2B_APPROVED
-            TenDoanhNghiep: company.TenDoanhNghiep || service.TenDoanhNghiep, 
-            SoDienThoai: company.SoDienThoai || service.SoDienThoai,
-            Email: company.Email || service.Email,
-            NguoiDaiDien: company.NguoiDaiDien || service.NguoiDaiDien,
-            LoaiDichVu: service.LoaiDichVu,
-            TenDichVu: service.TenDichVu
+          ...service,
+          // Prioritize company info from B2B_APPROVED
+          TenDoanhNghiep: company.TenDoanhNghiep || service.TenDoanhNghiep,
+          SoDienThoai: company.SoDienThoai || service.SoDienThoai,
+          Email: company.Email || service.Email,
+          NguoiDaiDien: company.NguoiDaiDien || service.NguoiDaiDien,
+          LoaiDichVu: service.LoaiDichVu,
+          TenDichVu: service.TenDichVu,
         };
       });
 
@@ -155,35 +173,48 @@ const groupedByStatus = filteredData.reduce((acc, cur) => { const status = cur.T
       setB2bLoading(false);
     }
   };
- useEffect(() => {
+  useEffect(() => {
     fetchB2BData();
   }, []);
 
- 
-
-
   const uniqueCompanies = Array.from(
-    new Map(b2bServices.map(item => [item.DoanhNghiepID, item.TenDoanhNghiep])).entries()
-  ).map(([id, name]) => ({ id, name })).filter(c => c.id && c.name !== "Chưa xác định");
+    new Map(
+      b2bServices.map((item) => [item.DoanhNghiepID, item.TenDoanhNghiep])
+    ).entries()
+  )
+    .map(([id, name]) => ({ id, name }))
+    .filter((c) => c.id && c.name !== "Chưa xác định");
 
   // 2. Lọc danh sách dịch vụ dựa trên selectedCompanyId
-  const filteredB2BServices = selectedCompanyId 
-    ? b2bServices.filter(s => String(s.DoanhNghiepID) === String(selectedCompanyId))
+  const filteredB2BServices = selectedCompanyId
+    ? b2bServices.filter(
+        (s) => String(s.DoanhNghiepID) === String(selectedCompanyId)
+      )
     : b2bServices;
 
-  // 3. Tính toán lại số liệu cho PieChart dựa trên filteredB2BServices
   const b2bTotal = filteredB2BServices.length;
-  const b2bPieData = Object.entries(
-    filteredB2BServices.reduce((acc, cur) => {
-      const name = cur.LoaiDichVu || cur.serviceName || "";
-      acc[name] = (acc[name] || 0) + 1;
-      return acc;
-    }, {})
-  ).map(([name, value]) => ({ name, value }));
-const filteredB2BTimeChart = selectedTimeCompanyId
-    ? b2bServices.filter((s) => String(s.DoanhNghiepID) === String(selectedTimeCompanyId))
-    : b2bServices; // If no company selected for chart, show ALL companies aggregated
-const b2bFilteredForChart = filteredB2BServices.filter((r) => {
+
+  const b2bPieData = selectedCompanyId
+    ? Object.entries(
+        filteredB2BServices.reduce((acc, cur) => {
+          const name = cur.LoaiDichVu || cur.serviceName || "Không xác định";
+          acc[name] = (acc[name] || 0) + 1;
+          return acc;
+        }, {})
+      ).map(([name, value]) => ({ name, value }))
+    : Object.entries(
+        filteredB2BServices.reduce((acc, cur) => {
+          const companyName = cur.TenDoanhNghiep || "Không xác định";
+          acc[companyName] = (acc[companyName] || 0) + 1;
+          return acc;
+        }, {})
+      ).map(([name, value]) => ({ name, value }));
+  const filteredB2BTimeChart = selectedTimeCompanyId
+    ? b2bServices.filter(
+        (s) => String(s.DoanhNghiepID) === String(selectedTimeCompanyId)
+      )
+    : b2bServices;
+  const b2bFilteredForChart = filteredB2BServices.filter((r) => {
     if (!r.NgayTao) return false;
     const date = new Date(r.NgayTao);
     const now = new Date();
@@ -191,63 +222,90 @@ const b2bFilteredForChart = filteredB2BServices.filter((r) => {
     return diffDays <= b2bTimeRange;
   });
 
-  const b2bDates = Array.from(new Set(b2bFilteredForChart.map((r) => new Date(r.NgayTao).toISOString().slice(0, 10)))).sort();
-  
+  const b2bDates = Array.from(
+    new Set(
+      b2bFilteredForChart.map((r) =>
+        new Date(r.NgayTao).toISOString().slice(0, 10)
+      )
+    )
+  ).sort();
+
   // Get all unique service types for the stack
-  const b2bUniqueServiceTypes = Array.from(new Set(b2bServices.map(s => s.LoaiDichVu || s.serviceName || "Khác")));
+  const b2bUniqueServiceTypes = Array.from(
+    new Set(b2bServices.map((s) => s.LoaiDichVu || s.serviceName || "Khác"))
+  );
 
   const b2bChartData = b2bDates.map((date) => {
     const dayData = { date };
     b2bUniqueServiceTypes.forEach((serviceType) => {
       dayData[serviceType] = b2bFilteredForChart.filter(
-        (r) => new Date(r.NgayTao).toISOString().slice(0, 10) === date && (r.LoaiDichVu || r.serviceName) === serviceType
+        (r) =>
+          new Date(r.NgayTao).toISOString().slice(0, 10) === date &&
+          (r.LoaiDichVu || r.serviceName) === serviceType
       ).length;
     });
     return dayData;
   });
 
-const customerTabs = [
-  { key: "personal", labelVi: "Khách Hàng Cá Nhân", labelEn: "Personal" },
-  { key: "b2b", labelVi: "Khách Hàng Doanh Nghiệp", labelEn: "B2B" },
-];
+  const customerTabs = [
+    { key: "personal", labelVi: "Khách Hàng Cá Nhân", labelEn: "Personal" },
+    { key: "b2b", labelVi: "Khách Hàng Doanh Nghiệp", labelEn: "B2B" },
+  ];
+
+  // --- LOGIC PHÂN TRANG B2B ---
+  // 1. Sắp xếp dữ liệu trước (để đảm bảo nhóm được gom lại nếu bị chia cắt bởi trang, nhưng tốt nhất là sắp xếp toàn bộ trước)
+  const sortedB2BData = [...filteredB2BServices].sort((a, b) => {
+    const nameA = (a.TenDoanhNghiep || a.companyName || "").toLowerCase();
+    const nameB = (b.TenDoanhNghiep || b.companyName || "").toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+
+  // 2. Tính toán slice cho trang hiện tại
+  const b2bIndexOfLastRow = b2bCurrentPage * b2bRowsPerPage;
+  const b2bIndexOfFirstRow = b2bIndexOfLastRow - b2bRowsPerPage;
+  const currentB2BRows = sortedB2BData.slice(
+    b2bIndexOfFirstRow,
+    b2bIndexOfLastRow
+  );
+  const totalB2BPages = Math.ceil(sortedB2BData.length / b2bRowsPerPage) || 1;
 
   return (
     <div className="mb-4">
       {/* TABS */}
-     <div
-    className="d-flex border-bottom mb-4"
-    style={{
-      gap: "2rem",
-      borderColor: "#e0e0e0",
-      fontWeight: 500,
-      fontSize: "1rem",
-    }}
-  >
-    {customerTabs.map((tab) => (
       <div
-        key={tab.key}
-        onClick={() => setActiveTab(tab.key)}
+        className="d-flex border-bottom mb-4"
         style={{
-          cursor: "pointer",
-          paddingBottom: "6px",
-          borderBottom:
-            activeTab === tab.key
-              ? "3px solid #2563eb"
-              : "3px solid transparent",
-          color: activeTab === tab.key ? "#2563eb" : "#6b7280",
-          fontWeight: activeTab === tab.key ? "600" : "500",
-          transition: "all 0.2s ease",
+          gap: "2rem",
+          borderColor: "#e0e0e0",
+          fontWeight: 500,
+          fontSize: "1rem",
         }}
       >
-        {currentLanguage === "vi" ? tab.labelVi : tab.labelEn}
+        {customerTabs.map((tab) => (
+          <div
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              cursor: "pointer",
+              paddingBottom: "6px",
+              borderBottom:
+                activeTab === tab.key
+                  ? "3px solid #2563eb"
+                  : "3px solid transparent",
+              color: activeTab === tab.key ? "#2563eb" : "#6b7280",
+              fontWeight: activeTab === tab.key ? "600" : "500",
+              transition: "all 0.2s ease",
+            }}
+          >
+            {currentLanguage === "vi" ? tab.labelVi : tab.labelEn}
+          </div>
+        ))}
       </div>
-    ))}
-  </div>
 
-      
       {activeTab === "personal" && (
-         <div className="mb-4">
-      <div
+        <div className="mb-4">
+          {/* ... (Nội dung tab Personal giữ nguyên) ... */}
+           <div
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -717,118 +775,540 @@ const customerTabs = [
           )}
         </div>
       </div>
-    </div>
+        </div>
       )}
 
-     
-  {activeTab === "b2b" && (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "2rem", flexWrap: "wrap" }}>
-          
+      {activeTab === "b2b" && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: "2rem",
+            flexWrap: "wrap",
+          }}
+        >
           {/* LEFT: B2B CHARTs */}
-          <div style={{ flex: "1 1 40%", display: "flex", flexDirection: "column", gap: "2rem" }}>
-            
+          <div
+            style={{
+              flex: "1 1 40%",
+              display: "flex",
+              flexDirection: "column",
+              gap: "2rem",
+            }}
+          >
             {/* 1. B2B OVERVIEW (Pie) */}
-            <div style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: 12,
+                padding: 20,
+                boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+              }}
+            >
               <div className="d-flex justify-content-between align-items-center mb-3">
-                <h5 className="fw-semibold text-primary mb-0">{currentLanguage === "vi" ? "Tổng quan dịch vụ Doanh nghiệp" : "B2B Service Overview"}</h5>
+                <h5 className="fw-semibold text-primary mb-0">
+                  {currentLanguage === "vi"
+                    ? "Tổng quan dịch vụ Doanh nghiệp"
+                    : "B2B Service Overview"}
+                </h5>
               </div>
               <div className="mb-3">
-                <select className="form-select form-select-sm" style={{ width: "100%" }} value={selectedCompanyId} onChange={(e) => setSelectedCompanyId(e.target.value)} disabled={b2bLoading}>
-                  <option value="">{currentLanguage === "vi" ? "Tất cả công ty" : "All Companies"}</option>
-                  {uniqueCompanies.map((c) => (<option key={c.id} value={c.id}>{c.name.substring(0, 50)}</option>))}
+                <select
+                  className="form-select form-select-sm"
+                  style={{ width: "100%" }}
+                  value={selectedCompanyId}
+                  onChange={(e) => setSelectedCompanyId(e.target.value)}
+                  disabled={b2bLoading}
+                >
+                  <option value="">
+                    {currentLanguage === "vi"
+                      ? "Tất cả công ty"
+                      : "All Companies"}
+                  </option>
+                  {uniqueCompanies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name.substring(0, 50)}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               {b2bLoading ? (
                 <div className="text-center py-5 text-muted">Loading...</div>
               ) : (
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    flexWrap: "wrap",
+                    gap: "1rem",
+                  }}
+                >
                   {/* Pie Chart */}
-                  <div style={{ flex: "1 1 50%", minWidth: 200, height: 320, position: "relative" }}>
+                  <div
+                    style={{
+                      flex: "1 1 50%",
+                      minWidth: 200,
+                      height: 320,
+                      position: "relative",
+                    }}
+                  >
                     {b2bPieData.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
-                          <Pie data={b2bPieData} dataKey="value" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2}>
-                            {b2bPieData.map((entry, i) => (<Cell key={i} fill={serviceColorMap[entry.name] || "#60a5fa"} />))}
+                          <Pie
+                            data={b2bPieData}
+                            dataKey="value"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={50}
+                            outerRadius={80}
+                            paddingAngle={2}
+                          >
+                            {b2bPieData.map((entry, i) => {
+                            const colors =[
+                          "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD",
+                          "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E9", "#F8C471", "#82E0AA",
+                          "#F1948A", "#D7BDE2", "#F9E79F", "#A9DFBF", "#F5B7B1", "#AED6F1",
+                          "#E8DAEF", "#FAD7A0", "#ABEBC6", "#F5CBA7", "#D2B4DE", "#FCF3CF",
+                          "#A3E4D7", "#7FB3D5", "#C39BD3", "#76D7C4", "#F0B27A", "#7DCEA0",
+                          "#73C6B6", "#E59866", "#5499C7", "#AF7AC5", "#F4D03F", "#48C9B0",
+                          "#DC7633", "#229954", "#8E44AD", "#F1C40F", "#16A085", "#D35400",
+                          "#2E86C1", "#9B59B6", "#F39C12", "#138D75", "#BA4A00", "#1F618D",
+                          "#884EA0", "#E67E22", "#117A65", "#A04000", "#2874A6", "#7D3C98",
+                        ];
+                              const color = colors[i % colors.length];
+                              return <Cell key={i} fill={color} />;
+                            })}
                           </Pie>
                           <Tooltip />
                         </PieChart>
                       </ResponsiveContainer>
                     ) : (
-                      <div className="d-flex align-items-center justify-content-center h-100 text-muted">{currentLanguage === "vi" ? "Không có dịch vụ" : "No services"}</div>
+                      <div className="d-flex align-items-center justify-content-center h-100 text-muted">
+                        {currentLanguage === "vi"
+                          ? "Không có dịch vụ"
+                          : "No services"}
+                      </div>
                     )}
-                    <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", textAlign: "center" }}>
-                      <h4 style={{ fontSize: "1.8rem", fontWeight: 700, color: "#2563eb", margin: 0 }}>{b2bTotal}</h4>
-                      <span className="text-muted small">{currentLanguage === "vi" ? "Dịch vụ" : "Services"}</span>
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%,-50%)",
+                        textAlign: "center",
+                      }}
+                    >
+                      <h4
+                        style={{
+                          fontSize: "1.8rem",
+                          fontWeight: 700,
+                          color: "#2563eb",
+                          margin: 0,
+                        }}
+                      >
+                        {b2bTotal}
+                      </h4>
+                      <span className="text-muted small">
+                        {currentLanguage === "vi" ? "Dịch vụ" : "Services"}
+                      </span>
                     </div>
                   </div>
 
                   {/* Details (Legend) */}
-                  <div style={{ flex: "1 1 45%", minWidth: 200 }}>
-                    <h6 className="fw-semibold mb-3 text-secondary">{currentLanguage === "vi" ? (selectedCompanyId ? "Tổng quan theo công ty" : "Tổng quan theo dịch vụ") : "Details"}</h6>
-                    <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+                  <div
+                    style={{
+                      flex: "1 1 45%",
+                      minWidth: 200,
+                      overflow: "hidden", // Thêm dòng này để ngăn thanh cuộn ngang
+                    }}
+                  >
+                    <h6 className="fw-semibold mb-3 text-secondary">
+                      {currentLanguage === "vi"
+                        ? selectedCompanyId
+                          ? "Tổng quan theo dịch vụ"
+                          : "Tổng quan theo công ty"
+                        : "Details"}
+                    </h6>
+                    <div
+                      style={{
+                        maxHeight: "300px",
+                        overflowY: "auto",
+                        overflowX: "hidden", 
+                        paddingRight: "4px", 
+                      }}
+                    >
                       {b2bPieData.map((item, i) => {
-                        const percent = b2bTotal > 0 ? ((item.value / b2bTotal) * 100).toFixed(1) : 0;
+                        const percent =
+                          b2bTotal > 0
+                            ? ((item.value / b2bTotal) * 100).toFixed(1)
+                            : 0;
+
+                        const colors =[
+                          "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD",
+                          "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E9", "#F8C471", "#82E0AA",
+                          "#F1948A", "#D7BDE2", "#F9E79F", "#A9DFBF", "#F5B7B1", "#AED6F1",
+                          "#E8DAEF", "#FAD7A0", "#ABEBC6", "#F5CBA7", "#D2B4DE", "#FCF3CF",
+                          "#A3E4D7", "#7FB3D5", "#C39BD3", "#76D7C4", "#F0B27A", "#7DCEA0",
+                          "#73C6B6", "#E59866", "#5499C7", "#AF7AC5", "#F4D03F", "#48C9B0",
+                          "#DC7633", "#229954", "#8E44AD", "#F1C40F", "#16A085", "#D35400",
+                          "#2E86C1", "#9B59B6", "#F39C12", "#138D75", "#BA4A00", "#1F618D",
+                          "#884EA0", "#E67E22", "#117A65", "#A04000", "#2874A6", "#7D3C98",
+                        ];
+                        const color = colors[i % colors.length];
+
                         return (
-                          <div key={i} className="d-flex justify-content-between align-items-center mb-2" style={{ padding: "2px 0" }}>
-                            <span style={{ fontWeight: 500, color: "#374151" }} title={item.name}>{item.name}</span>
-                            <strong>{item.value} <span style={{ color: "#6b7280", fontWeight: 400 }}>({percent}%)</span></strong>
+                          <div
+                            key={i}
+                            className="d-flex justify-content-between align-items-center mb-2"
+                            style={{
+                              padding: "6px 8px",
+                              borderRadius: "6px",
+                              background: "rgba(255, 255, 255, 0.7)",
+                              borderLeft: `4px solid ${color}`,
+                              transition: "all 0.2s ease",
+                              minWidth: 0, // Quan trọng: cho phép thu nhỏ
+                              wordWrap: "break-word", // Ngắt từ nếu cần
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background =
+                                "rgba(37, 99, 235, 0.05)";
+                              e.currentTarget.style.transform = "translateX(4px)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background =
+                                "rgba(255, 255, 255, 0.7)";
+                              e.currentTarget.style.transform = "translateX(0)";
+                            }}
+                          >
+                            <div
+                              className="d-flex align-items-center"
+                              style={{ minWidth: 0, flex: 1 }}
+                            >
+                              <span
+                                style={{
+                                  fontWeight: 500,
+                                  color: "#374151",
+                                  fontSize: "0.9rem",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                                title={item.name}
+                              >
+                                {item.name}
+                              </span>
+                            </div>
+                            <strong
+                              style={{
+                                fontSize: "0.9rem",
+                                flexShrink: 0,
+                                marginLeft: "8px",
+                              }}
+                            >
+                              {item.value}{" "}
+                              <span style={{ color: "#6b7280", fontWeight: 400 }}>
+                                ({percent}%)
+                              </span>
+                            </strong>
                           </div>
                         );
                       })}
                     </div>
-                    <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top" style={{ fontWeight: "700", color: "#1f2937" }}>
-                      <span>{currentLanguage === "vi" ? "Tổng cộng" : "Total"}</span>
-                      <span>{b2bTotal} <span style={{ color: "#6b7280", fontWeight: 400 }}>{currentLanguage === "vi" ? "yêu cầu" : "requests"}</span></span>
+                    <div
+                      className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top"
+                      style={{ fontWeight: "700", color: "#1f2937" }}
+                    >
+                      <span>
+                        {currentLanguage === "vi" ? "Tổng cộng" : "Total"}
+                      </span>
+                      <span>
+                        {b2bTotal}{" "}
+                        <span style={{ color: "#6b7280", fontWeight: 400 }}>
+                          {currentLanguage === "vi" ? "dịch vụ" : "services"}
+                        </span>
+                      </span>
                     </div>
                   </div>
                 </div>
               )}
             </div>
-
-         
           </div>
 
-          {/* RIGHT: B2B LIST */}
-          <div style={{ flex: "1 1 55%", background: "#fff", borderRadius: 12, padding: 20, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", maxHeight: 900, overflowY: "auto" }}>
-            <h5 className="fw-semibold mb-3 text-primary">{currentLanguage === "vi" ? "Danh Sách Dịch Vụ Khách Hàng Doanh Nghiệp" : "B2B Client List"}</h5>
+          <div
+            style={{
+              flex: "1 1 55%",
+              background: "#fff",
+              borderRadius: 12,
+              padding: 20,
+              boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+              maxHeight: 900,
+              overflowY: "auto",
+            }}
+          >
+            <h5 className="fw-semibold mb-3 text-primary">
+              {currentLanguage === "vi"
+                ? "Danh Sách Dịch Vụ Khách Hàng Doanh Nghiệp"
+                : "B2B Client List"}
+            </h5>
             <table className="table table-hover table-bordered align-middle small">
               <thead className="table-light">
                 <tr>
-                  <th style={{ width: 40 }}>#</th>
-                  <th>{currentLanguage === "vi" ? "Tên doanh nghiệp" : "Company Name"}</th>
-                  <th>{currentLanguage === "vi" ? "Loại dịch vụ" : "Service Type"}</th>
-                  <th>{currentLanguage === "vi" ? "Tên dịch vụ" : "Service Name"}</th>
-                  <th>{currentLanguage === "vi" ? "Số điện thoại" : "Phone"}</th>
-                  <th>Email</th>
-                  <th>{currentLanguage === "vi" ? "Người đại diện" : "Representative"}</th>
+                  <th style={{ width: 40 }} className="text-center border">
+                    #
+                  </th>
+                  <th className="border">
+                    {currentLanguage === "vi" ? "Tên doanh nghiệp" : "Company Name"}
+                  </th>
+                  <th className="border">
+                    {currentLanguage === "vi" ? "Loại dịch vụ" : "Service Type"}
+                  </th>
+                  <th className="border">
+                    {currentLanguage === "vi" ? "Tên dịch vụ" : "Service Name"}
+                  </th>
+                  <th className="border">
+                    {currentLanguage === "vi" ? "Số điện thoại" : "Phone"}
+                  </th>
+                  <th className="border">Email</th>
+                  <th className="border">
+                    {currentLanguage === "vi" ? "Người đại diện" : "Representative"}
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {filteredB2BServices.length > 0 ? (
-                  filteredB2BServices.map((r, index) => (
-                    <tr key={index}>
-                      <td className="text-center">{index + 1}</td>
-                      <td className="fw-medium">{r.TenDoanhNghiep || r.companyName || "—"}</td>
-                      <td><span className="badge bg-light text-dark border">{r.LoaiDichVu || r.serviceType || "—"}</span></td>
-                      <td className="text-primary fw-medium">{r.TenDichVu || r.serviceName || "—"}</td>
-                      <td>{r.SoDienThoai || r.phone || "—"}</td>
-                      <td>{r.Email || r.email || "—"}</td>
-                      <td>{r.NguoiDaiDien || r.contactName || "—"}</td>
-                    </tr>
-                  ))
+
+                {currentB2BRows.length > 0 ? (
+                  (() => {
+          
+                    const groupedData = [];
+                    let currentGroup = [];
+
+                    currentB2BRows.forEach((item, index) => {
+                      const companyName = item.TenDoanhNghiep || item.companyName || "—";
+                      const prevCompanyName =
+                        index > 0
+                          ? currentB2BRows[index - 1].TenDoanhNghiep ||
+                            currentB2BRows[index - 1].companyName ||
+                            ""
+                          : "";
+
+                    
+                      if (
+                        companyName !== prevCompanyName &&
+                        currentGroup.length > 0
+                      ) {
+                        groupedData.push(currentGroup);
+                        currentGroup = [];
+                      }
+                      currentGroup.push(item);
+                    });
+
+                    if (currentGroup.length > 0) {
+                      groupedData.push(currentGroup);
+                    }
+
+          
+                    let globalIndex = (b2bCurrentPage - 1) * b2bRowsPerPage;
+
+                    return groupedData
+                      .map((group, groupIndex) => {
+                        const companyName =
+                          group[0].TenDoanhNghiep || group[0].companyName || "—";
+                        const rowCount = group.length;
+
+                        // Style chung cho các ô được gộp
+                        const groupedCellStyle = {
+                          backgroundColor: "#fff",
+                          verticalAlign: "middle",
+                          position: "relative",
+                          zIndex: 1,
+                          padding: "4px",
+                          fontSize: "12px",
+                          textAlign: "center",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          maxWidth: "150px",
+                        };
+
+                        return group.map((r, itemIndex) => {
+                          const isFirstRow = itemIndex === 0;
+                          globalIndex++;
+
+                          return (
+                            <tr key={`${groupIndex}-${itemIndex}`}>
+                              {/* Cột STT */}
+                              <td className="text-center border">{globalIndex}</td>
+
+                              {/* Cột Tên Doanh Nghiệp (GỘP) */}
+                              {isFirstRow && (
+                                <td
+                                  rowSpan={rowCount}
+                                  className="fw-medium border"
+                                  style={groupedCellStyle}
+                                  title={companyName}
+                                >
+                                  {companyName}
+                                </td>
+                              )}
+
+                              <td className="border text-center">
+                                <span className="badge bg-light text-dark border">
+                                  {r.LoaiDichVu || r.serviceType || "—"}
+                                </span>
+                              </td>
+
+                        
+                              <td className="text-center fw-medium border" style={{ fontSize: "11px" }}>
+                                {r.TenDichVu || r.serviceName || ""}
+                                
+                              </td>
+
+                         
+                              {isFirstRow && (
+                                <td
+                                  rowSpan={rowCount}
+                                  className="border"
+                                  style={groupedCellStyle}
+                                >
+                                  {r.SoDienThoai || r.phone || ""}
+                                </td>
+                              )}
+
+                    
+                              {isFirstRow && (
+                                <td
+                                  rowSpan={rowCount}
+                                  className="border"
+                                  style={groupedCellStyle}
+                                  title={r.Email || r.email}
+                                >
+                                  {r.Email || r.email || "—"}
+                                </td>
+                              )}
+
+                      
+                              {isFirstRow && (
+                                <td
+                                  rowSpan={rowCount}
+                                  className="border"
+                                  style={groupedCellStyle}
+                                >
+                                  {r.NguoiDaiDien || r.contactName || "—"}
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        });
+                      })
+                      .flat();
+                  })()
                 ) : (
                   <tr>
-                    <td colSpan="7" className="text-center text-muted py-4">{currentLanguage === "vi" ? "Không có dữ liệu doanh nghiệp" : "No B2B data found"}</td>
+                    <td colSpan="7" className="text-center text-muted py-4 border">
+                      {currentLanguage === "vi"
+                        ? "Không có dữ liệu doanh nghiệp"
+                        : "No B2B data found"}
+                    </td>
                   </tr>
                 )}
               </tbody>
             </table>
-            <div className="text-muted small mt-2">Total: {filteredB2BServices.length} records</div>
+
+            {/* --- UI PHÂN TRANG B2B --- */}
+            <div
+              className="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light"
+              style={{ marginTop: "0", borderTop: "1px solid #dee2e6" }}
+            >
+              <div className="text-muted small">
+                {currentLanguage === "vi"
+                  ? `Hiển thị ${currentB2BRows.length} / ${sortedB2BData.length} hàng (trang ${b2bCurrentPage}/${totalB2BPages})`
+                  : `Showing ${currentB2BRows.length} / ${sortedB2BData.length} rows (page ${b2bCurrentPage}/${totalB2BPages})`}
+              </div>
+
+              <div className="d-flex justify-content-center align-items-center">
+                <nav>
+                  <ul className="pagination pagination-sm mb-0 shadow-sm">
+                    {/* Nút Prev */}
+                    <li
+                      className={`page-item ${
+                        b2bCurrentPage === 1 ? "disabled" : ""
+                      }`}
+                    >
+                      <button
+                        className="page-link"
+                        onClick={() => {
+                          if (b2bCurrentPage > 1)
+                            setB2bCurrentPage((p) => p - 1);
+                        }}
+                      >
+                        &laquo;
+                      </button>
+                    </li>
+
+                    {/* Danh sách các trang */}
+                    {Array.from({ length: totalB2BPages }, (_, i) => i + 1)
+                      .filter(
+                        (p) =>
+                          p === 1 ||
+                          p === totalB2BPages ||
+                          (p >= b2bCurrentPage - 1 && p <= b2bCurrentPage + 1)
+                      )
+                      .map((p, idx, arr) => (
+                        <React.Fragment key={p}>
+                          {idx > 0 && arr[idx - 1] !== p - 1 && (
+                            <li className="page-item disabled">
+                              <span className="page-link">…</span>
+                            </li>
+                          )}
+                          <li
+                            className={`page-item ${
+                              b2bCurrentPage === p ? "active" : ""
+                            }`}
+                          >
+                            <button
+                              className="page-link"
+                              onClick={() => {
+                                if (p !== b2bCurrentPage) setB2bCurrentPage(p);
+                              }}
+                            >
+                              {p}
+                            </button>
+                          </li>
+                        </React.Fragment>
+                      ))}
+
+                    {/* Nút Next */}
+                    <li
+                      className={`page-item ${
+                        b2bCurrentPage === totalB2BPages ? "disabled" : ""
+                      }`}
+                    >
+                      <button
+                        className="page-link"
+                        onClick={() => {
+                          if (b2bCurrentPage < totalB2BPages)
+                            setB2bCurrentPage((p) => p + 1);
+                        }}
+                      >
+                        &raquo;
+                      </button>
+                    </li>
+                  </ul>
+                </nav>
+              </div>
+              <div className="ms-3 text-muted small">
+                {currentLanguage === "vi"
+                  ? `Trang ${b2bCurrentPage}/${totalB2BPages}`
+                  : `Page ${b2bCurrentPage}/${totalB2BPages}`}
+              </div>
+            </div>
           </div>
         </div>
       )}
-    
     </div>
   );
 };

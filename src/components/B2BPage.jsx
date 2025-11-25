@@ -84,14 +84,22 @@ const formatDateTimeReject = (isoString) => {
 const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
 const unformatNumber = (value) => (value ? value.toString().replace(/\./g, "") : "");
 
-const calculateServiceValues = (revenueBefore, discountRate) => {
+const calculateServiceValues = (revenueBefore, discountRate, walletUsage) => {
   const revenue = parseFloat(revenueBefore) || 0;
   const rate = parseFloat(discountRate) || 0;
+  const wallet = parseFloat(walletUsage) || 0;
+
   const discountAmount = Math.round((revenue * rate) / 100);
-  const revenueAfter = Math.round(revenue - discountAmount);
+  
+
+  const revenueAfterDiscount = revenue - discountAmount;
+  let revenueAfter = Math.round(revenueAfterDiscount - wallet);
+
+
+  if (revenueAfter < 0) revenueAfter = 0;
+
   return { discountAmount, revenueAfter, totalRevenue: revenueAfter };
 };
-
 const API_BASE = "https://onepasscms-backend.onrender.com/api";
 
 export default function B2BPage() {
@@ -102,7 +110,7 @@ export default function B2BPage() {
 
   const [pendingList, setPendingList] = useState([]);
   const [approvedList, setApprovedList] = useState([]);
-  const [serviceRecords, setServiceRecords] = useState([]);
+
   const [rejectedList, setRejectedList] = useState([]);
 
   const [activeTab, setActiveTab] = useState("pending");
@@ -133,22 +141,75 @@ export default function B2BPage() {
     pending: {}, approved: {}, services: {}
   });
 
-  const translations = {
-    vi: {
-      pendingTab: "Danh sách chờ duyệt", approvedTab: "Danh sách đã duyệt", rejectedTab: "Danh sách từ chối", servicesTab: "Danh sách dịch vụ", addServiceBtn: "+ Thêm dịch vụ",
-      stt: "STT", tenDN: "Tên Doanh Nghiệp", soDKKD: "Số ĐKKD", nguoiDaiDien: "Người Đại Diện Pháp Luật", ngayDangKy: "Ngày Đăng Ký", tongDoanhThu: "Tổng Doanh Thu", lyDoTuChoi: "Lý do từ chối",
-      dichVu: "Dịch Vụ", giayPhep: "Giấy Phép ĐKKD", email: "Email", soDienThoai: "Số Điện Thoai", nganhNgheChinh: "Ngành Nghề Chính", diaChi: "Địa Chỉ",
-      chonDN: "Chọn Doanh Nghiệp", loaiDichVu: "Loại Dịch Vụ", tenDichVu: "Tên Dịch Vụ", maDichVu: "Mã Dịch Vụ", ngayBatDau: "Ngày Bắt Đầu", ngayKetThuc: "Ngày Kết Thúc",
-      doanhThuTruoc: "Doanh Thu Trước Chiết Khấu", mucChietKhau: "Mức Chiết Khấu", soTienChietKhau: "Số Tiền Chiết Khấu", doanhThuSau: "Doanh Thu Sau Chiết Khấu", tongDoanhThuTichLuy: "Tổng Doanh Thu", hanhDong: "Hành động"
-    },
-    en: {
-      pendingTab: "Pending List", approvedTab: "Approved List", rejectedTab: "Rejected List", servicesTab: "Services List", addServiceBtn: "+ Add Service",
-      stt: "No.", tenDN: "Company Name", soDKKD: "Business Reg. No.", nguoiDaiDien: "Legal Representative", email: "Email", soDienThoai: "Phone Number", ngayDangKy: "Registration Date", tongDoanhThu: "Total Revenue", lyDoTuChoi: "Rejection Reason",
-      dichVu: "Services", giayPhep: "Business License", nganhNgheChinh: "Main Business Lines", diaChi: "Address",
-      chonDN: "Select Company", loaiDichVu: "Service Type", tenDichVu: "Service Name", maDichVu: "Service ID", ngayBatDau: "Start Date", ngayKetThuc: "End Date",
-      doanhThuTruoc: "Revenue Before Discount", mucChietKhau: "Discount Rate", soTienChietKhau: "Discount Amount", doanhThuSau: "Revenue After Discount", tongDoanhThuTichLuy: "Total Revenue", hanhDong: "Actions"
-    }
-  };
+ const translations = {
+  vi: {
+    pendingTab: "Danh sách chờ duyệt",
+    approvedTab: "Danh sách đã duyệt",
+    rejectedTab: "Danh sách từ chối",
+    servicesTab: "Danh sách dịch vụ",
+    addServiceBtn: "+ Thêm dịch vụ",
+    stt: "STT",
+    tenDN: "Tên Doanh Nghiệp",
+    soDKKD: "Số ĐKKD",
+    nguoiDaiDien: "Người Đại Diện Pháp Luật",
+    ngayDangKy: "Ngày Đăng Ký",
+    tongDoanhThu: "Tổng Doanh Thu",
+    lyDoTuChoi: "Lý do từ chối",
+    dichVu: "Dịch Vụ",
+    giayPhep: "Giấy Phép ĐKKD",
+    email: "Email",
+    soDienThoai: "Số Điện Thoai",
+    nganhNgheChinh: "Ngành Nghề Chính",
+    diaChi: "Địa Chỉ",
+    chonDN: "Chọn Doanh Nghiệp",
+    loaiDichVu: "Loại Dịch Vụ",
+    tenDichVu: "Tên Dịch Vụ",
+    maDichVu: "Mã Dịch Vụ",
+    ngayBatDau: "Ngày Bắt Đầu",
+    ngayKetThuc: "Ngày Kết Thúc",
+    doanhThuTruoc: "Doanh Thu Trước Chiết Khấu",
+    mucChietKhau: "Mức Chiết Khấu",
+    soTienChietKhau: "Số Tiền Chiết Khấu",
+    doanhThuSau: "Doanh Thu Sau Chiết Khấu",
+    tongDoanhThuTichLuy: "Tổng Doanh Thu",
+    suDungVi: "Sử dụng ví",
+    hanhDong: "Hành động"
+  },
+  en: {
+    pendingTab: "Pending List",
+    approvedTab: "Approved List",
+    rejectedTab: "Rejected List",
+    servicesTab: "Services List",
+    addServiceBtn: "+ Add Service",
+    stt: "No.",
+    tenDN: "Company Name",
+    soDKKD: "Business Reg. No.",
+    nguoiDaiDien: "Legal Representative",
+    email: "Email",
+    soDienThoai: "Phone Number",
+    ngayDangKy: "Registration Date",
+    tongDoanhThu: "Total Revenue",
+    lyDoTuChoi: "Rejection Reason",
+    dichVu: "Services",
+    giayPhep: "Business License",
+    nganhNgheChinh: "Main Business Lines",
+    diaChi: "Address",
+    chonDN: "Select Company",
+    loaiDichVu: "Service Type",
+    tenDichVu: "Service Name",
+    maDichVu: "Service ID",
+    ngayBatDau: "Start Date",
+    ngayKetThuc: "End Date",
+    doanhThuTruoc: "Revenue Before Discount",
+    mucChietKhau: "Discount Rate",
+    soTienChietKhau: "Discount Amount",
+    doanhThuSau: "Revenue After Discount",
+    tongDoanhThuTichLuy: "Total Revenue",
+    suDungVi: "Wallet Usage",
+    hanhDong: "Actions"
+  }
+};
+
 
   const t = translations[currentLanguage] || translations["vi"];
 
@@ -233,6 +294,7 @@ export default function B2BPage() {
           discountAmount: item.SoTienChietKhau,
           revenueAfter: item.DoanhThuSauChietKhau,
           totalRevenue: item.TongDoanhThuTichLuy,
+          walletUsage: item.Vi,
           isNew: false 
         }));
         setServiceData(formattedData);
@@ -249,13 +311,16 @@ export default function B2BPage() {
   };
 
   const calculateCompanyTotalRevenue = (companyId) => {
-    if (!serviceRecords || serviceRecords.length === 0) return 0;
-    return serviceRecords
-      .filter(r => String(r.companyId || r.DoanhNghiepID) === String(companyId))
+
+    if (!serviceData || serviceData.length === 0) return 0; 
+    
+    return serviceData
+      .filter(r => String(r.companyId) === String(companyId)) 
       .reduce((sum, r) => {
-        const val = r.revenueAfter || r.DoanhThuSauChietKhau;
+        const val = r.revenueAfter; 
         if (!val) return sum;
         try {
+         
           const cleanStr = String(val).replace(/\./g, '');
           const num = parseFloat(cleanStr);
           return sum + (isNaN(num) ? 0 : num);
@@ -310,8 +375,8 @@ export default function B2BPage() {
       const json = await res.json();
       if (json.success) {
         showToast("Cập nhật thành công!", "success");
-        setServiceRecords(prev => prev.map(svc => svc.companyId === item.ID ? { ...svc, TenDoanhNghiep: item.TenDoanhNghiep } : svc));
         cancelEditing("approved", item.ID);
+        loadServices(currentPage.services);
       } else { showToast(json.message, "error"); }
     } catch (e) { showToast("Lỗi server", "error"); }
   };
@@ -362,29 +427,53 @@ export default function B2BPage() {
     } catch (e) { showToast("Lỗi server", "error"); }
   };
 
-  const handleRecordChange = (uiId, field, value) => {
-    setServiceData(prev => prev.map(record => {
-      if (record.uiId !== uiId) return record;
-      const updated = { ...record };
-      if (field === "revenueBefore") {
-        const raw = unformatNumber(value);
-        updated.revenueBefore = raw;
-        const calc = calculateServiceValues(raw, record.discountRate);
-        updated.discountAmount = calc.discountAmount;
-        updated.revenueAfter = calc.revenueAfter;
-        updated.totalRevenue = calc.totalRevenue;
-      } else if (field === "discountRate") {
-        updated.discountRate = value;
-        const calc = calculateServiceValues(record.revenueBefore, value);
-        updated.discountAmount = calc.discountAmount;
-        updated.revenueAfter = calc.revenueAfter;
-        updated.totalRevenue = calc.totalRevenue;
-      } else {
-        updated[field] = value;
+
+
+const handleRecordChange = (uiId, field, value) => {
+  setServiceData(prev => prev.map(record => {
+    if (record.uiId !== uiId) return record;
+    const updated = { ...record };
+
+   
+    const safeNum = (val) => parseFloat(String(val).replace(/\./g, "")) || 0;
+
+    if (field === "revenueBefore") {
+      const raw = unformatNumber(value);
+      updated.revenueBefore = raw;
+      const calc = calculateServiceValues(raw, updated.discountRate, updated.walletUsage);
+      updated.discountAmount = calc.discountAmount;
+      updated.revenueAfter = calc.revenueAfter;
+      updated.totalRevenue = calc.totalRevenue;
+
+    } else if (field === "discountRate") {
+      updated.discountRate = value;
+      const calc = calculateServiceValues(updated.revenueBefore, value, updated.walletUsage);
+      updated.discountAmount = calc.discountAmount;
+      updated.revenueAfter = calc.revenueAfter;
+      updated.totalRevenue = calc.totalRevenue;
+
+    } else if (field === "walletUsage") { 
+      
+      let rawWallet = unformatNumber(value);
+
+     
+      if (rawWallet > 2000000) {
+        showToast("Giới hạn sử dụng ví tối đa là 2.000.000", "warning");
+        rawWallet = 2000000;
       }
-      return updated;
-    }));
-  };
+
+      updated.walletUsage = rawWallet;
+      const calc = calculateServiceValues(updated.revenueBefore, updated.discountRate, rawWallet);
+      updated.discountAmount = calc.discountAmount;
+      updated.revenueAfter = calc.revenueAfter;
+      updated.totalRevenue = calc.totalRevenue;
+
+    } else {
+      updated[field] = value;
+    }
+    return updated;
+  }));
+};
 
   const handleAddNewRow = () => {
     const newId = Date.now();
@@ -393,8 +482,8 @@ export default function B2BPage() {
       id: newId, 
       uiId: uiId,
       companyId: "", serviceType: "", serviceName: "", code: "", startDate: "", endDate: "",
-      revenueBefore: "", discountRate: "0", discountAmount: "0", revenueAfter: "0", totalRevenue: "0",
-      isNew: true,
+      revenueBefore: "", discountRate: "0", discountAmount: "0", revenueAfter: "0", totalRevenue: "0",walletUsage: "",
+      isNew: true
     };
     setServiceData(prev => [...prev, newRecord]);
     setServiceTotal(prev => prev + 1);
@@ -428,6 +517,7 @@ export default function B2BPage() {
         SoTienChietKhau: parseNum(rec.discountAmount),
         DoanhThuSauChietKhau: parseNum(rec.revenueAfter),
         TongDoanhThuTichLuy: parseNum(rec.totalRevenue),
+        Vi: parseNum(rec.walletUsage)
       };
 
       let url;
@@ -503,8 +593,21 @@ export default function B2BPage() {
 
 const renderServicesTab = () => {
   const safeParse = (val) => {
-      if (!val) return 0;
-      try { return isNaN(parseFloat(String(val).replace(/\./g, ""))) ? 0 : parseFloat(String(val).replace(/\./g, "")); } catch (e) { return 0; }
+    if (!val) return 0;
+    try {
+      return isNaN(parseFloat(String(val).replace(/\./g, ""))) ? 0 : parseFloat(String(val).replace(/\./g, ""));
+    } catch (e) {
+      return 0;
+    }
+  };
+
+  const getRealRevenue = (revenueBefore, discountRate, walletUsage) => {
+    const rBefore = safeParse(revenueBefore);
+    const dRate = safeParse(discountRate);
+    const wUsage = safeParse(walletUsage);
+    
+    const dAmount = rBefore * (dRate / 100);
+    return Math.max(0, rBefore - dAmount - wUsage);
   };
 
   const displayData = [...(serviceData || [])].sort((a, b) => {
@@ -516,18 +619,52 @@ const renderServicesTab = () => {
     return (a.id || 0) - (b.id || 0);
   });
 
+  const transparentInputStyle = {
+    backgroundColor: "transparent",
+    border: "none",
+    outline: "none",
+    width: "100%",
+    height: "100%",
+    textAlign: "center",
+    fontSize: "12px",
+    padding: "0 4px",
+    boxShadow: "none"
+  };
+
   return (
     <div>
       <div className="d-flex justify-content-end mb-2" style={{ height: 40, marginRight: 10 }}>
-        <button className="btn btn-primary btn-sm" onClick={handleAddNewRow} style={{ fontSize: "12px" }}>{t.addServiceBtn}</button>
+        <button
+          className="btn btn-primary btn-sm"
+          onClick={handleAddNewRow}
+          style={{ fontSize: "12px" }}
+        >
+          {t.addServiceBtn}
+        </button>
       </div>
+
       {loading ? (
-        <div className="text-center py-4"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div></div>
+        <div className="text-center py-4">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
       ) : (
         <>
           <div className="table-responsive shadow-sm rounded overflow-hidden">
-            <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: "12px", tableLayout: "auto", borderCollapse: "collapse", border: "1px solid #dee2e6" }}>
-              <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}>
+            <table
+              className="table table-bordered table-sm mb-0 align-middle"
+              style={{
+                fontSize: "12px",
+                tableLayout: "auto",
+                borderCollapse: "collapse",
+                border: "1px solid #dee2e6",
+              }}
+            >
+              <thead
+                className="text-white text-center align-middle"
+                style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}
+              >
                 <tr>
                   <th className="py-2 border" style={{ width: "35px" }}>{t.stt}</th>
                   <th className="py-2 border" style={{ minWidth: "120px" }}>{t.chonDN}</th>
@@ -536,7 +673,8 @@ const renderServicesTab = () => {
                   <th className="py-2 border" style={{ width: "60px" }}>{t.maDichVu}</th>
                   <th className="py-2 border" style={{ width: "85px" }}>{t.ngayBatDau}</th>
                   <th className="py-2 border" style={{ width: "85px" }}>{t.ngayKetThuc}</th>
-                  <th className="py-2 border" style={{ width: "100px" }}>{t.doanhThuTruoc}</th>
+                  <th className="py-2 border" style={{ width: "90px" }}>{t.doanhThuTruoc}</th>
+                  <th className="py-2 border" style={{ width: "90px" }}>{t.suDungVi}</th>
                   <th className="py-2 border" style={{ width: "60px" }}>{t.mucChietKhau}</th>
                   <th className="py-2 border" style={{ width: "80px" }}>{t.soTienChietKhau}</th>
                   <th className="py-2 border" style={{ width: "100px" }}>{t.doanhThuSau}</th>
@@ -550,32 +688,54 @@ const renderServicesTab = () => {
                     const globalIndex = idx + 1 + (currentPage.services - 1) * 20;
                     const currentRowKey = rec.uiId;
                     const isEditing = editingRows.services[currentRowKey];
-                    const rowStyle = isEditing ? { backgroundColor: "#fff9c4" } : {};
+                    
+                    const revenueBeforeNum = safeParse(rec.revenueBefore || 0);
+                    const discountRateNum = safeParse(rec.discountRate || 0);
+                    const walletUsageNum = safeParse(rec.walletUsage || 0);
+                    const calculatedDiscountAmount = revenueBeforeNum * (discountRateNum / 100);
+                    const realRevenueAfter = Math.max(0, revenueBeforeNum - calculatedDiscountAmount - walletUsageNum);
+
+                    // Logic màu nền: Mới -> Xanh, Sửa -> Vàng, Xem -> Trắng
+                    const rowBackgroundColor = rec.isNew ? "#dcfce7" : (isEditing ? "#fff9c4" : "transparent");
+                    
+                    const cellStyle = {
+                        backgroundColor: rowBackgroundColor,
+                        height: "30px",
+                        padding: 0,
+                        verticalAlign: "middle"
+                    };
 
                     const currentCompanyId = String(rec.companyId || rec.DoanhNghiepID || "");
-                    const prevCompanyId = idx > 0 ? String(displayData[idx - 1].companyId || displayData[idx - 1].DoanhNghiepID || "") : null;
-                    const nextCompanyId = idx < displayData.length - 1 ? String(displayData[idx + 1].companyId || displayData[idx + 1].DoanhNghiepID || "") : null;
-                    
-                    const isLastRowOfGroup = currentCompanyId !== nextCompanyId;
-                    
+                    const prevCompanyId = idx > 0
+                        ? String(displayData[idx - 1].companyId || displayData[idx - 1].DoanhNghiepID || "")
+                        : null;
+
+                    const isGroupEditing = currentCompanyId &&
+                      displayData.some((d) => String(d.companyId || d.DoanhNghiepID || "") === currentCompanyId && editingRows.services[d.uiId]);
+
                     let shouldRenderTotalCell = false;
                     let rowSpan = 1;
                     let groupTotalRevenue = 0;
 
-                    if (!currentCompanyId || currentCompanyId === "") {
-                      shouldRenderTotalCell = true; 
-                      rowSpan = 1; 
-                      groupTotalRevenue = safeParse(rec.revenueAfter || rec.DoanhThuSauChietKhau);
+                    if (!currentCompanyId || currentCompanyId === "" || isGroupEditing) {
+                      shouldRenderTotalCell = true;
+                      rowSpan = 1;
+                      groupTotalRevenue = realRevenueAfter; 
                     } else {
                       const isFirstOfGroup = idx === 0 || currentCompanyId !== prevCompanyId;
                       if (isFirstOfGroup) {
                         shouldRenderTotalCell = true;
-                        groupTotalRevenue = safeParse(rec.revenueAfter || rec.DoanhThuSauChietKhau);
+                        groupTotalRevenue = realRevenueAfter;
                         for (let i = idx + 1; i < displayData.length; i++) {
                           const nextRec = displayData[i];
                           if (String(nextRec.companyId || nextRec.DoanhNghiepID || "") !== currentCompanyId) break;
-                          rowSpan++; 
-                          groupTotalRevenue += safeParse(nextRec.revenueAfter || nextRec.DoanhThuSauChietKhau);
+                          rowSpan++;
+                          const nextRevenue = getRealRevenue(
+                            nextRec.revenueBefore || nextRec.DoanhThuTruocChietKhau,
+                            nextRec.discountRate || nextRec.MucChietKhau,
+                            nextRec.walletUsage || nextRec.Vi
+                          );
+                          groupTotalRevenue += nextRevenue;
                         }
                       }
                     }
@@ -583,134 +743,258 @@ const renderServicesTab = () => {
                     const selectedCompany = approvedList.find((c) => String(c.ID) === currentCompanyId);
                     let serviceOptions = [];
                     if (selectedCompany) {
-                      if (selectedCompany.DichVu) serviceOptions.push(...selectedCompany.DichVu.split(",").map(s => s.trim()));
-                      if (selectedCompany.DichVuKhac) serviceOptions.push(...selectedCompany.DichVuKhac.split(",").map(s => s.trim()));
+                      if (selectedCompany.DichVu) serviceOptions.push(...selectedCompany.DichVu.split(",").map((s) => s.trim()));
+                      if (selectedCompany.DichVuKhac) serviceOptions.push(...selectedCompany.DichVuKhac.split(",").map((s) => s.trim()));
                     }
                     serviceOptions = [...new Set(serviceOptions)].filter(Boolean);
 
+                    const handleRecordChangeWithCalc = (field, value) => {
+                      handleRecordChange(currentRowKey, field, value);
+                      if (['revenueBefore', 'discountRate', 'walletUsage'].includes(field)) {
+                        const currentRec = {...rec, [field]: value};
+                        const rBefore = safeParse(currentRec.revenueBefore || 0);
+                        const dRate = safeParse(currentRec.discountRate || 0);
+                        const wUsage = safeParse(currentRec.walletUsage || 0);
+                        const newDiscountAmt = rBefore * (dRate / 100);
+                        const newRevenueAfter = Math.max(0, rBefore - newDiscountAmt - wUsage);
+                        handleRecordChange(currentRowKey, 'discountAmount', newDiscountAmt);
+                        handleRecordChange(currentRowKey, 'revenueAfter', newRevenueAfter);
+                      }
+                    };
+
                     return (
-                      <tr key={currentRowKey} className="bg-white hover:bg-gray-50" style={{ height: "30px", ...rowStyle }}>
+                      <tr key={currentRowKey} className={isEditing || rec.isNew ? "" : "bg-white hover:bg-gray-50"}>
                         <td className="text-center border p-0 align-middle">{globalIndex}</td>
-                        <td className="border p-0 align-middle">
+
+                        {shouldRenderTotalCell && (
+                          <td
+                            className="border p-0 align-middle"
+                            rowSpan={rowSpan}
+                            style={{
+                              ...cellStyle,
+                              padding: "2px 4px",
+                              backgroundColor: rec.isNew ? "#dcfce7" : (isEditing ? "#fff9c4" : "#fff"),
+                              position: "relative",
+                              zIndex: 1,
+                              backgroundClip: "padding-box"
+                            }}
+                          >
+                            {isEditing ? (
+                              <select
+                                className="form-select form-select-sm shadow-none"
+                                style={{...transparentInputStyle, width:158}}
+                                value={rec.companyId || ""}
+                                onChange={(e) => handleRecordChange(currentRowKey, "companyId", e.target.value)}
+                              >
+                                <option value="">-- Chọn DN --</option>
+                                {approvedList.map((c) => (
+                                  <option key={c.ID} value={c.ID}>{c.TenDoanhNghiep}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <div className="text-center" style={{fontSize: "12px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}}>
+                                {approvedList.find((c) => String(c.ID) === currentCompanyId)?.TenDoanhNghiep || "--"}
+                              </div>
+                            )}
+                          </td>
+                        )}
+
+                        <td className="border" style={cellStyle}>
                           {isEditing ? (
-                            <select className="form-select form-select-sm shadow-none" style={{ ...baseCellStyle, width: "100%", minWidth: "120px" }}
-                              value={rec.companyId || ""}
-                              onChange={(e) => handleRecordChange(currentRowKey, "companyId", e.target.value)}
-                            >
-                              <option value="">-- Chọn DN --</option>
-                              {approvedList.map((c) => (<option key={c.ID} value={c.ID}>{c.TenDoanhNghiep}</option>))}
-                            </select>
-                          ) : (
-                            <div className="text-center" style={baseCellStyle}>{approvedList.find(c => String(c.ID) === currentCompanyId)?.TenDoanhNghiep || "--"}</div>
-                          )}
-                        </td>
-                        <td className="border p-0 align-middle">
-                          {isEditing ? (
-                            <select className="form-select form-select-sm shadow-none" style={{ ...baseCellStyle, width: 150 }}
+                            <select
+                              className="form-select form-select-sm shadow-none"
+                              style={transparentInputStyle}
                               value={rec.serviceType || ""}
                               onChange={(e) => handleRecordChange(currentRowKey, "serviceType", e.target.value)}
                               disabled={!currentCompanyId}
                             >
                               <option value="">-- Chọn dịch vụ --</option>
-                              {serviceOptions.map((svc, i) => <option key={i} value={svc}>{svc}</option>)}
+                              {serviceOptions.map((svc, i) => (
+                                <option key={i} value={svc}>{svc}</option>
+                              ))}
                             </select>
                           ) : (
-                            <div className="text-center" style={baseCellStyle}>{rec.serviceType || "--"}</div>
+                            <div className="text-center" style={{fontSize: "12px"}}>{rec.serviceType || ""}</div>
                           )}
                         </td>
-                        <td className="border p-0 align-middle" style={{ width: 160 }}>
+
+                        <td className="border" style={{...cellStyle, width: 160}}>
                           {isEditing ? (
-                            <input type="text" className="form-control form-control-sm shadow-none" style={baseCellStyle}
+                            <input
+                              type="text"
+                              className="form-control form-control-sm shadow-none"
+                              style={transparentInputStyle}
                               value={rec.serviceName || ""}
-                              onChange={(e) => handleRecordChange(currentRowKey, "serviceName", e.target.value)} placeholder="Nhập Tên Dịch Vụ"
+                              onChange={(e) => handleRecordChange(currentRowKey, "serviceName", e.target.value)}
+                              placeholder="Nhập Tên Dịch Vụ"
                             />
                           ) : (
-                            <div className="text-center" style={baseCellStyle}>{rec.serviceName || "--"}</div>
+                            <div className="text-center" style={{fontSize: "12px"}}>{rec.serviceName || ""}</div>
                           )}
                         </td>
-                        <td className="border p-0 align-middle">
+
+                        <td className="border" style={cellStyle}>
                           {isEditing ? (
-                            <input type="text" className="form-control form-control-sm text-center shadow-none" style={baseCellStyle}
-                              value={rec.code || ""} onChange={(e) => handleRecordChange(currentRowKey, "code", e.target.value)}
+                            <input
+                              type="text"
+                              className="form-control form-control-sm text-center shadow-none"
+                              style={transparentInputStyle}
+                              value={rec.code || ""}
+                              onChange={(e) => handleRecordChange(currentRowKey, "code", e.target.value)}
                             />
                           ) : (
-                            <div className="text-center" style={baseCellStyle}>{rec.code || "--"}</div>
+                            <div className="text-center" style={{fontSize: "12px"}}>{rec.code || ""}</div>
                           )}
                         </td>
-                        <td className="border p-0 align-middle">
+
+                        <td className="border" style={cellStyle}>
                           {isEditing ? (
-                            <input type="date" className="form-control form-control-sm text-center shadow-none" style={{ ...baseCellStyle, padding: "0 1px", fontSize: "12px" }}
-                              value={rec.startDate || ""} onChange={(e) => handleRecordChange(currentRowKey, "startDate", e.target.value)}
+                            <input
+                              type="date"
+                              className="form-control form-control-sm text-center shadow-none"
+                              style={transparentInputStyle}
+                              value={rec.startDate || ""}
+                              onChange={(e) => handleRecordChange(currentRowKey, "startDate", e.target.value)}
                             />
                           ) : (
-                            <div className="text-center" style={baseCellStyle}>{rec.startDate || "--"}</div>
+                            <div className="text-center" style={{fontSize: "12px"}}>{rec.startDate || ""}</div>
                           )}
                         </td>
-                        <td className="border p-0 align-middle">
+
+                        <td className="border" style={cellStyle}>
                           {isEditing ? (
-                            <input type="date" className="form-control form-control-sm text-center shadow-none" style={{ ...baseCellStyle, padding: "0 1px", fontSize: "12px" }}
-                              value={rec.endDate || ""} onChange={(e) => handleRecordChange(currentRowKey, "endDate", e.target.value)}
+                            <input
+                              type="date"
+                              className="form-control form-control-sm text-center shadow-none"
+                              style={transparentInputStyle}
+                              value={rec.endDate || ""}
+                              onChange={(e) => handleRecordChange(currentRowKey, "endDate", e.target.value)}
                             />
                           ) : (
-                            <div className="text-center" style={baseCellStyle}>{rec.endDate || "--"}</div>
+                            <div className="text-center" style={{fontSize: "12px"}}>{rec.endDate || ""}</div>
                           )}
                         </td>
-                        <td className="border p-0 align-middle">
+
+                        <td className="border" style={{...cellStyle, width: "100px"}}>
                           {isEditing ? (
-                            <input type="text" className="form-control form-control-sm text-center shadow-none" style={{ ...baseCellStyle, textAlign: "center" }}
-                              value={rec.revenueBefore === "" ? "" : formatNumber(rec.revenueBefore)} onChange={(e) => handleRecordChange(currentRowKey, "revenueBefore", e.target.value)}
+                            <input
+                              type="text"
+                              className="form-control form-control-sm shadow-none"
+                              style={transparentInputStyle}
+                              value={rec.revenueBefore === "" ? "" : formatNumber(rec.revenueBefore)}
+                              onChange={(e) => handleRecordChangeWithCalc("revenueBefore", e.target.value)}
                             />
                           ) : (
-                            <div className="text-center" style={baseCellStyle}>{formatNumber(rec.revenueBefore || "")}</div>
+                            <div className="text-center" style={{fontSize: "12px"}}>{formatNumber(rec.revenueBefore || "")}</div>
                           )}
                         </td>
-                        <td className="border p-0 align-middle">
+
+                        <td className="border" style={cellStyle}>
                           {isEditing ? (
-                            <select className="form-select form-select-sm text-center shadow-none" style={{ ...baseCellStyle, padding: "0" }}
-                              value={rec.discountRate || ""} onChange={(e) => handleRecordChange(currentRowKey, "discountRate", e.target.value)}
+                            <input
+                              type="text"
+                              className="form-control form-control-sm shadow-none"
+                              style={{...transparentInputStyle, color: "#d97706", fontWeight: "500"}}
+                              value={rec.walletUsage ? formatNumber(rec.walletUsage) : ""}
+                              onChange={(e) => handleRecordChangeWithCalc("walletUsage", e.target.value)}
+                              placeholder="Nhập số tiền"
+                            />
+                          ) : (
+                            <div className="text-center" style={{fontSize: "12px", color: rec.walletUsage ? "#d97706" : "inherit"}}>
+                              {formatNumber(rec.walletUsage || 0)}
+                            </div>
+                          )}
+                        </td>
+
+                        <td className="border" style={cellStyle}>
+                          {isEditing ? (
+                            <select
+                              className="form-select form-select-sm text-center shadow-none"
+                              style={{...transparentInputStyle, padding: 0}}
+                              value={rec.discountRate || ""}
+                              onChange={(e) => handleRecordChangeWithCalc("discountRate", e.target.value)}
                             >
-                              <option value="">%</option><option value="5">5%</option><option value="10">10%</option><option value="15">15%</option><option value="20">20%</option>
+                              <option value="">%</option>
+                              <option value="5">5%</option>
+                              <option value="10">10%</option>
+                              <option value="12">12%</option>
+                              <option value="15">15%</option>
+                              <option value="17">17%</option>
+                              <option value="20">20%</option>
                             </select>
                           ) : (
-                            <div className="text-center" style={baseCellStyle}>{rec.discountRate ? `${rec.discountRate}%` : "--"}</div>
+                            <div className="text-center" style={{fontSize: "12px"}}>{rec.discountRate ? `${rec.discountRate}%` : "--"}</div>
                           )}
                         </td>
-                        <td className="text-center align-middle border px-2 bg-light" style={{ fontSize: "12px", padding: "2px 4px" }}>
-                          {formatNumber(rec.discountAmount || "0")}
-                        </td>
-                        <td className="text-center align-middle fw-bold border px-2 bg-light" style={{ fontSize: "12px", padding: "2px 4px" }}>
-                          {formatNumber(rec.revenueAfter || "0")}
-                        </td>
-                        {shouldRenderTotalCell && (
-                        <td
-                          rowSpan={rowSpan}
-          
-                          className="text-center align-middle fw-bold border"
-                          style={{
-                            fontSize: "12px",
-                            padding: "2px 4px",
-                            backgroundColor: "#fff",
-                            verticalAlign: "middle",
-                            position: "relative",
-                            zIndex: 1, 
-                            backgroundClip: "padding-box",
-                            borderColor: "#dee2e6"
-                          }}
+
+                        {/* ĐÃ SỬA: Thêm textAlign: "center" để căn giữa số tiền chiết khấu */}
+                        <td 
+                          className="align-middle border px-2" 
+                          style={{...cellStyle, fontSize: "12px", textAlign: "center"}}
                         >
-                          {formatNumber(groupTotalRevenue)}
+                          {formatNumber(calculatedDiscountAmount)}
                         </td>
-                      )}
-                        <td className="text-center border p-1 align-middle">
+
+                        {/* ĐÃ SỬA: Thêm textAlign: "center" để căn giữa doanh thu sau chiết khấu */}
+                        <td 
+                          className="align-middle fw-bold border px-2 text-primary" 
+                          style={{...cellStyle, fontSize: "12px", textAlign: "center"}}
+                        >
+                          {formatNumber(realRevenueAfter)}
+                        </td>
+
+                        {shouldRenderTotalCell && (
+                          <td
+                            rowSpan={rowSpan}
+                            className="text-center align-middle fw-bold border text-primary"
+                            style={{
+                              ...cellStyle,
+                              backgroundColor: rec.isNew ? "#dcfce7" : (isEditing ? "#fff9c4" : "#fff"),
+                              fontSize: "12px",
+                              position: "relative",
+                              zIndex: 1,
+                              backgroundClip: "padding-box"
+                            }}
+                          >
+                            {formatNumber(groupTotalRevenue)}
+                          </td>
+                        )}
+
+                        <td className="text-center border p-1 align-middle" style={{backgroundColor: "white"}}> 
                           <div className="d-flex gap-1 justify-content-center">
                             {isEditing ? (
                               <>
-                                <button className="btn btn-sm" style={{ backgroundColor: "#2563eb", color: "#fff", width: 36, height: 36, borderRadius: 6 }} onClick={() => saveServiceRow(rec)}><Save size={17} strokeWidth={2.3} /></button>
-                                <button className="btn btn-sm" style={{ backgroundColor: "#6b7280", color: "#fff", width: 36, height: 36, borderRadius: 6 }} onClick={() => cancelEditing("services", currentRowKey)}><XCircle size={17} strokeWidth={2.3} /></button>
+                                <button
+                                  className="btn btn-sm"
+                                  style={{ backgroundColor: "#2563eb", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
+                                  onClick={() => saveServiceRow(rec)}
+                                >
+                                  <Save size={17} strokeWidth={2.3} />
+                                </button>
+                                <button
+                                  className="btn btn-sm"
+                                  style={{ backgroundColor: "#6b7280", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
+                                  onClick={() => cancelEditing("services", currentRowKey)}
+                                >
+                                  <XCircle size={17} strokeWidth={2.3} />
+                                </button>
                               </>
                             ) : (
                               <>
-                                <button className="btn btn-sm" style={{ backgroundColor: "#f59e0b", color: "#fff", width: 36, height: 36, borderRadius: 6 }} onClick={() => startEditing("services", currentRowKey)}><Edit size={17} strokeWidth={2.3} /></button>
-                                <button className="btn btn-sm" style={{ backgroundColor: "#ef4444", color: "#fff", width: 36, height: 36, borderRadius: 6 }} onClick={() => deleteServiceRow(rec.id || rec.ID, rec.isNew)}><Trash2 size={17} strokeWidth={2.3} /></button>
+                                <button
+                                  className="btn btn-sm"
+                                  style={{ backgroundColor: "#f59e0b", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
+                                  onClick={() => startEditing("services", currentRowKey)}
+                                >
+                                  <Edit size={17} strokeWidth={2.3} />
+                                </button>
+                                <button
+                                  className="btn btn-sm"
+                                  style={{ backgroundColor: "#ef4444", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
+                                  onClick={() => deleteServiceRow(rec.id || rec.ID, rec.isNew)}
+                                >
+                                  <Trash2 size={17} strokeWidth={2.3} />
+                                </button>
                               </>
                             )}
                           </div>
@@ -719,12 +1003,22 @@ const renderServicesTab = () => {
                     );
                   })
                 ) : (
-                  <tr><td colSpan="13" className="text-center py-4 text-muted border">Chưa có dữ liệu dịch vụ</td></tr>
+                  <tr>
+                    <td colSpan="13" className="text-center py-4 text-muted border">
+                      Chưa có dữ liệu dịch vụ
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
           </div>
-          <Pagination current={currentPage.services} total={serviceTotal} pageSize={20} onChange={(page) => handlePageChange("services", page)} />
+
+          <Pagination
+            current={currentPage.services}
+            total={serviceTotal}
+            pageSize={20}
+            onChange={(page) => handlePageChange("services", page)}
+          />
         </>
       )}
     </div>
@@ -758,69 +1052,374 @@ const renderServicesTab = () => {
       <Pagination current={currentPage.rejected} total={rejectedTotal} pageSize={20} onChange={(page) => handlePageChange("rejected", page)} />
     </div>
   );
+const saveEditing = (item, tab) => {
+  if (tab === "pending") return savePendingRow(item);
+  if (tab === "approved") return saveApprovedRow(item);
 
-  const renderPendingApprovedTab = () => (
-    <div className="table-responsive shadow-sm rounded overflow-hidden">
-      <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: '12px', tableLayout: 'auto' }}>
-        <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}>
-          <tr>
-            <th className="py-2 border">{t.stt}</th><th className="py-2 border" style={{ minWidth: '150px' }}>{t.tenDN}</th><th className="py-2 border">{t.soDKKD}</th><th className="py-2 border">{t.nguoiDaiDien}</th>
-            {activeTab === "pending" && <><th className="py-2 border" style={{ minWidth: '120px' }}>{t.dichVu}</th><th className="py-2 border" style={{ minWidth: '100px' }}>{t.giayPhep}</th></>}
-            {activeTab === "approved" && <><th className="py-2 border" style={{ minWidth: '150px' }}>{t.nganhNgheChinh}</th><th className="py-2 border" style={{ minWidth: '180px' }}>{t.diaChi}</th></>}
-            <th className="py-2 border" style={{ minWidth: '110px' }}>{t.ngayDangKy}</th>
-            {activeTab === "approved" && <th className="py-2 border" style={{ minWidth: '120px' }}>{t.tongDoanhThuTichLuy}</th>}
-            {activeTab === "pending" && <th className="py-2 border" style={{ minWidth: '150px' }}>{t.lyDoTuChoi}</th>}
-            <th className="py-2 border" style={{ width: '120px' }}>{t.hanhDong}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(activeTab === "pending" ? pendingData : approvedData).map((item, idx) => {
-            const globalIndex = idx + 1 + (currentPage[activeTab] - 1) * 20;
+  showToast("Không xác định được tab để lưu!", "error");
+};
+const renderPendingApprovedTab = () => (
+  <div className="table-responsive shadow-sm rounded overflow-hidden">
+    <table
+      className="table table-bordered table-sm mb-0 align-middle"
+      style={{ fontSize: "12px", tableLayout: "fixed", width: "100%" }}
+    >
+      <thead
+        className="text-white text-center align-middle"
+        style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}
+      >
+        <tr>
+          <th style={{ width: "50px" }}>{t.stt}</th>
+          <th style={{ width: "150px" }}>{t.tenDN}</th>
+          <th style={{ width: "120px" }}>{t.soDKKD}</th>
+          <th style={{ width: "120px" }}>{t.nguoiDaiDien}</th>
+
+          {activeTab === "pending" && (
+            <>
+              <th style={{ width: "120px" }}>{t.dichVu}</th>
+              <th style={{ width: "80px" }}>{t.giayPhep}</th>
+            </>
+          )}
+
+          {activeTab === "approved" && (
+            <>
+              <th style={{ width: "150px" }}>{t.nganhNgheChinh}</th>
+              <th style={{ width: "180px" }}>{t.diaChi}</th>
+            </>
+          )}
+
+          <th style={{ width: "110px" }}>{t.ngayDangKy}</th>
+          {activeTab === "approved" && (
+            <th style={{ width: "120px" }}>{t.tongDoanhThuTichLuy}</th>
+          )}
+          {activeTab === "pending" && (
+            <th style={{ width: "150px" }}>{t.lyDoTuChoi}</th>
+          )}
+          <th style={{ width: "120px" }}>{t.hanhDong}</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {(activeTab === "pending" ? pendingData : approvedData).map(
+          (item, idx) => {
+            const globalIndex =
+              idx + 1 + (currentPage[activeTab] - 1) * 20;
             const isEditing = editingRows[activeTab][item.ID];
+
             const rowStyle = isEditing ? { backgroundColor: "#fff9c4" } : {};
+
+           const viewStyle = {
+            fontSize: "12px",
+            height: "30px",
+            lineHeight: "30px",
+            textAlign: "center",
+            padding: "0 4px",   
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          };
+
+
+           const inputStyle = {
+              width: "100%",
+              height: "40px",
+              boxSizing: "border-box",
+              fontSize: "12px",
+              padding: "0 4px",   
+              border: "none",
+              outline: "none",
+              textAlign: "center", 
+            };
+
             return (
-              <tr key={item.ID} className="bg-white hover:bg-gray-50" style={{ height: '30px', ...rowStyle }}>
-                <td className="text-center border p-0 align-middle">{globalIndex}</td>
-                <td className="border p-0 align-middle">{isEditing ? <input type="text" className="form-control form-control-sm text-center shadow-none" style={{...baseCellStyle, textAlign: 'center'}} value={item.TenDoanhNghiep} onChange={(e) => activeTab === "pending" ? handlePendingChange(item.ID, "TenDoanhNghiep", e.target.value) : handleApprovedChange(item.ID, "TenDoanhNghiep", e.target.value)} /> : <div className="text-center" style={baseCellStyle}>{item.TenDoanhNghiep}</div>}</td>
-                <td className="border p-0 align-middle">{isEditing ? <input type="text" className="form-control form-control-sm text-center shadow-none" style={{...baseCellStyle, textAlign: 'center'}} value={item.SoDKKD} onChange={(e) => activeTab === "pending" ? handlePendingChange(item.ID, "SoDKKD", e.target.value) : handleApprovedChange(item.ID, "SoDKKD", e.target.value)} /> : <div className="text-center" style={baseCellStyle}>{item.SoDKKD}</div>}</td>
-                <td className="border p-0 align-middle">{isEditing ? <input type="text" className="form-control form-control-sm text-center shadow-none" style={{...baseCellStyle, textAlign: 'center'}} value={item.NguoiDaiDien} onChange={(e) => activeTab === "pending" ? handlePendingChange(item.ID, "NguoiDaiDien", e.target.value) : handleApprovedChange(item.ID, "NguoiDaiDien", e.target.value)} /> : <div className="text-center" style={baseCellStyle}>{item.NguoiDaiDien}</div>}</td>
+              <tr
+                key={item.ID}
+                style={{ height: "30px", ...rowStyle }}
+                className="bg-white hover:bg-gray-50"
+              >
+                {/* STT */}
+                <td className="text-center border">{globalIndex}</td>
+
+                {/* Tên doanh nghiệp */}
+                <td className="border">
+                  {isEditing ? (
+                    <input
+                      style={inputStyle}
+                      value={item.TenDoanhNghiep}
+                      onChange={(e) =>
+                        handleCellEdit("TenDoanhNghiep", item, e)
+                      }
+                    />
+                  ) : (
+                    <div style={viewStyle}>{item.TenDoanhNghiep}</div>
+                  )}
+                </td>
+
+                {/* Số ĐKKD */}
+                <td className="border">
+                  {isEditing ? (
+                    <input
+                      style={inputStyle}
+                      value={item.SoDKKD}
+                      onChange={(e) =>
+                        handleCellEdit("SoDKKD", item, e)
+                      }
+                    />
+                  ) : (
+                    <div style={viewStyle}>{item.SoDKKD}</div>
+                  )}
+                </td>
+
+                {/* Người đại diện */}
+                <td className="border">
+                  {isEditing ? (
+                    <input
+                      style={inputStyle}
+                      value={item.NguoiDaiDien}
+                      onChange={(e) =>
+                        handleCellEdit("NguoiDaiDien", item, e)
+                      }
+                    />
+                  ) : (
+                    <div style={viewStyle}>{item.NguoiDaiDien}</div>
+                  )}
+                </td>
+
+                {/* Pending fields */}
                 {activeTab === "pending" && (
                   <>
-                    <td className="border p-0 align-middle" style={{ minWidth: '180px' }}>{isEditing ? <input type="text" className="form-control form-control-sm text-center shadow-none" style={{...baseCellStyle, textAlign: 'center'}} value={item.DichVu || ""} onChange={(e) => handlePendingChange(item.ID, "DichVu", e.target.value)} /> : <div className="text-center" style={baseCellStyle}>{item.DichVu || ""}</div>}</td>
-                    <td className="border p-0 align-middle text-center">{item.PdfPath ? <a href={item.PdfPath} target="_blank" rel="noreferrer" className="text-primary"><FileText size={18} /></a> : <span className="text-muted" style={{fontSize: '11px'}}>—</span>}</td>
+                    <td className="border">
+                      {isEditing ? (
+                        <input
+                          style={inputStyle}
+                          value={item.DichVu || ""}
+                          onChange={(e) =>
+                            handlePendingChange(
+                              item.ID,
+                              "DichVu",
+                              e.target.value
+                            )
+                          }
+                        />
+                      ) : (
+                        <div style={viewStyle}>{item.DichVu || ""}</div>
+                      )}
+                    </td>
+
+                    <td className="border text-center">
+                      {item.PdfPath ? (
+                        <a
+                          href={item.PdfPath}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary"
+                        >
+                          <FileText size={18} />
+                        </a>
+                      ) : (
+                        <span style={{ fontSize: "11px" }}>—</span>
+                      )}
+                    </td>
                   </>
                 )}
+
+                {/* Approved fields */}
                 {activeTab === "approved" && (
                   <>
-                    <td className="border p-0 align-middle">{isEditing ? <input type="text" className="form-control form-control-sm text-center shadow-none" style={{...baseCellStyle, textAlign: 'center'}} value={item.NganhNgheChinh || ""} onChange={(e) => handleApprovedChange(item.ID, "NganhNgheChinh", e.target.value)} /> : <div className="text-center" style={baseCellStyle}>{item.NganhNgheChinh || ""}</div>}</td>
-                    <td className="border p-0 align-middle">{isEditing ? <input type="text" className="form-control form-control-sm text-center shadow-none" style={{...baseCellStyle, textAlign: 'center'}} value={item.DiaChi || ""} onChange={(e) => handleApprovedChange(item.ID, "DiaChi", e.target.value)} placeholder="Nhập địa chỉ..." /> : <div className="text-center" style={baseCellStyle}>{item.DiaChi || ""}</div>}</td>
+                    <td className="border">
+                      {isEditing ? (
+                        <input
+                          style={inputStyle}
+                          value={item.NganhNgheChinh || ""}
+                          onChange={(e) =>
+                            handleApprovedChange(
+                              item.ID,
+                              "NganhNgheChinh",
+                              e.target.value
+                            )
+                          }
+                        />
+                      ) : (
+                        <div style={viewStyle}>
+                          {item.NganhNgheChinh || ""}
+                        </div>
+                      )}
+                    </td>
+
+                    <td className="border">
+                      {isEditing ? (
+                        <input
+                          style={inputStyle}
+                          value={item.DiaChi || ""}
+                          onChange={(e) =>
+                            handleApprovedChange(
+                              item.ID,
+                              "DiaChi",
+                              e.target.value
+                            )
+                          }
+                        />
+                      ) : (
+                        <div style={viewStyle}>{item.DiaChi || ""}</div>
+                      )}
+                    </td>
                   </>
                 )}
-                <td className="text-center border align-middle px-2">{formatDateTime(item.NgayTao || item.NgayDangKyB2B)}</td>
-                {activeTab === "approved" && <td className="text-center border align-middle fw-bold text-primary px-2">{formatNumber(calculateCompanyTotalRevenue(item.ID))}</td>}
-                {activeTab === "pending" && (
-                  <td className="border p-0 align-middle">{isEditing ? <input type="text" className="form-control form-control-sm shadow-none" style={{...baseCellStyle, padding: '2px 8px'}} placeholder="Nhập lý do..." value={item.rejectionReason || ""} onChange={(e) => handlePendingChange(item.ID, "rejectionReason", e.target.value)} /> : <div className="text-center" style={baseCellStyle}>{item.rejectionReason || ""}</div>}</td>
+
+                {/* Ngày đăng ký */}
+                <td className="text-center border">
+                  {formatDateTime(item.NgayTao || item.NgayDangKyB2B)}
+                </td>
+
+                {/* Doanh thu */}
+                {activeTab === "approved" && (
+                  <td className="text-center border fw-bold text-primary">
+                    {formatNumber(
+                      calculateCompanyTotalRevenue(item.ID)
+                    )}
+                  </td>
                 )}
-                <td className="text-center border p-1 align-middle">
+
+                {/* Lý do từ chối */}
+                {activeTab === "pending" && (
+                  <td className="border">
+                    {isEditing ? (
+                      <input
+                        style={inputStyle}
+                        value={item.rejectionReason || ""}
+                        onChange={(e) =>
+                          handlePendingChange(
+                            item.ID,
+                            "rejectionReason",
+                            e.target.value
+                          )
+                        }
+                      />
+                    ) : (
+                      <div style={viewStyle}>
+                        {item.rejectionReason || ""}
+                      </div>
+                    )}
+                  </td>
+                )}
+
+                {/* Action buttons */}
+                <td className="text-center border">
                   <div className="d-flex gap-1 justify-content-center">
                     {isEditing ? (
-                      <><button className="btn btn-sm" style={{ backgroundColor: "#2563eb", color: "#fff", width: 32, height: 32, borderRadius: 6 }} onClick={() => activeTab === "pending" ? savePendingRow(item) : saveApprovedRow(item)}><Save size={16} strokeWidth={2.3} /></button>
-                      <button className="btn btn-sm" style={{ backgroundColor: "#6b7280", color: "#fff", width: 32, height: 32, borderRadius: 6 }} onClick={() => cancelEditing(activeTab, item.ID)}><XCircle size={16} strokeWidth={2.3} /></button></>
+                      <>
+                        <button
+                          className="btn btn-sm"
+                          style={{
+                            backgroundColor: "#2563eb",
+                            color: "#fff",
+                          }}
+                          onClick={() =>
+                            saveEditing(item, activeTab)
+                          }
+                        >
+                          <Save size={16} />
+                        </button>
+
+                        <button
+                          className="btn btn-sm"
+                          style={{
+                            backgroundColor: "#6b7280",
+                            color: "#fff",
+                          }}
+                          onClick={() =>
+                            cancelEditing(activeTab, item.ID)
+                          }
+                        >
+                          <XCircle size={16} />
+                        </button>
+                      </>
                     ) : (
-                      <><button className="btn btn-sm" style={{ backgroundColor: "#f59e0b", color: "#fff", width: 32, height: 32, borderRadius: 6 }} onClick={() => startEditing(activeTab, item.ID)}><Edit size={16} strokeWidth={2.3} /></button>
-                      {activeTab === "pending" ? <><button className="btn btn-sm" style={{ backgroundColor: "#22c55e", color: "#fff", width: 32, height: 32, borderRadius: 6 }} onClick={() => approve(item.ID)}><Check size={16} strokeWidth={2.3} /></button><button className="btn btn-sm" style={{ backgroundColor: "#ef4444", color: "#fff", width: 32, height: 32, borderRadius: 6 }} onClick={() => reject(item)}><XCircle size={16} strokeWidth={2.3} /></button></> : <button className="btn btn-sm" style={{ backgroundColor: "#ef4444", color: "#fff", width: 32, height: 32, borderRadius: 6 }} onClick={() => deleteRow(item.ID)}><Trash2 size={16} strokeWidth={2.3} /></button>}</>
+                      <>
+                        <button
+                          className="btn btn-sm"
+                          style={{
+                            backgroundColor: "#f59e0b",
+                            color: "#fff",
+                          }}
+                          onClick={() =>
+                            startEditing(activeTab, item.ID)
+                          }
+                        >
+                          <Edit size={16} />
+                        </button>
+
+                        {activeTab === "pending" ? (
+                          <>
+                            <button
+                              className="btn btn-sm"
+                              style={{
+                                backgroundColor: "#22c55e",
+                                color: "#fff",
+                              }}
+                              onClick={() => approve(item.ID)}
+                            >
+                              <Check size={16} />
+                            </button>
+
+                            <button
+                              className="btn btn-sm"
+                              style={{
+                                backgroundColor: "#ef4444",
+                                color: "#fff",
+                              }}
+                              onClick={() => reject(item)}
+                            >
+                              <XCircle size={16} />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            className="btn btn-sm"
+                            style={{
+                              backgroundColor: "#ef4444",
+                              color: "#fff",
+                            }}
+                            onClick={() => deleteRow(item.ID)}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </td>
               </tr>
             );
-          })}
-          {(activeTab === "pending" ? pendingData : approvedData).length === 0 && (<tr><td colSpan={activeTab === "pending" ? 10 : 11} className="text-center py-3 text-muted">Không có dữ liệu</td></tr>)}
-        </tbody>
-      </table>
-      <Pagination current={currentPage[activeTab]} total={activeTab === "pending" ? pendingTotal : approvedTotal} pageSize={20} onChange={(page) => handlePageChange(activeTab, page)} />
-    </div>
-  );
+          }
+        )}
+
+        {/* NO DATA */}
+        {(activeTab === "pending"
+          ? pendingData
+          : approvedData
+        ).length === 0 && (
+          <tr>
+            <td
+              colSpan={activeTab === "pending" ? 10 : 11}
+              className="text-center py-3 text-muted"
+            >
+              Không có dữ liệu
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+
+    <Pagination
+      current={currentPage[activeTab]}
+      total={activeTab === "pending" ? pendingTotal : approvedTotal}
+      pageSize={20}
+      onChange={(page) => handlePageChange(activeTab, page)}
+    />
+  </div>
+);
+
 
   return (
     <div className="flex">
