@@ -35,7 +35,7 @@ const DashboardSummary = ({
   setFilterStatus,
   allServices,
 }) => {
-  const [activeTab, setActiveTab] = useState("personal");
+  const [activeTab, setActiveTab] = useState("individual");
   const [b2bServices, setB2bServices] = useState([]);
   const [allData, setAllData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -248,7 +248,7 @@ const DashboardSummary = ({
   });
 
   const customerTabs = [
-    { key: "personal", labelVi: "Khách Hàng Cá Nhân", labelEn: "Personal" },
+    { key: "individual", labelVi: "Khách Hàng Cá Nhân", labelEn: "Individual" },
     { key: "b2b", labelVi: "Khách Hàng Doanh Nghiệp", labelEn: "B2B" },
   ];
 
@@ -302,9 +302,8 @@ const DashboardSummary = ({
         ))}
       </div>
 
-      {activeTab === "personal" && (
+      {activeTab === "individual" && (
         <div className="mb-4">
-          {/* ... (Nội dung tab Personal giữ nguyên) ... */}
            <div
         style={{
           display: "flex",
@@ -701,7 +700,7 @@ const DashboardSummary = ({
               <table className="table table-hover table-bordered align-middle">
                 <thead className="table-light">
                   <tr>
-                    <th>ID</th>
+                    <th>#</th>
                     <th>{currentLanguage === "vi" ? "Họ tên" : "Name"}</th>
                     <th>{currentLanguage === "vi" ? "Mã vùng" : "Region Code"}</th>
                     <th>{currentLanguage === "vi" ? "Số điện thoại" : "Phone"}</th>
@@ -715,14 +714,14 @@ const DashboardSummary = ({
                   {currentTableRows.length > 0 ? (
                     currentTableRows.map((r) => (
                       <tr key={r.YeuCauID}>
-                        <td>{r.YeuCauID}</td>
-                        <td>{r.HoTen}</td>
-                        <td>{r.MaVung}</td>
-                        <td>{r.SoDienThoai || "—"}</td>
-                        <td>{r.Email || "—"}</td>
-                        <td>{translateService(r.TenDichVu)}</td>
-                        <td>{r.TrangThai}</td>
-                        <td>{r.TenHinhThuc || "—"}</td>
+                        <td style={{textAlign:"center"}}>{r.YeuCauID}</td>
+                        <td style={{textAlign:"center"}}>{r.HoTen}</td>
+                        <td style={{textAlign:"center"}}>{r.MaVung}</td>
+                        <td style={{textAlign:"center"}}>{r.SoDienThoai || ""}</td>
+                        <td style={{textAlign:"center"}}>{r.Email || ""}</td>
+                        <td style={{textAlign:"center"}}>{translateService(r.TenDichVu)}</td>
+                        <td style={{textAlign:"center"}}>{r.TrangThai}</td>
+                        <td style={{textAlign:"center"}}>{r.TenHinhThuc || ""}</td>
                       </tr>
                     ))
                   ) : (
@@ -918,21 +917,24 @@ const DashboardSummary = ({
                     </div>
                   </div>
 
-                  {/* Details (Legend) */}
+           
                   <div
                     style={{
                       flex: "1 1 45%",
                       minWidth: 200,
-                      overflow: "hidden", // Thêm dòng này để ngăn thanh cuộn ngang
+                      overflow: "hidden", 
                     }}
                   >
                     <h6 className="fw-semibold mb-3 text-secondary">
-                      {currentLanguage === "vi"
-                        ? selectedCompanyId
-                          ? "Tổng quan theo dịch vụ"
-                          : "Tổng quan theo công ty"
-                        : "Details"}
-                    </h6>
+                    {currentLanguage === "vi"
+                      ? selectedCompanyId
+                        ? "Tổng quan theo dịch vụ"
+                        : "Tổng quan theo công ty"
+                      : selectedCompanyId
+                        ? "Overview by Service"
+                        : "Overview by Company"}
+                  </h6>
+
                     <div
                       style={{
                         maxHeight: "300px",
@@ -1049,12 +1051,13 @@ const DashboardSummary = ({
               overflowY: "auto",
             }}
           >
-            <h5 className="fw-semibold mb-3 text-primary">
-              {currentLanguage === "vi"
-                ? "Danh Sách Dịch Vụ Khách Hàng Doanh Nghiệp"
-                : "B2B Client List"}
-            </h5>
-            <table className="table table-hover table-bordered align-middle small">
+         <h5 className="fw-semibold mb-3 text-primary">
+            {currentLanguage === "vi"
+              ? "Danh Sách Dịch Vụ Khách Hàng Doanh Nghiệp"
+              : "B2B Service List"}
+          </h5>
+
+            <table className="table table-bordered align-middle small">
               <thead className="table-light">
                 <tr>
                   <th style={{ width: 40 }} className="text-center border">

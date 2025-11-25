@@ -10,7 +10,7 @@ import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 const MySwal = withReactContent(Swal);
 
-function Pagination({ current = 1, total = 0, pageSize = 20, onChange, language = "vi" }) {
+function Pagination({ current = 1, total = 0, pageSize = 20, onChange, currentLanguage = "vi" }) {
   const totalPages = Math.ceil(total / pageSize) || 1;
   const currentPage = Math.min(Math.max(current, 1), totalPages);
 
@@ -26,7 +26,7 @@ function Pagination({ current = 1, total = 0, pageSize = 20, onChange, language 
   return (
     <div className="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light">
       <div className="text-muted small">
-        {language === "vi"
+        {currentLanguage === "vi"
           ? `Hiển thị ${Math.min(total, currentPage * pageSize)} / ${total} hàng (trang ${currentPage}/${totalPages})`
           : `Showing ${Math.min(total, currentPage * pageSize)} / ${total} rows (page ${currentPage}/${totalPages})`}
       </div>
@@ -52,7 +52,7 @@ function Pagination({ current = 1, total = 0, pageSize = 20, onChange, language 
           </ul>
         </nav>
         <div className="ms-3 text-muted small">
-          {language === "vi" ? `Trang ${currentPage}/${totalPages}` : `Page ${currentPage}/${totalPages}`}
+          {currentLanguage === "vi" ? `Trang ${currentPage}/${totalPages}` : `Page ${currentPage}/${totalPages}`}
         </div>
       </div>
     </div>
@@ -141,7 +141,7 @@ export default function B2BPage() {
     pending: {}, approved: {}, services: {}
   });
 
- const translations = {
+const translations = {
   vi: {
     pendingTab: "Danh sách chờ duyệt",
     approvedTab: "Danh sách đã duyệt",
@@ -173,7 +173,8 @@ export default function B2BPage() {
     doanhThuSau: "Doanh Thu Sau Chiết Khấu",
     tongDoanhThuTichLuy: "Tổng Doanh Thu",
     suDungVi: "Sử dụng ví",
-    hanhDong: "Hành động"
+    hanhDong: "Hành động",
+    msgWalletLimit: "Số tiền ví không được quá 2.000.000"
   },
   en: {
     pendingTab: "Pending List",
@@ -206,7 +207,8 @@ export default function B2BPage() {
     doanhThuSau: "Revenue After Discount",
     tongDoanhThuTichLuy: "Total Revenue",
     suDungVi: "Wallet Usage",
-    hanhDong: "Actions"
+    hanhDong: "Actions",
+    msgWalletLimit: "Wallet usage cannot exceed 2,000,000"
   }
 };
 
@@ -748,20 +750,40 @@ const renderServicesTab = () => {
                     }
                     serviceOptions = [...new Set(serviceOptions)].filter(Boolean);
 
-                    const handleRecordChangeWithCalc = (field, value) => {
-                      handleRecordChange(currentRowKey, field, value);
-                      if (['revenueBefore', 'discountRate', 'walletUsage'].includes(field)) {
-                        const currentRec = {...rec, [field]: value};
-                        const rBefore = safeParse(currentRec.revenueBefore || 0);
-                        const dRate = safeParse(currentRec.discountRate || 0);
-                        const wUsage = safeParse(currentRec.walletUsage || 0);
-                        const newDiscountAmt = rBefore * (dRate / 100);
-                        const newRevenueAfter = Math.max(0, rBefore - newDiscountAmt - wUsage);
-                        handleRecordChange(currentRowKey, 'discountAmount', newDiscountAmt);
-                        handleRecordChange(currentRowKey, 'revenueAfter', newRevenueAfter);
-                      }
-                    };
+                     const handleRecordChangeWithCalc = (field, value) => {
+                    let rawValue = 0;
+                    
+                    if (value) {
+                      rawValue = isNaN(parseFloat(String(value).replace(/\./g, ""))) 
+                        ? 0 
+                        : parseFloat(String(value).replace(/\./g, ""));
+                    }
 
+                
+                    if (field === 'walletUsage' && rawValue > 2000000) {
+                      
+        
+                      showToast(t.msgWalletLimit ,"error");
+
+                      value = 0; 
+                    }
+
+                    // --- LOGIC CŨ ---
+                    handleRecordChange(currentRowKey, field, value);
+
+                    if (['revenueBefore', 'discountRate', 'walletUsage'].includes(field)) {
+                      const currentRec = { ...rec, [field]: value };
+                      const rBefore = safeParse(currentRec.revenueBefore || 0);
+                      const dRate = safeParse(currentRec.discountRate || 0);
+                      const wUsage = safeParse(currentRec.walletUsage || 0);
+
+                      const newDiscountAmt = rBefore * (dRate / 100);
+                      const newRevenueAfter = Math.max(0, rBefore - newDiscountAmt - wUsage);
+
+                      handleRecordChange(currentRowKey, 'discountAmount', newDiscountAmt);
+                      handleRecordChange(currentRowKey, 'revenueAfter', newRevenueAfter);
+                    }
+                  };
                     return (
                       <tr key={currentRowKey} className={isEditing || rec.isNew ? "" : "bg-white hover:bg-gray-50"}>
                         <td className="text-center border p-0 align-middle">{globalIndex}</td>
@@ -894,13 +916,13 @@ const renderServicesTab = () => {
                             <input
                               type="text"
                               className="form-control form-control-sm shadow-none"
-                              style={{...transparentInputStyle, color: "#d97706", fontWeight: "500"}}
+                              style={{...transparentInputStyle, fontWeight: "500"}}
                               value={rec.walletUsage ? formatNumber(rec.walletUsage) : ""}
                               onChange={(e) => handleRecordChangeWithCalc("walletUsage", e.target.value)}
                               placeholder="Nhập số tiền"
                             />
                           ) : (
-                            <div className="text-center" style={{fontSize: "12px", color: rec.walletUsage ? "#d97706" : "inherit"}}>
+                            <div className="text-center" style={{fontSize: "12px", color: rec.walletUsage, fontWeight:500}}>
                               {formatNumber(rec.walletUsage || 0)}
                             </div>
                           )}
@@ -1017,6 +1039,7 @@ const renderServicesTab = () => {
             current={currentPage.services}
             total={serviceTotal}
             pageSize={20}
+            currentLanguage={currentLanguage}
             onChange={(page) => handlePageChange("services", page)}
           />
         </>
@@ -1049,7 +1072,7 @@ const renderServicesTab = () => {
           {rejectedData.length === 0 && (<tr><td colSpan="9" className="text-center py-3 text-muted">{currentLanguage === "vi" ? "Không có dữ liệu" : "No data"}</td></tr>)}
         </tbody>
       </table>
-      <Pagination current={currentPage.rejected} total={rejectedTotal} pageSize={20} onChange={(page) => handlePageChange("rejected", page)} />
+      <Pagination currentLanguage={currentLanguage} current={currentPage.rejected} total={rejectedTotal} pageSize={20} onChange={(page) => handlePageChange("rejected", page)} />
     </div>
   );
 const saveEditing = (item, tab) => {
@@ -1415,6 +1438,7 @@ const renderPendingApprovedTab = () => (
       current={currentPage[activeTab]}
       total={activeTab === "pending" ? pendingTotal : approvedTotal}
       pageSize={20}
+      currentLanguage={currentLanguage}
       onChange={(page) => handlePageChange(activeTab, page)}
     />
   </div>
