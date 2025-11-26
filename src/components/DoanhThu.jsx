@@ -467,7 +467,9 @@ export default function DoanhThu() {
         XLSX.writeFile(workbook, "DoanhThu_DoanhNghiep_TongHop.xlsx");
     }
   };
-
+const currentTotalRevenue = activeTab === "personal"
+    ? filteredRecords.reduce((sum, item) => sum + (parseFloat(item.DoanhThu) || 0), 0)
+    : aggregatedCompanyData.reduce((sum, item) => sum + (parseFloat(item.TotalRevenueAfter) || 0), 0);
   const serviceOptions = [
     "tatca",
     ...new Set(records.map((r) => translateService(typeof r.TenDichVu==='object'?r.TenDichVu.name:r.TenDichVu)).filter(Boolean)),
@@ -581,7 +583,7 @@ export default function DoanhThu() {
               ) : (
                 // --- BIỂU ĐỒ DOANH NGHIỆP (Split View) ---
                 <div className="row">
-                    {/* Bên trái: Line Chart theo thời gian */}
+              
                     <div className="col-md-8">
                          <h6 className="text-center text-muted mb-2">Doanh thu theo thời gian</h6>
                          {companyLineChartData.length === 0 ? <p className="text-center">{t.noData}</p> : (
@@ -634,7 +636,7 @@ export default function DoanhThu() {
               )
             )}
           </div>
-
+    
           <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <input
               type="text"
@@ -654,7 +656,19 @@ export default function DoanhThu() {
              {t.excel}
             </button>
           </div>
-
+       <div className="d-flex align-items-center justify-content-between bg-white py-2 px-3 rounded shadow-sm mb-3 border-start border-3 border-primary">
+            <div>
+              <span className="text-muted fw-bold text-uppercase small" style={{ fontSize: "0.85rem" }}>
+                {t.totalRevenue} ({activeTab === "personal" ? t.personalTab : t.companyTab})
+              </span>
+            </div>
+            <div className="text-end">
+              <span className="fs-5 fw-bold text-primary">
+                {formatCurrency(currentTotalRevenue)}
+              </span>
+              <span className="text-muted ms-1 fw-bold small">{t.revenueUnit}</span>
+            </div>
+          </div>
           {activeTab === "personal" ? (
             <PersonalTable
               loading={loading}
