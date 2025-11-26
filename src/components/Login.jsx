@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import heroBanner from '../assets/herobanner-1.png';
+// 1. Import thêm 2 hook này từ react-router-dom
+import { useNavigate, useLocation } from 'react-router-dom';
+
 const API_BASE = "https://onepasscms-backend.onrender.com/api";
 
 const Login = ({ setCurrentUser }) => {
@@ -7,6 +10,14 @@ const Login = ({ setCurrentUser }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [currentLanguage, setCurrentLanguage] = useState('vi');
+
+  // 2. Khởi tạo hook
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // 3. Lấy đường dẫn trước đó (nếu có), nếu không có thì mặc định về trang chủ "/"
+  // Khi bạn vào /B2B mà chưa login, PrivateRoute sẽ đá về Login kèm theo state.from
+  const from = location.state?.from?.pathname || "/";
 
   const onLanguageChange = (lang) => {
     setCurrentLanguage(lang);
@@ -31,12 +42,15 @@ const Login = ({ setCurrentUser }) => {
       });
 
       const result = await response.json();
-    if (!result.success) throw new Error(result.message || 'Đăng nhập thất bại');
-    setCurrentUser(result.user);
+      if (!result.success) throw new Error(result.message || 'Đăng nhập thất bại');
+      
+      setCurrentUser(result.user);
 
-    // ✅ Lưu user vào localStorage
-    localStorage.setItem("currentUser", JSON.stringify(result.user));
-    console.log("✅ Lưu user vào localStorage:", result.user);
+      localStorage.setItem("currentUser", JSON.stringify(result.user));
+      console.log("✅ Lưu user vào localStorage:", result.user);
+
+      
+      navigate(from, { replace: true });
 
     } catch (err) {
       console.error('Lỗi đăng nhập:', err);
@@ -66,10 +80,10 @@ const Login = ({ setCurrentUser }) => {
           border: '1px solid rgba(255, 255, 255, 0.2)'
         }}
       >
-        {/* Góc trên phải: chọn ngôn ngữ */}
+    
         <div className="position-absolute top-0 end-0 p-3">
           <div className="d-flex align-items-center" style={{ gap: '12px' }}>
-            {/* 🇻🇳 Vietnamese */}
+          
             <button
               type="button"
               onClick={() => onLanguageChange('vi')}
@@ -109,7 +123,7 @@ const Login = ({ setCurrentUser }) => {
               />
             </button>
 
-            {/* 🇬🇧 English */}
+          
             <button
               type="button"
               onClick={() => onLanguageChange('en')}

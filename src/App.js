@@ -5,18 +5,39 @@ import TraCuuHoSo from "./components/TraCuuHoSo";
 import KyHoSo from "./components/KyHoSo";
 import QuanLyNhanVien from "./components/QuanLyNhanVien";
 import B2BPage from "./components/B2BPage";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+// 1. Thêm useLocation vào import
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../src/styles/CMSDashboard.css";
-import "./components/B2BPage"
 import DoanhThu from "./components/DoanhThu";
+
+// 2. Tạo Component bảo vệ Route (Nằm ngoài App hoặc trong cùng file)
+// Component này giúp lấy đường dẫn hiện tại để Login xong quay lại đúng chỗ
+const AuthGuard = ({ children, user, roles = [] }) => {
+  const location = useLocation();
+
+  // Chưa đăng nhập -> Đá về Login, kèm theo "địa chỉ nhà" (state.from)
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Đã đăng nhập nhưng không đủ quyền -> Đá về trang chủ
+  if (roles.length > 0) {
+    const hasPermission = roles.some((role) => user[role]);
+    if (!hasPermission) {
+      return <Navigate to="/" replace />;
+    }
+  }
+
+  // Hợp lệ -> Cho vào nhà
+  return children;
+};
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [loadingUser, setLoadingUser] = useState(true);
 
-  
   useEffect(() => {
     const storedUser = localStorage.getItem("currentUser");
     if (storedUser) {
@@ -39,17 +60,14 @@ export default function App() {
     }
   };
 
-  // ✅ Đăng xuất
   const handleLogout = () => {
     handleSetCurrentUser(null);
   };
 
-  // ✅ Ẩn/hiện sidebar
   const toggleSidebar = () => {
     setShowSidebar((prev) => !prev);
   };
 
-  // ✅ Loading hiển thị trong khi chờ user
   if (loadingUser) {
     return (
       <div className="d-flex justify-content-center align-items-center vh-100">
@@ -65,20 +83,18 @@ export default function App() {
     <BrowserRouter>
       <div className="app-container">
         <Routes>
-          {/* ✅ Dashboard chính */}
+
           <Route
             path="/"
             element={
-              currentUser ? (
+              <AuthGuard user={currentUser}>
                 <CMSDashboard
                   currentUser={currentUser}
                   showSidebar={showSidebar}
                   onToggleSidebar={toggleSidebar}
                   onLogout={handleLogout}
                 />
-              ) : (
-                <Navigate to="/login" replace />
-              )
+              </AuthGuard>
             }
           />
 
@@ -94,56 +110,56 @@ export default function App() {
             }
           />
 
-          {/* ✅ Tra cứu hồ sơ (public) */}
+          {/* ✅ Tra cứu hồ sơ (public - ai cũng vào được) */}
           <Route path="/hoso" element={<TraCuuHoSo />} />
-          
+
+          {/* ✅ Quản lý nhân viên - Chỉ Admin/Director */}
           <Route
             path="/nhanvien"
             element={
-              (currentUser?.is_admin || currentUser?.is_director) ? (
+              <AuthGuard user={currentUser} roles={["is_admin", "is_director"]}>
                 <QuanLyNhanVien
                   currentUser={currentUser}
                   showSidebar={showSidebar}
                   onToggleSidebar={toggleSidebar}
                 />
-              ) : (
-                <Navigate to="/" replace />
-              )
+              </AuthGuard>
             }
           />
 
-       
+         
           <Route
             path="/doanhthu"
             element={
-              (currentUser?.is_director || currentUser?.is_accountant) ? (
+              <AuthGuard user={currentUser} roles={["is_director", "is_accountant"]}>
                 <DoanhThu
                   currentUser={currentUser}
                   showSidebar={showSidebar}
                   onToggleSidebar={toggleSidebar}
                 />
-              ) : (
-                <Navigate to="/" replace />
-              )
+              </AuthGuard>
             }
           />
-           <Route path="/kyhoso/:mahoso" element={<KyHoSo />} />
-           <Route
-              path="/b2b"
-              element={
-                (currentUser?.is_director || currentUser?.is_admin) ? (
-                  <B2BPage
-                    currentUser={currentUser}
-                    showSidebar={showSidebar}
-                    onToggleSidebar={toggleSidebar}
-                  />
-                ) : (
-                  <Navigate to="/" replace />
-                )
-              }
-            />
 
-         
+
+          <Route path="/kyhoso/:mahoso" element={<KyHoSo />} />
+
+      
+          <Route
+            path="/b2b"
+            element={
+       
+              <AuthGuard user={currentUser} roles={["is_director", "is_admin"]}>
+                <B2BPage
+                  currentUser={currentUser}
+                  showSidebar={showSidebar}
+                  onToggleSidebar={toggleSidebar}
+                />
+              </AuthGuard>
+            }
+          />
+
+          {/* Route mặc định */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
