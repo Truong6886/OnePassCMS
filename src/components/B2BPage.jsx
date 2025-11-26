@@ -5,7 +5,7 @@ import useSocketListener from "./CMSDashboard/hooks/useSocketListener";
 import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import EditProfileModal from "./EditProfileModal";
 import { showToast } from "../utils/toast";
-import { Save, Trash2, XCircle, Check, FileText, Edit } from "lucide-react";
+import { Save, Trash2, XCircle, Check, FileText, Edit, Eye, EyeOff } from "lucide-react";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 const MySwal = withReactContent(Swal);
@@ -103,6 +103,12 @@ const calculateServiceValues = (revenueBefore, discountRate, walletUsage) => {
 const API_BASE = "https://onepasscms-backend.onrender.com/api";
 
 export default function B2BPage() {
+  const [expandedRowId, setExpandedRowId] = useState(null);
+
+
+const toggleExpand = (id) => {
+  setExpandedRowId(prev => prev === id ? null : id);
+};
   const [showSidebar, setShowSidebar] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [currentLanguage, setCurrentLanguage] = useState(localStorage.getItem("language") || "vi");
@@ -1081,368 +1087,180 @@ const saveEditing = (item, tab) => {
 
   showToast("Không xác định được tab để lưu!", "error");
 };
-const renderPendingApprovedTab = () => (
-  <div className="table-responsive shadow-sm rounded overflow-hidden">
-    <table
-      className="table table-bordered table-sm mb-0 align-middle"
-      style={{ fontSize: "12px", tableLayout: "fixed", width: "100%" }}
-    >
-      <thead
-        className="text-white text-center align-middle"
-        style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}
+const renderPendingApprovedTab = () => {
+  // Tính toán số lượng cột chính xác để ColSpan không làm vỡ giao diện
+  // Pending: STT(1) + Tên(2) + SĐKKD(3) + Đại Diện(4) + Dịch Vụ(5) + Giấy Phép(6) + Ngày(7) + Lý Do(8) + Hành Động(9) = 9
+  // Approved: STT(1) + Tên(2) + SĐKKD(3) + Đại Diện(4) + Ngành(5) + Địa Chỉ(6) + Ngày(7) + Doanh Thu(8) + Hành Động(9) = 9
+  const totalColumns = 9;
+
+  return (
+    <div className="table-responsive shadow-sm rounded overflow-hidden">
+      <table
+        className="table table-bordered table-sm mb-0 align-middle"
+        // QUAN TRỌNG: table-layout: fixed giúp cố định độ rộng cột, không bị co giãn khi mở row
+        style={{ fontSize: "12px", tableLayout: "fixed", width: "100%" }}
       >
-        <tr>
-          <th style={{ width: "50px" }}>{t.stt}</th>
-          <th style={{ width: "150px" }}>{t.tenDN}</th>
-          <th style={{ width: "120px" }}>{t.soDKKD}</th>
-          <th style={{ width: "120px" }}>{t.nguoiDaiDien}</th>
+        <thead
+          className="text-white text-center align-middle"
+          style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}
+        >
+          <tr>
+            <th style={{ width: "40px" }}>{t.stt}</th>
+            <th style={{ width: "160px" }}>{t.tenDN}</th>
+            <th style={{ width: "90px" }}>{t.soDKKD}</th>
+            <th style={{ width: "110px" }}>{t.nguoiDaiDien}</th>
 
-          {activeTab === "pending" && (
-            <>
-              <th style={{ width: "120px" }}>{t.dichVu}</th>
-              <th style={{ width: "80px" }}>{t.giayPhep}</th>
-            </>
-          )}
+            {activeTab === "pending" && (
+              <>
+                <th style={{ width: "100px" }}>{t.dichVu}</th>
+                <th style={{ width: "70px" }}>{t.giayPhep}</th>
+              </>
+            )}
 
-          {activeTab === "approved" && (
-            <>
-              <th style={{ width: "150px" }}>{t.nganhNgheChinh}</th>
-              <th style={{ width: "180px" }}>{t.diaChi}</th>
-            </>
-          )}
+            {activeTab === "approved" && (
+              <>
+                <th style={{ width: "120px" }}>{t.nganhNgheChinh}</th>
+                <th style={{ width: "150px" }}>{t.diaChi}</th>
+              </>
+            )}
 
-          <th style={{ width: "110px" }}>{t.ngayDangKy}</th>
-          {activeTab === "approved" && (
-            <th style={{ width: "120px" }}>{t.tongDoanhThuTichLuy}</th>
-          )}
-          {activeTab === "pending" && (
-            <th style={{ width: "150px" }}>{t.lyDoTuChoi}</th>
-          )}
-          <th style={{ width: "120px" }}>{t.hanhDong}</th>
-        </tr>
-      </thead>
+            <th style={{ width: "90px" }}>{t.ngayDangKy}</th>
+            {activeTab === "approved" && (
+              <th style={{ width: "100px" }}>{t.tongDoanhThuTichLuy}</th>
+            )}
+            {activeTab === "pending" && (
+              <th style={{ width: "120px" }}>{t.lyDoTuChoi}</th>
+            )}
+            <th style={{ width: "90px" }}>{t.hanhDong}</th>
+          </tr>
+        </thead>
 
-      <tbody>
-        {(activeTab === "pending" ? pendingData : approvedData).map(
-          (item, idx) => {
-            const globalIndex =
-              idx + 1 + (currentPage[activeTab] - 1) * 20;
-            const isEditing = editingRows[activeTab][item.ID];
+        <tbody>
+          {(activeTab === "pending" ? pendingData : approvedData).map(
+            (item, idx) => {
+              const globalIndex = idx + 1 + (currentPage[activeTab] - 1) * 20;
+              const isEditing = editingRows[activeTab][item.ID];
+              const isExpanded = expandedRowId === item.ID;
 
-            const rowStyle = isEditing ? { backgroundColor: "#fff9c4" } : {};
+              const rowStyle = isEditing ? { backgroundColor: "#fff9c4" } : {};
+              
+              // Style chung cho ô view và input
+              const viewStyle = { fontSize: "12px", height: "30px", lineHeight: "30px", textAlign: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
+              const inputStyle = { width: "100%", height: "100%", border: "none", outline: "none", textAlign: "center", background: "transparent", fontSize: "12px" };
 
-           const viewStyle = {
-            fontSize: "12px",
-            height: "30px",
-            lineHeight: "30px",
-            textAlign: "center",
-            padding: "0 4px",   
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          };
+              return (
+                <React.Fragment key={item.ID}>
+                  <tr style={{ height: "30px", ...rowStyle }} className={`bg-white hover:bg-gray-50 ${isExpanded ? "border-bottom-0" : ""}`}>
+                    <td className="text-center border">{globalIndex}</td>
+                    <td className="border">{isEditing ? <input style={inputStyle} value={item.TenDoanhNghiep} onChange={(e) => handleCellEdit("TenDoanhNghiep", item, e)} /> : <div style={viewStyle} title={item.TenDoanhNghiep}>{item.TenDoanhNghiep}</div>}</td>
+                    <td className="border">{isEditing ? <input style={inputStyle} value={item.SoDKKD} onChange={(e) => handleCellEdit("SoDKKD", item, e)} /> : <div style={viewStyle}>{item.SoDKKD}</div>}</td>
+                    <td className="border">{isEditing ? <input style={inputStyle} value={item.NguoiDaiDien} onChange={(e) => handleCellEdit("NguoiDaiDien", item, e)} /> : <div style={viewStyle}>{item.NguoiDaiDien}</div>}</td>
 
-
-           const inputStyle = {
-              width: "100%",
-              height: "40px",
-              boxSizing: "border-box",
-              fontSize: "12px",
-              padding: "0 4px",   
-              border: "none",
-              outline: "none",
-              textAlign: "center", 
-            };
-
-            return (
-              <tr
-                key={item.ID}
-                style={{ height: "30px", ...rowStyle }}
-                className="bg-white hover:bg-gray-50"
-              >
-                {/* STT */}
-                <td className="text-center border">{globalIndex}</td>
-
-                {/* Tên doanh nghiệp */}
-                <td className="border">
-                  {isEditing ? (
-                    <input
-                      style={inputStyle}
-                      value={item.TenDoanhNghiep}
-                      onChange={(e) =>
-                        handleCellEdit("TenDoanhNghiep", item, e)
-                      }
-                    />
-                  ) : (
-                    <div style={viewStyle}>{item.TenDoanhNghiep}</div>
-                  )}
-                </td>
-
-                {/* Số ĐKKD */}
-                <td className="border">
-                  {isEditing ? (
-                    <input
-                      style={inputStyle}
-                      value={item.SoDKKD}
-                      onChange={(e) =>
-                        handleCellEdit("SoDKKD", item, e)
-                      }
-                    />
-                  ) : (
-                    <div style={viewStyle}>{item.SoDKKD}</div>
-                  )}
-                </td>
-
-                {/* Người đại diện */}
-                <td className="border">
-                  {isEditing ? (
-                    <input
-                      style={inputStyle}
-                      value={item.NguoiDaiDien}
-                      onChange={(e) =>
-                        handleCellEdit("NguoiDaiDien", item, e)
-                      }
-                    />
-                  ) : (
-                    <div style={viewStyle}>{item.NguoiDaiDien}</div>
-                  )}
-                </td>
-
-                {/* Pending fields */}
-                {activeTab === "pending" && (
-                  <>
-                    <td className="border">
-                      {isEditing ? (
-                        <input
-                          style={inputStyle}
-                          value={item.DichVu || ""}
-                          onChange={(e) =>
-                            handlePendingChange(
-                              item.ID,
-                              "DichVu",
-                              e.target.value
-                            )
-                          }
-                        />
-                      ) : (
-                        <div style={viewStyle}>{item.DichVu || ""}</div>
-                      )}
-                    </td>
-
-                    <td className="border text-center">
-                      {item.PdfPath ? (
-                        <a
-                          href={item.PdfPath}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-primary"
-                        >
-                          <FileText size={18} />
-                        </a>
-                      ) : (
-                        <span style={{ fontSize: "11px" }}>—</span>
-                      )}
-                    </td>
-                  </>
-                )}
-
-                {/* Approved fields */}
-                {activeTab === "approved" && (
-                  <>
-                    <td className="border">
-                      {isEditing ? (
-                        <input
-                          style={inputStyle}
-                          value={item.NganhNgheChinh || ""}
-                          onChange={(e) =>
-                            handleApprovedChange(
-                              item.ID,
-                              "NganhNgheChinh",
-                              e.target.value
-                            )
-                          }
-                        />
-                      ) : (
-                        <div style={viewStyle}>
-                          {item.NganhNgheChinh || ""}
-                        </div>
-                      )}
-                    </td>
-
-                    <td className="border">
-                      {isEditing ? (
-                        <input
-                          style={inputStyle}
-                          value={item.DiaChi || ""}
-                          onChange={(e) =>
-                            handleApprovedChange(
-                              item.ID,
-                              "DiaChi",
-                              e.target.value
-                            )
-                          }
-                        />
-                      ) : (
-                        <div style={viewStyle}>{item.DiaChi || ""}</div>
-                      )}
-                    </td>
-                  </>
-                )}
-
-                {/* Ngày đăng ký */}
-                <td className="text-center border">
-                  {formatDateTime(item.NgayTao || item.NgayDangKyB2B)}
-                </td>
-
-                {/* Doanh thu */}
-                {activeTab === "approved" && (
-                  <td className="text-center border fw-bold text-primary">
-                    {formatNumber(
-                      calculateCompanyTotalRevenue(item.ID)
-                    )}
-                  </td>
-                )}
-
-                {/* Lý do từ chối */}
-                {activeTab === "pending" && (
-                  <td className="border">
-                    {isEditing ? (
-                      <input
-                        style={inputStyle}
-                        value={item.rejectionReason || ""}
-                        onChange={(e) =>
-                          handlePendingChange(
-                            item.ID,
-                            "rejectionReason",
-                            e.target.value
-                          )
-                        }
-                      />
-                    ) : (
-                      <div style={viewStyle}>
-                        {item.rejectionReason || ""}
-                      </div>
-                    )}
-                  </td>
-                )}
-
-                {/* Action buttons */}
-                <td className="text-center border">
-                  <div className="d-flex gap-1 justify-content-center">
-                    {isEditing ? (
+                    {activeTab === "pending" && (
                       <>
-                        <button
-                          className="btn btn-sm"
-                          style={{
-                            backgroundColor: "#2563eb",
-                            color: "#fff",
-                          }}
-                          onClick={() =>
-                            saveEditing(item, activeTab)
-                          }
-                        >
-                          <Save size={16} />
-                        </button>
-
-                        <button
-                          className="btn btn-sm"
-                          style={{
-                            backgroundColor: "#6b7280",
-                            color: "#fff",
-                          }}
-                          onClick={() =>
-                            cancelEditing(activeTab, item.ID)
-                          }
-                        >
-                          <XCircle size={16} />
-                        </button>
+                        <td className="border">{isEditing ? <input style={inputStyle} value={item.DichVu || ""} onChange={(e) => handlePendingChange(item.ID, "DichVu", e.target.value)} /> : <div style={viewStyle}>{item.DichVu || ""}</div>}</td>
+                        <td className="border text-center p-0 align-middle">
+                          {item.PdfPath ? (
+                            <div className="d-flex justify-content-center align-items-center gap-2 h-100">
+                              <a href={item.PdfPath} target="_blank" rel="noreferrer" className="text-secondary" title="Mở tab mới">
+                                <FileText size={16} />
+                              </a>
+                              <button 
+                                className="btn btn-sm p-0 border-0" 
+                                onClick={() => toggleExpand(item.ID)}
+                                title={isExpanded ? "Đóng" : "Xem nhanh"}
+                                style={{ color: isExpanded ? "#ef4444" : "#2563eb", display: "flex", alignItems: "center" }}
+                              >
+                                {isExpanded ? <EyeOff size={18} /> : <Eye size={18} />}
+                              </button>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: "11px" }}>—</span>
+                          )}
+                        </td>
                       </>
-                    ) : (
+                    )}
+
+                    {activeTab === "approved" && (
                       <>
-                        <button
-                          className="btn btn-sm"
-                          style={{
-                            backgroundColor: "#f59e0b",
-                            color: "#fff",
-                          }}
-                          onClick={() =>
-                            startEditing(activeTab, item.ID)
-                          }
-                        >
-                          <Edit size={16} />
-                        </button>
+                        <td className="border">{isEditing ? <input style={inputStyle} value={item.NganhNgheChinh || ""} onChange={(e) => handleApprovedChange(item.ID, "NganhNgheChinh", e.target.value)} /> : <div style={viewStyle}>{item.NganhNgheChinh || ""}</div>}</td>
+                        <td className="border">{isEditing ? <input style={inputStyle} value={item.DiaChi || ""} onChange={(e) => handleApprovedChange(item.ID, "DiaChi", e.target.value)} /> : <div style={viewStyle}>{item.DiaChi || ""}</div>}</td>
+                      </>
+                    )}
 
-                        {activeTab === "pending" ? (
+                    <td className="text-center border">{formatDateTime(item.NgayTao || item.NgayDangKyB2B)}</td>
+                    {activeTab === "approved" && <td className="text-center border fw-bold text-primary">{formatNumber(calculateCompanyTotalRevenue(item.ID))}</td>}
+                    {activeTab === "pending" && <td className="border">{isEditing ? <input style={inputStyle} value={item.rejectionReason || ""} onChange={(e) => handlePendingChange(item.ID, "rejectionReason", e.target.value)} /> : <div style={viewStyle}>{item.rejectionReason || ""}</div>}</td>}
+                    
+                    <td className="text-center border">
+                      <div className="d-flex gap-1 justify-content-center">
+                        {isEditing ? (
                           <>
-                            <button
-                              className="btn btn-sm"
-                              style={{
-                                backgroundColor: "#22c55e",
-                                color: "#fff",
-                              }}
-                              onClick={() => approve(item.ID)}
-                            >
-                              <Check size={16} />
-                            </button>
-
-                            <button
-                              className="btn btn-sm"
-                              style={{
-                                backgroundColor: "#ef4444",
-                                color: "#fff",
-                              }}
-                              onClick={() => reject(item)}
-                            >
-                              <XCircle size={16} />
-                            </button>
+                            <button className="btn btn-sm p-1" style={{ backgroundColor: "#2563eb", color: "#fff" }} onClick={() => saveEditing(item, activeTab)}><Save size={14} /></button>
+                            <button className="btn btn-sm p-1" style={{ backgroundColor: "#6b7280", color: "#fff" }} onClick={() => cancelEditing(activeTab, item.ID)}><XCircle size={14} /></button>
                           </>
                         ) : (
-                          <button
-                            className="btn btn-sm"
-                            style={{
-                              backgroundColor: "#ef4444",
-                              color: "#fff",
-                            }}
-                            onClick={() => deleteRow(item.ID)}
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          <>
+                            <button className="btn btn-sm p-1" style={{ backgroundColor: "#f59e0b", color: "#fff" }} onClick={() => startEditing(activeTab, item.ID)}><Edit size={14} /></button>
+                            {activeTab === "pending" ? (
+                              <>
+                                <button className="btn btn-sm p-1" style={{ backgroundColor: "#22c55e", color: "#fff" }} onClick={() => approve(item.ID)}><Check size={14} /></button>
+                                <button className="btn btn-sm p-1" style={{ backgroundColor: "#ef4444", color: "#fff" }} onClick={() => reject(item)}><XCircle size={14} /></button>
+                              </>
+                            ) : (
+                              <button className="btn btn-sm p-1" style={{ backgroundColor: "#ef4444", color: "#fff" }} onClick={() => deleteRow(item.ID)}><Trash2 size={14} /></button>
+                            )}
+                          </>
                         )}
-                      </>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            );
-          }
-        )}
+                      </div>
+                    </td>
+                  </tr>
 
-        {/* NO DATA */}
-        {(activeTab === "pending"
-          ? pendingData
-          : approvedData
-        ).length === 0 && (
-          <tr>
-            <td
-              colSpan={activeTab === "pending" ? 10 : 11}
-              className="text-center py-3 text-muted"
-            >
-              Không có dữ liệu
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
+                  {/* DÒNG EXPAND (PDF) */}
+                  {activeTab === "pending" && isExpanded && item.PdfPath && (
+                    <tr className="bg-white">
+                      {/* QUAN TRỌNG: colSpan={totalColumns} để khớp hoàn toàn */}
+                      <td colSpan={totalColumns} className="border p-0"> 
+                        <div className="p-3 bg-light border-bottom">
+                           <div className="d-flex flex-column align-items-center">
+                             <div className="mb-2 fw-bold text-primary">
+                               Giấy phép ĐKKD: {item.TenDoanhNghiep}
+                             </div>
+                             <div style={{ width: "100%", height: "650px", border: "1px solid #ccc", borderRadius: "4px", backgroundColor: "#525659" }}>
+                                <iframe 
+                                  src={`${item.PdfPath}#toolbar=0&navpanes=0&scrollbar=0`}
+                                  title="Document Viewer"
+                                  width="100%" 
+                                  height="100%" 
+                                  style={{ border: "none" }}
+                                />
+                             </div>
+                           </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            }
+          )}
+          
+          {(activeTab === "pending" ? pendingData : approvedData).length === 0 && (
+            <tr><td colSpan={totalColumns} className="text-center py-3 text-muted">Không có dữ liệu</td></tr>
+          )}
+        </tbody>
+      </table>
 
-    <Pagination
-      current={currentPage[activeTab]}
-      total={activeTab === "pending" ? pendingTotal : approvedTotal}
-      pageSize={20}
-      currentLanguage={currentLanguage}
-      onChange={(page) => handlePageChange(activeTab, page)}
-    />
-  </div>
-);
+      <Pagination
+        current={currentPage[activeTab]}
+        total={activeTab === "pending" ? pendingTotal : approvedTotal}
+        pageSize={20}
+        currentLanguage={currentLanguage}
+        onChange={(page) => handlePageChange(activeTab, page)}
+      />
+    </div>
+  );
+};
 
 
   return (
