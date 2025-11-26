@@ -600,6 +600,9 @@ const handleRecordChange = (uiId, field, value) => {
   };
 
 const renderServicesTab = () => {
+  
+  const canViewRevenue = currentUser?.is_director || currentUser?.is_accountant;
+
   const safeParse = (val) => {
     if (!val) return 0;
     try {
@@ -660,11 +663,12 @@ const renderServicesTab = () => {
       ) : (
         <>
           <div className="table-responsive shadow-sm rounded overflow-hidden">
-            <table
+           <table
               className="table table-bordered table-sm mb-0 align-middle"
               style={{
                 fontSize: "12px",
-                tableLayout: "auto",
+                tableLayout: "fixed", 
+                width: "100%",
                 borderCollapse: "collapse",
                 border: "1px solid #dee2e6",
               }}
@@ -674,20 +678,46 @@ const renderServicesTab = () => {
                 style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}
               >
                 <tr>
-                  <th className="py-2 border" style={{ width: "35px" }}>{t.stt}</th>
-                  <th className="py-2 border" style={{ minWidth: "120px" }}>{t.chonDN}</th>
-                  <th className="py-2 border" style={{ width: "140px" }}>{t.loaiDichVu}</th>
-                  <th className="py-2 border" style={{ width: "140px" }}>{t.tenDichVu}</th>
-                  <th className="py-2 border" style={{ width: "60px" }}>{t.maDichVu}</th>
-                  <th className="py-2 border" style={{ width: "85px" }}>{t.ngayBatDau}</th>
-                  <th className="py-2 border" style={{ width: "85px" }}>{t.ngayKetThuc}</th>
-                  <th className="py-2 border" style={{ width: "90px" }}>{t.doanhThuTruoc}</th>
-                  <th className="py-2 border" style={{ width: "90px" }}>{t.suDungVi}</th>
-                  <th className="py-2 border" style={{ width: "60px" }}>{t.mucChietKhau}</th>
-                  <th className="py-2 border" style={{ width: "80px" }}>{t.soTienChietKhau}</th>
-                  <th className="py-2 border" style={{ width: "100px" }}>{t.doanhThuSau}</th>
-                  <th className="py-2 border" style={{ width: "110px" }}>{t.tongDoanhThuTichLuy}</th>
-                  <th className="py-2 border" style={{ width: "100px" }}>{t.hanhDong}</th>
+                  <th className="py-2 border" style={{ width: "30px" }}>{t.stt}</th>
+                  
+                
+                  <th 
+                    className="py-2 border" 
+                    style={{ 
+                      width: canViewRevenue ? "15%" : "80px", 
+                      minWidth: "150px" 
+                    }}
+                  >
+                    {t.chonDN}
+                  </th>
+
+                  <th className="py-2 border" style={{ width: "60px" }}>{t.loaiDichVu}</th>
+             
+                  <th 
+                    className="py-2 border" 
+                    style={{ 
+                      width: canViewRevenue ? "140px" : "100px" 
+                    }}
+                  >
+                    {t.tenDichVu}
+                  </th>
+
+                  <th className="py-2 border" style={{ width: "80px" }}>{t.maDichVu}</th>
+                  <th className="py-2 border" style={{ width: "90px" }}>{t.ngayBatDau}</th>
+                  <th className="py-2 border" style={{ width: "90px" }}>{t.ngayKetThuc}</th>
+                  
+                  {canViewRevenue && (
+                    <>
+                      <th className="py-2 border" style={{ width: "90px" }}>{t.doanhThuTruoc}</th>
+                      <th className="py-2 border" style={{ width: "90px" }}>{t.suDungVi}</th>
+                      <th className="py-2 border" style={{ width: "60px" }}>{t.mucChietKhau}</th>
+                      <th className="py-2 border" style={{ width: "80px" }}>{t.soTienChietKhau}</th>
+                      <th className="py-2 border" style={{ width: "100px" }}>{t.doanhThuSau}</th>
+                      <th className="py-2 border" style={{ width: "110px" }}>{t.tongDoanhThuTichLuy}</th>
+                    </>
+                  )}
+
+                  <th className="py-2 border" style={{ width: "80px" }}>{t.hanhDong}</th>
                 </tr>
               </thead>
               <tbody>
@@ -703,7 +733,6 @@ const renderServicesTab = () => {
                     const calculatedDiscountAmount = revenueBeforeNum * (discountRateNum / 100);
                     const realRevenueAfter = Math.max(0, revenueBeforeNum - calculatedDiscountAmount - walletUsageNum);
 
-                    // Logic màu nền: Mới -> Xanh, Sửa -> Vàng, Xem -> Trắng
                     const rowBackgroundColor = rec.isNew ? "#dcfce7" : (isEditing ? "#fff9c4" : "transparent");
                     
                     const cellStyle = {
@@ -756,7 +785,7 @@ const renderServicesTab = () => {
                     }
                     serviceOptions = [...new Set(serviceOptions)].filter(Boolean);
 
-                     const handleRecordChangeWithCalc = (field, value) => {
+                      const handleRecordChangeWithCalc = (field, value) => {
                     let rawValue = 0;
                     
                     if (value) {
@@ -765,16 +794,11 @@ const renderServicesTab = () => {
                         : parseFloat(String(value).replace(/\./g, ""));
                     }
 
-                
                     if (field === 'walletUsage' && rawValue > 2000000) {
-                      
-        
                       showToast(t.msgWalletLimit ,"error");
-
                       value = 0; 
                     }
 
-                    // --- LOGIC CŨ ---
                     handleRecordChange(currentRowKey, field, value);
 
                     if (['revenueBefore', 'discountRate', 'walletUsage'].includes(field)) {
@@ -903,89 +927,98 @@ const renderServicesTab = () => {
                           )}
                         </td>
 
-                        <td className="border" style={{...cellStyle, width: "100px"}}>
-                          {isEditing ? (
-                            <input
-                              type="text"
-                              className="form-control form-control-sm shadow-none"
-                              style={transparentInputStyle}
-                              value={rec.revenueBefore === "" ? "" : formatNumber(rec.revenueBefore)}
-                              onChange={(e) => handleRecordChangeWithCalc("revenueBefore", e.target.value)}
-                            />
-                          ) : (
-                            <div className="text-center" style={{fontSize: "12px"}}>{formatNumber(rec.revenueBefore || "")}</div>
-                          )}
-                        </td>
+                        {/* ✅ 3. Ẩn/Hiện nội dung các cột tài chính */}
+                        {canViewRevenue && (
+                          <>
+                            {/* Doanh Thu Trước */}
+                            <td className="border" style={{...cellStyle, width: "100px"}}>
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  className="form-control form-control-sm shadow-none"
+                                  style={transparentInputStyle}
+                                  value={rec.revenueBefore === "" ? "" : formatNumber(rec.revenueBefore)}
+                                  onChange={(e) => handleRecordChangeWithCalc("revenueBefore", e.target.value)}
+                                />
+                              ) : (
+                                <div className="text-center" style={{fontSize: "12px"}}>{formatNumber(rec.revenueBefore || "")}</div>
+                              )}
+                            </td>
 
-                        <td className="border" style={cellStyle}>
-                          {isEditing ? (
-                            <input
-                              type="text"
-                              className="form-control form-control-sm shadow-none"
-                              style={{...transparentInputStyle, fontWeight: "500"}}
-                              value={rec.walletUsage ? formatNumber(rec.walletUsage) : ""}
-                              onChange={(e) => handleRecordChangeWithCalc("walletUsage", e.target.value)}
-                              placeholder="Nhập số tiền"
-                            />
-                          ) : (
-                            <div className="text-center" style={{fontSize: "12px", color: rec.walletUsage, fontWeight:500}}>
-                              {formatNumber(rec.walletUsage || 0)}
-                            </div>
-                          )}
-                        </td>
+                            {/* Ví */}
+                            <td className="border" style={cellStyle}>
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  className="form-control form-control-sm shadow-none"
+                                  style={{...transparentInputStyle, fontWeight: "500"}}
+                                  value={rec.walletUsage ? formatNumber(rec.walletUsage) : ""}
+                                  onChange={(e) => handleRecordChangeWithCalc("walletUsage", e.target.value)}
+                                  placeholder="Nhập số tiền"
+                                />
+                              ) : (
+                                <div className="text-center" style={{fontSize: "12px", color: rec.walletUsage, fontWeight:500}}>
+                                  {formatNumber(rec.walletUsage || 0)}
+                                </div>
+                              )}
+                            </td>
 
-                        <td className="border" style={cellStyle}>
-                          {isEditing ? (
-                            <select
-                              className="form-select form-select-sm text-center shadow-none"
-                              style={{...transparentInputStyle, padding: 0}}
-                              value={rec.discountRate || ""}
-                              onChange={(e) => handleRecordChangeWithCalc("discountRate", e.target.value)}
+                            {/* Mức Chiết Khấu */}
+                            <td className="border" style={cellStyle}>
+                              {isEditing ? (
+                                <select
+                                  className="form-select form-select-sm text-center shadow-none"
+                                  style={{...transparentInputStyle, padding: 0}}
+                                  value={rec.discountRate || ""}
+                                  onChange={(e) => handleRecordChangeWithCalc("discountRate", e.target.value)}
+                                >
+                                  <option value="">%</option>
+                                  <option value="5">5%</option>
+                                  <option value="10">10%</option>
+                                  <option value="12">12%</option>
+                                  <option value="15">15%</option>
+                                  <option value="17">17%</option>
+                                  <option value="20">20%</option>
+                                </select>
+                              ) : (
+                                <div className="text-center" style={{fontSize: "12px"}}>{rec.discountRate ? `${rec.discountRate}%` : "--"}</div>
+                              )}
+                            </td>
+
+                            {/* Số tiền chiết khấu */}
+                            <td 
+                              className="align-middle border px-2" 
+                              style={{...cellStyle, fontSize: "12px", textAlign: "center"}}
                             >
-                              <option value="">%</option>
-                              <option value="5">5%</option>
-                              <option value="10">10%</option>
-                              <option value="12">12%</option>
-                              <option value="15">15%</option>
-                              <option value="17">17%</option>
-                              <option value="20">20%</option>
-                            </select>
-                          ) : (
-                            <div className="text-center" style={{fontSize: "12px"}}>{rec.discountRate ? `${rec.discountRate}%` : "--"}</div>
-                          )}
-                        </td>
+                              {formatNumber(calculatedDiscountAmount)}
+                            </td>
 
-                        {/* ĐÃ SỬA: Thêm textAlign: "center" để căn giữa số tiền chiết khấu */}
-                        <td 
-                          className="align-middle border px-2" 
-                          style={{...cellStyle, fontSize: "12px", textAlign: "center"}}
-                        >
-                          {formatNumber(calculatedDiscountAmount)}
-                        </td>
+                            {/* Doanh thu sau chiết khấu */}
+                            <td 
+                              className="align-middle fw-bold border px-2 text-primary" 
+                              style={{...cellStyle, fontSize: "12px", textAlign: "center"}}
+                            >
+                              {formatNumber(realRevenueAfter)}
+                            </td>
 
-                        {/* ĐÃ SỬA: Thêm textAlign: "center" để căn giữa doanh thu sau chiết khấu */}
-                        <td 
-                          className="align-middle fw-bold border px-2 text-primary" 
-                          style={{...cellStyle, fontSize: "12px", textAlign: "center"}}
-                        >
-                          {formatNumber(realRevenueAfter)}
-                        </td>
-
-                        {shouldRenderTotalCell && (
-                          <td
-                            rowSpan={rowSpan}
-                            className="text-center align-middle fw-bold border text-primary"
-                            style={{
-                              ...cellStyle,
-                              backgroundColor: rec.isNew ? "#dcfce7" : (isEditing ? "#fff9c4" : "#fff"),
-                              fontSize: "12px",
-                              position: "relative",
-                              zIndex: 1,
-                              backgroundClip: "padding-box"
-                            }}
-                          >
-                            {formatNumber(groupTotalRevenue)}
-                          </td>
+                            {/* Tổng doanh thu tích lũy */}
+                            {shouldRenderTotalCell && (
+                              <td
+                                rowSpan={rowSpan}
+                                className="text-center align-middle fw-bold border text-primary"
+                                style={{
+                                  ...cellStyle,
+                                  backgroundColor: rec.isNew ? "#dcfce7" : (isEditing ? "#fff9c4" : "#fff"),
+                                  fontSize: "12px",
+                                  position: "relative",
+                                  zIndex: 1,
+                                  backgroundClip: "padding-box"
+                                }}
+                              >
+                                {formatNumber(groupTotalRevenue)}
+                              </td>
+                            )}
+                          </>
                         )}
 
                         <td className="text-center border p-1 align-middle" style={{backgroundColor: "white"}}> 
@@ -1032,7 +1065,8 @@ const renderServicesTab = () => {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="13" className="text-center py-4 text-muted border">
+                    {/* ✅ 4. Điều chỉnh colSpan khi không có dữ liệu (7 cột thường + 6 cột tài chính) */}
+                    <td colSpan={canViewRevenue ? 13 : 7} className="text-center py-4 text-muted border">
                       Chưa có dữ liệu dịch vụ
                     </td>
                   </tr>
