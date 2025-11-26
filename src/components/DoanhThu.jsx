@@ -656,19 +656,19 @@ const currentTotalRevenue = activeTab === "personal"
              {t.excel}
             </button>
           </div>
-       <div className="d-flex align-items-center justify-content-between bg-white py-2 px-3 rounded shadow-sm mb-3 border-start border-3 border-primary">
-            <div>
-              <span className="text-muted fw-bold text-uppercase small" style={{ fontSize: "0.85rem" }}>
-                {t.totalRevenue} ({activeTab === "personal" ? t.personalTab : t.companyTab})
-              </span>
+        <div className="d-flex align-items-center justify-content-between bg-white py-2 px-3 rounded shadow-sm mb-3 border-start border-3 border-primary">
+              <div>
+                <span className="text-muted fw-bold text-uppercase small" style={{ fontSize: "0.85rem" }}>
+                  {t.totalRevenue} ({activeTab === "personal" ? t.personalTab : t.companyTab})
+                </span>
+              </div>
+              <div className="text-end">
+                <span className="fs-5 fw-bold text-primary">
+                  {formatCurrency(currentTotalRevenue)}
+                </span>
+                <span className="text-muted ms-1 fw-bold small">{t.revenueUnit}</span>
+              </div>
             </div>
-            <div className="text-end">
-              <span className="fs-5 fw-bold text-primary">
-                {formatCurrency(currentTotalRevenue)}
-              </span>
-              <span className="text-muted ms-1 fw-bold small">{t.revenueUnit}</span>
-            </div>
-          </div>
           {activeTab === "personal" ? (
             <PersonalTable
               loading={loading}
