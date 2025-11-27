@@ -401,22 +401,55 @@ const translations = {
     } catch (e) { showToast("Lỗi server", "error"); }
   };
 
-  const reject = async (item) => {
-    if (!item.rejectionReason?.trim()) return showToast("Nhập lý do từ chối!", "warning");
-    const result = await MySwal.fire({
-      title: "Xác nhận", text: `Từ chối ${item.TenDoanhNghiep}?`, icon: "warning", showCancelButton: true, confirmButtonColor: "#ef4444", cancelButtonColor: "#2563eb", confirmButtonText: "Từ chối", cancelButtonText: "Hủy"
+const reject = async (item) => {
+    // 1. Hiển thị Popup nhập lý do từ chối
+    const { value: reason } = await MySwal.fire({
+      title: "Từ chối doanh nghiệp",
+      input: "textarea",
+      inputLabel: `Nhập lý do từ chối cho: ${item.TenDoanhNghiep}`,
+      inputPlaceholder: "Ví dụ: Sai thông tin ĐKKD, hồ sơ mờ...",
+      inputAttributes: {
+        "aria-label": "Nhập lý do từ chối"
+      },
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Xác nhận từ chối",
+      cancelButtonText: "Hủy",
+      inputValidator: (value) => {
+        if (!value || value.trim() === "") {
+          return "Bạn bắt buộc phải nhập lý do!";
+        }
+      }
     });
-    if (!result.isConfirmed) return;
+
+    // Nếu người dùng bấm Hủy hoặc không nhập gì thì dừng
+    if (!reason) return;
+
     try {
+      // 2. Gọi API từ chối kèm theo lý do vừa nhập
       const res = await fetch(`${API_BASE}/b2b/pending/${item.ID}/reject`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: item.rejectionReason })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: reason }) // Gửi lý do lấy từ popup
       });
+
       const json = await res.json();
+      
       if (json.success) {
-        showToast("Đã từ chối", "success"); setPendingData(prev => prev.filter(i => i.ID !== item.ID));
-      } else { showToast(json.message, "error"); }
-    } catch (e) { showToast("Lỗi server", "error"); }
+        showToast("Đã từ chối doanh nghiệp", "success");
+        // Xóa dòng đó khỏi bảng Pending ngay lập tức
+        setPendingData(prev => prev.filter(i => i.ID !== item.ID));
+        
+        // (Tùy chọn) Reload lại tab Rejected để cập nhật số liệu nếu cần
+        loadRejected(1);
+      } else {
+        showToast(json.message || "Lỗi khi từ chối", "error");
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("Lỗi kết nối server", "error");
+    }
   };
 
   const deleteRow = async (id) => {
@@ -1122,16 +1155,14 @@ const saveEditing = (item, tab) => {
   showToast("Không xác định được tab để lưu!", "error");
 };
 const renderPendingApprovedTab = () => {
-  // Tính toán số lượng cột chính xác để ColSpan không làm vỡ giao diện
-  // Pending: STT(1) + Tên(2) + SĐKKD(3) + Đại Diện(4) + Dịch Vụ(5) + Giấy Phép(6) + Ngày(7) + Lý Do(8) + Hành Động(9) = 9
-  // Approved: STT(1) + Tên(2) + SĐKKD(3) + Đại Diện(4) + Ngành(5) + Địa Chỉ(6) + Ngày(7) + Doanh Thu(8) + Hành Động(9) = 9
+
   const totalColumns = 9;
 
   return (
     <div className="table-responsive shadow-sm rounded overflow-hidden">
       <table
         className="table table-bordered table-sm mb-0 align-middle"
-        // QUAN TRỌNG: table-layout: fixed giúp cố định độ rộng cột, không bị co giãn khi mở row
+    
         style={{ fontSize: "12px", tableLayout: "fixed", width: "100%" }}
       >
         <thead
@@ -1162,9 +1193,9 @@ const renderPendingApprovedTab = () => {
             {activeTab === "approved" && (
               <th style={{ width: "100px" }}>{t.tongDoanhThuTichLuy}</th>
             )}
-            {activeTab === "pending" && (
+            {/* {activeTab === "pending" && (
               <th style={{ width: "120px" }}>{t.lyDoTuChoi}</th>
-            )}
+            )} */}
             <th style={{ width: "90px" }}>{t.hanhDong}</th>
           </tr>
         </thead>
@@ -1224,7 +1255,7 @@ const renderPendingApprovedTab = () => {
 
                     <td className="text-center border">{formatDateTime(item.NgayTao || item.NgayDangKyB2B)}</td>
                     {activeTab === "approved" && <td className="text-center border fw-bold text-primary">{formatNumber(calculateCompanyTotalRevenue(item.ID))}</td>}
-                    {activeTab === "pending" && <td className="border">{isEditing ? <input style={inputStyle} value={item.rejectionReason || ""} onChange={(e) => handlePendingChange(item.ID, "rejectionReason", e.target.value)} /> : <div style={viewStyle}>{item.rejectionReason || ""}</div>}</td>}
+                    {/* {activeTab === "pending" && <td className="border">{isEditing ? <input style={inputStyle} value={item.rejectionReason || ""} onChange={(e) => handlePendingChange(item.ID, "rejectionReason", e.target.value)} /> : <div style={viewStyle}>{item.rejectionReason || ""}</div>}</td>} */}
                     
                     <td className="text-center border">
                       <div className="d-flex gap-1 justify-content-center">
