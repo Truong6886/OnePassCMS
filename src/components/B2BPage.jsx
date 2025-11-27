@@ -633,493 +633,481 @@ const handleRecordChange = (uiId, field, value) => {
   };
 
 const renderServicesTab = () => {
-  
-  const canViewRevenue = currentUser?.is_director || currentUser?.is_accountant;
+    // Chỉ Giám đốc hoặc Kế toán mới được xem các cột liên quan đến tiền/doanh thu
+    const canViewRevenue = currentUser?.is_director || currentUser?.is_accountant;
 
-  const safeParse = (val) => {
-    if (!val) return 0;
-    try {
-      return isNaN(parseFloat(String(val).replace(/\./g, ""))) ? 0 : parseFloat(String(val).replace(/\./g, ""));
-    } catch (e) {
-      return 0;
-    }
-  };
+    const safeParse = (val) => {
+      if (!val) return 0;
+      try {
+        return isNaN(parseFloat(String(val).replace(/\./g, ""))) ? 0 : parseFloat(String(val).replace(/\./g, ""));
+      } catch (e) {
+        return 0;
+      }
+    };
 
-  const getRealRevenue = (revenueBefore, discountRate, walletUsage) => {
-    const rBefore = safeParse(revenueBefore);
-    const dRate = safeParse(discountRate);
-    const wUsage = safeParse(walletUsage);
-    
-    const dAmount = rBefore * (dRate / 100);
-    return Math.max(0, rBefore - dAmount - wUsage);
-  };
+    const getRealRevenue = (revenueBefore, discountRate, walletUsage) => {
+      const rBefore = safeParse(revenueBefore);
+      const dRate = safeParse(discountRate);
+      const wUsage = safeParse(walletUsage);
 
-  const displayData = [...(serviceData || [])].sort((a, b) => {
-    const compA = String(a.companyId || a.DoanhNghiepID || "");
-    const compB = String(b.companyId || b.DoanhNghiepID || "");
-    if (compA !== "" && compB === "") return -1;
-    if (compA === "" && compB !== "") return 1;
-    if (compA !== "" && compB !== "") return compA.localeCompare(compB);
-    return (a.id || 0) - (b.id || 0);
-  });
+      const dAmount = rBefore * (dRate / 100);
+      return Math.max(0, rBefore - dAmount - wUsage);
+    };
 
-  const transparentInputStyle = {
-    backgroundColor: "transparent",
-    border: "none",
-    outline: "none",
-    width: "100%",
-    height: "100%",
-    textAlign: "center",
-    fontSize: "12px",
-    padding: "0 4px",
-    boxShadow: "none"
-  };
+    const displayData = [...(serviceData || [])].sort((a, b) => {
+      const compA = String(a.companyId || a.DoanhNghiepID || "");
+      const compB = String(b.companyId || b.DoanhNghiepID || "");
+      if (compA !== "" && compB === "") return -1;
+      if (compA === "" && compB !== "") return 1;
+      if (compA !== "" && compB !== "") return compA.localeCompare(compB);
+      return (a.id || 0) - (b.id || 0);
+    });
 
-  return (
-    <div>
-      <div className="d-flex justify-content-end mb-2" style={{ height: 40, marginRight: 10 }}>
-        <button
-          className="btn btn-primary btn-sm"
-          onClick={handleAddNewRow}
-          style={{ fontSize: "12px" }}
-        >
-          {t.addServiceBtn}
-        </button>
-      </div>
+    const transparentInputStyle = {
+      backgroundColor: "transparent",
+      border: "none",
+      outline: "none",
+      width: "100%",
+      height: "100%",
+      textAlign: "center",
+      fontSize: "12px",
+      padding: "0 4px",
+      boxShadow: "none"
+    };
 
-      {loading ? (
-        <div className="text-center py-4">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
+    return (
+      <div>
+        <div className="d-flex justify-content-end mb-2" style={{ height: 40, marginRight: 10 }}>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={handleAddNewRow}
+            style={{ fontSize: "12px" }}
+          >
+            {t.addServiceBtn}
+          </button>
         </div>
-      ) : (
-        <>
-          <div className="table-responsive shadow-sm rounded overflow-hidden">
-           <table
-              className="table table-bordered table-sm mb-0 align-middle"
-              style={{
-                fontSize: "12px",
-                tableLayout: "fixed", 
-                width: "100%",
-                borderCollapse: "collapse",
-                border: "1px solid #dee2e6",
-              }}
-            >
-              <thead
-                className="text-white text-center align-middle"
-                style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}
+
+        {loading ? (
+          <div className="text-center py-4">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="table-responsive shadow-sm rounded overflow-hidden">
+              <table
+                className="table table-bordered table-sm mb-0 align-middle"
+                style={{
+                  fontSize: "12px",
+                  tableLayout: "fixed",
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  border: "1px solid #dee2e6",
+                }}
               >
-                <tr>
-                  <th className="py-2 border" style={{ width: "30px" }}>{t.stt}</th>
-                  
-                
-                  <th 
-                    className="py-2 border" 
-                    style={{ 
-                      width: canViewRevenue ? "15%" : "80px", 
-                      minWidth: "150px" 
-                    }}
-                  >
-                    {t.chonDN}
-                  </th>
+                <thead
+                  className="text-white text-center align-middle"
+                  style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}
+                >
+                  <tr>
+                    <th className="py-2 border" style={{ width: "35px" }}>{t.stt}</th>
 
-                  <th className="py-2 border" style={{ width: "60px" }}>{t.loaiDichVu}</th>
-             
-                  <th 
-                    className="py-2 border" 
-                    style={{ 
-                      width: canViewRevenue ? "140px" : "100px" 
-                    }}
-                  >
-                    {t.tenDichVu}
-                  </th>
+                    {/* Điều chỉnh width linh hoạt: Nếu ẩn cột tiền thì cột tên DN giãn ra */}
+                    <th
+                      className="py-2 border"
+                      style={{
+                        width: canViewRevenue ? "180px" : "25%", 
+                        minWidth: "140px"
+                      }}
+                    >
+                      {t.chonDN}
+                    </th>
 
-                  <th className="py-2 border" style={{ width: "80px" }}>{t.maDichVu}</th>
-                  <th className="py-2 border" style={{ width: "90px" }}>{t.ngayBatDau}</th>
-                  <th className="py-2 border" style={{ width: "90px" }}>{t.ngayKetThuc}</th>
-                  
-                  {canViewRevenue && (
-                    <>
-                      <th className="py-2 border" style={{ width: "90px" }}>{t.doanhThuTruoc}</th>
-                      <th className="py-2 border" style={{ width: "90px" }}>{t.suDungVi}</th>
-                      <th className="py-2 border" style={{ width: "60px" }}>{t.mucChietKhau}</th>
-                      <th className="py-2 border" style={{ width: "80px" }}>{t.soTienChietKhau}</th>
-                      <th className="py-2 border" style={{ width: "100px" }}>{t.doanhThuSau}</th>
-                      <th className="py-2 border" style={{ width: "110px" }}>{t.tongDoanhThuTichLuy}</th>
-                    </>
-                  )}
+                    <th className="py-2 border" style={{ width: "80px" }}>{t.loaiDichVu}</th>
 
-                  <th className="py-2 border" style={{ width: "80px" }}>{t.hanhDong}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayData && displayData.length > 0 ? (
-                  displayData.map((rec, idx) => {
-                    const globalIndex = idx + 1 + (currentPage.services - 1) * 20;
-                    const currentRowKey = rec.uiId;
-                    const isEditing = editingRows.services[currentRowKey];
-                    
-                    const revenueBeforeNum = safeParse(rec.revenueBefore || 0);
-                    const discountRateNum = safeParse(rec.discountRate || 0);
-                    const walletUsageNum = safeParse(rec.walletUsage || 0);
-                    const calculatedDiscountAmount = revenueBeforeNum * (discountRateNum / 100);
-                    const realRevenueAfter = Math.max(0, revenueBeforeNum - calculatedDiscountAmount - walletUsageNum);
+                    {/* Điều chỉnh width linh hoạt: Nếu ẩn cột tiền thì cột tên DV giãn ra */}
+                    <th
+                      className="py-2 border"
+                      style={{
+                        width: canViewRevenue ? "130px" : "20%"
+                      }}
+                    >
+                      {t.tenDichVu}
+                    </th>
 
-                    const rowBackgroundColor = rec.isNew ? "#dcfce7" : (isEditing ? "#fff9c4" : "transparent");
-                    
-                    const cellStyle = {
+                    <th className="py-2 border" style={{ width: "80px" }}>{t.maDichVu}</th>
+                    <th className="py-2 border" style={{ width: "90px" }}>{t.ngayBatDau}</th>
+                    <th className="py-2 border" style={{ width: "90px" }}>{t.ngayKetThuc}</th>
+
+                    {/* Chỉ hiện các cột tài chính nếu là GĐ hoặc KT */}
+                    {canViewRevenue && (
+                      <>
+                        <th className="py-2 border" style={{ width: "90px" }}>{t.doanhThuTruoc}</th>
+                        <th className="py-2 border" style={{ width: "90px" }}>{t.suDungVi}</th>
+                        <th className="py-2 border" style={{ width: "60px" }}>{t.mucChietKhau}</th>
+                        <th className="py-2 border" style={{ width: "80px" }}>{t.soTienChietKhau}</th>
+                        <th className="py-2 border" style={{ width: "100px" }}>{t.doanhThuSau}</th>
+                        <th className="py-2 border" style={{ width: "110px" }}>{t.tongDoanhThuTichLuy}</th>
+                      </>
+                    )}
+
+                    <th className="py-2 border" style={{ width: "80px" }}>{t.hanhDong}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayData && displayData.length > 0 ? (
+                    displayData.map((rec, idx) => {
+                      const globalIndex = idx + 1 + (currentPage.services - 1) * 20;
+                      const currentRowKey = rec.uiId;
+                      const isEditing = editingRows.services[currentRowKey];
+
+                      // Tính toán
+                      const revenueBeforeNum = safeParse(rec.revenueBefore || 0);
+                      const discountRateNum = safeParse(rec.discountRate || 0);
+                      const walletUsageNum = safeParse(rec.walletUsage || 0);
+                      const calculatedDiscountAmount = revenueBeforeNum * (discountRateNum / 100);
+                      const realRevenueAfter = Math.max(0, revenueBeforeNum - calculatedDiscountAmount - walletUsageNum);
+
+                      const rowBackgroundColor = rec.isNew ? "#dcfce7" : (isEditing ? "#fff9c4" : "transparent");
+
+                      const cellStyle = {
                         backgroundColor: rowBackgroundColor,
                         height: "30px",
                         padding: 0,
                         verticalAlign: "middle"
-                    };
+                      };
 
-                    const currentCompanyId = String(rec.companyId || rec.DoanhNghiepID || "");
-                    const prevCompanyId = idx > 0
+                      const currentCompanyId = String(rec.companyId || rec.DoanhNghiepID || "");
+                      const prevCompanyId = idx > 0
                         ? String(displayData[idx - 1].companyId || displayData[idx - 1].DoanhNghiepID || "")
                         : null;
 
-                    const isGroupEditing = currentCompanyId &&
-                      displayData.some((d) => String(d.companyId || d.DoanhNghiepID || "") === currentCompanyId && editingRows.services[d.uiId]);
+                      const isGroupEditing = currentCompanyId &&
+                        displayData.some((d) => String(d.companyId || d.DoanhNghiepID || "") === currentCompanyId && editingRows.services[d.uiId]);
 
-                    let shouldRenderTotalCell = false;
-                    let rowSpan = 1;
-                    let groupTotalRevenue = 0;
+                      let shouldRenderTotalCell = false;
+                      let rowSpan = 1;
+                      let groupTotalRevenue = 0;
 
-                    if (!currentCompanyId || currentCompanyId === "" || isGroupEditing) {
-                      shouldRenderTotalCell = true;
-                      rowSpan = 1;
-                      groupTotalRevenue = realRevenueAfter; 
-                    } else {
-                      const isFirstOfGroup = idx === 0 || currentCompanyId !== prevCompanyId;
-                      if (isFirstOfGroup) {
+                      // Logic gộp hàng (RowSpan)
+                      if (!currentCompanyId || currentCompanyId === "" || isGroupEditing) {
                         shouldRenderTotalCell = true;
+                        rowSpan = 1;
                         groupTotalRevenue = realRevenueAfter;
-                        for (let i = idx + 1; i < displayData.length; i++) {
-                          const nextRec = displayData[i];
-                          if (String(nextRec.companyId || nextRec.DoanhNghiepID || "") !== currentCompanyId) break;
-                          rowSpan++;
-                          const nextRevenue = getRealRevenue(
-                            nextRec.revenueBefore || nextRec.DoanhThuTruocChietKhau,
-                            nextRec.discountRate || nextRec.MucChietKhau,
-                            nextRec.walletUsage || nextRec.Vi
-                          );
-                          groupTotalRevenue += nextRevenue;
+                      } else {
+                        const isFirstOfGroup = idx === 0 || currentCompanyId !== prevCompanyId;
+                        if (isFirstOfGroup) {
+                          shouldRenderTotalCell = true;
+                          groupTotalRevenue = realRevenueAfter;
+                          for (let i = idx + 1; i < displayData.length; i++) {
+                            const nextRec = displayData[i];
+                            if (String(nextRec.companyId || nextRec.DoanhNghiepID || "") !== currentCompanyId) break;
+                            rowSpan++;
+                            const nextRevenue = getRealRevenue(
+                              nextRec.revenueBefore || nextRec.DoanhThuTruocChietKhau,
+                              nextRec.discountRate || nextRec.MucChietKhau,
+                              nextRec.walletUsage || nextRec.Vi
+                            );
+                            groupTotalRevenue += nextRevenue;
+                          }
                         }
                       }
-                    }
 
-                    const selectedCompany = approvedList.find((c) => String(c.ID) === currentCompanyId);
-                    let serviceOptions = [];
-                    if (selectedCompany) {
-                      if (selectedCompany.DichVu) serviceOptions.push(...selectedCompany.DichVu.split(",").map((s) => s.trim()));
-                      if (selectedCompany.DichVuKhac) serviceOptions.push(...selectedCompany.DichVuKhac.split(",").map((s) => s.trim()));
-                    }
-                    serviceOptions = [...new Set(serviceOptions)].filter(Boolean);
+                      const selectedCompany = approvedList.find((c) => String(c.ID) === currentCompanyId);
+                      let serviceOptions = [];
+                      if (selectedCompany) {
+                        if (selectedCompany.DichVu) serviceOptions.push(...selectedCompany.DichVu.split(",").map((s) => s.trim()));
+                        if (selectedCompany.DichVuKhac) serviceOptions.push(...selectedCompany.DichVuKhac.split(",").map((s) => s.trim()));
+                      }
+                      serviceOptions = [...new Set(serviceOptions)].filter(Boolean);
 
                       const handleRecordChangeWithCalc = (field, value) => {
-                    let rawValue = 0;
-                    
-                    if (value) {
-                      rawValue = isNaN(parseFloat(String(value).replace(/\./g, ""))) 
-                        ? 0 
-                        : parseFloat(String(value).replace(/\./g, ""));
-                    }
+                        let rawValue = 0;
+                        if (value) {
+                          rawValue = isNaN(parseFloat(String(value).replace(/\./g, "")))
+                            ? 0
+                            : parseFloat(String(value).replace(/\./g, ""));
+                        }
+                        if (field === 'walletUsage' && rawValue > 2000000) {
+                          showToast(t.msgWalletLimit, "error");
+                          value = 0;
+                        }
+                        handleRecordChange(currentRowKey, field, value);
 
-                    if (field === 'walletUsage' && rawValue > 2000000) {
-                      showToast(t.msgWalletLimit ,"error");
-                      value = 0; 
-                    }
+                        if (['revenueBefore', 'discountRate', 'walletUsage'].includes(field)) {
+                          const currentRec = { ...rec, [field]: value };
+                          const rBefore = safeParse(currentRec.revenueBefore || 0);
+                          const dRate = safeParse(currentRec.discountRate || 0);
+                          const wUsage = safeParse(currentRec.walletUsage || 0);
+                          const newDiscountAmt = rBefore * (dRate / 100);
+                          const newRevenueAfter = Math.max(0, rBefore - newDiscountAmt - wUsage);
+                          
+                          handleRecordChange(currentRowKey, 'discountAmount', newDiscountAmt);
+                          handleRecordChange(currentRowKey, 'revenueAfter', newRevenueAfter);
+                        }
+                      };
 
-                    handleRecordChange(currentRowKey, field, value);
+                      return (
+                        <tr key={currentRowKey} className={isEditing || rec.isNew ? "" : "bg-white hover:bg-gray-50"}>
+                          <td className="text-center border p-0 align-middle">{globalIndex}</td>
 
-                    if (['revenueBefore', 'discountRate', 'walletUsage'].includes(field)) {
-                      const currentRec = { ...rec, [field]: value };
-                      const rBefore = safeParse(currentRec.revenueBefore || 0);
-                      const dRate = safeParse(currentRec.discountRate || 0);
-                      const wUsage = safeParse(currentRec.walletUsage || 0);
-
-                      const newDiscountAmt = rBefore * (dRate / 100);
-                      const newRevenueAfter = Math.max(0, rBefore - newDiscountAmt - wUsage);
-
-                      handleRecordChange(currentRowKey, 'discountAmount', newDiscountAmt);
-                      handleRecordChange(currentRowKey, 'revenueAfter', newRevenueAfter);
-                    }
-                  };
-                    return (
-                      <tr key={currentRowKey} className={isEditing || rec.isNew ? "" : "bg-white hover:bg-gray-50"}>
-                        <td className="text-center border p-0 align-middle">{globalIndex}</td>
-
-                        {shouldRenderTotalCell && (
-                          <td
-                            className="border p-0 align-middle"
-                            rowSpan={rowSpan}
-                            style={{
-                              ...cellStyle,
-                              padding: "2px 4px",
-                              backgroundColor: rec.isNew ? "#dcfce7" : (isEditing ? "#fff9c4" : "#fff"),
-                              position: "relative",
-                              zIndex: 1,
-                              backgroundClip: "padding-box"
-                            }}
-                          >
-                            {isEditing ? (
-                              <select
-                                className="form-select form-select-sm shadow-none"
-                                style={{...transparentInputStyle, width:158}}
-                                value={rec.companyId || ""}
-                                onChange={(e) => handleRecordChange(currentRowKey, "companyId", e.target.value)}
-                              >
-                                <option value="">-- Chọn DN --</option>
-                                {approvedList.map((c) => (
-                                  <option key={c.ID} value={c.ID}>{c.TenDoanhNghiep}</option>
-                                ))}
-                              </select>
-                            ) : (
-                              <div className="text-center" style={{fontSize: "12px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}}>
-                                {approvedList.find((c) => String(c.ID) === currentCompanyId)?.TenDoanhNghiep || "--"}
-                              </div>
-                            )}
-                          </td>
-                        )}
-
-                        <td className="border" style={cellStyle}>
-                          {isEditing ? (
-                            <select
-                              className="form-select form-select-sm shadow-none"
-                              style={transparentInputStyle}
-                              value={rec.serviceType || ""}
-                              onChange={(e) => handleRecordChange(currentRowKey, "serviceType", e.target.value)}
-                              disabled={!currentCompanyId}
+                          {shouldRenderTotalCell && (
+                            <td
+                              className="border p-0 align-middle"
+                              rowSpan={rowSpan}
+                              style={{
+                                ...cellStyle,
+                                padding: "2px 4px",
+                                backgroundColor: rec.isNew ? "#dcfce7" : (isEditing ? "#fff9c4" : "#fff"),
+                                position: "relative",
+                                zIndex: 1,
+                                backgroundClip: "padding-box"
+                              }}
                             >
-                              <option value="">-- Chọn dịch vụ --</option>
-                              {serviceOptions.map((svc, i) => (
-                                <option key={i} value={svc}>{svc}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            <div className="text-center" style={{fontSize: "12px"}}>{rec.serviceType || ""}</div>
-                          )}
-                        </td>
-
-                        <td className="border" style={{...cellStyle, width: 160}}>
-                          {isEditing ? (
-                            <input
-                              type="text"
-                              className="form-control form-control-sm shadow-none"
-                              style={transparentInputStyle}
-                              value={rec.serviceName || ""}
-                              onChange={(e) => handleRecordChange(currentRowKey, "serviceName", e.target.value)}
-                              placeholder="Nhập Tên Dịch Vụ"
-                            />
-                          ) : (
-                            <div className="text-center" style={{fontSize: "12px"}}>{rec.serviceName || ""}</div>
-                          )}
-                        </td>
-
-                        <td className="border" style={cellStyle}>
-                          {isEditing ? (
-                            <input
-                              type="text"
-                              className="form-control form-control-sm text-center shadow-none"
-                              style={transparentInputStyle}
-                              value={rec.code || ""}
-                              onChange={(e) => handleRecordChange(currentRowKey, "code", e.target.value)}
-                            />
-                          ) : (
-                            <div className="text-center" style={{fontSize: "12px"}}>{rec.code || ""}</div>
-                          )}
-                        </td>
-
-                        <td className="border" style={cellStyle}>
-                          {isEditing ? (
-                            <input
-                              type="date"
-                              className="form-control form-control-sm text-center shadow-none"
-                              style={transparentInputStyle}
-                              value={rec.startDate || ""}
-                              onChange={(e) => handleRecordChange(currentRowKey, "startDate", e.target.value)}
-                            />
-                          ) : (
-                            <div className="text-center" style={{fontSize: "12px"}}>{rec.startDate || ""}</div>
-                          )}
-                        </td>
-
-                        <td className="border" style={cellStyle}>
-                          {isEditing ? (
-                            <input
-                              type="date"
-                              className="form-control form-control-sm text-center shadow-none"
-                              style={transparentInputStyle}
-                              value={rec.endDate || ""}
-                              onChange={(e) => handleRecordChange(currentRowKey, "endDate", e.target.value)}
-                            />
-                          ) : (
-                            <div className="text-center" style={{fontSize: "12px"}}>{rec.endDate || ""}</div>
-                          )}
-                        </td>
-
-                        {/* ✅ 3. Ẩn/Hiện nội dung các cột tài chính */}
-                        {canViewRevenue && (
-                          <>
-                            {/* Doanh Thu Trước */}
-                            <td className="border" style={{...cellStyle, width: "100px"}}>
                               {isEditing ? (
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm shadow-none"
-                                  style={transparentInputStyle}
-                                  value={rec.revenueBefore === "" ? "" : formatNumber(rec.revenueBefore)}
-                                  onChange={(e) => handleRecordChangeWithCalc("revenueBefore", e.target.value)}
-                                />
+                                <select
+                                  className="form-select form-select-sm shadow-none"
+                                  style={{ ...transparentInputStyle, width: "100%" }}
+                                  value={rec.companyId || ""}
+                                  onChange={(e) => handleRecordChange(currentRowKey, "companyId", e.target.value)}
+                                >
+                                  <option value="">-- Chọn DN --</option>
+                                  {approvedList.map((c) => (
+                                    <option key={c.ID} value={c.ID}>{c.TenDoanhNghiep}</option>
+                                  ))}
+                                </select>
                               ) : (
-                                <div className="text-center" style={{fontSize: "12px"}}>{formatNumber(rec.revenueBefore || "")}</div>
-                              )}
-                            </td>
-
-                            {/* Ví */}
-                            <td className="border" style={cellStyle}>
-                              {isEditing ? (
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm shadow-none"
-                                  style={{...transparentInputStyle, fontWeight: "500"}}
-                                  value={rec.walletUsage ? formatNumber(rec.walletUsage) : ""}
-                                  onChange={(e) => handleRecordChangeWithCalc("walletUsage", e.target.value)}
-                                  placeholder="Nhập số tiền"
-                                />
-                              ) : (
-                                <div className="text-center" style={{fontSize: "12px", color: rec.walletUsage, fontWeight:500}}>
-                                  {formatNumber(rec.walletUsage || 0)}
+                                <div className="text-center" style={{ fontSize: "12px", whiteSpace: "normal", wordBreak: "break-word" }}>
+                                  {approvedList.find((c) => String(c.ID) === currentCompanyId)?.TenDoanhNghiep || "--"}
                                 </div>
                               )}
                             </td>
+                          )}
 
-                            {/* Mức Chiết Khấu */}
-                            <td className="border" style={cellStyle}>
-                              {isEditing ? (
-                                <select
-                                  className="form-select form-select-sm text-center shadow-none"
-                                  style={{...transparentInputStyle, padding: 0}}
-                                  value={rec.discountRate || ""}
-                                  onChange={(e) => handleRecordChangeWithCalc("discountRate", e.target.value)}
-                                >
-                                  <option value="">%</option>
-                                  <option value="5">5%</option>
-                                  <option value="10">10%</option>
-                                  <option value="12">12%</option>
-                                  <option value="15">15%</option>
-                                  <option value="17">17%</option>
-                                  <option value="20">20%</option>
-                                </select>
-                              ) : (
-                                <div className="text-center" style={{fontSize: "12px"}}>{rec.discountRate ? `${rec.discountRate}%` : "--"}</div>
-                              )}
-                            </td>
-
-                            {/* Số tiền chiết khấu */}
-                            <td 
-                              className="align-middle border px-2" 
-                              style={{...cellStyle, fontSize: "12px", textAlign: "center"}}
-                            >
-                              {formatNumber(calculatedDiscountAmount)}
-                            </td>
-
-                            {/* Doanh thu sau chiết khấu */}
-                            <td 
-                              className="align-middle fw-bold border px-2 text-primary" 
-                              style={{...cellStyle, fontSize: "12px", textAlign: "center"}}
-                            >
-                              {formatNumber(realRevenueAfter)}
-                            </td>
-
-                            {/* Tổng doanh thu tích lũy */}
-                            {shouldRenderTotalCell && (
-                              <td
-                                rowSpan={rowSpan}
-                                className="text-center align-middle fw-bold border text-primary"
-                                style={{
-                                  ...cellStyle,
-                                  backgroundColor: rec.isNew ? "#dcfce7" : (isEditing ? "#fff9c4" : "#fff"),
-                                  fontSize: "12px",
-                                  position: "relative",
-                                  zIndex: 1,
-                                  backgroundClip: "padding-box"
-                                }}
-                              >
-                                {formatNumber(groupTotalRevenue)}
-                              </td>
-                            )}
-                          </>
-                        )}
-
-                        <td className="text-center border p-1 align-middle" style={{backgroundColor: "white"}}> 
-                          <div className="d-flex gap-1 justify-content-center">
+                          <td className="border" style={cellStyle}>
                             {isEditing ? (
-                              <>
-                                <button
-                                  className="btn btn-sm"
-                                  style={{ backgroundColor: "#2563eb", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
-                                  onClick={() => saveServiceRow(rec)}
-                                >
-                                  <Save size={17} strokeWidth={2.3} />
-                                </button>
-                                <button
-                                  className="btn btn-sm"
-                                  style={{ backgroundColor: "#6b7280", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
-                                  onClick={() => cancelEditing("services", currentRowKey)}
-                                >
-                                  <XCircle size={17} strokeWidth={2.3} />
-                                </button>
-                              </>
+                              <select
+                                className="form-select form-select-sm shadow-none"
+                                style={transparentInputStyle}
+                                value={rec.serviceType || ""}
+                                onChange={(e) => handleRecordChange(currentRowKey, "serviceType", e.target.value)}
+                                disabled={!currentCompanyId}
+                              >
+                                <option value="">-- Chọn dịch vụ --</option>
+                                {serviceOptions.map((svc, i) => (
+                                  <option key={i} value={svc}>{svc}</option>
+                                ))}
+                              </select>
                             ) : (
-                              <>
-                                <button
-                                  className="btn btn-sm"
-                                  style={{ backgroundColor: "#f59e0b", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
-                                  onClick={() => startEditing("services", currentRowKey)}
-                                >
-                                  <Edit size={17} strokeWidth={2.3} />
-                                </button>
-                                <button
-                                  className="btn btn-sm"
-                                  style={{ backgroundColor: "#ef4444", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
-                                  onClick={() => deleteServiceRow(rec.id || rec.ID, rec.isNew)}
-                                >
-                                  <Trash2 size={17} strokeWidth={2.3} />
-                                </button>
-                              </>
+                              <div className="text-center" style={{ fontSize: "12px" }}>{rec.serviceType || ""}</div>
                             )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    {/* ✅ 4. Điều chỉnh colSpan khi không có dữ liệu (7 cột thường + 6 cột tài chính) */}
-                    <td colSpan={canViewRevenue ? 13 : 7} className="text-center py-4 text-muted border">
-                      Chưa có dữ liệu dịch vụ
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                          </td>
 
-          <Pagination
-            current={currentPage.services}
-            total={serviceTotal}
-            pageSize={20}
-            currentLanguage={currentLanguage}
-            onChange={(page) => handlePageChange("services", page)}
-          />
-        </>
-      )}
-    </div>
-  );
-};
+                          <td className="border" style={cellStyle}>
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                className="form-control form-control-sm shadow-none"
+                                style={transparentInputStyle}
+                                value={rec.serviceName || ""}
+                                onChange={(e) => handleRecordChange(currentRowKey, "serviceName", e.target.value)}
+                                placeholder="Nhập Tên Dịch Vụ"
+                              />
+                            ) : (
+                              <div className="text-center" style={{ fontSize: "12px" }}>{rec.serviceName || ""}</div>
+                            )}
+                          </td>
+
+                          <td className="border" style={cellStyle}>
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                className="form-control form-control-sm text-center shadow-none"
+                                style={transparentInputStyle}
+                                value={rec.code || ""}
+                                onChange={(e) => handleRecordChange(currentRowKey, "code", e.target.value)}
+                              />
+                            ) : (
+                              <div className="text-center" style={{ fontSize: "12px" }}>{rec.code || ""}</div>
+                            )}
+                          </td>
+
+                          <td className="border" style={cellStyle}>
+                            {isEditing ? (
+                              <input
+                                type="date"
+                                className="form-control form-control-sm text-center shadow-none"
+                                style={transparentInputStyle}
+                                value={rec.startDate || ""}
+                                onChange={(e) => handleRecordChange(currentRowKey, "startDate", e.target.value)}
+                              />
+                            ) : (
+                              <div className="text-center" style={{ fontSize: "12px" }}>{rec.startDate || ""}</div>
+                            )}
+                          </td>
+
+                          <td className="border" style={cellStyle}>
+                            {isEditing ? (
+                              <input
+                                type="date"
+                                className="form-control form-control-sm text-center shadow-none"
+                                style={transparentInputStyle}
+                                value={rec.endDate || ""}
+                                onChange={(e) => handleRecordChange(currentRowKey, "endDate", e.target.value)}
+                              />
+                            ) : (
+                              <div className="text-center" style={{ fontSize: "12px" }}>{rec.endDate || ""}</div>
+                            )}
+                          </td>
+
+                          
+                          {canViewRevenue && (
+                            <>
+                              <td className="border" style={{ ...cellStyle, width: "100px" }}>
+                                {isEditing ? (
+                                  <input
+                                    type="text"
+                                    className="form-control form-control-sm shadow-none"
+                                    style={transparentInputStyle}
+                                    value={rec.revenueBefore === "" ? "" : formatNumber(rec.revenueBefore)}
+                                    onChange={(e) => handleRecordChangeWithCalc("revenueBefore", e.target.value)}
+                                  />
+                                ) : (
+                                  <div className="text-center" style={{ fontSize: "12px" }}>{formatNumber(rec.revenueBefore || "")}</div>
+                                )}
+                              </td>
+
+                              <td className="border" style={cellStyle}>
+                                {isEditing ? (
+                                  <input
+                                    type="text"
+                                    className="form-control form-control-sm shadow-none"
+                                    style={{ ...transparentInputStyle, fontWeight: "500" }}
+                                    value={rec.walletUsage ? formatNumber(rec.walletUsage) : ""}
+                                    onChange={(e) => handleRecordChangeWithCalc("walletUsage", e.target.value)}
+                                  />
+                                ) : (
+                                  <div className="text-center" style={{ fontSize: "12px", color: rec.walletUsage ? "red" : "inherit", fontWeight: 500 }}>
+                                    {formatNumber(rec.walletUsage || 0)}
+                                  </div>
+                                )}
+                              </td>
+
+                              <td className="border" style={cellStyle}>
+                                {isEditing ? (
+                                  <select
+                                    className="form-select form-select-sm text-center shadow-none"
+                                    style={{ ...transparentInputStyle, padding: 0 }}
+                                    value={rec.discountRate || ""}
+                                    onChange={(e) => handleRecordChangeWithCalc("discountRate", e.target.value)}
+                                  >
+                                    <option value="">%</option>
+                                    <option value="5">5%</option>
+                                    <option value="10">10%</option>
+                                    <option value="12">12%</option>
+                                    <option value="15">15%</option>
+                                    <option value="17">17%</option>
+                                    <option value="20">20%</option>
+                                  </select>
+                                ) : (
+                                  <div className="text-center" style={{ fontSize: "12px" }}>{rec.discountRate ? `${rec.discountRate}%` : "--"}</div>
+                                )}
+                              </td>
+
+                              <td className="align-middle border px-2" style={{ ...cellStyle, fontSize: "12px", textAlign: "center" }}>
+                                {formatNumber(calculatedDiscountAmount)}
+                              </td>
+
+                              <td className="align-middle fw-bold border px-2 text-primary" style={{ ...cellStyle, fontSize: "12px", textAlign: "center" }}>
+                                {formatNumber(realRevenueAfter)}
+                              </td>
+
+                              {shouldRenderTotalCell && (
+                                <td
+                                  rowSpan={rowSpan}
+                                  className="text-center align-middle fw-bold border text-primary"
+                                  style={{
+                                    ...cellStyle,
+                                    backgroundColor: rec.isNew ? "#dcfce7" : (isEditing ? "#fff9c4" : "#fff"),
+                                    fontSize: "12px",
+                                    position: "relative",
+                                    zIndex: 1,
+                                    backgroundClip: "padding-box"
+                                  }}
+                                >
+                                  {formatNumber(groupTotalRevenue)}
+                                </td>
+                              )}
+                            </>
+                          )}
+
+                          <td className="text-center border p-1 align-middle" style={{ backgroundColor: "white" }}>
+                            <div className="d-flex gap-1 justify-content-center">
+                              {isEditing ? (
+                                <>
+                                  <button
+                                    className="btn btn-sm"
+                                    style={{ backgroundColor: "#2563eb", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
+                                    onClick={() => saveServiceRow(rec)}
+                                  >
+                                    <Save size={17} strokeWidth={2.3} />
+                                  </button>
+                                  <button
+                                    className="btn btn-sm"
+                                    style={{ backgroundColor: "#6b7280", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
+                                    onClick={() => cancelEditing("services", currentRowKey)}
+                                  >
+                                    <XCircle size={17} strokeWidth={2.3} />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    className="btn btn-sm"
+                                    style={{ backgroundColor: "#f59e0b", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
+                                    onClick={() => startEditing("services", currentRowKey)}
+                                  >
+                                    <Edit size={17} strokeWidth={2.3} />
+                                  </button>
+                                  <button
+                                    className="btn btn-sm"
+                                    style={{ backgroundColor: "#ef4444", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
+                                    onClick={() => deleteServiceRow(rec.id || rec.ID, rec.isNew)}
+                                  >
+                                    <Trash2 size={17} strokeWidth={2.3} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      {/* Điều chỉnh colSpan chính xác: 14 nếu có full quyền, 8 nếu chỉ là admin thường */}
+                      <td colSpan={canViewRevenue ? 14 : 8} className="text-center py-4 text-muted border">
+                        Chưa có dữ liệu dịch vụ
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <Pagination
+              current={currentPage.services}
+              total={serviceTotal}
+              pageSize={20}
+              currentLanguage={currentLanguage}
+              onChange={(page) => handlePageChange("services", page)}
+            />
+          </>
+        )}
+      </div>
+    );
+  };
   const renderRejectedTab = () => (
     <div className="table-responsive shadow-sm rounded overflow-hidden">
       <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: '12px', tableLayout: 'auto' }}>
