@@ -195,7 +195,7 @@ const DashboardList = ({
                     }}
                   >
                     <i className="bi bi-file-earmark-excel"></i>
-                    {currentLanguage === "vi" ? "Tải Danh Sách Yêu Cầu" : "Doww=nload Request List"}
+                    {currentLanguage === "vi" ? "Tải Danh Sách Yêu Cầu" : "Download Request List"}
                   </button>
                 </div>
 
