@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { showToast } from "../utils/toast";
 
-const AddRequestModal = ({ dichvuList, users, data = [], onClose, onSave, currentLanguage }) => {
+const AddRequestModal = ({ users, data = [], onClose, onSave, currentLanguage }) => {
   const [formData, setFormData] = useState({
     TenDichVu: "",
     TenHinhThuc: "",
@@ -64,6 +64,7 @@ const AddRequestModal = ({ dichvuList, users, data = [], onClose, onSave, curren
     setLoading(true);
 
     try {
+      // Dữ liệu gửi đi TenDichVu và TenHinhThuc sẽ luôn là Tiếng Việt do logic ở option value bên dưới
       const newItem = {
         ...formData,
         Gio: formData.Gio?.trim() ? formData.Gio : null,
@@ -114,40 +115,41 @@ const AddRequestModal = ({ dichvuList, users, data = [], onClose, onSave, curren
     setTimeout(() => onClose(), 200);
   };
 
-  // Các danh sách dịch vụ và hình thức
-  const serviceOptions =
-    currentLanguage === "vi"
-      ? [
-          "Chứng thực",
-          "Kết hôn",
-          "Khai sinh, khai tử",
-          "Xuất nhập cảnh",
-          "Giấy tờ tuỳ thân",
-          "Nhận nuôi",
-          "Thị thực",
-          "Tư vấn pháp lý",
-          "Dịch vụ B2B",
-          "Khác",
-        ]
-      : [
-          "Authentication",
-          "Marriage",
-          "Birth/Death Certificate",
-          "Immigration",
-          "ID Documents",
-          "Adoption",
-          "Visa",
-          "Legal Consultation",
-          "B2B Services",
-          "Other",
-        ];
+  
+  const rawServices = [
+    { vi: "Chứng thực", en: "Authentication" },
+    { vi: "Kết hôn", en: "Marriage" },
+    { vi: "Khai sinh, khai tử", en: "Birth/Death Certificate" },
+    { vi: "Xuất nhập cảnh", en: "Immigration" },
+    { vi: "Giấy tờ tuỳ thân", en: "ID Documents" },
+    { vi: "Nhận nuôi", en: "Adoption" },
+    { vi: "Thị thực", en: "Visa" },
+    { vi: "Tư vấn pháp lý", en: "Legal Consultation" },
+    { vi: "Dịch vụ B2B", en: "B2B Services" },
+    { vi: "Khác", en: "Other" },
+  ];
 
-  const formatOptions =
-    currentLanguage === "vi"
-      ? ["Trực tiếp", "Gọi điện", "Email"]
-      : ["In-person", "Phone Call", "Email"];
+  // Danh sách hình thức
+  const rawFormats = [
+    { vi: "Trực tiếp", en: "In-person" },
+    { vi: "Gọi điện", en: "Phone Call" },
+    { vi: "Email", en: "Email" },
+  ];
 
- return (
+  // Map dữ liệu để truyền vào SelectField
+  // Value: Luôn là tiếng Việt (item.vi)
+  // Label: Thay đổi theo ngôn ngữ (item.vi hoặc item.en)
+  const serviceOptions = rawServices.map(item => ({
+    value: item.vi, 
+    label: currentLanguage === "vi" ? item.vi : item.en
+  }));
+
+  const formatOptions = rawFormats.map(item => ({
+    value: item.vi,
+    label: currentLanguage === "vi" ? item.vi : item.en
+  }));
+
+  return (
     <div
       style={{
         position: "fixed",
@@ -274,7 +276,7 @@ const AddRequestModal = ({ dichvuList, users, data = [], onClose, onSave, curren
             <SelectField
               label={currentLanguage === "vi" ? "Mã vùng" : "Area Code"}
               value={formData.MaVung}
-              options={["+84", "+82"]}
+              options={["+84", "+82"]} // Giữ nguyên array string cho các trường hợp đơn giản
               onChange={(v) => handleInputChange("MaVung", v)}
             />
             <InputField
@@ -346,11 +348,9 @@ const AddRequestModal = ({ dichvuList, users, data = [], onClose, onSave, curren
   );
 };
 
-// ==========================
-// 🔸 Reusable Components
-// ==========================
+
 const InputField = ({ label, type = "text", value, onChange, placeholder }) => (
-  <div>
+  <div style={{width: "100%"}}>
     <label className="form-label small text-secondary fw-semibold">{label}</label>
     <input
       type={type}
@@ -362,8 +362,9 @@ const InputField = ({ label, type = "text", value, onChange, placeholder }) => (
   </div>
 );
 
+
 const SelectField = ({ label, value, options = [], onChange, placeholder }) => (
-  <div>
+  <div style={{width: "100%"}}>
     <label className="form-label small text-secondary fw-semibold">{label}</label>
     <select
       className="form-select form-select-sm rounded-3"
@@ -371,17 +372,23 @@ const SelectField = ({ label, value, options = [], onChange, placeholder }) => (
       onChange={(e) => onChange(e.target.value)}
     >
       {placeholder && <option value="">{placeholder}</option>}
-      {options.map((opt) => (
-        <option key={opt} value={opt}>
-          {opt}
-        </option>
-      ))}
+      {options.map((opt, index) => {
+     
+        const optionValue = typeof opt === 'object' ? opt.value : opt;
+        const optionLabel = typeof opt === 'object' ? opt.label : opt;
+        
+        return (
+          <option key={index} value={optionValue}>
+            {optionLabel}
+          </option>
+        );
+      })}
     </select>
   </div>
 );
 
 const TextAreaField = ({ label, value, onChange, placeholder }) => (
-  <div>
+  <div style={{width: "100%"}}>
     <label className="form-label small text-secondary fw-semibold">{label}</label>
     <textarea
       rows={2}
