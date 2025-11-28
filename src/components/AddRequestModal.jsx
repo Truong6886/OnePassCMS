@@ -129,16 +129,14 @@ const AddRequestModal = ({ users, data = [], onClose, onSave, currentLanguage })
     { vi: "Khác", en: "Other" },
   ];
 
-  // Danh sách hình thức
+
   const rawFormats = [
     { vi: "Trực tiếp", en: "In-person" },
     { vi: "Gọi điện", en: "Phone Call" },
     { vi: "Email", en: "Email" },
   ];
 
-  // Map dữ liệu để truyền vào SelectField
-  // Value: Luôn là tiếng Việt (item.vi)
-  // Label: Thay đổi theo ngôn ngữ (item.vi hoặc item.en)
+ 
   const serviceOptions = rawServices.map(item => ({
     value: item.vi, 
     label: currentLanguage === "vi" ? item.vi : item.en
