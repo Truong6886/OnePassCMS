@@ -34,7 +34,7 @@ const DashboardList = ({
   // --- CẤU HÌNH CỘT ---
   // Định nghĩa key cho từng cột theo đúng thứ tự hiển thị trong TableRow
   const initialColumnKeys = [
-    { key: "id", label: "#" },
+    { key: "id", label: "ID" },
     { key: "maHoSo", label: "Mã HS" },
     { key: "dichVu", label: "Dịch vụ" },
     { key: "hinhThuc", label: "Hình thức" },
