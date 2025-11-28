@@ -65,28 +65,72 @@ const DashboardSummary = ({
 
     return matchService && matchRegion && matchStatus && matchMode;
   });
-  const filteredForChart = filteredData.filter((r) => {
-    const date = new Date(r.NgayTao);
+// Thay thế hàm toVNDateString cũ bằng hàm này
+const toVNDateString = (dateInput) => {
+  if (!dateInput) return null;
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return null; // Kiểm tra ngày không hợp lệ
+
+  // Ép định dạng YYYY-MM-DD theo giờ Việt Nam
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(d);
+  } catch (error) {
+    return d.toISOString().split('T')[0]; // Fallback nếu lỗi
+  }
+};
+  // 2. Tạo danh sách ngày cho trục X (dựa trên timeRange)
+  const getLastNDays = (days) => {
+    const arr = [];
     const now = new Date();
-    const diffDays = (now - date) / (1000 * 60 * 60 * 24);
-    return diffDays <= timeRange;
+    
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now); 
+      d.setDate(d.getDate() - i);
+      arr.push(toVNDateString(d));
+    }
+    return arr;
+  };
+
+  // Lấy danh sách ngày chuẩn
+  const allDates = getLastNDays(timeRange);
+
+  // 3. Map dữ liệu vào biểu đồ
+// Thay thế đoạn code chartDataByTime cũ bằng đoạn này
+const chartDataByTime = allDates.map((dateStr) => {
+  const dayData = { date: dateStr };
+  
+  // Kiểm tra an toàn cho allServices
+  const servicesToMap = allServices && allServices.length > 0 ? allServices : [];
+
+  servicesToMap.forEach((service) => {
+    // Tìm số lượng record khớp ngày và tên dịch vụ
+    const count = filteredData.filter((r) => {
+      // 1. Kiểm tra có ngày tạo không
+      if (!r.NgayTao) return false;
+
+      // 2. Chuẩn hóa ngày (YYYY-MM-DD)
+      const rDate = toVNDateString(r.NgayTao);
+      
+      // 3. Chuẩn hóa tên dịch vụ (Quan trọng: Trim khoảng trắng thừa nếu có)
+      const rServiceRaw = translateService(r.TenDichVu);
+      const rService = rServiceRaw ? rServiceRaw.trim() : "";
+      const targetService = service ? service.trim() : "";
+
+      // 4. So sánh
+      return rDate === dateStr && rService === targetService;
+    }).length;
+
+    dayData[service] = count;
   });
-  const allDates = Array.from(
-    new Set(
-      filteredForChart.map((r) => new Date(r.NgayTao).toISOString().slice(0, 10))
-    )
-  ).sort();
-  const chartDataByTime = allDates.map((date) => {
-    const dayData = { date };
-    allServices.forEach((service) => {
-      dayData[service] = filteredForChart.filter(
-        (r) =>
-          new Date(r.NgayTao).toISOString().slice(0, 10) === date &&
-          translateService(r.TenDichVu) === service
-      ).length;
-    });
-    return dayData;
-  });
+  return dayData;
+});
+ 
+    
 
   const groupedByStatus = filteredData.reduce((acc, cur) => {
     const status = cur.TrangThai || "Không xác định";
