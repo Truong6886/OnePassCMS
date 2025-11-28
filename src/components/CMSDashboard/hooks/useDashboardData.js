@@ -199,7 +199,7 @@ const handleDelete = async (id) => {
   };
 
   const tableHeaders = [
-    "ID",
+    "#",
     "Mã hồ sơ",
     "Dịch vụ",
     "Hình thức",

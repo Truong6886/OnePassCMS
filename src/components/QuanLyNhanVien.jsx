@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
+import Swal from "sweetalert2"; // 👈 BƯỚC 2: Import SweetAlert2
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import EditProfileModal from "./EditProfileModal";
 import useDashboardData from "./CMSDashboard/hooks/useDashboardData";
 import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import translateService from "../utils/translateService";
-import { showToast } from "../utils/toast"; // Đảm bảo import này đúng đường dẫn
+import { showToast } from "../utils/toast"; 
 import useSocketListener from "./CMSDashboard/hooks/useSocketListener";
 
 export default function QuanLyNhanVien() {
@@ -130,9 +131,26 @@ export default function QuanLyNhanVien() {
     setShowUserModal(true);
   };
 
-  // Xử lý Xóa
+  // 🔄 BƯỚC 3: Xử lý Xóa bằng SweetAlert2
   const handleDelete = async (id, name) => {
-    if (!window.confirm(`Bạn có chắc muốn xóa nhân viên "${name}"?`)) return;
+    const isVietnamese = currentLanguage === "vi";
+
+    const result = await Swal.fire({
+      title: isVietnamese ? "Xác nhận Xóa" : "Confirm Deletion",
+      text: isVietnamese
+        ? `Bạn có chắc muốn xóa nhân viên ${name}. Thao tác này không thể hoàn tác.`
+        : `Are you sure you want to delete employee ${name} This action cannot be undone.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#dc3545", // Màu đỏ (danger)
+      cancelButtonColor: "#6c757d", // Màu xám (secondary)
+      confirmButtonText: isVietnamese ? "Xóa" : "Yes, delete it!",
+      cancelButtonText: isVietnamese ? "Hủy bỏ" : "Cancel",
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
 
     try {
       const res = await fetch(
@@ -141,22 +159,27 @@ export default function QuanLyNhanVien() {
           method: "DELETE",
         }
       );
-      const result = await res.json();
-      if (result.success) {
-        showToast(
-          currentLanguage === "vi" ? "Đã xóa thành công!" : "Deleted successfully!"
-        );
+      const deleteResult = await res.json();
+      if (deleteResult.success) {
+        Swal.fire({
+          title: isVietnamese ? "Thành công!" : "Deleted!",
+          text: isVietnamese ? `Nhân viên "${name}" đã bị xóa.` : `Employee "${name}" has been deleted.`,
+          icon: "success",
+          timer: 2000,
+          showConfirmButton: false,
+        });
         fetchUsers();
       } else {
-        showToast("Lỗi: " + result.message);
+        showToast((isVietnamese ? "Lỗi: " : "Error: ") + deleteResult.message);
       }
     } catch (err) {
       console.error("Lỗi xóa:", err);
       showToast(
-        currentLanguage === "vi" ? "Lỗi kết nối server" : "Connection error"
+        isVietnamese ? "Lỗi kết nối server" : "Connection error"
       );
     }
   };
+  // ------------------------------------------
 
   // Xử lý Lưu (Thêm hoặc Sửa)
   const handleSaveUser = async () => {
@@ -172,10 +195,10 @@ export default function QuanLyNhanVien() {
 
     // // ĐÃ BẬT LẠI VALIDATION EMAIL VÀ DÙNG showToast
     // if (!formData.email || !formData.email.trim()) {
-    //   showToast(
-    //     currentLanguage === "vi" ? "Vui lòng nhập Email!" : "Please enter Email!"
-    //   );
-    //   return;
+    //   showToast(
+    //     currentLanguage === "vi" ? "Vui lòng nhập Email!" : "Please enter Email!"
+    //   );
+    //   return;
     // }
     // -------------------------------
 
