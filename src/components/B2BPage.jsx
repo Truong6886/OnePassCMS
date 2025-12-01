@@ -5,7 +5,7 @@ import useSocketListener from "./CMSDashboard/hooks/useSocketListener";
 import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import EditProfileModal from "./EditProfileModal";
 import { showToast } from "../utils/toast";
-import { Save, Trash2, XCircle, Check, FileText, Edit, Eye, EyeOff } from "lucide-react";
+import { Save, Trash2, XCircle, Check, FileText, Edit, Eye, EyeOff, Plus,X} from "lucide-react";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 const MySwal = withReactContent(Swal);
@@ -100,7 +100,7 @@ const calculateServiceValues = (revenueBefore, discountRate, walletUsage) => {
 
   return { discountAmount, revenueAfter, totalRevenue: revenueAfter };
 };
-const API_BASE = "https://onepasscms-backend.onrender.com/api";
+const API_BASE = "http://localhost:5000/api";
 
 export default function B2BPage() {
   const [expandedRowId, setExpandedRowId] = useState(null);
@@ -109,11 +109,176 @@ export default function B2BPage() {
 const toggleExpand = (id) => {
   setExpandedRowId(prev => prev === id ? null : id);
 };
+  const [availableServices, setAvailableServices] = useState([]);
+  const [showAddServiceModal, setShowAddServiceModal] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
+  const [userList, setUserList] = useState([]);
   const [currentLanguage, setCurrentLanguage] = useState(localStorage.getItem("language") || "vi");
   const [loading, setLoading] = useState(false);
+  const [newServiceForm, setNewServiceForm] = useState({
+      DoanhNghiepID: "",
+      SoDKKD: "",
+      LoaiDichVu: "",
+      TenDichVu: "",
+      NgayBatDau: new Date().toISOString().split('T')[0],
+      NgayHoanThanh: "",
+      ThuTucCapToc: "No", 
+      YeuCauHoaDon: "No", 
+      DoanhThu: "", 
+      Vi: "",      
+      GhiChu: "",
+      NguoiPhuTrachId: "",
+      ConfirmPassword: "" 
+  })
+    useEffect(() => {
+    fetchUsers();
+  }, []);
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/User`);
+      const json = await res.json();
+      if (json.success) setUserList(json.data);
+    } catch (e) { console.error("Lỗi lấy user list", e); }
+  };
 
+  // Hàm mở Modal và Reset form
+ const handleOpenAddServiceModal = () => {
+    setNewServiceForm({
+      DoanhNghiepID: "",
+      SoDKKD: "",
+      LoaiDichVu: "",
+      TenDichVu: "",
+      NgayBatDau: new Date().toISOString().split('T')[0],
+      NgayHoanThanh: "",
+      ThuTucCapToc: "",
+      YeuCauHoaDon: "",
+      DoanhThu: "",
+      GhiChu: "",
+      NguoiPhuTrachId: "",
+      ConfirmPassword: ""
+    });
+    setAvailableServices([]); // Reset dịch vụ
+    setShowAddServiceModal(true);
+  };
+
+const handleModalChange = (e) => {
+    const { name, value } = e.target;
+    
+    if (name === "DoanhNghiepID") {
+      // Giữ nguyên logic xử lý khi chọn doanh nghiệp
+      const selectedCompany = approvedList.find(c => String(c.ID) === String(value));
+      let services = [];
+      if (selectedCompany) {
+        if (selectedCompany.DichVu) services.push(...selectedCompany.DichVu.split(',').map(s => s.trim()));
+        if (selectedCompany.DichVuKhac) services.push(...selectedCompany.DichVuKhac.split(',').map(s => s.trim()));
+      }
+      const uniqueServices = [...new Set(services)].filter(Boolean);
+      setAvailableServices(uniqueServices);
+
+      setNewServiceForm(prev => ({
+        ...prev,
+        [name]: value,
+        SoDKKD: selectedCompany ? selectedCompany.SoDKKD : "",
+        LoaiDichVu: "" 
+      }));
+    } 
+    // --- BỔ SUNG ĐOẠN NÀY: Format số cho cả DoanhThu và Vi ---
+    else if (name === "DoanhThu" || name === "Vi") {
+      // Hàm unformatNumber và formatNumber đã có sẵn trong file của bạn
+      const rawValue = unformatNumber(value);
+      if (!isNaN(rawValue)) {
+         setNewServiceForm(prev => ({ ...prev, [name]: formatNumber(rawValue) }));
+      }
+    } 
+    // Các trường text bình thường
+    else {
+      setNewServiceForm(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+
+const handleModalSubmit = async () => {
+    // 1. Validate cơ bản
+    if (!newServiceForm.DoanhNghiepID || !newServiceForm.LoaiDichVu) {
+      return showToast("Vui lòng điền các trường bắt buộc (*)", "warning");
+    }
+    
+    // [NEW] Bắt buộc nhập mật khẩu xác nhận
+    if (!newServiceForm.ConfirmPassword) {
+      return showToast("Vui lòng nhập mật khẩu xác nhận của bạn để duyệt!", "warning");
+    }
+
+    try {
+      setLoading(true);
+
+      // 2. [NEW] Gọi API Login để xác thực mật khẩu người dùng hiện tại
+      const verifyRes = await fetch(`${API_BASE}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: currentUser.username, 
+          password: newServiceForm.ConfirmPassword 
+        })
+      });
+
+      const verifyJson = await verifyRes.json();
+      if (!verifyJson.success) {
+        setLoading(false);
+        return showToast("Mật khẩu xác nhận không chính xác!", "error");
+      }
+
+      // 3. Chuẩn bị dữ liệu
+      const isFinance = currentUser?.is_director || currentUser?.is_accountant;
+      const rawDoanhThu = isFinance && newServiceForm.DoanhThu ? parseFloat(unformatNumber(newServiceForm.DoanhThu)) : 0;
+      const rawVi = isFinance && newServiceForm.Vi ? parseFloat(unformatNumber(newServiceForm.Vi)) : 0;
+
+      const payload = {
+        DoanhNghiepID: newServiceForm.DoanhNghiepID,
+        LoaiDichVu: newServiceForm.LoaiDichVu,
+        TenDichVu: newServiceForm.TenDichVu || "",
+        NgayThucHien: newServiceForm.NgayBatDau,
+        NgayHoanThanh: newServiceForm.NgayHoanThanh || null,
+        ThuTucCapToc: newServiceForm.ThuTucCapToc, 
+        YeuCauHoaDon: newServiceForm.YeuCauHoaDon,
+        GhiChu: newServiceForm.GhiChu || "",
+        NguoiPhuTrachId: newServiceForm.NguoiPhuTrachId,
+        DoanhThuTruocChietKhau: rawDoanhThu,
+        Vi: rawVi, 
+        MaDichVu: "" // Gửi rỗng để Backend tự sinh mã
+      };
+
+      // 4. Gọi API tạo dịch vụ
+      const res = await fetch(`${API_BASE}/b2b/services`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const json = await res.json();
+      
+      if (json.success) {
+        // [NEW] Hiển thị mã dịch vụ vừa sinh ra
+        const newCode = json.data?.ServiceID || "Đã sinh mã";
+        await MySwal.fire({
+          icon: 'success',
+          title: 'Duyệt thành công!',
+          text: `Dịch vụ đã được tạo với mã: ${newCode}`,
+          confirmButtonColor: '#22c55e'
+        });
+
+        setShowAddServiceModal(false);
+        loadServices(1); 
+      } else {
+        showToast(json.message, "error");
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("Lỗi kết nối server", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
   const [pendingList, setPendingList] = useState([]);
   const [approvedList, setApprovedList] = useState([]);
 
@@ -137,7 +302,7 @@ const toggleExpand = (id) => {
   const [currentPage, setCurrentPage] = useState({
     pending: 1, approved: 1, rejected: 1, services: 1
   });
-
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [hasNewRequest, setHasNewRequest] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotification, setShowNotification] = useState(false);
@@ -516,20 +681,20 @@ const handleRecordChange = (uiId, field, value) => {
   }));
 };
 
-  const handleAddNewRow = () => {
-    const newId = Date.now();
-    const uiId = `new_${newId}`; 
-    const newRecord = {
-      id: newId, 
-      uiId: uiId,
-      companyId: "", serviceType: "", serviceName: "", code: "", startDate: "", endDate: "",
-      revenueBefore: "", discountRate: "0", discountAmount: "0", revenueAfter: "0", totalRevenue: "0",walletUsage: "",
-      isNew: true
-    };
-    setServiceData(prev => [...prev, newRecord]);
-    setServiceTotal(prev => prev + 1);
-    startEditing("services", uiId);
-  };
+
+  //   const newId = Date.now();
+  //   const uiId = `new_${newId}`; 
+  //   const newRecord = {
+  //     id: newId, 
+  //     uiId: uiId,
+  //     companyId: "", serviceType: "", serviceName: "", code: "", startDate: "", endDate: "",
+  //     revenueBefore: "", discountRate: "0", discountAmount: "0", revenueAfter: "0", totalRevenue: "0",walletUsage: "",
+  //     isNew: true
+  //   };
+  //   setServiceData(prev => [...prev, newRecord]);
+  //   setServiceTotal(prev => prev + 1);
+  //   startEditing("services", uiId);
+  // };
 
   const saveServiceRow = async (rec) => {
     if (!rec.companyId) return showToast("Chọn doanh nghiệp!", "warning");
@@ -678,12 +843,15 @@ const renderServicesTab = () => {
     return (
       <div>
         <div className="d-flex justify-content-end mb-2" style={{ height: 40, marginRight: 10 }}>
+          {/* SỬA NÚT NÀY: Gọi handleOpenAddServiceModal thay vì handleAddNewRow */}
           <button
-            className="btn btn-primary btn-sm"
-            onClick={handleAddNewRow}
-            style={{ fontSize: "12px" }}
+            className="btn btn-success btn-sm d-flex align-items-center gap-2 shadow-sm"
+            onClick={handleOpenAddServiceModal} 
+            style={{ fontSize: "13px", fontWeight: "600" }}
           >
-            {t.addServiceBtn}
+            {/* Nhớ import { Plus } from "lucide-react" ở đầu file */}
+            <Plus size={16} /> 
+            Đăng ký dịch vụ mới
           </button>
         </div>
 
@@ -1108,6 +1276,7 @@ const renderServicesTab = () => {
       </div>
     );
   };
+  
   const renderRejectedTab = () => (
     <div className="table-responsive shadow-sm rounded overflow-hidden">
       <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: '12px', tableLayout: 'auto' }}>
@@ -1332,6 +1501,174 @@ const renderPendingApprovedTab = () => {
         </div>
         <div className="px-4 pb-5">{renderTabContent()}</div>
       </div>
+    
+      {showAddServiceModal && (
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1050 }}>
+          <div className="bg-white rounded shadow-lg p-4" style={{ width: "650px", maxWidth: "90%", maxHeight: "90vh", overflowY: "auto" }}>
+            
+            {/* Header Modal */}
+            <div className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+              <h5 className="fw-bold m-0 text-center flex-grow-1" style={{ color: "#333" }}>Đăng ký dịch vụ mới (B2B)</h5>
+              <button className="btn btn-sm btn-light rounded-circle" onClick={() => setShowAddServiceModal(false)}>
+                 <X size={20} />
+              </button>
+            </div>
+            
+            <div className="text-center text-muted small mb-4">Hệ thống quản lý dịch vụ của One Pass</div>
+
+            <div className="row g-3">
+              {/* Doanh nghiệp & Số ĐKKD */}
+              <div className="col-md-6">
+                <label className="form-label small fw-bold text-dark">Tên doanh nghiệp <span className="text-danger">*</span></label>
+                <select className="form-select form-select-sm" name="DoanhNghiepID" value={newServiceForm.DoanhNghiepID} onChange={handleModalChange}>
+                  <option value="">-- Chọn doanh nghiệp --</option>
+                  {approvedList.map(c => <option key={c.ID} value={c.ID}>{c.TenDoanhNghiep}</option>)}
+                </select>
+              </div>
+              <div className="col-md-6">
+                <label className="form-label small fw-bold text-dark">Số đăng ký kinh doanh <span className="text-danger">*</span></label>
+                <input type="text" className="form-control form-control-sm bg-light" value={newServiceForm.SoDKKD} readOnly />
+              </div>
+
+              {/* Loại dịch vụ (Dropdown từ danh sách cty) */}
+              <div className="col-md-6">
+                <label className="form-label small fw-bold text-dark">Loại dịch vụ <span className="text-danger">*</span></label>
+                <select 
+                  className="form-select form-select-sm" 
+                  name="LoaiDichVu" 
+                  value={newServiceForm.LoaiDichVu} 
+                  onChange={handleModalChange}
+                  disabled={!newServiceForm.DoanhNghiepID} // Disable nếu chưa chọn Cty
+                >
+                  <option value="">-- Chọn loại dịch vụ --</option>
+                  {availableServices.map((svc, idx) => (
+                    <option key={idx} value={svc}>{svc}</option>
+                  ))}
+                  <option value="Khác">Khác</option>
+                </select>
+              </div>
+
+              <div className="col-md-6">
+                <label className="form-label small fw-bold text-dark">Tên dịch vụ chi tiết <span className="text-danger">*</span></label>
+                <input type="text" className="form-control form-control-sm" name="TenDichVu" placeholder="Cấp lại hộ chiếu..." value={newServiceForm.TenDichVu} onChange={handleModalChange} />
+              </div>
+
+              {/* Ngày tháng */}
+              <div className="col-md-6">
+                <label className="form-label small fw-bold text-dark">Ngày bắt đầu <span className="text-danger">*</span></label>
+                <input type="date" className="form-control form-control-sm" name="NgayBatDau" value={newServiceForm.NgayBatDau} onChange={handleModalChange} />
+              </div>
+              <div className="col-md-6">
+                <label className="form-label small fw-bold text-dark">Ngày hoàn thành mong muốn <span className="text-danger">*</span></label>
+                <input type="text" className="form-control form-control-sm" name="NgayHoanThanh" placeholder="2025" value={newServiceForm.NgayHoanThanh} onChange={handleModalChange} />
+                <div className="form-text text-primary fst-italic" style={{fontSize: '10px'}}>Ngày hoàn thành có thể sai khác tùy thuộc vào hồ sơ.</div>
+              </div>
+
+              {/* Lựa chọn Yes/No */}
+              <div className="col-md-6">
+                <label className="form-label small fw-bold text-dark">Yêu cầu thủ tục cấp tốc <span className="text-danger">*</span></label>
+                <div className="btn-group w-100" role="group">
+                  <input type="radio" className="btn-check" name="ThuTucCapToc" id="capTocYes" value="Yes" checked={newServiceForm.ThuTucCapToc === "Yes"} onChange={handleModalChange} />
+                  <label className="btn btn-outline-secondary btn-sm" htmlFor="capTocYes">Yes</label>
+
+                  <input type="radio" className="btn-check" name="ThuTucCapToc" id="capTocNo" value="No" checked={newServiceForm.ThuTucCapToc === "No"} onChange={handleModalChange} />
+                  <label className="btn btn-outline-secondary btn-sm" htmlFor="capTocNo">No</label>
+                </div>
+                <div className="form-text text-primary fst-italic" style={{fontSize: '10px'}}>Thời gian cấp tốc sẽ được hướng dẫn qua người phụ trách</div>
+              </div>
+
+              <div className="col-md-6">
+                <label className="form-label small fw-bold text-dark">Yêu cầu xuất hóa đơn <span className="text-danger">*</span></label>
+                 <div className="btn-group w-100" role="group">
+                  <input type="radio" className="btn-check" name="YeuCauHoaDon" id="hdYes" value="Yes" checked={newServiceForm.YeuCauHoaDon === "Yes"} onChange={handleModalChange} />
+                  <label className="btn btn-outline-secondary btn-sm" htmlFor="hdYes">Yes</label>
+
+                  <input type="radio" className="btn-check" name="YeuCauHoaDon" id="hdNo" value="No" checked={newServiceForm.YeuCauHoaDon === "No"} onChange={handleModalChange} />
+                  <label className="btn btn-outline-secondary btn-sm" htmlFor="hdNo">No</label>
+                </div>
+                <div className="form-text text-primary fst-italic" style={{fontSize: '10px'}}>Hóa đơn sẽ gửi về email khi đăng ký</div>
+              </div>
+
+              {/* Doanh thu (Chỉ hiện với GĐ/KT) */}
+              {(currentUser?.is_director || currentUser?.is_accountant) && (
+                <>
+                  <div className="col-md-6">
+                    <label className="form-label small fw-bold text-dark">Doanh thu (VND)</label>
+                    <input 
+                      type="text" 
+                      className="form-control form-control-sm" 
+                      name="DoanhThu" 
+                      value={newServiceForm.DoanhThu} 
+                      onChange={handleModalChange} 
+                      placeholder="0" 
+                    />
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label small fw-bold text-dark">Trừ ví (VND)</label>
+                    <input 
+                      type="text" 
+                      className="form-control form-control-sm" 
+                      name="Vi" 
+                      value={newServiceForm.Vi} 
+                      onChange={handleModalChange} 
+                      placeholder="0" 
+                    />
+                  </div>
+                </>
+              )}
+              
+             <div className="col-12">
+                 <label className="form-label small fw-bold text-dark">Ghi chú <span className="text-danger">*</span></label>
+                 <input type="text" className="form-control form-control-sm" name="GhiChu" placeholder="Chiết khấu..." value={newServiceForm.GhiChu} onChange={handleModalChange} />
+              </div>
+
+              {/* Người phụ trách */}
+              <div className="col-12">
+                <label className="form-label small fw-bold text-dark">Chọn người phụ trách <span className="text-danger">*</span></label>
+                <select className="form-select form-select-sm" name="NguoiPhuTrachId" value={newServiceForm.NguoiPhuTrachId} onChange={handleModalChange}>
+                  <option value="">Chọn trong danh sách nhân viên</option>
+                  {userList.map(u => <option key={u.id} value={u.id}>{u.name} ({u.username})</option>)}
+                </select>
+              </div>
+
+              {/* Mật khẩu xác nhận (Đã sửa cho phép nhập) */}
+              <div className="col-12">
+                 <label className="form-label small fw-bold text-dark">Nhập mật khẩu để đăng ký <span className="text-danger">*</span></label>
+                 <div className="input-group input-group-sm">
+                    <input 
+                      type={showConfirmPassword ? "text" : "password"} 
+                      className="form-control" 
+                      placeholder="Nhập mật khẩu admin hiện tại..." 
+                      name="ConfirmPassword"
+                      value={newServiceForm.ConfirmPassword}
+                      onChange={handleModalChange}
+                      autoComplete="new-password"
+                    />
+                    <span 
+                      className="input-group-text bg-white" 
+                      style={{cursor: "pointer"}}
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      {showConfirmPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
+                    </span>
+                 </div>
+                 <div className="form-text text-primary fst-italic" style={{fontSize: '10px'}}>
+                   Nhập mật khẩu tài khoản hiện tại ({currentUser?.username}) để xác nhận.
+                 </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="col-12 mt-4">
+                <button className="btn btn-success w-100 fw-bold shadow-sm" onClick={handleModalSubmit}>
+                  Đăng ký dịch vụ mới
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+    
   );
 }
