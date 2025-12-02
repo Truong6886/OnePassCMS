@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import logo from "../assets/logo.png";
 import { useNavigate, useLocation } from "react-router-dom";
-import { List, Search, DollarSign } from "lucide-react";
+import { List, Search, DollarSign, UserRound} from "lucide-react";
 import { Handshake } from 'lucide-react';
 export default function Sidebar({ collapsed = false, user }) {
   const [hoveredItem, setHoveredItem] = useState(null);
@@ -41,7 +41,8 @@ useEffect(() => {
     hoso: { vi: "Tra Cứu Hồ Sơ", en: "Record Lookup" },
     nhanvien: { vi: "Quản Lý Nhân Viên", en: "Employee Management" },
     doanhthu: { vi: "Doanh Thu", en: "Revenue" },
-    b2b: {vi:"Quản lý B2B", en: "B2B Management"}
+    b2b: {vi:"Quản lý B2B", en: "B2B Management"},
+    b2c: {vi:"Quản lý B2C", en: "B2C Management"},
   };
 
   const sidebarStyle = {
@@ -82,6 +83,7 @@ useEffect(() => {
       (key === "list" && currentPath === "/") ||
       (key === "hoso" && currentPath.startsWith("/hoso")) ||
       (key === "B2B" && currentPath.startsWith("/B2B")) ||
+      (key === "B2C" && currentPath.startsWith("/B2C")) ||
       (key === "nhanvien" && currentPath.startsWith("/nhanvien")) ||
       (key === "doanhthu" && currentPath.startsWith("/doanhthu"));
 
@@ -187,6 +189,17 @@ useEffect(() => {
                 {!collapsed && <span>{texts.b2b[currentLanguage]}</span>}
             </li>
           )}
+              {(user?.is_admin ||user?.is_accountant|| user?.is_director) && (
+                <li
+                  style={getItemStyle("B2C")}
+                  onMouseEnter={() => setHoveredItem("B2C")}
+                  onMouseLeave={() => setHoveredItem(null)}
+                  onClick={() => navigate("/B2C")}
+                >
+                    <UserRound  style={{ fontSize: 20 }} />
+                    {!collapsed && <span>{texts.b2c[currentLanguage]}</span>}
+                </li>
+              )}
 
         </ul>
       </div>

@@ -5,7 +5,7 @@ import useSocketListener from "./CMSDashboard/hooks/useSocketListener";
 import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import EditProfileModal from "./EditProfileModal";
 import { showToast } from "../utils/toast";
-import { Save, Trash2, XCircle, Check, FileText, Edit, Eye, EyeOff, Plus,X} from "lucide-react";
+import { Save, Trash2, XCircle, Check, FileText, Edit, Eye, EyeOff, Plus, X, ChevronDown } from "lucide-react";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 const MySwal = withReactContent(Swal);
@@ -84,31 +84,14 @@ const formatDateTimeReject = (isoString) => {
 const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
 const unformatNumber = (value) => (value ? value.toString().replace(/\./g, "") : "");
 
-const calculateServiceValues = (revenueBefore, discountRate, walletUsage) => {
-  const revenue = parseFloat(revenueBefore) || 0;
-  const rate = parseFloat(discountRate) || 0;
-  const wallet = parseFloat(walletUsage) || 0;
-
-  const discountAmount = Math.round((revenue * rate) / 100);
-  
-
-  const revenueAfterDiscount = revenue - discountAmount;
-  let revenueAfter = Math.round(revenueAfterDiscount - wallet);
-
-
-  if (revenueAfter < 0) revenueAfter = 0;
-
-  return { discountAmount, revenueAfter, totalRevenue: revenueAfter };
-};
 const API_BASE = "http://localhost:5000/api";
 
 export default function B2BPage() {
   const [expandedRowId, setExpandedRowId] = useState(null);
 
-
-const toggleExpand = (id) => {
-  setExpandedRowId(prev => prev === id ? null : id);
-};
+  const toggleExpand = (id) => {
+    setExpandedRowId(prev => prev === id ? null : id);
+  };
   const [availableServices, setAvailableServices] = useState([]);
   const [showAddServiceModal, setShowAddServiceModal] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
@@ -116,24 +99,29 @@ const toggleExpand = (id) => {
   const [userList, setUserList] = useState([]);
   const [currentLanguage, setCurrentLanguage] = useState(localStorage.getItem("language") || "vi");
   const [loading, setLoading] = useState(false);
+  
+  // State form
   const [newServiceForm, setNewServiceForm] = useState({
-      DoanhNghiepID: "",
-      SoDKKD: "",
-      LoaiDichVu: "",
-      TenDichVu: "",
-      NgayBatDau: new Date().toISOString().split('T')[0],
-      NgayHoanThanh: "",
-      ThuTucCapToc: "No", 
-      YeuCauHoaDon: "No", 
-      DoanhThu: "", 
-      Vi: "",      
-      GhiChu: "",
-      NguoiPhuTrachId: "",
-      ConfirmPassword: "" 
-  })
-    useEffect(() => {
+    id: null,
+    DoanhNghiepID: "",
+    SoDKKD: "",
+    LoaiDichVu: "",
+    TenDichVu: "",
+    NgayBatDau: new Date().toISOString().split('T')[0],
+    NgayHoanThanh: "",
+    ThuTucCapToc: "No",
+    YeuCauHoaDon: "No",
+    DoanhThu: "",
+    Vi: "",
+    GhiChu: "",
+    NguoiPhuTrachId: "",
+    ConfirmPassword: ""
+  });
+
+  useEffect(() => {
     fetchUsers();
   }, []);
+
   const fetchUsers = async () => {
     try {
       const res = await fetch(`${API_BASE}/User`);
@@ -142,31 +130,97 @@ const toggleExpand = (id) => {
     } catch (e) { console.error("Lỗi lấy user list", e); }
   };
 
-  // Hàm mở Modal và Reset form
- const handleOpenAddServiceModal = () => {
+  // Mở modal để duyệt (khi chưa có mã)
+  const handleOpenApproveModal = (rec) => {
+    const company = approvedList.find(c => String(c.ID) === String(rec.companyId || rec.DoanhNghiepID));
+    
     setNewServiceForm({
+      id: rec.ID || rec.id, 
+      DoanhNghiepID: rec.companyId || rec.DoanhNghiepID,
+      SoDKKD: company ? company.SoDKKD : "",
+      LoaiDichVu: rec.serviceType || rec.LoaiDichVu,
+      TenDichVu: rec.serviceName || rec.TenDichVu,
+      NgayBatDau: rec.startDate ? rec.startDate.split('T')[0] : new Date().toISOString().split('T')[0],
+      NgayHoanThanh: rec.endDate ? rec.endDate.split('T')[0] : "",
+      ThuTucCapToc: (rec.package === "Cấp tốc" || rec.package === "Yes") ? "Yes" : "No",
+      YeuCauHoaDon: rec.invoiceYN || "No",
+      DoanhThu: rec.revenueBefore ? formatNumber(rec.revenueBefore) : "",
+      Vi: rec.walletUsage ? formatNumber(rec.walletUsage) : "",
+      GhiChu: rec.GhiChu || "",
+      NguoiPhuTrachId: rec.NguoiPhuTrachId || "",
+      ConfirmPassword: "" 
+    });
+    
+    if (company) {
+      let services = [];
+      if (company.DichVu) services.push(...company.DichVu.split(',').map(s => s.trim()));
+      if (company.DichVuKhac) services.push(...company.DichVuKhac.split(',').map(s => s.trim()));
+      setAvailableServices([...new Set(services)].filter(Boolean));
+    }
+
+    setShowAddServiceModal(true);
+  };
+
+  // Mở modal để chỉnh sửa (Nút Edit - Pencil)
+  const handleEditService = (rec) => {
+    // Tìm doanh nghiệp để lấy số ĐKKD và danh sách dịch vụ
+    const company = approvedList.find(c => String(c.ID) === String(rec.companyId));
+    
+    setNewServiceForm({
+      id: rec.id, // ID dịch vụ để update
+      DoanhNghiepID: rec.companyId,
+      SoDKKD: company ? company.SoDKKD : (rec.soDKKD || ""),
+      LoaiDichVu: rec.serviceType,
+      TenDichVu: rec.serviceName,
+      NgayBatDau: rec.startDate ? rec.startDate : "",
+      NgayHoanThanh: rec.endDate ? rec.endDate : "",
+      ThuTucCapToc: (rec.package === "Cấp tốc" || rec.package === "Yes") ? "Yes" : "No",
+      YeuCauHoaDon: rec.invoiceYN || "No",
+      DoanhThu: rec.revenueBefore ? formatNumber(rec.revenueBefore) : "",
+      Vi: rec.walletUsage ? formatNumber(rec.walletUsage) : "",
+      GhiChu: rec.GhiChu || "", 
+      NguoiPhuTrachId: rec.picId || "",
+      ConfirmPassword: "" 
+    });
+
+    // Populate dropdown loại dịch vụ
+    if (company) {
+      let services = [];
+      if (company.DichVu) services.push(...company.DichVu.split(',').map(s => s.trim()));
+      if (company.DichVuKhac) services.push(...company.DichVuKhac.split(',').map(s => s.trim()));
+      setAvailableServices([...new Set(services)].filter(Boolean));
+    } else {
+        setAvailableServices([]);
+    }
+
+    setShowAddServiceModal(true);
+  };
+
+  const handleOpenAddServiceModal = () => {
+    setNewServiceForm({
+      id: null, // Không có ID => Tạo mới
       DoanhNghiepID: "",
       SoDKKD: "",
       LoaiDichVu: "",
       TenDichVu: "",
       NgayBatDau: new Date().toISOString().split('T')[0],
       NgayHoanThanh: "",
-      ThuTucCapToc: "",
-      YeuCauHoaDon: "",
+      ThuTucCapToc: "No",
+      YeuCauHoaDon: "No",
       DoanhThu: "",
+      Vi: "",
       GhiChu: "",
       NguoiPhuTrachId: "",
       ConfirmPassword: ""
     });
-    setAvailableServices([]); // Reset dịch vụ
+    setAvailableServices([]);
     setShowAddServiceModal(true);
   };
 
-const handleModalChange = (e) => {
+  const handleModalChange = (e) => {
     const { name, value } = e.target;
     
     if (name === "DoanhNghiepID") {
-      // Giữ nguyên logic xử lý khi chọn doanh nghiệp
       const selectedCompany = approvedList.find(c => String(c.ID) === String(value));
       let services = [];
       if (selectedCompany) {
@@ -183,42 +237,35 @@ const handleModalChange = (e) => {
         LoaiDichVu: "" 
       }));
     } 
-    // --- BỔ SUNG ĐOẠN NÀY: Format số cho cả DoanhThu và Vi ---
     else if (name === "DoanhThu" || name === "Vi") {
-      // Hàm unformatNumber và formatNumber đã có sẵn trong file của bạn
       const rawValue = unformatNumber(value);
       if (!isNaN(rawValue)) {
          setNewServiceForm(prev => ({ ...prev, [name]: formatNumber(rawValue) }));
       }
     } 
-    // Các trường text bình thường
     else {
       setNewServiceForm(prev => ({ ...prev, [name]: value }));
     }
   };
 
 
-const handleModalSubmit = async () => {
-    // 1. Validate cơ bản
+  const handleModalSubmit = async () => {
     if (!newServiceForm.DoanhNghiepID || !newServiceForm.LoaiDichVu) {
-      return showToast("Vui lòng điền các trường bắt buộc (*)", "warning");
+      return showToast("Vui lòng chọn Doanh nghiệp và Loại dịch vụ", "warning");
     }
-    
-    // [NEW] Bắt buộc nhập mật khẩu xác nhận
     if (!newServiceForm.ConfirmPassword) {
-      return showToast("Vui lòng nhập mật khẩu xác nhận của bạn để duyệt!", "warning");
+      return showToast("Vui lòng nhập mật khẩu của bạn để duyệt!", "warning");
     }
 
     try {
       setLoading(true);
 
-      // 2. [NEW] Gọi API Login để xác thực mật khẩu người dùng hiện tại
       const verifyRes = await fetch(`${API_BASE}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username: currentUser.username, 
-          password: newServiceForm.ConfirmPassword 
+          username: currentUser.username,
+          password: newServiceForm.ConfirmPassword
         })
       });
 
@@ -228,7 +275,6 @@ const handleModalSubmit = async () => {
         return showToast("Mật khẩu xác nhận không chính xác!", "error");
       }
 
-      // 3. Chuẩn bị dữ liệu
       const isFinance = currentUser?.is_director || currentUser?.is_accountant;
       const rawDoanhThu = isFinance && newServiceForm.DoanhThu ? parseFloat(unformatNumber(newServiceForm.DoanhThu)) : 0;
       const rawVi = isFinance && newServiceForm.Vi ? parseFloat(unformatNumber(newServiceForm.Vi)) : 0;
@@ -245,12 +291,19 @@ const handleModalSubmit = async () => {
         NguoiPhuTrachId: newServiceForm.NguoiPhuTrachId,
         DoanhThuTruocChietKhau: rawDoanhThu,
         Vi: rawVi, 
-        MaDichVu: "" // Gửi rỗng để Backend tự sinh mã
+        MaDichVu: "" 
       };
 
-      // 4. Gọi API tạo dịch vụ
-      const res = await fetch(`${API_BASE}/b2b/services`, {
-        method: "POST",
+      let url = `${API_BASE}/b2b/services`;
+      let method = "POST";
+
+      if (newServiceForm.id) {
+        url = `${API_BASE}/b2b/services/update/${newServiceForm.id}`;
+        method = "PUT";
+      }
+
+      const res = await fetch(url, {
+        method: method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
@@ -258,17 +311,18 @@ const handleModalSubmit = async () => {
       const json = await res.json();
       
       if (json.success) {
-        // [NEW] Hiển thị mã dịch vụ vừa sinh ra
-        const newCode = json.data?.ServiceID || "Đã sinh mã";
+        const newCode = json.data?.ServiceID || json.newCode;
+        const actionText = newServiceForm.id ? "Duyệt/Cập nhật" : "Đăng ký";
+        
         await MySwal.fire({
           icon: 'success',
-          title: 'Duyệt thành công!',
-          text: `Dịch vụ đã được tạo với mã: ${newCode}`,
+          title: `${actionText} thành công!`,
+          html: `Dịch vụ đã được lưu.<br/>Mã hệ thống: <b>${newCode}</b>`,
           confirmButtonColor: '#22c55e'
         });
 
         setShowAddServiceModal(false);
-        loadServices(1); 
+        loadServices(currentPage.services || 1); 
       } else {
         showToast(json.message, "error");
       }
@@ -279,23 +333,18 @@ const handleModalSubmit = async () => {
       setLoading(false);
     }
   };
+
   const [pendingList, setPendingList] = useState([]);
   const [approvedList, setApprovedList] = useState([]);
-
   const [rejectedList, setRejectedList] = useState([]);
-
   const [activeTab, setActiveTab] = useState("pending");
   const [searchTerm, setSearchTerm] = useState("");
-
   const [pendingData, setPendingData] = useState([]);
   const [pendingTotal, setPendingTotal] = useState(0);
-
   const [approvedData, setApprovedData] = useState([]);
   const [approvedTotal, setApprovedTotal] = useState(0);
-
   const [rejectedData, setRejectedData] = useState([]);
   const [rejectedTotal, setRejectedTotal] = useState(0);
-
   const [serviceData, setServiceData] = useState([]);
   const [serviceTotal, setServiceTotal] = useState(0);
 
@@ -308,81 +357,81 @@ const handleModalSubmit = async () => {
   const [showNotification, setShowNotification] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
+  // Vẫn giữ editingRows cho pending/approved
   const [editingRows, setEditingRows] = useState({
     pending: {}, approved: {}, services: {}
   });
 
-const translations = {
-  vi: {
-    pendingTab: "Danh sách chờ duyệt",
-    approvedTab: "Danh sách đã duyệt",
-    rejectedTab: "Danh sách từ chối",
-    servicesTab: "Danh sách dịch vụ",
-    addServiceBtn: "+ Thêm dịch vụ",
-    stt: "STT",
-    tenDN: "Tên Doanh Nghiệp",
-    soDKKD: "Số ĐKKD",
-    nguoiDaiDien: "Người Đại Diện Pháp Luật",
-    ngayDangKy: "Ngày Đăng Ký",
-    tongDoanhThu: "Tổng Doanh Thu",
-    lyDoTuChoi: "Lý do từ chối",
-    dichVu: "Dịch Vụ",
-    giayPhep: "Giấy Phép ĐKKD",
-    email: "Email",
-    soDienThoai: "Số Điện Thoai",
-    nganhNgheChinh: "Ngành Nghề Chính",
-    diaChi: "Địa Chỉ",
-    chonDN: "Chọn Doanh Nghiệp",
-    loaiDichVu: "Loại Dịch Vụ",
-    tenDichVu: "Tên Dịch Vụ",
-    maDichVu: "Mã Dịch Vụ",
-    ngayBatDau: "Ngày Bắt Đầu",
-    ngayKetThuc: "Ngày Kết Thúc",
-    doanhThuTruoc: "Doanh Thu Trước Chiết Khấu",
-    mucChietKhau: "Mức Chiết Khấu",
-    soTienChietKhau: "Số Tiền Chiết Khấu",
-    doanhThuSau: "Doanh Thu Sau Chiết Khấu",
-    tongDoanhThuTichLuy: "Tổng Doanh Thu",
-    suDungVi: "Sử dụng ví",
-    hanhDong: "Hành động",
-    msgWalletLimit: "Số tiền ví không được quá 2.000.000"
-  },
-  en: {
-    pendingTab: "Pending List",
-    approvedTab: "Approved List",
-    rejectedTab: "Rejected List",
-    servicesTab: "Services List",
-    addServiceBtn: "+ Add Service",
-    stt: "No.",
-    tenDN: "Company Name",
-    soDKKD: "Business Reg. No.",
-    nguoiDaiDien: "Legal Representative",
-    email: "Email",
-    soDienThoai: "Phone Number",
-    ngayDangKy: "Registration Date",
-    tongDoanhThu: "Total Revenue",
-    lyDoTuChoi: "Rejection Reason",
-    dichVu: "Services",
-    giayPhep: "Business License",
-    nganhNgheChinh: "Main Business Lines",
-    diaChi: "Address",
-    chonDN: "Select Company",
-    loaiDichVu: "Service Type",
-    tenDichVu: "Service Name",
-    maDichVu: "Service ID",
-    ngayBatDau: "Start Date",
-    ngayKetThuc: "End Date",
-    doanhThuTruoc: "Revenue Before Discount",
-    mucChietKhau: "Discount Rate",
-    soTienChietKhau: "Discount Amount",
-    doanhThuSau: "Revenue After Discount",
-    tongDoanhThuTichLuy: "Total Revenue",
-    suDungVi: "Wallet Usage",
-    hanhDong: "Actions",
-    msgWalletLimit: "Wallet usage cannot exceed 2,000,000"
-  }
-};
-
+  const translations = {
+    vi: {
+      pendingTab: "Danh sách chờ duyệt",
+      approvedTab: "Danh sách đã duyệt",
+      rejectedTab: "Danh sách từ chối",
+      servicesTab: "Danh sách dịch vụ",
+      addServiceBtn: "+ Thêm dịch vụ",
+      stt: "STT",
+      tenDN: "Tên Doanh Nghiệp",
+      soDKKD: "Số ĐKKD",
+      nguoiDaiDien: "Người Đại Diện Pháp Luật",
+      ngayDangKy: "Ngày Đăng Ký",
+      tongDoanhThu: "Tổng Doanh Thu",
+      lyDoTuChoi: "Lý do từ chối",
+      dichVu: "Dịch Vụ",
+      giayPhep: "Giấy Phép ĐKKD",
+      email: "Email",
+      soDienThoai: "Số Điện Thoai",
+      nganhNgheChinh: "Ngành Nghề Chính",
+      diaChi: "Địa Chỉ",
+      chonDN: "Chọn Doanh Nghiệp",
+      loaiDichVu: "Loại Dịch Vụ",
+      tenDichVu: "Tên Dịch Vụ",
+      maDichVu: "Mã Dịch Vụ",
+      ngayBatDau: "Ngày Bắt Đầu",
+      ngayKetThuc: "Ngày Kết Thúc",
+      doanhThuTruoc: "Doanh Thu Trước Chiết Khấu",
+      mucChietKhau: "Mức Chiết Khấu",
+      soTienChietKhau: "Số Tiền Chiết Khấu",
+      doanhThuSau: "Doanh Thu Sau Chiết Khấu",
+      tongDoanhThuTichLuy: "Tổng Doanh Thu",
+      suDungVi: "Sử dụng ví",
+      hanhDong: "Hành động",
+      msgWalletLimit: "Số tiền ví không được quá 2.000.000"
+    },
+    en: {
+      pendingTab: "Pending List",
+      approvedTab: "Approved List",
+      rejectedTab: "Rejected List",
+      servicesTab: "Services List",
+      addServiceBtn: "+ Add Service",
+      stt: "No.",
+      tenDN: "Company Name",
+      soDKKD: "Business Reg. No.",
+      nguoiDaiDien: "Legal Representative",
+      email: "Email",
+      soDienThoai: "Phone Number",
+      ngayDangKy: "Registration Date",
+      tongDoanhThu: "Total Revenue",
+      lyDoTuChoi: "Rejection Reason",
+      dichVu: "Services",
+      giayPhep: "Business License",
+      nganhNgheChinh: "Main Business Lines",
+      diaChi: "Address",
+      chonDN: "Select Company",
+      loaiDichVu: "Service Type",
+      tenDichVu: "Service Name",
+      maDichVu: "Service ID",
+      ngayBatDau: "Start Date",
+      ngayKetThuc: "End Date",
+      doanhThuTruoc: "Revenue Before Discount",
+      mucChietKhau: "Discount Rate",
+      soTienChietKhau: "Discount Amount",
+      doanhThuSau: "Revenue After Discount",
+      tongDoanhThuTichLuy: "Total Revenue",
+      suDungVi: "Wallet Usage",
+      hanhDong: "Actions",
+      msgWalletLimit: "Wallet usage cannot exceed 2,000,000"
+    }
+  };
 
   const t = translations[currentLanguage] || translations["vi"];
 
@@ -454,11 +503,16 @@ const translations = {
         const formattedData = (json.data || []).map((item, index) => ({
           ...item,
           id: item.ID,
-          // Quan trọng: Gán uiId để phân biệt
           uiId: item.ID ? `server_${item.ID}` : `temp_${index}_${Date.now()}`,
           companyId: item.DoanhNghiepID,
+          soDKKD: item.SoDKKD,
           serviceType: item.LoaiDichVu,
           serviceName: item.TenDichVu,
+          package: item.GoiDichVu, 
+          invoiceYN: item.YeuCauHoaDon, 
+          invoiceUrl: item.InvoiceUrl, 
+          picId: item.NguoiPhuTrachId, 
+          picName: item.NguoiPhuTrach ? (item.NguoiPhuTrach.username || item.NguoiPhuTrach.name) : "", 
           code: item.MaDichVu,
           startDate: item.NgayThucHien?.split("T")[0],
           endDate: item.NgayHoanThanh?.split("T")[0],
@@ -484,16 +538,13 @@ const translations = {
   };
 
   const calculateCompanyTotalRevenue = (companyId) => {
-
     if (!serviceData || serviceData.length === 0) return 0; 
-    
     return serviceData
       .filter(r => String(r.companyId) === String(companyId)) 
       .reduce((sum, r) => {
         const val = r.revenueAfter; 
         if (!val) return sum;
         try {
-         
           const cleanStr = String(val).replace(/\./g, '');
           const num = parseFloat(cleanStr);
           return sum + (isNaN(num) ? 0 : num);
@@ -507,7 +558,6 @@ const translations = {
 
   const cancelEditing = (tab, idOrUiId) => {
     setEditingRows(prev => ({ ...prev, [tab]: { ...prev[tab], [idOrUiId]: false } }));
-    if (tab === "services") loadServices(currentPage.services); // Reload để hủy thay đổi
   };
 
   const handlePendingChange = (id, field, value) => {
@@ -516,6 +566,7 @@ const translations = {
   const handleApprovedChange = (id, field, value) => {
     setApprovedData(prev => prev.map(item => item.ID === id ? { ...item, [field]: value } : item));
   };
+
   const savePendingRow = async (item) => {
     if (!item.TenDoanhNghiep || !item.SoDKKD) return showToast("Thiếu thông tin!", "warning");
     try {
@@ -566,16 +617,12 @@ const translations = {
     } catch (e) { showToast("Lỗi server", "error"); }
   };
 
-const reject = async (item) => {
-    // 1. Hiển thị Popup nhập lý do từ chối
+  const reject = async (item) => {
     const { value: reason } = await MySwal.fire({
       title: "Từ chối doanh nghiệp",
       input: "textarea",
       inputLabel: `Nhập lý do từ chối cho: ${item.TenDoanhNghiep}`,
       inputPlaceholder: "Ví dụ: Sai thông tin ĐKKD, hồ sơ mờ...",
-      inputAttributes: {
-        "aria-label": "Nhập lý do từ chối"
-      },
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
       cancelButtonColor: "#6b7280",
@@ -588,25 +635,20 @@ const reject = async (item) => {
       }
     });
 
-    // Nếu người dùng bấm Hủy hoặc không nhập gì thì dừng
     if (!reason) return;
 
     try {
-      // 2. Gọi API từ chối kèm theo lý do vừa nhập
       const res = await fetch(`${API_BASE}/b2b/pending/${item.ID}/reject`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: reason }) // Gửi lý do lấy từ popup
+        body: JSON.stringify({ reason: reason }) 
       });
 
       const json = await res.json();
       
       if (json.success) {
         showToast("Đã từ chối doanh nghiệp", "success");
-        // Xóa dòng đó khỏi bảng Pending ngay lập tức
         setPendingData(prev => prev.filter(i => i.ID !== item.ID));
-        
-        // (Tùy chọn) Reload lại tab Rejected để cập nhật số liệu nếu cần
         loadRejected(1);
       } else {
         showToast(json.message || "Lỗi khi từ chối", "error");
@@ -628,134 +670,8 @@ const reject = async (item) => {
       if (json.success) {
         showToast("Xóa thành công", "success");
         setApprovedData(prev => prev.filter(item => item.ID !== id));
-        setServiceRecords(prev => prev.filter(svc => svc.companyId !== id));
       } else { showToast(json.message, "error"); }
     } catch (e) { showToast("Lỗi server", "error"); }
-  };
-
-
-
-const handleRecordChange = (uiId, field, value) => {
-  setServiceData(prev => prev.map(record => {
-    if (record.uiId !== uiId) return record;
-    const updated = { ...record };
-
-   
-    const safeNum = (val) => parseFloat(String(val).replace(/\./g, "")) || 0;
-
-    if (field === "revenueBefore") {
-      const raw = unformatNumber(value);
-      updated.revenueBefore = raw;
-      const calc = calculateServiceValues(raw, updated.discountRate, updated.walletUsage);
-      updated.discountAmount = calc.discountAmount;
-      updated.revenueAfter = calc.revenueAfter;
-      updated.totalRevenue = calc.totalRevenue;
-
-    } else if (field === "discountRate") {
-      updated.discountRate = value;
-      const calc = calculateServiceValues(updated.revenueBefore, value, updated.walletUsage);
-      updated.discountAmount = calc.discountAmount;
-      updated.revenueAfter = calc.revenueAfter;
-      updated.totalRevenue = calc.totalRevenue;
-
-    } else if (field === "walletUsage") { 
-      
-      let rawWallet = unformatNumber(value);
-
-     
-      if (rawWallet > 2000000) {
-        showToast("Giới hạn sử dụng ví tối đa là 2.000.000", "warning");
-        rawWallet = 2000000;
-      }
-
-      updated.walletUsage = rawWallet;
-      const calc = calculateServiceValues(updated.revenueBefore, updated.discountRate, rawWallet);
-      updated.discountAmount = calc.discountAmount;
-      updated.revenueAfter = calc.revenueAfter;
-      updated.totalRevenue = calc.totalRevenue;
-
-    } else {
-      updated[field] = value;
-    }
-    return updated;
-  }));
-};
-
-
-  //   const newId = Date.now();
-  //   const uiId = `new_${newId}`; 
-  //   const newRecord = {
-  //     id: newId, 
-  //     uiId: uiId,
-  //     companyId: "", serviceType: "", serviceName: "", code: "", startDate: "", endDate: "",
-  //     revenueBefore: "", discountRate: "0", discountAmount: "0", revenueAfter: "0", totalRevenue: "0",walletUsage: "",
-  //     isNew: true
-  //   };
-  //   setServiceData(prev => [...prev, newRecord]);
-  //   setServiceTotal(prev => prev + 1);
-  //   startEditing("services", uiId);
-  // };
-
-  const saveServiceRow = async (rec) => {
-    if (!rec.companyId) return showToast("Chọn doanh nghiệp!", "warning");
-    if (!rec.serviceType) return showToast("Chọn loại dịch vụ!", "warning");
-
-    try {
-      const parseNum = (val) => {
-        if (!val) return 0;
-        if (typeof val === 'number') return val;
-        return parseFloat(String(val).replace(/\./g, "")) || 0;
-      };
-
-      const revenueBefore = parseNum(rec.revenueBefore);
-      const discountRate = parseNum(rec.discountRate);
-      
-      const payload = {
-        DoanhNghiepID: parseInt(rec.companyId),
-        LoaiDichVu: rec.serviceType,
-        TenDichVu: rec.serviceName,
-        MaDichVu: rec.code,
-        NgayThucHien: rec.startDate ? rec.startDate : null, 
-        NgayHoanThanh: rec.endDate ? rec.endDate : null,
-        DoanhThuTruocChietKhau: revenueBefore, 
-        DoanhThuTruocCK: revenueBefore, 
-        MucChietKhau: discountRate,
-        SoTienChietKhau: parseNum(rec.discountAmount),
-        DoanhThuSauChietKhau: parseNum(rec.revenueAfter),
-        TongDoanhThuTichLuy: parseNum(rec.totalRevenue),
-        Vi: parseNum(rec.walletUsage)
-      };
-
-      let url;
-      let method;
-
-      if (rec.isNew) {
-        url = `${API_BASE}/b2b/services`;
-        method = "POST";
-      } else {
-        url = `${API_BASE}/b2b/services/update/${rec.id}`;
-        method = "PUT";
-      }
-
-      const res = await fetch(url, {
-        method: method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      const json = await res.json();
-
-      if (json.success) {
-        showToast("Lưu thành công!", "success");
-        cancelEditing("services", rec.uiId);
-        loadServices(currentPage.services); 
-      } else {
-        showToast("Lỗi: " + json.message, "error");
-      }
-    } catch (e) {
-      console.error(e);
-      showToast("Lỗi server", "error");
-    }
   };
 
   const deleteServiceRow = async (id, isNew) => {
@@ -797,8 +713,8 @@ const handleRecordChange = (uiId, field, value) => {
     }
   };
 
-const renderServicesTab = () => {
-    // Chỉ Giám đốc hoặc Kế toán mới được xem các cột liên quan đến tiền/doanh thu
+  // --- RENDER SERVICES TAB (MODIFIED) ---
+  const renderServicesTab = () => {
     const canViewRevenue = currentUser?.is_director || currentUser?.is_accountant;
 
     const safeParse = (val) => {
@@ -814,7 +730,6 @@ const renderServicesTab = () => {
       const rBefore = safeParse(revenueBefore);
       const dRate = safeParse(discountRate);
       const wUsage = safeParse(walletUsage);
-
       const dAmount = rBefore * (dRate / 100);
       return Math.max(0, rBefore - dAmount - wUsage);
     };
@@ -828,28 +743,14 @@ const renderServicesTab = () => {
       return (a.id || 0) - (b.id || 0);
     });
 
-    const transparentInputStyle = {
-      backgroundColor: "transparent",
-      border: "none",
-      outline: "none",
-      width: "100%",
-      height: "100%",
-      textAlign: "center",
-      fontSize: "12px",
-      padding: "0 4px",
-      boxShadow: "none"
-    };
-
     return (
       <div>
         <div className="d-flex justify-content-end mb-2" style={{ height: 40, marginRight: 10 }}>
-          {/* SỬA NÚT NÀY: Gọi handleOpenAddServiceModal thay vì handleAddNewRow */}
           <button
             className="btn btn-success btn-sm d-flex align-items-center gap-2 shadow-sm"
             onClick={handleOpenAddServiceModal} 
             style={{ fontSize: "13px", fontWeight: "600" }}
           >
-            {/* Nhớ import { Plus } from "lucide-react" ở đầu file */}
             <Plus size={16} /> 
             Đăng ký dịch vụ mới
           </button>
@@ -881,34 +782,37 @@ const renderServicesTab = () => {
                   <tr>
                     <th className="py-2 border" style={{ width: "35px" }}>{t.stt}</th>
 
-                    {/* Điều chỉnh width linh hoạt: Nếu ẩn cột tiền thì cột tên DN giãn ra */}
+                    {/* [UPDATED] Chiều rộng cột này đã được thu nhỏ */}
                     <th
                       className="py-2 border"
                       style={{
-                        width: canViewRevenue ? "180px" : "25%", 
-                        minWidth: "140px"
+                        width: canViewRevenue ? "110px" : "10%", 
+                        minWidth: "100px"
                       }}
                     >
                       {t.chonDN}
                     </th>
-
+                    <th className="py-2 border" style={{ width: "90px" }}>Số ĐKKD</th>
                     <th className="py-2 border" style={{ width: "80px" }}>{t.loaiDichVu}</th>
 
-                    {/* Điều chỉnh width linh hoạt: Nếu ẩn cột tiền thì cột tên DV giãn ra */}
                     <th
                       className="py-2 border"
                       style={{
-                        width: canViewRevenue ? "130px" : "20%"
+                        width: canViewRevenue ? "110px" : "10%"
                       }}
                     >
                       {t.tenDichVu}
                     </th>
 
                     <th className="py-2 border" style={{ width: "80px" }}>{t.maDichVu}</th>
+                   
+                    <th className="py-2 border" style={{ width: "100px" }}>Người Phụ Trách</th>  
                     <th className="py-2 border" style={{ width: "90px" }}>{t.ngayBatDau}</th>
                     <th className="py-2 border" style={{ width: "90px" }}>{t.ngayKetThuc}</th>
+                     <th className="py-2 border" style={{ width: "80px" }}>Gói</th>
+                    <th className="py-2 border" style={{ width: "60px" }}>Invoice Y/N</th>
+                    <th className="py-2 border" style={{ width: "40px" }} title="Link Invoice">Invoice</th>
 
-                    {/* Chỉ hiện các cột tài chính nếu là GĐ hoặc KT */}
                     {canViewRevenue && (
                       <>
                         <th className="py-2 border" style={{ width: "90px" }}>{t.doanhThuTruoc}</th>
@@ -928,16 +832,15 @@ const renderServicesTab = () => {
                     displayData.map((rec, idx) => {
                       const globalIndex = idx + 1 + (currentPage.services - 1) * 20;
                       const currentRowKey = rec.uiId;
-                      const isEditing = editingRows.services[currentRowKey];
-
-                      // Tính toán
+                      const hasCode = rec.code && rec.code.trim() !== "";
+                      
                       const revenueBeforeNum = safeParse(rec.revenueBefore || 0);
                       const discountRateNum = safeParse(rec.discountRate || 0);
                       const walletUsageNum = safeParse(rec.walletUsage || 0);
                       const calculatedDiscountAmount = revenueBeforeNum * (discountRateNum / 100);
                       const realRevenueAfter = Math.max(0, revenueBeforeNum - calculatedDiscountAmount - walletUsageNum);
 
-                      const rowBackgroundColor = rec.isNew ? "#dcfce7" : (isEditing ? "#fff9c4" : "transparent");
+                      const rowBackgroundColor = rec.isNew ? "#dcfce7" : "transparent";
 
                       const cellStyle = {
                         backgroundColor: rowBackgroundColor,
@@ -951,15 +854,11 @@ const renderServicesTab = () => {
                         ? String(displayData[idx - 1].companyId || displayData[idx - 1].DoanhNghiepID || "")
                         : null;
 
-                      const isGroupEditing = currentCompanyId &&
-                        displayData.some((d) => String(d.companyId || d.DoanhNghiepID || "") === currentCompanyId && editingRows.services[d.uiId]);
-
                       let shouldRenderTotalCell = false;
                       let rowSpan = 1;
                       let groupTotalRevenue = 0;
 
-                      // Logic gộp hàng (RowSpan)
-                      if (!currentCompanyId || currentCompanyId === "" || isGroupEditing) {
+                      if (!currentCompanyId || currentCompanyId === "") {
                         shouldRenderTotalCell = true;
                         rowSpan = 1;
                         groupTotalRevenue = realRevenueAfter;
@@ -982,42 +881,8 @@ const renderServicesTab = () => {
                         }
                       }
 
-                      const selectedCompany = approvedList.find((c) => String(c.ID) === currentCompanyId);
-                      let serviceOptions = [];
-                      if (selectedCompany) {
-                        if (selectedCompany.DichVu) serviceOptions.push(...selectedCompany.DichVu.split(",").map((s) => s.trim()));
-                        if (selectedCompany.DichVuKhac) serviceOptions.push(...selectedCompany.DichVuKhac.split(",").map((s) => s.trim()));
-                      }
-                      serviceOptions = [...new Set(serviceOptions)].filter(Boolean);
-
-                      const handleRecordChangeWithCalc = (field, value) => {
-                        let rawValue = 0;
-                        if (value) {
-                          rawValue = isNaN(parseFloat(String(value).replace(/\./g, "")))
-                            ? 0
-                            : parseFloat(String(value).replace(/\./g, ""));
-                        }
-                        if (field === 'walletUsage' && rawValue > 2000000) {
-                          showToast(t.msgWalletLimit, "error");
-                          value = 0;
-                        }
-                        handleRecordChange(currentRowKey, field, value);
-
-                        if (['revenueBefore', 'discountRate', 'walletUsage'].includes(field)) {
-                          const currentRec = { ...rec, [field]: value };
-                          const rBefore = safeParse(currentRec.revenueBefore || 0);
-                          const dRate = safeParse(currentRec.discountRate || 0);
-                          const wUsage = safeParse(currentRec.walletUsage || 0);
-                          const newDiscountAmt = rBefore * (dRate / 100);
-                          const newRevenueAfter = Math.max(0, rBefore - newDiscountAmt - wUsage);
-                          
-                          handleRecordChange(currentRowKey, 'discountAmount', newDiscountAmt);
-                          handleRecordChange(currentRowKey, 'revenueAfter', newRevenueAfter);
-                        }
-                      };
-
                       return (
-                        <tr key={currentRowKey} className={isEditing || rec.isNew ? "" : "bg-white hover:bg-gray-50"}>
+                        <tr key={currentRowKey} className={rec.isNew ? "" : "bg-white hover:bg-gray-50"}>
                           <td className="text-center border p-0 align-middle">{globalIndex}</td>
 
                           {shouldRenderTotalCell && (
@@ -1027,160 +892,89 @@ const renderServicesTab = () => {
                               style={{
                                 ...cellStyle,
                                 padding: "2px 4px",
-                                backgroundColor: rec.isNew ? "#dcfce7" : (isEditing ? "#fff9c4" : "#fff"),
+                                backgroundColor: rec.isNew ? "#dcfce7" : "#fff",
                                 position: "relative",
                                 zIndex: 1,
                                 backgroundClip: "padding-box"
                               }}
                             >
-                              {isEditing ? (
-                                <select
-                                  className="form-select form-select-sm shadow-none"
-                                  style={{ ...transparentInputStyle, width: "100%" }}
-                                  value={rec.companyId || ""}
-                                  onChange={(e) => handleRecordChange(currentRowKey, "companyId", e.target.value)}
-                                >
-                                  <option value="">-- Chọn DN --</option>
-                                  {approvedList.map((c) => (
-                                    <option key={c.ID} value={c.ID}>{c.TenDoanhNghiep}</option>
-                                  ))}
-                                </select>
-                              ) : (
                                 <div className="text-center" style={{ fontSize: "12px", whiteSpace: "normal", wordBreak: "break-word" }}>
                                   {approvedList.find((c) => String(c.ID) === currentCompanyId)?.TenDoanhNghiep || "--"}
                                 </div>
-                              )}
                             </td>
                           )}
-
+                          {shouldRenderTotalCell && (
+                             <td className="border p-0 align-middle" rowSpan={rowSpan} style={{
+                                ...cellStyle,
+                                padding: "2px 4px",
+                                backgroundColor: rec.isNew ? "#dcfce7" : "#fff",
+                                position: "relative",
+                                zIndex: 1,
+                                backgroundClip: "padding-box"
+                              }}>
+                                <div className="text-center" style={{ fontSize: "12px" }}>
+                                   {approvedList.find((c) => String(c.ID) === currentCompanyId)?.SoDKKD || "--"}
+                                </div>
+                             </td>
+                          )}
                           <td className="border" style={cellStyle}>
-                            {isEditing ? (
-                              <select
-                                className="form-select form-select-sm shadow-none"
-                                style={transparentInputStyle}
-                                value={rec.serviceType || ""}
-                                onChange={(e) => handleRecordChange(currentRowKey, "serviceType", e.target.value)}
-                                disabled={!currentCompanyId}
-                              >
-                                <option value="">-- Chọn dịch vụ --</option>
-                                {serviceOptions.map((svc, i) => (
-                                  <option key={i} value={svc}>{svc}</option>
-                                ))}
-                              </select>
-                            ) : (
                               <div className="text-center" style={{ fontSize: "12px" }}>{rec.serviceType || ""}</div>
-                            )}
                           </td>
 
                           <td className="border" style={cellStyle}>
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                className="form-control form-control-sm shadow-none"
-                                style={transparentInputStyle}
-                                value={rec.serviceName || ""}
-                                onChange={(e) => handleRecordChange(currentRowKey, "serviceName", e.target.value)}
-                                placeholder="Nhập Tên Dịch Vụ"
-                              />
-                            ) : (
                               <div className="text-center" style={{ fontSize: "12px" }}>{rec.serviceName || ""}</div>
-                            )}
                           </td>
 
                           <td className="border" style={cellStyle}>
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                className="form-control form-control-sm text-center shadow-none"
-                                style={transparentInputStyle}
-                                value={rec.code || ""}
-                                onChange={(e) => handleRecordChange(currentRowKey, "code", e.target.value)}
-                              />
-                            ) : (
                               <div className="text-center" style={{ fontSize: "12px" }}>{rec.code || ""}</div>
-                            )}
                           </td>
-
                           <td className="border" style={cellStyle}>
-                            {isEditing ? (
-                              <input
-                                type="date"
-                                className="form-control form-control-sm text-center shadow-none"
-                                style={transparentInputStyle}
-                                value={rec.startDate || ""}
-                                onChange={(e) => handleRecordChange(currentRowKey, "startDate", e.target.value)}
-                              />
-                            ) : (
+                                <div className="text-center" style={{ fontSize: "12px", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={rec.picName}>
+                                   {rec.picName || "--"}
+                                </div>
+                          </td>
+                          <td className="border" style={cellStyle}>
                               <div className="text-center" style={{ fontSize: "12px" }}>{rec.startDate || ""}</div>
-                            )}
                           </td>
 
                           <td className="border" style={cellStyle}>
-                            {isEditing ? (
-                              <input
-                                type="date"
-                                className="form-control form-control-sm text-center shadow-none"
-                                style={transparentInputStyle}
-                                value={rec.endDate || ""}
-                                onChange={(e) => handleRecordChange(currentRowKey, "endDate", e.target.value)}
-                              />
-                            ) : (
                               <div className="text-center" style={{ fontSize: "12px" }}>{rec.endDate || ""}</div>
-                            )}
+                          </td>
+                          
+                          <td className="border" style={cellStyle}>
+                                <div className={`text-center ${rec.package === "Cấp tốc" ? "text-danger fw-bold" : ""}`} style={{ fontSize: "12px" }}>
+                                  {rec.package || ""}
+                                </div>
                           </td>
 
+                          <td className="border" style={cellStyle}>
+                                <div className={`text-center ${rec.invoiceYN === "Yes" ? "text-primary fw-bold" : "text-muted"}`} style={{ fontSize: "12px" }}>
+                                   {rec.invoiceYN || ""}
+                                </div>
+                          </td>
+
+                          <td className="border text-center" style={cellStyle}>
+                                {rec.invoiceUrl ? (
+                                   <a href={rec.invoiceUrl} target="_blank" rel="noreferrer" className="text-primary" title="Xem hóa đơn">
+                                      <FileText size={16} /> 
+                                   </a>
+                                ) : <span className="text-muted" style={{fontSize: '10px'}}>-</span>}
+                          </td>
                           
                           {canViewRevenue && (
                             <>
                               <td className="border" style={{ ...cellStyle, width: "100px" }}>
-                                {isEditing ? (
-                                  <input
-                                    type="text"
-                                    className="form-control form-control-sm shadow-none"
-                                    style={transparentInputStyle}
-                                    value={rec.revenueBefore === "" ? "" : formatNumber(rec.revenueBefore)}
-                                    onChange={(e) => handleRecordChangeWithCalc("revenueBefore", e.target.value)}
-                                  />
-                                ) : (
                                   <div className="text-center" style={{ fontSize: "12px" }}>{formatNumber(rec.revenueBefore || "")}</div>
-                                )}
                               </td>
 
                               <td className="border" style={cellStyle}>
-                                {isEditing ? (
-                                  <input
-                                    type="text"
-                                    className="form-control form-control-sm shadow-none"
-                                    style={{ ...transparentInputStyle, fontWeight: "500" }}
-                                    value={rec.walletUsage ? formatNumber(rec.walletUsage) : ""}
-                                    onChange={(e) => handleRecordChangeWithCalc("walletUsage", e.target.value)}
-                                  />
-                                ) : (
                                   <div className="text-center" style={{ fontSize: "12px", color: rec.walletUsage ? "red" : "inherit", fontWeight: 500 }}>
                                     {formatNumber(rec.walletUsage || 0)}
                                   </div>
-                                )}
                               </td>
 
                               <td className="border" style={cellStyle}>
-                                {isEditing ? (
-                                  <select
-                                    className="form-select form-select-sm text-center shadow-none"
-                                    style={{ ...transparentInputStyle, padding: 0 }}
-                                    value={rec.discountRate || ""}
-                                    onChange={(e) => handleRecordChangeWithCalc("discountRate", e.target.value)}
-                                  >
-                                    <option value="">%</option>
-                                    <option value="5">5%</option>
-                                    <option value="10">10%</option>
-                                    <option value="12">12%</option>
-                                    <option value="15">15%</option>
-                                    <option value="17">17%</option>
-                                    <option value="20">20%</option>
-                                  </select>
-                                ) : (
                                   <div className="text-center" style={{ fontSize: "12px" }}>{rec.discountRate ? `${rec.discountRate}%` : "--"}</div>
-                                )}
                               </td>
 
                               <td className="align-middle border px-2" style={{ ...cellStyle, fontSize: "12px", textAlign: "center" }}>
@@ -1197,7 +991,7 @@ const renderServicesTab = () => {
                                   className="text-center align-middle fw-bold border text-primary"
                                   style={{
                                     ...cellStyle,
-                                    backgroundColor: rec.isNew ? "#dcfce7" : (isEditing ? "#fff9c4" : "#fff"),
+                                    backgroundColor: rec.isNew ? "#dcfce7" : "#fff",
                                     fontSize: "12px",
                                     position: "relative",
                                     zIndex: 1,
@@ -1211,33 +1005,30 @@ const renderServicesTab = () => {
                           )}
 
                           <td className="text-center border p-1 align-middle" style={{ backgroundColor: "white" }}>
-                            <div className="d-flex gap-1 justify-content-center">
-                              {isEditing ? (
+                           <div className="d-flex gap-1 justify-content-center">
                                 <>
-                                  <button
-                                    className="btn btn-sm"
-                                    style={{ backgroundColor: "#2563eb", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
-                                    onClick={() => saveServiceRow(rec)}
-                                  >
-                                    <Save size={17} strokeWidth={2.3} />
-                                  </button>
-                                  <button
-                                    className="btn btn-sm"
-                                    style={{ backgroundColor: "#6b7280", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
-                                    onClick={() => cancelEditing("services", currentRowKey)}
-                                  >
-                                    <XCircle size={17} strokeWidth={2.3} />
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <button
-                                    className="btn btn-sm"
-                                    style={{ backgroundColor: "#f59e0b", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
-                                    onClick={() => startEditing("services", currentRowKey)}
-                                  >
-                                    <Edit size={17} strokeWidth={2.3} />
-                                  </button>
+                                  {canViewRevenue && !hasCode ? (
+                                    // Nút DUYỆT (Tạo mã)
+                                    <button
+                                        className="btn btn-sm shadow-sm"
+                                        style={{ backgroundColor: "#22c55e", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
+                                        title="Duyệt đăng ký (Tạo mã)"
+                                        onClick={() => handleOpenApproveModal(rec)} 
+                                    >
+                                        <Check size={18} strokeWidth={3} />
+                                    </button>
+                                  ) : (
+                                    // [UPDATED] Nút SỬA (Mở Modal)
+                                    <button
+                                        className="btn btn-sm"
+                                        style={{ backgroundColor: "#f59e0b", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
+                                        title="Sửa thông tin"
+                                        onClick={() => handleEditService(rec)} 
+                                    >
+                                        <Edit size={17} strokeWidth={2.3} />
+                                    </button>
+                                  )}
+
                                   <button
                                     className="btn btn-sm"
                                     style={{ backgroundColor: "#ef4444", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
@@ -1246,7 +1037,6 @@ const renderServicesTab = () => {
                                     <Trash2 size={17} strokeWidth={2.3} />
                                   </button>
                                 </>
-                              )}
                             </div>
                           </td>
                         </tr>
@@ -1254,7 +1044,6 @@ const renderServicesTab = () => {
                     })
                   ) : (
                     <tr>
-                      {/* Điều chỉnh colSpan chính xác: 14 nếu có full quyền, 8 nếu chỉ là admin thường */}
                       <td colSpan={canViewRevenue ? 14 : 8} className="text-center py-4 text-muted border">
                         Chưa có dữ liệu dịch vụ
                       </td>
@@ -1305,13 +1094,19 @@ const renderServicesTab = () => {
       <Pagination currentLanguage={currentLanguage} current={currentPage.rejected} total={rejectedTotal} pageSize={20} onChange={(page) => handlePageChange("rejected", page)} />
     </div>
   );
-const saveEditing = (item, tab) => {
-  if (tab === "pending") return savePendingRow(item);
-  if (tab === "approved") return saveApprovedRow(item);
 
-  showToast("Không xác định được tab để lưu!", "error");
-};
-const renderPendingApprovedTab = () => {
+  const saveEditing = (item, tab) => {
+    if (tab === "pending") return savePendingRow(item);
+    if (tab === "approved") return saveApprovedRow(item);
+    showToast("Không xác định được tab để lưu!", "error");
+  };
+
+  const handleCellEdit = (field, item, e) => {
+     if(activeTab === 'pending') handlePendingChange(item.ID, field, e.target.value);
+     if(activeTab === 'approved') handleApprovedChange(item.ID, field, e.target.value);
+  }
+
+  const renderPendingApprovedTab = () => {
 
   const totalColumns = 9;
 
@@ -1350,9 +1145,6 @@ const renderPendingApprovedTab = () => {
             {activeTab === "approved" && (
               <th style={{ width: "100px" }}>{t.tongDoanhThuTichLuy}</th>
             )}
-            {/* {activeTab === "pending" && (
-              <th style={{ width: "120px" }}>{t.lyDoTuChoi}</th>
-            )} */}
             <th style={{ width: "90px" }}>{t.hanhDong}</th>
           </tr>
         </thead>
@@ -1366,7 +1158,6 @@ const renderPendingApprovedTab = () => {
 
               const rowStyle = isEditing ? { backgroundColor: "#fff9c4" } : {};
               
-              // Style chung cho ô view và input
               const viewStyle = { fontSize: "12px", height: "30px", lineHeight: "30px", textAlign: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
               const inputStyle = { width: "100%", height: "100%", border: "none", outline: "none", textAlign: "center", background: "transparent", fontSize: "12px" };
 
@@ -1412,7 +1203,6 @@ const renderPendingApprovedTab = () => {
 
                     <td className="text-center border">{formatDateTime(item.NgayTao || item.NgayDangKyB2B)}</td>
                     {activeTab === "approved" && <td className="text-center border fw-bold text-primary">{formatNumber(calculateCompanyTotalRevenue(item.ID))}</td>}
-                    {/* {activeTab === "pending" && <td className="border">{isEditing ? <input style={inputStyle} value={item.rejectionReason || ""} onChange={(e) => handlePendingChange(item.ID, "rejectionReason", e.target.value)} /> : <div style={viewStyle}>{item.rejectionReason || ""}</div>}</td>} */}
                     
                     <td className="text-center border">
                       <div className="d-flex gap-1 justify-content-center">
@@ -1438,10 +1228,8 @@ const renderPendingApprovedTab = () => {
                     </td>
                   </tr>
 
-                  {/* DÒNG EXPAND (PDF) */}
                   {activeTab === "pending" && isExpanded && item.PdfPath && (
                     <tr className="bg-white">
-                      {/* QUAN TRỌNG: colSpan={totalColumns} để khớp hoàn toàn */}
                       <td colSpan={totalColumns} className="border p-0"> 
                         <div className="p-3 bg-light border-bottom">
                            <div className="d-flex flex-column align-items-center">
@@ -1502,168 +1290,457 @@ const renderPendingApprovedTab = () => {
         <div className="px-4 pb-5">{renderTabContent()}</div>
       </div>
     
+   
       {showAddServiceModal && (
-        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1050 }}>
-          <div className="bg-white rounded shadow-lg p-4" style={{ width: "650px", maxWidth: "90%", maxHeight: "90vh", overflowY: "auto" }}>
-            
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style={{ backgroundColor: "rgba(0,0,0,0.6)", zIndex: 1050, backdropFilter: "blur(2px)" }}>
+          <div 
+            className="bg-white p-4 scrollbar-hide position-relative" 
+            style={{ 
+              width: "600px", 
+              maxWidth: "90%", 
+              maxHeight: "100vh", 
+              overflowY: "auto", 
+              borderRadius: "20px",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+            }}
+          >
+            {/* --- NÚT ĐÓNG (CLOSE BUTTON) --- */}
+            <button 
+              onClick={() => setShowAddServiceModal(false)}
+              className="position-absolute d-flex align-items-center justify-content-center border-0 bg-light rounded-circle text-muted hover-text-dark transition-all"
+              style={{ 
+                top: "15px", 
+                right: "15px", 
+                width: "32px", 
+                height: "32px", 
+                cursor: "pointer", 
+                zIndex: 10 
+              }}
+              title="Đóng"
+            >
+               <X size={20} />
+            </button>
+
             {/* Header Modal */}
-            <div className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
-              <h5 className="fw-bold m-0 text-center flex-grow-1" style={{ color: "#333" }}>Đăng ký dịch vụ mới (B2B)</h5>
-              <button className="btn btn-sm btn-light rounded-circle" onClick={() => setShowAddServiceModal(false)}>
-                 <X size={20} />
-              </button>
+            <div className="text-center mb-4 mt-2">
+              <h3 className="fw-bold m-0" style={{ color: "#333", fontSize: "20px" }}>
+                {newServiceForm.id ? "Cập nhật dịch vụ (B2B)" : "Đăng ký dịch vụ mới (B2B)"}
+              </h3>
+              <p className="text-muted small mt-1 mb-0">Hệ thống quản lý dịch vụ của One Pass</p>
             </div>
+
+            <div className="row g-3 px-2">
+              {/* === Custom Style cho Input === */}
+              {(() => {
+                  // 1. Style chung cho Input
+                  const inputStyle = {
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: "10px",
+                    border: "2px solid #E5E7EB",
+                    fontSize: "13px",
+                    color: "#374151",
+                    backgroundColor: "#F9FAFB",
+                    outline: "none",
+                    transition: "border-color 0.2s",
+                  };
+
+                  // 2. Định nghĩa hình mũi tên (Chevron Down - màu xám #6B7280)
+                  const arrowSvg = `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3e%3c/svg%3e")`;
+
+                  // 3. Style riêng cho Select (Kế thừa inputStyle + Custom mũi tên)
+                  const selectStyle = {
+                    ...inputStyle,
+                    appearance: "none",        // Ẩn mũi tên mặc định (CSS chuẩn)
+                    WebkitAppearance: "none",  // Ẩn mũi tên mặc định (Safari/Chrome)
+                    MozAppearance: "none",     // Ẩn mũi tên mặc định (Firefox)
+                    backgroundImage: arrowSvg, // Thêm mũi tên SVG mới
+                    backgroundRepeat: "no-repeat",
+                    backgroundPosition: "right 12px center", // Căn phải
+                    backgroundSize: "16px",    // Kích thước mũi tên
+                    paddingRight: "35px",      // Tạo khoảng trống bên phải để chữ không đè lên mũi tên
+                    cursor: "pointer"
+                  };
+
+                  const labelStyle = {
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    color: "#1F2937",
+                    marginBottom: "4px",
+                    display: "block",
+                  };
+
+                  const helperTextStyle = {
+                    fontSize: "10px",
+                    color: "#3B82F6",
+                    marginTop: "3px",
+                    fontStyle: "normal",
+                  };
+
+                  // Component ToggleButton (Giữ nguyên)
+                  const ToggleButton = ({ name, value, onChange }) => (
+                    <div className="d-flex gap-2 w-100">
+                      {["Yes", "No"].map((option) => (
+                        <label
+                          key={option}
+                          className="flex-grow-1 cursor-pointer"
+                          style={{ position: "relative" }}
+                        >
+                          <input
+                            type="radio"
+                            name={name}
+                            value={option}
+                            checked={value === option}
+                            onChange={onChange}
+                            className="d-none"
+                          />
+                          <div
+                            className="text-center py-2"
+                            style={{
+                              ...inputStyle,
+                              backgroundColor: value === option ? "#F3F4F6" : "#fff",
+                              borderColor: value === option ? "#9CA3AF" : "#E5E7EB",
+                              color: value === option ? "#000" : "#9CA3AF",
+                              fontWeight: value === option ? "bold" : "normal",
+                              cursor: "pointer",
+                              padding: "8px 0",
+                            }}
+                          >
+                            {option}
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  );
+            // Component Dropdown Hiện đại (Đã cập nhật hỗ trợ 2 cột)
+const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const containerRef = React.useRef(null);
+
+  const selectedOption = options.find(opt => String(opt.value) === String(value));
+  const displayLabel = selectedOption ? selectedOption.label : placeholder;
+
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelect = (val) => {
+    if (disabled) return;
+    onChange({ target: { name, value: val } });
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="position-relative" ref={containerRef} style={{ width: "100%" }}>
+      {/* Box hiển thị chính */}
+      <div 
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        style={{
+          // ...inputStyle (bạn copy lại biến inputStyle từ đoạn code trước vào đây hoặc để nguyên nếu đã khai báo ở ngoài)
+          width: "100%",
+          padding: "10px 12px",
+          borderRadius: "10px",
+          border: "2px solid #E5E7EB",
+          fontSize: "13px",
+          color: "#374151",
+          backgroundColor: "#F9FAFB",
+          outline: "none",
+          transition: "border-color 0.2s",
+          // --- End inputStyle
+          
+          cursor: disabled ? "not-allowed" : "pointer",
+          backgroundColor: disabled ? "#F3F4F6" : "#F9FAFB",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          userSelect: "none",
+          height: "45px" 
+        }}
+      >
+        <span style={{ color: value ? "#374151" : "#9CA3AF" }}>
+          {displayLabel}
+        </span>
+        <ChevronDown size={16} color="#6B7280" />
+      </div>
+
+      {/* Dropdown Menu */}
+      {isOpen && !disabled && (
+        <div 
+          className="position-absolute w-100 bg-white shadow-sm rounded-bottom border"
+          style={{
+            top: "48px", 
+            left: 0,
+            zIndex: 1000,
+            maxHeight: "250px",
+            overflowY: "auto",
+            borderRadius: "8px",
+            padding: "8px", // Thêm padding cho container
             
-            <div className="text-center text-muted small mb-4">Hệ thống quản lý dịch vụ của One Pass</div>
-
-            <div className="row g-3">
-              {/* Doanh nghiệp & Số ĐKKD */}
-              <div className="col-md-6">
-                <label className="form-label small fw-bold text-dark">Tên doanh nghiệp <span className="text-danger">*</span></label>
-                <select className="form-select form-select-sm" name="DoanhNghiepID" value={newServiceForm.DoanhNghiepID} onChange={handleModalChange}>
-                  <option value="">-- Chọn doanh nghiệp --</option>
-                  {approvedList.map(c => <option key={c.ID} value={c.ID}>{c.TenDoanhNghiep}</option>)}
-                </select>
+            // LOGIC CHIA 2 CỘT Ở ĐÂY
+            display: twoColumns ? "grid" : "block",
+            gridTemplateColumns: twoColumns ? "1fr 1fr" : "none",
+            gap: twoColumns ? "8px" : "0"
+          }}
+        >
+          {options.length > 0 ? (
+            options.map((opt, idx) => (
+              <div
+                key={idx}
+                onClick={() => handleSelect(opt.value)}
+                className={`px-3 py-2 transition-all ${twoColumns ? 'rounded' : ''}`}
+                style={{
+                  cursor: "pointer",
+                  fontSize: "12px", // Giảm font chữ 1 chút nếu chia cột để đỡ bị tràn
+                  color: String(opt.value) === String(value) ? "#2563eb" : "#374151",
+                  backgroundColor: String(opt.value) === String(value) ? "#EFF6FF" : (twoColumns ? "#F9FAFB" : "transparent"), // Nếu 2 cột thì cho nền xám nhẹ cho dễ nhìn
+                  
+                  // Style border khác nhau giữa chế độ list và grid
+                  borderBottom: !twoColumns && idx !== options.length - 1 ? "1px solid #f3f4f6" : "none",
+                  border: twoColumns ? "1px solid #E5E7EB" : undefined,
+                  
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis"
+                }}
+                title={opt.label} // Hover vào sẽ hiện full tên nếu bị cắt
+                onMouseEnter={(e) => {
+                   if(String(opt.value) !== String(value)) e.target.style.backgroundColor = twoColumns ? "#E5E7EB" : "#F3F4F6";
+                }}
+                onMouseLeave={(e) => {
+                   if(String(opt.value) !== String(value)) e.target.style.backgroundColor = twoColumns ? "#F9FAFB" : "transparent";
+                }}
+              >
+                {opt.label}
               </div>
-              <div className="col-md-6">
-                <label className="form-label small fw-bold text-dark">Số đăng ký kinh doanh <span className="text-danger">*</span></label>
-                <input type="text" className="form-control form-control-sm bg-light" value={newServiceForm.SoDKKD} readOnly />
-              </div>
+            ))
+          ) : (
+            <div className="px-3 py-2 text-muted small text-center" style={{ gridColumn: "1 / -1" }}>
+              Không có dữ liệu
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
-              {/* Loại dịch vụ (Dropdown từ danh sách cty) */}
-              <div className="col-md-6">
-                <label className="form-label small fw-bold text-dark">Loại dịch vụ <span className="text-danger">*</span></label>
-                <select 
-                  className="form-select form-select-sm" 
-                  name="LoaiDichVu" 
-                  value={newServiceForm.LoaiDichVu} 
-                  onChange={handleModalChange}
-                  disabled={!newServiceForm.DoanhNghiepID} // Disable nếu chưa chọn Cty
-                >
-                  <option value="">-- Chọn loại dịch vụ --</option>
-                  {availableServices.map((svc, idx) => (
-                    <option key={idx} value={svc}>{svc}</option>
-                  ))}
-                  <option value="Khác">Khác</option>
-                </select>
-              </div>
+                return (
+                  <>
+                  
+                    {/* Tên Doanh Nghiệp */}
+                    <div className="col-md-6">
+                      <label style={labelStyle}>
+                        Tên doanh nghiệp <span className="text-danger">*</span>
+                      </label>
+                      <ModernSelect
+                        name="DoanhNghiepID"
+                        value={newServiceForm.DoanhNghiepID}
+                        onChange={handleModalChange}
+                        placeholder="-- Chọn doanh nghiệp --"
+                        options={approvedList.map(c => ({ value: c.ID, label: c.TenDoanhNghiep }))}
+                      />
+                    </div>
+                    {/* Số ĐKKD */}
+                    <div className="col-md-6">
+                      <label style={labelStyle}>Số đăng ký kinh doanh <span className="text-danger">*</span></label>
+                      <input 
+                        type="text" 
+                        value={newServiceForm.SoDKKD} 
+                        readOnly 
+                        style={{...inputStyle, backgroundColor: "#F3F4F6", color: "#9CA3AF"}} 
+                      />
+                    </div>
 
-              <div className="col-md-6">
-                <label className="form-label small fw-bold text-dark">Tên dịch vụ chi tiết <span className="text-danger">*</span></label>
-                <input type="text" className="form-control form-control-sm" name="TenDichVu" placeholder="Cấp lại hộ chiếu..." value={newServiceForm.TenDichVu} onChange={handleModalChange} />
-              </div>
+                    {/* Loại dịch vụ */}
+      
+                    <div className="col-md-6">
+                      <label style={labelStyle}>
+                        Loại dịch vụ <span className="text-danger">*</span>
+                      </label>
+                      <ModernSelect
+                        name="LoaiDichVu"
+                        value={newServiceForm.LoaiDichVu}
+                        onChange={handleModalChange}
+                        placeholder="-- Chọn loại dịch vụ --"
+                        disabled={!newServiceForm.DoanhNghiepID} 
+                        options={availableServices.map(svc => ({ value: svc, label: svc }))}
+                      />
+                    </div>
 
-              {/* Ngày tháng */}
-              <div className="col-md-6">
-                <label className="form-label small fw-bold text-dark">Ngày bắt đầu <span className="text-danger">*</span></label>
-                <input type="date" className="form-control form-control-sm" name="NgayBatDau" value={newServiceForm.NgayBatDau} onChange={handleModalChange} />
-              </div>
-              <div className="col-md-6">
-                <label className="form-label small fw-bold text-dark">Ngày hoàn thành mong muốn <span className="text-danger">*</span></label>
-                <input type="text" className="form-control form-control-sm" name="NgayHoanThanh" placeholder="2025" value={newServiceForm.NgayHoanThanh} onChange={handleModalChange} />
-                <div className="form-text text-primary fst-italic" style={{fontSize: '10px'}}>Ngày hoàn thành có thể sai khác tùy thuộc vào hồ sơ.</div>
-              </div>
+                    {/* Tên dịch vụ chi tiết */}
+                    <div className="col-md-6">
+                      <label style={labelStyle}>Tên dịch vụ chi tiết <span className="text-danger">*</span></label>
+                      <input 
+                        type="text" 
+                        name="TenDichVu" 
+                        placeholder="Cấp lại hộ chiếu..." 
+                        value={newServiceForm.TenDichVu} 
+                        onChange={handleModalChange} 
+                        style={inputStyle}
+                      />
+                    </div>
 
-              {/* Lựa chọn Yes/No */}
-              <div className="col-md-6">
-                <label className="form-label small fw-bold text-dark">Yêu cầu thủ tục cấp tốc <span className="text-danger">*</span></label>
-                <div className="btn-group w-100" role="group">
-                  <input type="radio" className="btn-check" name="ThuTucCapToc" id="capTocYes" value="Yes" checked={newServiceForm.ThuTucCapToc === "Yes"} onChange={handleModalChange} />
-                  <label className="btn btn-outline-secondary btn-sm" htmlFor="capTocYes">Yes</label>
+                    {/* Ngày bắt đầu */}
+                    <div className="col-md-6">
+                      <label style={labelStyle}>Ngày bắt đầu <span className="text-danger">*</span></label>
+                      <input 
+                        type="date" 
+                        name="NgayBatDau" 
+                        value={newServiceForm.NgayBatDau} 
+                        onChange={handleModalChange} 
+                        style={inputStyle}
+                      />
+                    </div>
 
-                  <input type="radio" className="btn-check" name="ThuTucCapToc" id="capTocNo" value="No" checked={newServiceForm.ThuTucCapToc === "No"} onChange={handleModalChange} />
-                  <label className="btn btn-outline-secondary btn-sm" htmlFor="capTocNo">No</label>
-                </div>
-                <div className="form-text text-primary fst-italic" style={{fontSize: '10px'}}>Thời gian cấp tốc sẽ được hướng dẫn qua người phụ trách</div>
-              </div>
+                    {/* Ngày hoàn thành */}
+                    <div className="col-md-6">
+                      <label style={labelStyle}>Ngày hoàn thành mong muốn <span className="text-danger">*</span></label>
+                      <input 
+                        type="date" 
+                        name="NgayHoanThanh" 
+                        value={newServiceForm.NgayHoanThanh} 
+                        onChange={handleModalChange} 
+                        style={inputStyle}
+                      />
+                      <div style={helperTextStyle}>
+                        Ngày hoàn thành dịch vụ có thể sai khác tuỳ thuộc vào thực tế hồ sơ và tình hình xử lý hồ sơ tại cơ quan.
+                      </div>
+                    </div>
 
-              <div className="col-md-6">
-                <label className="form-label small fw-bold text-dark">Yêu cầu xuất hóa đơn <span className="text-danger">*</span></label>
-                 <div className="btn-group w-100" role="group">
-                  <input type="radio" className="btn-check" name="YeuCauHoaDon" id="hdYes" value="Yes" checked={newServiceForm.YeuCauHoaDon === "Yes"} onChange={handleModalChange} />
-                  <label className="btn btn-outline-secondary btn-sm" htmlFor="hdYes">Yes</label>
+                    {/* Thủ tục cấp tốc */}
+                    <div className="col-md-6">
+                      <label style={labelStyle}>Yêu cầu thủ tục cấp tốc <span className="text-danger">*</span></label>
+                      <ToggleButton name="ThuTucCapToc" value={newServiceForm.ThuTucCapToc} onChange={handleModalChange} />
+                      <div style={helperTextStyle}>
+                        Thời gian cấp tốc đối với từng dịch vụ sẽ được hướng dẫn thông qua người phụ trách.
+                      </div>
+                    </div>
 
-                  <input type="radio" className="btn-check" name="YeuCauHoaDon" id="hdNo" value="No" checked={newServiceForm.YeuCauHoaDon === "No"} onChange={handleModalChange} />
-                  <label className="btn btn-outline-secondary btn-sm" htmlFor="hdNo">No</label>
-                </div>
-                <div className="form-text text-primary fst-italic" style={{fontSize: '10px'}}>Hóa đơn sẽ gửi về email khi đăng ký</div>
-              </div>
+                    {/* Xuất hóa đơn */}
+                    <div className="col-md-6">
+                      <label style={labelStyle}>Yêu cầu xuất hóa đơn <span className="text-danger">*</span></label>
+                      <ToggleButton name="YeuCauHoaDon" value={newServiceForm.YeuCauHoaDon} onChange={handleModalChange} />
+                      <div style={helperTextStyle}>
+                        Hóa đơn sẽ được gửi về email đăng ký khi đăng ký doanh nghiệp trên hệ thống.
+                      </div>
+                    </div>
 
-              {/* Doanh thu (Chỉ hiện với GĐ/KT) */}
-              {(currentUser?.is_director || currentUser?.is_accountant) && (
-                <>
-                  <div className="col-md-6">
-                    <label className="form-label small fw-bold text-dark">Doanh thu (VND)</label>
-                    <input 
-                      type="text" 
-                      className="form-control form-control-sm" 
-                      name="DoanhThu" 
-                      value={newServiceForm.DoanhThu} 
-                      onChange={handleModalChange} 
-                      placeholder="0" 
-                    />
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label small fw-bold text-dark">Trừ ví (VND)</label>
-                    <input 
-                      type="text" 
-                      className="form-control form-control-sm" 
-                      name="Vi" 
-                      value={newServiceForm.Vi} 
-                      onChange={handleModalChange} 
-                      placeholder="0" 
-                    />
-                  </div>
-                </>
-              )}
-              
-             <div className="col-12">
-                 <label className="form-label small fw-bold text-dark">Ghi chú <span className="text-danger">*</span></label>
-                 <input type="text" className="form-control form-control-sm" name="GhiChu" placeholder="Chiết khấu..." value={newServiceForm.GhiChu} onChange={handleModalChange} />
-              </div>
+                    {/* Doanh thu & Chiết khấu/Ví */}
+                    {(currentUser?.is_director || currentUser?.is_accountant) && (
+                      <div className="col-12">
+                        <label style={labelStyle}>Doanh thu <span className="text-danger">*</span></label>
+                        <div className="d-flex gap-3">
+                          <div style={{ flex: 1 }}>
+                            <input 
+                              type="text" 
+                              name="DoanhThu" 
+                              value={newServiceForm.DoanhThu} 
+                              onChange={handleModalChange} 
+                              placeholder="1.000.000" 
+                              style={{...inputStyle, textAlign: "center"}}
+                            />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <input 
+                              type="text" 
+                              name="Vi" 
+                              value={newServiceForm.Vi} 
+                              onChange={handleModalChange} 
+                              placeholder="Trừ ví (VND)..." 
+                              style={{...inputStyle, textAlign: "center"}}
+                            />
+                          </div>
+                        </div>
+                         <div style={helperTextStyle}>
+                            Nhập doanh thu tổng và số tiền trừ ví (nếu có).
+                          </div>
+                      </div>
+                    )}
 
-              {/* Người phụ trách */}
-              <div className="col-12">
-                <label className="form-label small fw-bold text-dark">Chọn người phụ trách <span className="text-danger">*</span></label>
-                <select className="form-select form-select-sm" name="NguoiPhuTrachId" value={newServiceForm.NguoiPhuTrachId} onChange={handleModalChange}>
-                  <option value="">Chọn trong danh sách nhân viên</option>
-                  {userList.map(u => <option key={u.id} value={u.id}>{u.name} ({u.username})</option>)}
-                </select>
-              </div>
+                    {/* Ghi chú */}
+                    <div className="col-12">
+                      <label style={labelStyle}>Ghi chú <span className="text-danger">*</span></label>
+                      <input 
+                        type="text" 
+                        name="GhiChu" 
+                        placeholder="Nhập ghi chú" 
+                        value={newServiceForm.GhiChu} 
+                        onChange={handleModalChange} 
+                        style={inputStyle}
+                      />
+                    </div>
 
-              {/* Mật khẩu xác nhận (Đã sửa cho phép nhập) */}
-              <div className="col-12">
-                 <label className="form-label small fw-bold text-dark">Nhập mật khẩu để đăng ký <span className="text-danger">*</span></label>
-                 <div className="input-group input-group-sm">
-                    <input 
-                      type={showConfirmPassword ? "text" : "password"} 
-                      className="form-control" 
-                      placeholder="Nhập mật khẩu admin hiện tại..." 
-                      name="ConfirmPassword"
-                      value={newServiceForm.ConfirmPassword}
-                      onChange={handleModalChange}
-                      autoComplete="new-password"
-                    />
-                    <span 
-                      className="input-group-text bg-white" 
-                      style={{cursor: "pointer"}}
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    >
-                      {showConfirmPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
-                    </span>
-                 </div>
-                 <div className="form-text text-primary fst-italic" style={{fontSize: '10px'}}>
-                   Nhập mật khẩu tài khoản hiện tại ({currentUser?.username}) để xác nhận.
-                 </div>
-              </div>
+                    {/* Người phụ trách */}
+                      <div className="col-12">
+                        <label style={labelStyle}>
+                          Chọn người phụ trách <span className="text-danger">*</span>
+                        </label>
+                        <ModernSelect
+                          name="NguoiPhuTrachId"
+                          value={newServiceForm.NguoiPhuTrachId}
+                          onChange={handleModalChange}
+                          placeholder="Chọn trong danh sách nhân viên"
+                          
+                          twoColumns={true}  // <--- THÊM DÒNG NÀY ĐỂ CHIA 2 CỘT
+                          
+                          options={userList.map(u => ({ 
+                            value: u.id, 
+                            label: `${u.name} (${u.username})` 
+                          }))}
+                        />
+                      </div>
 
-              {/* Submit Button */}
-              <div className="col-12 mt-4">
-                <button className="btn btn-success w-100 fw-bold shadow-sm" onClick={handleModalSubmit}>
-                  Đăng ký dịch vụ mới
-                </button>
-              </div>
+                    {/* Mật khẩu xác nhận */}
+                    <div className="col-12">
+                       <label style={labelStyle}>Nhập mật khẩu để đăng ký <span className="text-danger">*</span></label>
+                       <div className="position-relative">
+                          <input 
+                            type={showConfirmPassword ? "text" : "password"} 
+                            placeholder="******" 
+                            name="ConfirmPassword"
+                            value={newServiceForm.ConfirmPassword}
+                            onChange={handleModalChange}
+                            autoComplete="new-password"
+                            style={{...inputStyle, paddingRight: "40px"}}
+                          />
+                          <span 
+                            className="position-absolute top-50 translate-middle-y end-0 me-3 cursor-pointer" 
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            style={{ color: "#6B7280" }}
+                          >
+                            {showConfirmPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
+                          </span>
+                       </div>
+                       <div style={helperTextStyle}>Mật khẩu tài khoản admin hiện tại</div>
+                    </div>
 
+                    {/* Nút Submit */}
+                    <div className="col-12 mt-3 pt-2">
+                      <button 
+                        className="btn w-100 fw-bold shadow-sm" 
+                        onClick={handleModalSubmit}
+                        style={{
+                          backgroundColor: "#22C55E", 
+                          color: "white",
+                          padding: "12px", 
+                          borderRadius: "10px",
+                          fontSize: "15px",
+                          border: "none",
+                          boxShadow: "0 4px 6px -1px rgba(34, 197, 94, 0.4)"
+                        }}
+                      >
+                        {newServiceForm.id ? "Cập nhật dịch vụ" : "Đăng ký dịch vụ mới"}
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>

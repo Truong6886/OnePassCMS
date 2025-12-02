@@ -5,7 +5,7 @@ import TraCuuHoSo from "./components/TraCuuHoSo";
 import KyHoSo from "./components/KyHoSo";
 import QuanLyNhanVien from "./components/QuanLyNhanVien";
 import B2BPage from "./components/B2BPage";
-// 1. Thêm useLocation vào import
+import B2CPage from "./components/B2CPage";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../src/styles/CMSDashboard.css";
@@ -143,6 +143,19 @@ export default function App() {
 
 
           <Route path="/kyhoso/:mahoso" element={<KyHoSo />} />
+         <Route
+            path="/b2c"
+            element={
+           
+              <AuthGuard user={currentUser} roles={["is_admin", "is_director", "is_staff"]}>
+                <B2CPage
+                  currentUser={currentUser}
+                  showSidebar={showSidebar}
+                  onToggleSidebar={toggleSidebar}
+                />
+              </AuthGuard>
+            }
+          />
 
       
           <Route
