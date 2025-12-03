@@ -141,7 +141,28 @@ useEffect(() => {
             <List size={22} />
             {!collapsed && <span>{texts.list[currentLanguage]}</span>}
           </li>
-
+ {(user?.is_admin ||user?.is_accountant|| user?.is_director) && (
+            <li
+              style={getItemStyle("B2B")}
+              onMouseEnter={() => setHoveredItem("B2B")}
+              onMouseLeave={() => setHoveredItem(null)}
+              onClick={() => navigate("/B2B")}
+            >
+                <Handshake  style={{ fontSize: 20 }} />
+                {!collapsed && <span>{texts.b2b[currentLanguage]}</span>}
+            </li>
+          )}
+              {(user?.is_admin ||user?.is_accountant|| user?.is_director) && (
+                <li
+                  style={getItemStyle("B2C")}
+                  onMouseEnter={() => setHoveredItem("B2C")}
+                  onMouseLeave={() => setHoveredItem(null)}
+                  onClick={() => navigate("/B2C")}
+                >
+                    <UserRound  style={{ fontSize: 20 }} />
+                    {!collapsed && <span>{texts.b2c[currentLanguage]}</span>}
+                </li>
+              )}
           {/* Tra cứu hồ sơ */}
           <li
             style={getItemStyle("hoso")}
@@ -178,28 +199,7 @@ useEffect(() => {
               {!collapsed && <span>{texts.doanhthu[currentLanguage]}</span>}
             </li>
           )}
-          {(user?.is_admin ||user?.is_accountant|| user?.is_director) && (
-            <li
-              style={getItemStyle("B2B")}
-              onMouseEnter={() => setHoveredItem("B2B")}
-              onMouseLeave={() => setHoveredItem(null)}
-              onClick={() => navigate("/B2B")}
-            >
-                <Handshake  style={{ fontSize: 20 }} />
-                {!collapsed && <span>{texts.b2b[currentLanguage]}</span>}
-            </li>
-          )}
-              {(user?.is_admin ||user?.is_accountant|| user?.is_director) && (
-                <li
-                  style={getItemStyle("B2C")}
-                  onMouseEnter={() => setHoveredItem("B2C")}
-                  onMouseLeave={() => setHoveredItem(null)}
-                  onClick={() => navigate("/B2C")}
-                >
-                    <UserRound  style={{ fontSize: 20 }} />
-                    {!collapsed && <span>{texts.b2c[currentLanguage]}</span>}
-                </li>
-              )}
+         
 
         </ul>
       </div>
