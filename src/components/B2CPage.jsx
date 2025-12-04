@@ -12,7 +12,7 @@ import "../styles/DashboardList.css";
 import { ChevronDown, Eye, EyeOff } from "lucide-react";
 
 
-const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false }) => {
+const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false, height = "36px" }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
@@ -40,36 +40,35 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
       <div 
         onClick={() => !disabled && setIsOpen(!isOpen)}
         style={{
-          width: "100%", padding: "10px 12px", borderRadius: "10px",
-          border: "2px solid #E5E7EB", fontSize: "13px", color: "#374151",
-          backgroundColor: disabled ? "#F3F4F6" : "#F9FAFB",
+          width: "100%", padding: "0 10px", borderRadius: "8px", // Giảm radius cho gọn
+          border: "1px solid #d1d5db", fontSize: "13px", color: "#374151", // Viền mỏng hơn
+          backgroundColor: disabled ? "#F3F4F6" : "#ffffff",
           cursor: disabled ? "not-allowed" : "pointer",
           display: "flex", justifyContent: "space-between", alignItems: "center",
-          userSelect: "none", height: "40px" 
+          userSelect: "none", height: height, // Sử dụng height dynamic
+          transition: "all 0.2s"
         }}
       >
-        <span style={{ color: value ? "#374151" : "#9CA3AF" }}>{displayLabel}</span>
-        <ChevronDown size={16} color="#6B7280" />
+        <span className="text-truncate" style={{ color: value ? "#374151" : "#9CA3AF" }}>{displayLabel}</span>
+        <ChevronDown size={14} color="#6B7280" />
       </div>
 
       {isOpen && !disabled && (
-        <div className="position-absolute w-100 bg-white shadow-sm rounded-bottom border"
+        <div className="position-absolute w-100 bg-white shadow rounded border"
           style={{
-            top: "48px", left: 0, zIndex: 1000, maxHeight: "250px", overflowY: "auto",
-            borderRadius: "8px", padding: "8px",
+            top: "100%", left: 0, marginTop: "4px", zIndex: 1000, maxHeight: "200px", overflowY: "auto",
+            borderRadius: "8px", padding: "4px",
             display: twoColumns ? "grid" : "block",
-            gridTemplateColumns: twoColumns ? "1fr 1fr" : "none", gap: twoColumns ? "8px" : "0"
+            gridTemplateColumns: twoColumns ? "1fr 1fr" : "none", gap: twoColumns ? "4px" : "0"
           }}
         >
           {options.map((opt, idx) => (
             <div key={idx} onClick={() => handleSelect(opt.value)}
-              className={`px-3 py-2 transition-all ${twoColumns ? 'rounded' : ''}`}
+              className={`px-2 py-2 transition-all ${twoColumns ? 'rounded' : 'rounded'}`}
               style={{
                 cursor: "pointer", fontSize: "12px",
                 color: String(opt.value) === String(value) ? "#2563eb" : "#374151",
                 backgroundColor: String(opt.value) === String(value) ? "#EFF6FF" : "transparent",
-                borderBottom: !twoColumns && idx !== options.length - 1 ? "1px solid #f3f4f6" : "none",
-                border: twoColumns ? "1px solid #E5E7EB" : undefined,
               }}
               onMouseEnter={(e) => { if(String(opt.value) !== String(value)) e.target.style.backgroundColor = "#F3F4F6"; }}
               onMouseLeave={(e) => { if(String(opt.value) !== String(value)) e.target.style.backgroundColor = "transparent"; }}
@@ -82,72 +81,125 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
     </div>
   );
 };
+
 const RequestEditModal = ({ request, users, currentUser, onClose, onSave, currentLanguage }) => {
   const isNew = !request || !request.YeuCauID;
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // State form
+  const translations = {
+    vi: {
+      title: isNew ? "Đăng ký dịch vụ mới (B2C)" : `Cập nhật yêu cầu #${request?.YeuCauID || ""}`,
+      subtitle: "Nhập thông tin khách hàng và dịch vụ",
+      customer: "Khách Hàng", areaCode: "Mã", phone: "Số Điện Thoại", email: "Email",
+      serviceType: "Loại Dịch Vụ", // Label cho Dropdown danh mục
+      serviceName: "Tên Dịch Vụ",  // Label cho Input nhập tên cụ thể
+      package: "Gói Dịch Vụ", form: "Kênh Liên Hệ", branch: "Cơ Sở Tư Vấn",
+      appointmentDate: "Ngày Hẹn", appointmentTime: "Giờ Hẹn", content: "Nội Dung",
+      note: "Ghi Chú", assignee: "Người Phụ Trách", status: "Trạng thái",
+      confirmPassword: "Mật khẩu xác nhận", passwordHelper: "Mật khẩu của bạn",
+      save: isNew ? "Đăng ký dịch vụ mới" : "Lưu thay đổi", processing: "Đang xử lý...",
+      selectServiceType: "Chọn Loại Dịch Vụ", 
+      enterServiceName: "Nhập Tên Dịch Vụ Cụ Thể",
+      selectPackage: "Chọn Gói Dịch Vụ",
+      selectForm: "Chọn Hình Thức", selectBranch: "Chọn Cơ Sở", selectAssignee: "Chọn nhân viên",
+      enterName: "Nhập Tên Khách Hàng", enterPhone: "Nhập Số Điện Thoại", enterEmail: "Nhập Email",
+      selectNguoiPT: "Chọn Người Phụ Trách",
+      enterContent: "Nhập Nội Dung",
+      enterNote: "Nhập Ghi Chú"
+    },
+    en: {
+      title: isNew ? "Register New Service (B2C)" : `Update Request #${request?.YeuCauID || ""}`,
+      subtitle: "Enter customer and service information",
+      customer: "Customer", areaCode: "Code", phone: "Phone Number", email: "Email",
+      serviceType: "Service Type",
+      serviceName: "Service Name",
+      package: "Package", form: "Contact Channel", branch: "Branch",
+      appointmentDate: "Date", appointmentTime: "Time", content: "Content",
+      note: "Note", assignee: "Assignee", status: "Status",
+      confirmPassword: "Confirm Password", passwordHelper: "Your password",
+      save: isNew ? "Register New Service" : "Save Changes", processing: "Processing...",
+      selectServiceType: "Select Service Type", 
+      enterServiceName: "Enter Specific Service Name",
+      selectPackage: "Select Service Package",
+      selectForm: "Select Form", selectBranch: "Select Branch", selectAssignee: "Select Staff",
+      enterName: "Customer Name", enterPhone: "Enter Phone Number", enterEmail: "Enter Email",
+      selectNguoiPT: "Select Assignee", 
+      enterContent: "Enter Content",
+      enterNote: "Enter Note"
+    }
+  };
+  const t = translations[currentLanguage === "vi" ? "vi" : "en"];
+
   const [formData, setFormData] = useState(
     isNew
       ? {
-          HoTen: "", MaVung: "", SoDienThoai: "", Email: "",
+          HoTen: "", MaVung: "+84", SoDienThoai: "", Email: "",
           NoiDung: "", GhiChu: "", TenHinhThuc: "",
           CoSoTuVan: "", Gio: "", ChonNgay: "",
-          TenDichVu: "", MaHoSo: "", NguoiPhuTrachId: "",
-          TrangThai: "", GoiDichVu: "",
-          Invoice: "No", InvoiceUrl: "",
-          ConfirmPassword: "" 
+          LoaiDichVu: "", // Cột cũ (Dropdown danh mục)
+          TenDichVu: "",  // Cột mới (Input text)
+          MaHoSo: "", NguoiPhuTrachId: "",
+          TrangThai: "Tư vấn", GoiDichVu: "",
+          Invoice: "No", InvoiceUrl: "", ConfirmPassword: "" 
         }
       : { 
           ...request,
-          MaVung: request.MaVung || "",
+          MaVung: request.MaVung || "+84",
           TenHinhThuc: request.TenHinhThuc || "Trực tiếp",
-          CoSoTuVan: request.CoSoTuVan || "",
+          CoSoTuVan: request.CoSoTuVan || "Seoul",
           GoiDichVu: request.GoiDichVu || "Thông thường",
           Invoice: request.Invoice || "No",
-          MaHoSo: request.MaHoSo || ""
+          MaHoSo: request.MaHoSo || "",
+          TrangThai: request.TrangThai || "Tư vấn",
+          LoaiDichVu: request.LoaiDichVu || "", 
+          TenDichVu: request.TenDichVu || ""  
         }
   );
 
-  // Helper styles
+  // STYLE CHUNG
+  const inputHeight = "38px"; 
+  const labelStyle = { fontSize: "11px", fontWeight: "600", color: "#4B5563", marginBottom: "4px", display: "block" };
   const inputStyle = {
-    width: "100%", padding: "10px 12px", borderRadius: "10px",
-    border: "2px solid #E5E7EB", fontSize: "13px", color: "#374151",
-    backgroundColor: "#F9FAFB", outline: "none", transition: "border-color 0.2s",
+    width: "100%", height: inputHeight, padding: "0 10px", borderRadius: "6px",
+    border: "1px solid #d1d5db", fontSize: "13px", color: "#111827",
+    backgroundColor: "#ffffff", outline: "none", transition: "border-color 0.2s"
   };
-  const labelStyle = { fontSize: "13px", fontWeight: "700", color: "#1F2937", marginBottom: "4px", display: "block" };
-  const helperTextStyle = { fontSize: "10px", color: "#3B82F6", marginTop: "3px", fontStyle: "normal" };
 
-  // Data Select
-  const areaCodes = [
-    { value: "+82", label: "Hàn Quốc (+82)" },
-    { value: "+84", label: "Việt Nam (+84)" },
-  ];
-
-  const serviceList = [
+  // --- DATA ---
+  const areaCodes = [{ value: "+82", label: "+82" }, { value: "+84", label: "+84" }];
+  
+  // Danh sách này bây giờ là LOẠI DỊCH VỤ
+  const serviceTypeList = currentLanguage === "vi" ? [
     "Chứng thực", "Kết hôn", "Khai sinh, khai tử", "Xuất nhập cảnh",
-    "Giấy tờ tuỳ thân", "Nhận nuôi", "Thị thực", "Tư vấn pháp lý",
-    "Dịch vụ B2B", "Khác"
+    "Giấy tờ tuỳ thân", "Nhận nuôi", "Thị thực", "Tư vấn pháp lý", "Dịch vụ B2B", "Khác"
+  ] : [
+    "Certification", "Marriage", "Birth/Death Registration", "Immigration",
+    "ID Documents", "Adoption", "Visa", "Legal Consultation", "B2B Service", "Other"
   ];
+  
+  const serviceTypeMapping = { "Certification": "Chứng thực", "Marriage": "Kết hôn", "Birth/Death Registration": "Khai sinh, khai tử", "Immigration": "Xuất nhập cảnh", "ID Documents": "Giấy tờ tuỳ thân", "Adoption": "Nhận nuôi", "Visa": "Thị thực", "Legal Consultation": "Tư vấn pháp lý", "B2B Service": "Dịch vụ B2B", "Other": "Khác" };
+  const reverseServiceTypeMapping = Object.fromEntries(Object.entries(serviceTypeMapping).map(([en, vi]) => [vi, en]));
+  
+  const formOptions = currentLanguage === "vi" ? ["Messenger","Kakao Talk", "Zalo","Naver Talk", "Email", "Gọi điện","Trực tiếp"] : ["Messenger","Kakao Talk", "Zalo","Naver Talk", "Email", "Phone", "Direct"];
+  const formMapping = { "Direct": "Trực tiếp", "Online": "Online", "Email": "Email", "Phone": "Gọi điện" };
+  const branchOptions = [{ value: "Seoul", label: "Seoul" }, { value: "Busan", label: "Busan" }];
+  const statusOptions = currentLanguage === "vi" ? ["Tư vấn", "Đang xử lý", "Đang nộp hồ sơ", "Hoàn thành"] : ["Consultation", "Processing", "Submitting Documents", "Completed"];
+  const statusMapping = { "Consultation": "Tư vấn", "Processing": "Đang xử lý", "Submitting Documents": "Đang nộp hồ sơ", "Completed": "Hoàn thành" };
+  const packageOptions = currentLanguage === "vi" ? [{ value: "Thông thường", label: "Thông thường" }, { value: "Cấp tốc", label: "Cấp tốc" }] : [{ value: "Thông thường", label: "Standard" }, { value: "Cấp tốc", label: "Express" }];
 
-  // Logic xử lý Input
   const handleInputChange = (eOrName, value) => {
     let name, val;
-    if (typeof eOrName === 'string') {
-      name = eOrName; val = value;
-    } else {
-      name = eOrName.target.name; val = eOrName.target.value;
-    }
+    if (typeof eOrName === 'string') { name = eOrName; val = value; } 
+    else { name = eOrName.target.name; val = eOrName.target.value; }
 
-    setFormData((prev) => {
-      const updated = { ...prev, [name]: val };
-      if (name === "NguoiPhuTrachId") {
-        const selectedUser = users.find((u) => String(u.id) === String(val));
-        updated.NguoiPhuTrach = selectedUser ? selectedUser.name : "";
-      }
-      return updated;
-    });
+    let valueToSave = val;
+    // Map Loại Dịch Vụ
+    if (name === "LoaiDichVu" && currentLanguage === "en") valueToSave = serviceTypeMapping[val] || val;
+    if (name === "TenHinhThuc" && currentLanguage === "en") valueToSave = formMapping[val] || val;
+    if (name === "TrangThai" && currentLanguage === "en") valueToSave = statusMapping[val] || val;
+
+    setFormData((prev) => ({ ...prev, [name]: valueToSave }));
   };
 
   const formatTimeForInput = (val) => {
@@ -155,359 +207,231 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     if (val.includes("T")) {
       const date = new Date(val);
       if (isNaN(date.getTime())) return "";
-      const hh = String(date.getHours()).padStart(2, '0');
-      const mm = String(date.getMinutes()).padStart(2, '0');
-      return `${hh}:${mm}`;
+      return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
     }
     return val.substring(0, 5);
   };
 
-  // Logic Submit
   const handleSave = async () => {
-    // 1. Validate chung
     if (!formData.HoTen || !formData.SoDienThoai) {
-        showToast(currentLanguage === "vi" ? "Vui lòng nhập Họ tên và SĐT" : "Please enter Name and Phone", "warning");
+        showToast(currentLanguage === "vi" ? "Thiếu tên hoặc SĐT" : "Missing Name/Phone", "warning");
         return;
     }
-
-    // 2. Logic riêng cho ĐĂNG KÝ MỚI (Cần nhập mật khẩu)
     if (isNew) {
       if (!formData.ConfirmPassword) {
-        showToast("Vui lòng nhập mật khẩu để xác nhận đăng ký!", "warning");
+        showToast(currentLanguage === "vi" ? "Nhập mật khẩu xác nhận!" : "Enter password!", "warning");
         return;
       }
-      
       try {
         setLoading(true);
-        // Gọi API check login để xác thực mật khẩu người đang thao tác
         const verifyRes = await fetch(`https://onepasscms-backend.onrender.com/api/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            username: currentUser.username,
-            password: formData.ConfirmPassword
-          })
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: currentUser.username, password: formData.ConfirmPassword })
         });
         const verifyJson = await verifyRes.json();
-        
         if (!verifyJson.success) {
           setLoading(false);
-          showToast("Mật khẩu xác nhận không chính xác!", "error");
+          showToast(currentLanguage === "vi" ? "Sai mật khẩu!" : "Wrong password!", "error");
           return;
         }
-      } catch (err) {
-        setLoading(false);
-        showToast("Lỗi kết nối khi xác thực mật khẩu", "error");
-        return;
-      }
+      } catch (err) { setLoading(false); return; }
     }
-
-    // 3. Nếu OK (hoặc là Edit) thì gọi hàm save của cha
     const payload = { ...formData };
-    delete payload.ConfirmPassword; // Không gửi mật khẩu lên API tạo yêu cầu
-    
+    delete payload.ConfirmPassword;
     setLoading(true);
-    await onSave(payload); // Hàm onSave của cha sẽ handle đóng modal
+    await onSave(payload);
     setLoading(false);
   };
 
-if (isNew) {
+  const getDisplayValue = (field, vietnameseValue) => {
+    if (currentLanguage === "vi") return vietnameseValue;
+    if (field === "LoaiDichVu") return reverseServiceTypeMapping[vietnameseValue] || vietnameseValue; // Map loại
+    if (field === "TenHinhThuc") return Object.keys(formMapping).find(key => formMapping[key] === vietnameseValue) || vietnameseValue;
+    if (field === "TrangThai") return Object.keys(statusMapping).find(key => statusMapping[key] === vietnameseValue) || vietnameseValue;
+    if (field === "GoiDichVu") return vietnameseValue === "Thông thường" ? "Standard" : vietnameseValue === "Cấp tốc" ? "Express" : vietnameseValue;
+    return vietnameseValue;
+  };
+
   return (
     <div className="modal-overlay" style={{
       position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: "rgba(0,0,0,0.6)", zIndex: 1050, backdropFilter: "blur(2px)",
+      backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1050, backdropFilter: "blur(3px)",
       display: "flex", justifyContent: "center", alignItems: "center"
     }}>
-      <div className="bg-white p-3 scrollbar-hide position-relative" 
+      <div className="bg-white p-4 position-relative" 
           style={{ 
-            width: "570px", 
-            maxWidth: "90%", 
-            maxHeight: "90vh",
-            overflowY: "auto", 
+            width: "800px",
+            maxWidth: "95%", 
             borderRadius: "12px", 
-            boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)" 
+            boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" 
           }}
       >
         <button onClick={onClose} className="position-absolute d-flex align-items-center justify-content-center border-0 bg-light rounded-circle"
-            style={{ top: "10px", right: "10px", width: "28px", height: "28px", cursor: "pointer", zIndex: 10 }}>
+            style={{ top: "12px", right: "12px", width: "30px", height: "30px", cursor: "pointer", zIndex: 10 }}>
             <X size={16} />
         </button>
 
-        <div className="text-center mb-3 mt-1">
-          <h3 className="fw-bold m-0" style={{ color: "#333", fontSize: "18px" }}>Đăng ký dịch vụ mới (B2C)</h3>
-          <p className="text-muted small mt-1 mb-0" style={{ fontSize: "11px" }}>Nhập thông tin khách hàng và dịch vụ</p>
+        <div className="text-center mb-4">
+          <h3 className="fw-bold m-0" style={{ fontSize: "20px", color: "#111827" }}>{t.title}</h3>
+          <p className="text-muted m-0 mt-1" style={{ fontSize: "13px" }}>{t.subtitle}</p>
         </div>
 
-        <div className="row g-2 px-1 align-items-stretch"> {/* Thêm align-items-stretch */}
-          
-          {/* Hàng 1: Họ tên & Mã vùng */}
-          <div className="col-md-6 d-flex flex-column">
-            <label style={{...labelStyle, fontSize: "12px"}}>Khách Hàng <span className="text-danger">*</span></label>
-            <input type="text" name="HoTen" style={{
-              ...inputStyle, 
-              padding: "8px 10px", 
-              fontSize: "12px",
-              height: "40px", // Fixed height
-              boxSizing: "border-box"
-            }} 
-              value={formData.HoTen} onChange={handleInputChange} placeholder="Nhập Tên Khách Hàng" />
-          </div>
-          <div className="col-md-6 d-flex flex-column">
-            <label style={{...labelStyle, fontSize: "12px"}}>Mã vùng <span className="text-danger">*</span></label>
-            <div style={{ flex: 1 }}> {/* Wrapper để ModernSelect chiếm full height */}
-              <ModernSelect name="MaVung" value={formData.MaVung} placeholder="Chọn Mã Vùng" 
-                options={areaCodes} onChange={handleInputChange} />
-            </div>
-          </div>
-
-          {/* Hàng 2: SĐT & Email */}
-          <div className="col-md-6 d-flex flex-column">
-            <label style={{...labelStyle, fontSize: "12px"}}>Số điện thoại <span className="text-danger">*</span></label>
-            <input type="text" name="SoDienThoai" style={{
-              ...inputStyle, 
-              padding: "8px 10px", 
-              fontSize: "12px",
-              height: "40px", // Fixed height
-              boxSizing: "border-box"
-            }} 
-              value={formData.SoDienThoai} onChange={handleInputChange} placeholder="Nhập Số Điện Thoại" />
-          </div>
-          <div className="col-md-6 d-flex flex-column">
-            <label style={{...labelStyle, fontSize: "12px"}}>Email</label>
-            <input type="email" name="Email" style={{
-              ...inputStyle, 
-              padding: "8px 10px", 
-              fontSize: "12px",
-              height: "40px", // Fixed height
-              boxSizing: "border-box"
-            }} 
-              value={formData.Email} onChange={handleInputChange} placeholder="Nhập Email" />
-          </div>
-
-          {/* Hàng 3: Dịch vụ & Gói */}
-          <div className="col-md-6 d-flex flex-column">
-            <label style={{...labelStyle, fontSize: "12px"}}>Dịch vụ <span className="text-danger">*</span></label>
-            <div style={{ flex: 1 }}>
-              <ModernSelect name="TenDichVu" value={formData.TenDichVu} placeholder="Chọn Dịch Vụ"
-                options={serviceList.map(s => ({ value: s, label: s }))} onChange={handleInputChange} />
-            </div>
-          </div>
-          <div className="col-md-6 d-flex flex-column">
-            <label style={{...labelStyle, fontSize: "12px"}}>Gói Dịch Vụ</label>
-            <div style={{ flex: 1 }}>
-              <ModernSelect name="GoiDichVu" value={formData.GoiDichVu} placeholder="Chọn Gói Dịch Vụ"
-                options={[{ value: "Thông thường", label: "Thông thường" }, { value: "Cấp tốc", label: "Cấp tốc" }]} 
-                onChange={handleInputChange} />
-            </div>
-          </div>
-
-          {/* Hàng 4: Hình thức & Cơ sở */}
-          <div className="col-md-6 d-flex flex-column">
-            <label style={{...labelStyle, fontSize: "12px"}}>Hình thức</label>
-            <div style={{ flex: 1 }}>
-              <ModernSelect name="TenHinhThuc" value={formData.TenHinhThuc} placeholder="Chọn Hình Thức"
-                options={["Trực tiếp", "Online", "Email", "Gọi điện"].map(v => ({ value: v, label: v }))} 
-                onChange={handleInputChange} />
-            </div>
-          </div>
-          <div className="col-md-6 d-flex flex-column">
-            <label style={{...labelStyle, fontSize: "12px"}}>Cơ sở tư vấn</label>
-            <div style={{ flex: 1 }}>
-              <ModernSelect name="CoSoTuVan" value={formData.CoSoTuVan} placeholder="Chọn Cơ Sở Tư Vấn"
-                options={[{ value: "Seoul", label: "Seoul" }, { value: "Busan", label: "Busan" }]} 
-                onChange={handleInputChange} />
-            </div>
-          </div>
-
-          {/* Hàng 5: Ngày giờ hẹn */}
-          <div className="col-md-6 d-flex flex-column">
-            <label style={{...labelStyle, fontSize: "12px"}}>Ngày hẹn</label>
-            <input type="date" name="ChonNgay" style={{
-              ...inputStyle, 
-              padding: "8px 10px", 
-              fontSize: "12px",
-              height: "40px", // Fixed height
-              boxSizing: "border-box"
-            }} 
-              value={formData.ChonNgay ? new Date(formData.ChonNgay).toISOString().split("T")[0] : ""} 
-              onChange={handleInputChange} />
-          </div>
-          <div className="col-md-6 d-flex flex-column">
-            <label style={{...labelStyle, fontSize: "12px"}}>Giờ hẹn</label>
-            <input type="time" name="Gio" style={{
-              ...inputStyle, 
-              padding: "8px 10px", 
-              fontSize: "12px",
-              height: "40px", // Fixed height
-              boxSizing: "border-box"
-            }} 
-              value={formatTimeForInput(formData.Gio)} onChange={handleInputChange} />
-          </div>
-
-          {/* Nội dung & Ghi chú */}
-          <div className="col-12 d-flex flex-column">
-            <label style={{...labelStyle, fontSize: "12px"}}>Nội dung</label>
-            <textarea rows={2} name="NoiDung" style={{
-              ...inputStyle, 
-              padding: "8px 10px", 
-              fontSize: "12px",
-              minHeight: "70px", // Fixed min-height cho textarea
-              boxSizing: "border-box",
-              resize: "vertical"
-            }} 
-              value={formData.NoiDung} onChange={handleInputChange} />
-          </div>
-          <div className="col-12 d-flex flex-column">
-            <label style={{...labelStyle, fontSize: "12px"}}>Ghi chú</label>
-            <textarea rows={2} name="GhiChu" style={{
-              ...inputStyle, 
-              padding: "8px 10px", 
-              fontSize: "12px",
-              height: "40px", // Fixed height
-              boxSizing: "border-box"
-            }} 
-              value={formData.GhiChu} onChange={handleInputChange} />
-          </div>
-          
-          {/* Người phụ trách (Nếu là Admin) */}
-          {currentUser?.is_admin && (
-            <div className="col-12 d-flex flex-column">
-              <label style={{...labelStyle, fontSize: "12px"}}>Người phụ trách</label>
-              <div style={{ flex: 1 }}>
-                <ModernSelect name="NguoiPhuTrachId" value={formData.NguoiPhuTrachId} placeholder="Chọn nhân viên" 
-                  options={users.map(u => ({ value: String(u.id), label: u.name }))} onChange={handleInputChange} />
-              </div>
-            </div>
-          )}
-
-          {/* CONFIRM PASSWORD (Bắt buộc) */}
-          <div className="col-12 mt-2 d-flex flex-column">
-            <label style={{...labelStyle, fontSize: "12px"}}>Nhập mật khẩu để xác nhận đăng ký <span className="text-danger">*</span></label>
-            <div className="position-relative">
-              <input 
-                type={showConfirmPassword ? "text" : "password"} 
-                name="ConfirmPassword"
-                placeholder="******" 
-                value={formData.ConfirmPassword}
-                onChange={handleInputChange}
-                autoComplete="new-password"
-                style={{
-                  ...inputStyle, 
-                  padding: "8px 10px", 
-                  fontSize: "12px", 
-                  paddingRight: "35px",
-                  height: "40px", // Fixed height
-                  boxSizing: "border-box"
-                }}
-              />
-              <span className="position-absolute top-50 translate-middle-y end-0 me-2 cursor-pointer" 
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ color: "#6B7280" }}>
-                {showConfirmPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
-              </span>
-            </div>
-            <div style={{...helperTextStyle, fontSize: "9px"}}>Mật khẩu tài khoản của bạn ({currentUser.username})</div>
-          </div>
-
-          <div className="col-12 mt-3 pt-1">
-            <button className="btn w-100 fw-bold shadow-sm" onClick={handleSave} disabled={loading}
-              style={{ 
-                backgroundColor: "#22C55E", 
-                color: "white", 
-                padding: "10px", 
-                fontSize: "13px",
-                height: "37px", // Fixed height
-                borderRadius: "8px", 
-                border: "none" 
-              }}>
-              {loading ? "Đang xử lý..." : "Đăng ký dịch vụ mới"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-  return (
-    <div className="modal-overlay" style={{
-      position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1050,
-      display: "flex", justifyContent: "center", alignItems: "center"
-    }}>
-      <div className="bg-white rounded-3 shadow-lg p-4" style={{ width: "900px", maxWidth: "95%", maxHeight: "90vh", overflowY: "auto" }}>
-        <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2">
-          <h5 className="fw-bold m-0 text-primary">
-             {currentLanguage === "vi" ? `Cập nhật yêu cầu #${formData.YeuCauID}` : `Update Request #${formData.YeuCauID}`}
-          </h5>
-          <button className="btn btn-sm btn-light rounded-circle" onClick={onClose}><X size={20} /></button>
-        </div>
-
-        {/* Form Sửa - Layout cũ */}
+        {/* LAYOUT 3-3-2-2 */}
         <div className="row g-3">
-          <div className="col-md-4">
-             <label className="form-label fw-semibold text-secondary small">Họ tên</label>
-             <input type="text" className="form-control" name="HoTen" value={formData.HoTen} onChange={handleInputChange} />
-          </div>
-          <div className="col-md-2">
-             <label className="form-label fw-semibold text-secondary small">Mã vùng</label>
-             {/* Vẫn dùng ModernSelect cho tiện nhưng style trong Grid Bootstrap */}
-             <ModernSelect name="MaVung" value={formData.MaVung} options={areaCodes} onChange={handleInputChange} />
-          </div>
-          <div className="col-md-3">
-             <label className="form-label fw-semibold text-secondary small">Số điện thoại</label>
-             <input type="text" className="form-control" name="SoDienThoai" value={formData.SoDienThoai} onChange={handleInputChange} />
-          </div>
-          <div className="col-md-3">
-             <label className="form-label fw-semibold text-secondary small">Email</label>
-             <input type="email" className="form-control" name="Email" value={formData.Email} onChange={handleInputChange} />
-          </div>
-
-          <div className="col-md-4">
-             <label className="form-label fw-semibold text-secondary small">Dịch vụ</label>
-             <select className="form-select" name="TenDichVu" value={formData.TenDichVu} onChange={handleInputChange}>
-                {serviceList.map(s => <option key={s} value={s}>{s}</option>)}
-             </select>
-          </div>
-          <div className="col-md-4">
-             <label className="form-label fw-semibold text-secondary small">Gói Dịch Vụ</label>
-             <select className="form-select" name="GoiDichVu" value={formData.GoiDichVu} onChange={handleInputChange}>
-               <option value="Thông thường">Thông thường</option><option value="Cấp tốc">Cấp tốc</option>
-             </select>
-          </div>
-          <div className="col-md-4">
-             <label className="form-label fw-semibold text-secondary small">Trạng thái</label>
-             <select className="form-select" name="TrangThai" value={formData.TrangThai} onChange={handleInputChange}>
-                <option value="Tư vấn">Tư vấn</option>
-                <option value="Đang xử lý">Đang xử lý</option>
-                <option value="Đang nộp hồ sơ">Đang nộp hồ sơ</option>
-                <option value="Hoàn thành">Hoàn thành</option>
-             </select>
-          </div>
-
-          {/* Các trường khác giữ nguyên layout cũ... */}
-          <div className="col-md-6">
-            <label className="form-label fw-semibold text-secondary small">Nội dung</label>
-            <textarea className="form-control" name="NoiDung" rows={2} value={formData.NoiDung} onChange={handleInputChange} />
-          </div>
-          <div className="col-md-6">
-            <label className="form-label fw-semibold text-secondary small">Ghi chú</label>
-            <textarea className="form-control" name="GhiChu" rows={2} value={formData.GhiChu} onChange={handleInputChange} />
-          </div>
           
-          {/* Không có trường mật khẩu ở đây */}
+          {/* --- HÀNG 1 (3 Cột): Tên | SĐT (có mã vùng gọn) | Email --- */}
+          <div className="col-md-4">
+            <label style={labelStyle}>{t.customer} <span className="text-danger">*</span></label>
+            <input type="text" name="HoTen" style={inputStyle} value={formData.HoTen} onChange={handleInputChange} placeholder={t.enterName} />
+          </div>
 
-        </div>
+          <div className="col-md-4">
+            <label style={labelStyle}>{t.phone} <span className="text-danger">*</span></label>
+            <div className="d-flex">
+              <select 
+                name="MaVung" 
+                value={formData.MaVung} 
+                onChange={handleInputChange} 
+                style={{
+                  ...inputStyle, width: "70px", borderTopRightRadius: 0, borderBottomRightRadius: 0,
+                  padding: "0 5px", textAlign: "center", backgroundColor: "#f9fafb", cursor: "pointer", appearance: "auto"
+                }}
+              >
+                {areaCodes.map(c => <option key={c.value} value={c.value}>{c.value}</option>)}
+              </select>
+              <input type="text" name="SoDienThoai" style={{ ...inputStyle, flex: 1, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: "none" }} 
+                value={formData.SoDienThoai} onChange={handleInputChange} placeholder={t.enterPhone} 
+              />
+            </div>
+          </div>
 
-        <div className="mt-4 d-flex justify-content-end gap-2">
-          <button className="btn btn-secondary" onClick={onClose}>Hủy</button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={loading}>Lưu thay đổi</button>
+          <div className="col-md-4">
+            <label style={labelStyle}>{t.email}</label>
+            <input type="email" name="Email" style={inputStyle} value={formData.Email} onChange={handleInputChange} placeholder={t.enterEmail} />
+          </div>
+
+          {/* --- HÀNG 2 (3 Cột): LOẠI DỊCH VỤ (Dropdown) | TÊN DỊCH VỤ (Input) | Gói --- */}
+          <div className="col-md-4">
+            <label style={labelStyle}>{t.serviceType} <span className="text-danger">*</span></label>
+            {/* Sử dụng LoaiDichVu cho Dropdown danh mục */}
+            <ModernSelect 
+                name="LoaiDichVu" 
+                height={inputHeight} 
+                value={getDisplayValue("LoaiDichVu", formData.LoaiDichVu)} 
+                placeholder={t.selectServiceType} 
+                options={serviceTypeList.map(s => ({ value: s, label: s }))} 
+                onChange={handleInputChange} 
+            />
+          </div>
+
+          <div className="col-md-4">
+            <label style={labelStyle}>{t.serviceName}</label>
+            {/* Sử dụng TenDichVu cho Input nhập tên cụ thể */}
+             <input type="text" name="TenDichVu" style={inputStyle} value={formData.TenDichVu} onChange={handleInputChange} placeholder={t.enterServiceName} />
+          </div>
+
+          <div className="col-md-4">
+            <label style={labelStyle}>{t.package}</label>
+            <ModernSelect name="GoiDichVu" height={inputHeight} value={getDisplayValue("GoiDichVu", formData.GoiDichVu)} placeholder={t.selectPackage} options={packageOptions} onChange={handleInputChange} />
+          </div>
+
+          {/* --- HÀNG 3 (3 Cột): Hình thức | Cơ sở | Người phụ trách/Trạng thái --- */}
+          <div className="col-md-4">
+            <label style={labelStyle}>{t.form}</label>
+            <ModernSelect name="TenHinhThuc" height={inputHeight} value={getDisplayValue("TenHinhThuc", formData.TenHinhThuc)} placeholder={t.selectForm} options={formOptions.map(v => ({ value: v, label: v }))} onChange={handleInputChange} />
+          </div>
+
+          <div className="col-md-4">
+            <label style={labelStyle}>{t.branch}</label>
+            <ModernSelect name="CoSoTuVan" height={inputHeight} value={formData.CoSoTuVan} placeholder={t.selectBranch} options={branchOptions} onChange={handleInputChange} />
+          </div>
+          <div className="col-md-4">
+             {currentUser?.is_admin ? (
+                <>
+                <label style={labelStyle}>{t.assignee}</label>
+                <ModernSelect name="NguoiPhuTrachId" height={inputHeight} value={formData.NguoiPhuTrachId} placeholder={t.selectNguoiPT} options={users.map(u => ({ value: String(u.id), label: u.name }))} onChange={handleInputChange} />
+                </>
+             ) : (
+                <>
+                 <label style={labelStyle}>{t.status}</label>
+                 <div style={{...inputStyle, backgroundColor: "#f3f4f6", display: "flex", alignItems: "center", color: "#6b7280"}}>{formData.TrangThai}</div>
+                </>
+             )}
+          </div>
+
+          {/* --- HÀNG 4 (2 Cột): Ngày hẹn | Giờ hẹn --- */}
+          <div className="col-md-6">
+            <label style={labelStyle}>{t.appointmentDate}</label>
+            <input type="date" name="ChonNgay" style={inputStyle} value={formData.ChonNgay ? new Date(formData.ChonNgay).toISOString().split("T")[0] : ""} onChange={handleInputChange} />
+          </div>
+          <div className="col-md-6">
+            <label style={labelStyle}>{t.appointmentTime}</label>
+            <input type="time" name="Gio" style={inputStyle} value={formatTimeForInput(formData.Gio)} onChange={handleInputChange} />
+          </div>
+
+          {/* --- CÁC PHẦN DƯỚI (Full Width) --- */}
+          <div className="col-12">
+            <label style={labelStyle}>{t.content}</label>
+            <textarea rows={2} type="text" name="NoiDung" style={inputStyle} value={formData.NoiDung} onChange={handleInputChange} placeholder={t.enterContent} />
+          </div>
+
+          <div className="col-12">
+            <label style={labelStyle}>{t.note}</label>
+            <textarea 
+              rows={2}
+              type="text" 
+              name="GhiChu" 
+              style={inputStyle} 
+              value={formData.GhiChu} 
+              onChange={handleInputChange} 
+              placeholder={t.enterNote} 
+            />
+          </div>
+
+          {/* FOOTER */}
+          <div className="col-12 mt-2">
+            {isNew ? (
+                <div className="d-flex flex-column gap-3">
+                    <div>
+                        <label style={labelStyle}>{t.confirmPassword} <span className="text-danger">*</span></label>
+                        <div className="position-relative">
+                            <input 
+                            type={showConfirmPassword ? "text" : "password"} 
+                            placeholder="******" 
+                            value={formData.ConfirmPassword}
+                            onChange={handleInputChange}
+                            name="ConfirmPassword"
+                            style={inputStyle}
+                            />
+                            <span className="position-absolute top-50 translate-middle-y end-0 me-2 cursor-pointer" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                            {showConfirmPassword ? <EyeOff size={14}/> : <Eye size={14}/>}
+                            </span>
+                        </div>
+                    </div>
+                    <div>
+                        <button className="btn fw-bold w-100 shadow-sm" onClick={handleSave} disabled={loading}
+                        style={{ backgroundColor: "#10b981", color: "white", height: "42px", borderRadius: "6px", fontSize: "14px" }}>
+                        {loading ? <span className="spinner-border spinner-border-sm"></span> : t.save}
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <div className="col-12">
+                    <button className="btn fw-bold w-100 shadow-sm" onClick={handleSave} disabled={loading}
+                    style={{ backgroundColor: "#2563eb", color: "white", height: "42px", borderRadius: "6px", textTransform: "uppercase" }}>
+                    {loading ? <span className="spinner-border spinner-border-sm"></span> : t.save}
+                    </button>
+                </div>
+            )}
+          </div>
+
         </div>
       </div>
     </div>
   );
 };
-// =========================================================================
-// ROW ITEM
-// =========================================================================
+
+
 const RowItem = ({
   item,
   currentUser,
@@ -552,24 +476,12 @@ const RowItem = ({
     return map[branch] || branch || "";
   };
   
-  const getPackageBadgeColor = (pkg) => {
-      if (pkg === 'Cấp tốc') return 'bg-danger';
-      return 'bg-info text-dark';
-  }
 
   const displayMaHoSo = item.TrangThai === "Tư vấn" ? "" : item.MaHoSo || "-";
   
   const isVisible = (key) => (visibleColumns ? visibleColumns[key] : true);
   const isPinned = (key) => pinnedColumns.includes(key);
 
-  const getStatusBadge = (status) => {
-    let colorClass = "bg-secondary";
-    if (status === "Hoàn thành") colorClass = "bg-success";
-    if (status === "Đang xử lý") colorClass = "bg-primary";
-    if (status === "Đang nộp hồ sơ") colorClass = "bg-warning text-dark";
-    if (status === "Tư vấn") colorClass = "bg-info text-dark";
-    return <span className={`badge ${colorClass}`}>{status}</span>
-  };
 
   return (
     <tr>
@@ -653,9 +565,15 @@ const RowItem = ({
           )}
         </td>
       )}
-      {isVisible("dichVu") && (
-        <td style={{ maxWidth: "150px" }} className={`text-center text-truncate ${isPinned("dichVu") ? "sticky-col" : ""}`} title={translateService(item.TenDichVu)}>
-          {translateService(item.TenDichVu)}
+    {isVisible("loaiDichVu") && (
+        <td style={{ maxWidth: "150px" }} className={`text-center text-truncate ${isPinned("loaiDichVu") ? "sticky-col" : ""}`} title={translateService(item.LoaiDichVu)}>
+          {translateService(item.LoaiDichVu)}
+        </td>
+      )}
+      {/* Cột 2: Tên Dịch Vụ (Cột mới, hiển thị text từ TenDichVu) */}
+      {isVisible("tenDichVu") && (
+        <td className={`text-center ${isPinned("tenDichVu") ? "sticky-col" : ""}`}>
+          {item.TenDichVu || ""}
         </td>
       )}
       {isVisible("maDichVu") && (
@@ -675,7 +593,6 @@ const RowItem = ({
       )}
       {isVisible("trangThai") && (
       <td className={`text-center ${isPinned("trangThai") ? "sticky-col" : ""}`}>
-        
         {item.TrangThai}
       </td>
     )}
@@ -716,9 +633,6 @@ const RowItem = ({
   );
 };
 
-// =========================================================================
-// MAIN COMPONENT: B2C PAGE
-// =========================================================================
 const B2CPage = () => {
   const { currentUser } = useDashboardData();
   const [showSidebar, setShowSidebar] = useState(true);
@@ -751,7 +665,10 @@ const B2CPage = () => {
     { key: "coSo", label: "Cơ sở" },
     { key: "gio", label: "Giờ" },
     { key: "ngayTao", label: "Ngày tạo" },
+    { key: "loaiDichVu", label: "Loại Dịch Vụ" },
+    { key: "tenDichVu", label: "Tên Dịch Vụ" },
     { key: "dichVu", label: "Dịch vụ" },
+ 
     { key: "maDichVu", label: "Mã Dịch Vụ" },
     ...(currentUser?.is_admin ? [{ key: "nguoiPhuTrach", label: "Người phụ trách" }] : []),
     { key: "ngayHen", label: "Ngày hẹn" },
@@ -776,7 +693,7 @@ const B2CPage = () => {
 
   const tableHeaders = [
     "STT", "Khách hàng", "Mã vùng", "Số Điện Thoại", "Email", "Nội dung", "Ghi chú", 
-    "Hình thức", "Cơ sở", "Giờ", "Ngày tạo", "Dịch vụ", "Mã Dịch Vụ",
+    "Hình thức", "Cơ sở", "Giờ", "Ngày tạo", "Loại Dịch Vụ","Tên Dịch Vụ","Mã Dịch Vụ",
     ...(currentUser?.is_admin ? ["Người phụ trách"] : []),
     "Ngày hẹn", "Trạng thái", "Gói Dịch Vụ", "Invoice Y/N",
     ...(canViewFinance ? ["Invoice"] : []),
@@ -919,7 +836,7 @@ const B2CPage = () => {
           />
         )}
 
-        <h3 className="fw-bold mb-2 fs-5">Quản lý B2C</h3>
+        <div style={{marginTop:100}}></div>
 
         <div className="mb-4">
           <div className="p-0">
@@ -928,7 +845,7 @@ const B2CPage = () => {
                 type="text"
                 className="form-control shadow-sm"
                 placeholder={currentLanguage === "vi" ? "Tìm kiếm Họ tên, Email, SĐT..." : "Search Name, Email, Phone..."}
-                style={{ width: 300, borderRadius: "30px", paddingLeft: "18px", transition: "all 0.3s ease", fontSize: "14px" }}
+                style={{ width: 300, marginLeft:60, borderRadius: "30px", paddingLeft: "18px", transition: "all 0.3s ease", fontSize: "14px" }}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onFocus={(e) => (e.target.style.boxShadow = "0 0 8px rgba(37,99,235,0.3)")}
@@ -991,9 +908,9 @@ const B2CPage = () => {
               )}
             </div>
 
-            <div className="table-wrapper mt-3" style={{marginLeft:40}}>
+            <div className="table-wrapper mt-3" style={{marginLeft:55}}>
               <div className="table-responsive" style={{ paddingLeft: "0px", position: "relative", maxHeight: "calc(100vh - 300px)", overflow: "auto" }} ref={tableContainerRef}>
-                <table className="table table-bordered table-hover align-middle mb-0">
+                <table  className="table table-bordered table-hover align-middle mb-0">
                   <thead>
                     <tr>
                       {tableHeaders.map((header, i) => {

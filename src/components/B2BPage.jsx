@@ -148,6 +148,7 @@ export default function B2BPage() {
       Vi: rec.walletUsage ? formatNumber(rec.walletUsage) : "",
       GhiChu: rec.GhiChu || "",
       NguoiPhuTrachId: rec.NguoiPhuTrachId || "",
+      status: rec.TrangThai || rec.status || "Chờ Giám đốc duyệt",
       ConfirmPassword: "" 
     });
     
@@ -180,7 +181,8 @@ export default function B2BPage() {
       Vi: rec.walletUsage ? formatNumber(rec.walletUsage) : "",
       GhiChu: rec.GhiChu || "", 
       NguoiPhuTrachId: rec.picId || "",
-      ConfirmPassword: "" 
+      ConfirmPassword: "",
+      status: rec.TrangThai || rec.status || "Chờ Giám đốc duyệt"
     });
 
     // Populate dropdown loại dịch vụ
@@ -249,17 +251,21 @@ export default function B2BPage() {
   };
 
 
-  const handleModalSubmit = async () => {
+// ... existing imports
+
+// [SEARCH FOR THIS FUNCTION]
+const handleModalSubmit = async () => {
     if (!newServiceForm.DoanhNghiepID || !newServiceForm.LoaiDichVu) {
       return showToast("Vui lòng chọn Doanh nghiệp và Loại dịch vụ", "warning");
     }
     if (!newServiceForm.ConfirmPassword) {
-      return showToast("Vui lòng nhập mật khẩu của bạn để duyệt!", "warning");
+      return showToast("Vui lòng nhập mật khẩu của bạn để xác nhận!", "warning");
     }
 
     try {
       setLoading(true);
 
+      // Verify Password logic
       const verifyRes = await fetch(`${API_BASE}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -275,9 +281,31 @@ export default function B2BPage() {
         return showToast("Mật khẩu xác nhận không chính xác!", "error");
       }
 
-      const isFinance = currentUser?.is_director || currentUser?.is_accountant;
-      const rawDoanhThu = isFinance && newServiceForm.DoanhThu ? parseFloat(unformatNumber(newServiceForm.DoanhThu)) : 0;
-      const rawVi = isFinance && newServiceForm.Vi ? parseFloat(unformatNumber(newServiceForm.Vi)) : 0;
+      const isDirector = currentUser?.is_director;
+      const isAccountant = currentUser?.is_accountant;
+      // Removed isApprover check as we focus on specific roles below
+
+      // Xử lý tiền tệ
+      const rawDoanhThu = newServiceForm.DoanhThu ? parseFloat(unformatNumber(newServiceForm.DoanhThu)) : 0;
+      const rawVi = newServiceForm.Vi ? parseFloat(unformatNumber(newServiceForm.Vi)) : 0;
+      
+      // Logic xác định Action duyệt
+      let approveAction = null;
+      if (newServiceForm.id) { 
+          const currentStatus = newServiceForm.status;
+          
+          // [MODIFIED LOGIC STARTS HERE]
+          // Nếu là Kế toán, cho phép duyệt luôn (bỏ qua bước Giám đốc nếu cần)
+          // Miễn là chưa "Đã duyệt" thì Kế toán có thể duyệt và sinh mã
+          if (isAccountant && currentStatus !== "Đã duyệt") {
+              approveAction = "accountant_approve";
+          } 
+          // Logic cũ của Giám đốc (giữ lại để phòng hờ, nhưng UI sẽ ẩn nút)
+          else if (currentStatus === "Chờ Giám đốc duyệt" && isDirector) {
+              approveAction = "director_approve";
+          }
+          // [MODIFIED LOGIC ENDS HERE]
+      }
 
       const payload = {
         DoanhNghiepID: newServiceForm.DoanhNghiepID,
@@ -290,8 +318,9 @@ export default function B2BPage() {
         GhiChu: newServiceForm.GhiChu || "",
         NguoiPhuTrachId: newServiceForm.NguoiPhuTrachId,
         DoanhThuTruocChietKhau: rawDoanhThu,
-        Vi: rawVi, 
-        MaDichVu: "" 
+        Vi: rawVi,                         
+        MaDichVu: "",
+        approveAction: approveAction         
       };
 
       let url = `${API_BASE}/b2b/services`;
@@ -312,14 +341,24 @@ export default function B2BPage() {
       
       if (json.success) {
         const newCode = json.data?.ServiceID || json.newCode;
-        const actionText = newServiceForm.id ? "Duyệt/Cập nhật" : "Đăng ký";
         
-        await MySwal.fire({
-          icon: 'success',
-          title: `${actionText} thành công!`,
-          html: `Dịch vụ đã được lưu.<br/>Mã hệ thống: <b>${newCode}</b>`,
-          confirmButtonColor: '#22c55e'
-        });
+        if (approveAction === 'accountant_approve' && newCode) {
+             await MySwal.fire({
+              icon: 'success',
+              title: 'Đã duyệt & Cấp mã!',
+              html: `Dịch vụ đã được kích hoạt.<br/>Mã hệ thống: <b>${newCode}</b>`,
+              confirmButtonColor: '#22c55e'
+            });
+        } else if (approveAction === 'director_approve') {
+             await MySwal.fire({
+              icon: 'success',
+              title: 'Đã duyệt!',
+              text: 'Đã chuyển hồ sơ sang cho Kế toán xử lý.',
+              confirmButtonColor: '#22c55e'
+            });
+        } else {
+             showToast(newServiceForm.id ? "Cập nhật thành công!" : "Đã gửi yêu cầu đăng ký!", "success");
+        }
 
         setShowAddServiceModal(false);
         loadServices(currentPage.services || 1); 
@@ -388,12 +427,12 @@ export default function B2BPage() {
       maDichVu: "Mã Dịch Vụ",
       ngayBatDau: "Ngày Bắt Đầu",
       ngayKetThuc: "Ngày Kết Thúc",
-      doanhThuTruoc: "Doanh Thu Trước Chiết Khấu",
-      mucChietKhau: "Mức Chiết Khấu",
-      soTienChietKhau: "Số Tiền Chiết Khấu",
-      doanhThuSau: "Doanh Thu Sau Chiết Khấu",
+      doanhThuTruoc: "Doanh Thu\nTrước Chiết Khấu",
+      mucChietKhau: "Mức\nChiết Khấu",
+      soTienChietKhau: "Số Tiền\nChiết Khấu",
+      doanhThuSau: "Doanh Thu\nSau Chiết Khấu",
+      suDungVi: "Sử dụng\nví",
       tongDoanhThuTichLuy: "Tổng Doanh Thu",
-      suDungVi: "Sử dụng ví",
       hanhDong: "Hành động",
       msgWalletLimit: "Số tiền ví không được quá 2.000.000"
     },
@@ -714,7 +753,7 @@ export default function B2BPage() {
   };
 
   // --- RENDER SERVICES TAB (MODIFIED) ---
-  const renderServicesTab = () => {
+const renderServicesTab = () => {
     const canViewRevenue = currentUser?.is_director || currentUser?.is_accountant;
 
     const safeParse = (val) => {
@@ -775,58 +814,61 @@ export default function B2BPage() {
                   border: "1px solid #dee2e6",
                 }}
               >
-                <thead
-                  className="text-white text-center align-middle"
-                  style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}
-                >
-                  <tr>
-                    <th className="py-2 border" style={{ width: "35px" }}>{t.stt}</th>
 
-                    {/* [UPDATED] Chiều rộng cột này đã được thu nhỏ */}
-                    <th
-                      className="py-2 border"
-                      style={{
-                        width: canViewRevenue ? "110px" : "10%", 
-                        minWidth: "100px"
-                      }}
-                    >
-                      {t.chonDN}
-                    </th>
-                    <th className="py-2 border" style={{ width: "90px" }}>Số ĐKKD</th>
-                    <th className="py-2 border" style={{ width: "80px" }}>{t.loaiDichVu}</th>
+                  <thead
+                    className="text-white text-center align-middle"
+                    style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}
+                  >
+                    <tr>
+                      <th className="py-2 border" style={{ width: "35px" }}>{t.stt}</th>
 
-                    <th
-                      className="py-2 border"
-                      style={{
-                        width: canViewRevenue ? "110px" : "10%"
-                      }}
-                    >
-                      {t.tenDichVu}
-                    </th>
+                      <th
+                        className="py-2 border"
+                        style={{
+                          width: canViewRevenue ? "138px" : "10%", 
+                          minWidth: "100px"
+                        }}
+                      >
+                        {t.chonDN}
+                      </th>
+                      <th className="py-2 border" style={{ width: "90px" }}>Số ĐKKD</th>
+                      <th className="py-2 border" style={{ width: "120px" }}>{t.loaiDichVu}</th>
 
-                    <th className="py-2 border" style={{ width: "80px" }}>{t.maDichVu}</th>
-                   
-                    <th className="py-2 border" style={{ width: "100px" }}>Người Phụ Trách</th>  
-                    <th className="py-2 border" style={{ width: "90px" }}>{t.ngayBatDau}</th>
-                    <th className="py-2 border" style={{ width: "90px" }}>{t.ngayKetThuc}</th>
-                     <th className="py-2 border" style={{ width: "80px" }}>Gói</th>
-                    <th className="py-2 border" style={{ width: "60px" }}>Invoice Y/N</th>
-                    <th className="py-2 border" style={{ width: "40px" }} title="Link Invoice">Invoice</th>
+                      <th
+                        className="py-2 border"
+                        style={{
+                          width: canViewRevenue ? "150px" : "10%"
+                        }}
+                      >
+                        {t.tenDichVu}
+                      </th>
 
-                    {canViewRevenue && (
-                      <>
-                        <th className="py-2 border" style={{ width: "90px" }}>{t.doanhThuTruoc}</th>
-                        <th className="py-2 border" style={{ width: "90px" }}>{t.suDungVi}</th>
-                        <th className="py-2 border" style={{ width: "60px" }}>{t.mucChietKhau}</th>
-                        <th className="py-2 border" style={{ width: "80px" }}>{t.soTienChietKhau}</th>
-                        <th className="py-2 border" style={{ width: "100px" }}>{t.doanhThuSau}</th>
-                        <th className="py-2 border" style={{ width: "110px" }}>{t.tongDoanhThuTichLuy}</th>
-                      </>
-                    )}
+                      <th className="py-2 border" style={{ width: "130px" }}>{t.maDichVu}</th>
+                      
+                      <th className="py-2 border" style={{ width: "110px" }}>Người Phụ Trách</th>  
+                      <th className="py-2 border" style={{ width: "100px" }}>{t.ngayBatDau}</th>
+                      <th className="py-2 border" style={{ width: "100px" }}>{t.ngayKetThuc}</th>
+                        <th className="py-2 border" style={{ width: "100px" }}>Gói</th>
+                      <th className="py-2 border" style={{ width: "90px" }}>Invoice Y/N</th>
+                      <th className="py-2 border" style={{ width: "90px" }} title="Link Invoice">Invoice</th>
 
-                    <th className="py-2 border" style={{ width: "80px" }}>{t.hanhDong}</th>
-                  </tr>
-                </thead>
+                      {canViewRevenue && (
+                        <>
+                          {/* --- CẬP NHẬT CÁC CỘT DƯỚI ĐÂY (Thêm whiteSpace: "pre-wrap") --- */}
+                          <th className="py-2 border" style={{ width: "110px", whiteSpace: "pre-wrap", lineHeight: "1.2" }}>{t.doanhThuTruoc}</th>
+                          <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap", lineHeight: "1.2" }}>{t.suDungVi}</th>
+                          <th className="py-2 border" style={{ width: "70px", whiteSpace: "pre-wrap", lineHeight: "1.2" }}>{t.mucChietKhau}</th>
+                          <th className="py-2 border" style={{ width: "80px", whiteSpace: "pre-wrap", lineHeight: "1.2" }}>{t.soTienChietKhau}</th>
+                          <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap", lineHeight: "1.2" }}>{t.doanhThuSau}</th>
+                          {/* --------------------------------------------------------------- */}
+                          
+                          <th className="py-2 border" style={{ width: "110px" }}>{t.tongDoanhThuTichLuy}</th>
+                        </>
+                      )}
+
+                      <th className="py-2 border" style={{ width: "80px" }}>{t.hanhDong}</th>
+                    </tr>
+                  </thead>
                 <tbody>
                   {displayData && displayData.length > 0 ? (
                     displayData.map((rec, idx) => {
@@ -926,7 +968,13 @@ export default function B2BPage() {
                           </td>
 
                           <td className="border" style={cellStyle}>
-                              <div className="text-center" style={{ fontSize: "12px" }}>{rec.code || ""}</div>
+                              <div className="text-center" style={{ fontSize: "12px" }}>
+                                  {rec.code ? (
+                                      <span className="fw-bold text-dark">{rec.code}</span>
+                                  ) : (
+                                      <span className="badge bg-warning text-dark" style={{fontSize: '10px'}}>Chờ duyệt</span>
+                                  )}
+                              </div>
                           </td>
                           <td className="border" style={cellStyle}>
                                 <div className="text-center" style={{ fontSize: "12px", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={rec.picName}>
@@ -1004,41 +1052,48 @@ export default function B2BPage() {
                             </>
                           )}
 
-                          <td className="text-center border p-1 align-middle" style={{ backgroundColor: "white" }}>
-                           <div className="d-flex gap-1 justify-content-center">
+                  
+                        <td className="text-center border p-1 align-middle" style={{ backgroundColor: "white" }}>
+                          <div className="d-flex gap-1 justify-content-center">
                                 <>
-                                  {canViewRevenue && !hasCode ? (
-                                    // Nút DUYỆT (Tạo mã)
+                                  {/* LOGIC NÚT DUYỆT / SỬA */}
+                                 {status === "Chờ Giám đốc duyệt" && isDirector && (
                                     <button
                                         className="btn btn-sm shadow-sm"
-                                        style={{ backgroundColor: "#22c55e", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
-                                        title="Duyệt đăng ký (Tạo mã)"
+                                        style={{ backgroundColor: "#22c55e", color: "#fff", width: 36, height: 36 }}
+                                        title="Giám đốc duyệt (Chuyển Kế toán)"
                                         onClick={() => handleOpenApproveModal(rec)} 
                                     >
                                         <Check size={18} strokeWidth={3} />
                                     </button>
-                                  ) : (
-                                    // [UPDATED] Nút SỬA (Mở Modal)
-                                    <button
+                                )}
+                                {status === "Chờ Kế toán duyệt" && isAccountant && (
+                                  <button
+                                      className="btn btn-sm shadow-sm"
+                                      style={{ backgroundColor: "#0ea5e9", color: "#fff", width: 36, height: 36 }}
+                                      title="Kế toán duyệt (Sinh mã)"
+                                      onClick={() => handleOpenApproveModal(rec)} 
+                                  >
+                                      <Check size={18} strokeWidth={3} />
+                                  </button>
+                              )}
+                                   <button
                                         className="btn btn-sm"
-                                        style={{ backgroundColor: "#f59e0b", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
-                                        title="Sửa thông tin"
+                                        style={{ backgroundColor: "#f59e0b", color: "#fff", width: 36, height: 36 }}
                                         onClick={() => handleEditService(rec)} 
                                     >
                                         <Edit size={17} strokeWidth={2.3} />
                                     </button>
-                                  )}
-
-                                  <button
-                                    className="btn btn-sm"
-                                    style={{ backgroundColor: "#ef4444", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
-                                    onClick={() => deleteServiceRow(rec.id || rec.ID, rec.isNew)}
-                                  >
-                                    <Trash2 size={17} strokeWidth={2.3} />
-                                  </button>
-                                </>
-                            </div>
-                          </td>
+                                                          <button
+                                  className="btn btn-sm"
+                                  style={{ backgroundColor: "#ef4444", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
+                                  onClick={() => deleteServiceRow(rec.id || rec.ID, rec.isNew)}
+                                >
+                                  <Trash2 size={17} strokeWidth={2.3} />
+                                </button>
+                              </>
+                          </div>
+                      </td>
                         </tr>
                       );
                     })
