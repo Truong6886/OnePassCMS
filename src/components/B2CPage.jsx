@@ -444,7 +444,7 @@ const RowItem = ({
 }) => {
   const canApprove = currentUser?.is_director || currentUser?.perm_approve_b2c;
   const canViewFinance = currentUser?.is_accountant || currentUser?.is_director;
-
+  const hasServiceCode = item.MaHoSo && item.MaHoSo.length > 5;
   const handleDeleteClick = () => {
     Swal.fire({
       title: currentLanguage === "vi" ? "Bạn chắc chắn chứ?" : "Are you sure?",
@@ -477,14 +477,15 @@ const RowItem = ({
     const map = { 서울: "Seoul", 부산: "Busan" };
     return map[branch] || branch || "";
   };
-  
+
 
   const displayMaHoSo = item.MaHoSo && item.MaHoSo.length > 5 ? item.MaHoSo : "";
   
   const isVisible = (key) => (visibleColumns ? visibleColumns[key] : true);
   const isPinned = (key) => pinnedColumns.includes(key);
 
-
+  const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+  const unformatNumber = (value) => (value ? value.toString().replace(/\./g, "") : "");
   return (
     <tr>
       {/* CÁC CỘT DỮ LIỆU */}
@@ -620,27 +621,54 @@ const RowItem = ({
           ) : "-"}
         </td>
       )}
-     {isVisible("hanhDong") && (
+      
+      {canViewFinance && isVisible("doanhThuTruoc") && (
+        <td className="text-center">{formatNumber(item.DoanhThuTruocChietKhau)}</td>
+      )}
+      {canViewFinance && isVisible("mucChietKhau") && (
+        <td className="text-center">{item.MucChietKhau ? `${item.MucChietKhau}%` : "-"}</td>
+      )}
+      {canViewFinance && isVisible("soTienChietKhau") && (
+        <td className="text-center">{formatNumber(item.SoTienChietKhau)}</td>
+      )}
+      {canViewFinance && isVisible("doanhThuSau") && (
+         <td className="text-center fw-bold text-primary">{formatNumber(item.DoanhThuSauChietKhau)}</td>
+      )}
+      {isVisible("hanhDong") && (
         <td className={`text-center ${isPinned("hanhDong") ? "sticky-col" : ""}`}>
           <div className="d-flex justify-content-center align-items-center gap-2">
             
-            {/* --- THÊM NÚT DUYỆT --- */}
-            {canApprove && (
+          
+            {!hasServiceCode && canApprove && (
               <button 
                 className="btn btn-sm btn-success d-flex align-items-center justify-content-center" 
                 style={{ width: 32, height: 32, backgroundColor: "#10b981", borderColor: "#10b981" }} 
-                onClick={() => onApprove(item.YeuCauID)} 
-                title={currentLanguage === "vi" ? "Duyệt" : "Approve"}
+                onClick={() => onApprove(item)} 
+                title={currentLanguage === "vi" ? "Duyệt & Cấp mã" : "Approve"}
               >
                 <CheckCircle size={16} />
               </button>
             )}
-            {/* ---------------------- */}
 
-            <button className="btn btn-sm btn-primary d-flex align-items-center justify-content-center" style={{ width: 32, height: 32 }} onClick={() => onEdit(item)} title="Sửa">
-              <Edit size={16} />
-            </button>
-            <button className="btn btn-sm btn-danger d-flex align-items-center justify-content-center" style={{ width: 32, height: 32 }} onClick={handleDeleteClick} title="Xóa">
+          
+            {(hasServiceCode || !canApprove) && (
+                <button 
+                    className="btn btn-sm btn-primary d-flex align-items-center justify-content-center" 
+                    style={{ width: 32, height: 32 }} 
+                    onClick={() => onEdit(item)} 
+                    title={currentLanguage === "vi" ? "Sửa thông tin" : "Edit"}
+                >
+                <Edit size={16} />
+                </button>
+            )}
+
+            {/* NÚT XÓA (LUÔN HIỆN) */}
+            <button 
+                className="btn btn-sm btn-danger d-flex align-items-center justify-content-center" 
+                style={{ width: 32, height: 32 }} 
+                onClick={handleDeleteClick} 
+                title={currentLanguage === "vi" ? "Xóa" : "Delete"}
+            >
               <Trash2 size={16} />
             </button>
           </div>
@@ -665,9 +693,11 @@ const B2CPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 20;
   const tableContainerRef = useRef(null);
-  
+  const [approveModalItem, setApproveModalItem] = useState(null);
+  const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+  const unformatNumber = (value) => (value ? value.toString().replace(/\./g, "") : "");
   const [editingRequest, setEditingRequest] = useState(null);
-
+ 
   const canViewFinance = currentUser?.is_accountant || currentUser?.is_director;
 
   const initialColumnKeys = [
@@ -693,15 +723,48 @@ const B2CPage = () => {
     { key: "goiDichVu", label: "Gói Dịch Vụ" },
     { key: "invoice", label: "Invoice Y/N" },
     ...(canViewFinance ? [{ key: "invoiceUrl", label: "Invoice" }] : []),
-    ...(canViewFinance ? [
-    { key: "doanhThuTruoc", label: "Doanh Thu Trước CK" },
-    { key: "mucChietKhau", label: "% CK" },
-    { key: "soTienChietKhau", label: "Tiền CK" },
-    { key: "doanhThuSau", label: "Doanh Thu Sau CK" },
+...(canViewFinance ? [
+  { key: "doanhThuTruoc", label: (<span>Doanh Thu<br/>Trước CK</span>) },
+  { key: "mucChietKhau", label: (<span>%<br/>CK</span>) },
+  { key: "soTienChietKhau", label: (<span>Tiền<br/>Chiết Khấu</span>) },
+  { key: "doanhThuSau", label: (<span>Doanh Thu<br/>Sau CK</span>) },
 ] : []),
+
     { key: "hanhDong", label: "Hành động" },
   ];
+const handleApproveClick = (item) => {
+    
+    const canApprove = currentUser?.is_director || currentUser?.perm_approve_b2c;
+    if (!canApprove) return showToast("Không có quyền duyệt", "error");
+    
+  
+    setApproveModalItem(item);
+  };
 
+
+ const handleConfirmApprove = async (id, fullFormData) => {
+    try {
+        const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/approve/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                userId: currentUser.id,
+                ...fullFormData // Gửi tất cả thông tin form + tài chính
+            }),
+        });
+        const json = await res.json();
+        
+        if (json.success) {
+            showToast("Duyệt hồ sơ thành công!", "success");
+            setApproveModalItem(null); 
+            fetchData(); // Load lại bảng để thấy trạng thái mới
+        } else {
+            showToast(json.message || "Lỗi khi duyệt", "error");
+        }
+    } catch (err) {
+        showToast("Lỗi kết nối server", "error");
+    }
+  };
   const [visibleColumns, setVisibleColumns] = useState({});
   const [pinnedColumns, setPinnedColumns] = useState([]);
 
@@ -714,12 +777,34 @@ const B2CPage = () => {
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const columnMenuRef = useRef(null);
 
-  const tableHeaders = [
+const tableHeaders = [
     "STT", "Khách hàng", "Mã vùng", "Số Điện Thoại", "Email", "Nội dung", "Ghi chú", 
-    "Hình thức", "Cơ sở", "Giờ", "Ngày tạo", "Loại Dịch Vụ","Tên Dịch Vụ","Mã Dịch Vụ",
+    "Hình thức", "Cơ sở", "Giờ", "Ngày tạo", "Loại Dịch Vụ", "Tên Dịch Vụ", "Mã Dịch Vụ",
     ...(currentUser?.is_admin ? ["Người phụ trách"] : []),
     "Ngày hẹn", "Trạng thái", "Gói Dịch Vụ", "Invoice Y/N",
     ...(canViewFinance ? ["Invoice"] : []),
+    
+    // --- SỬA ĐOẠN NÀY: Dùng thẻ <div> để xuống dòng ---
+    ...(canViewFinance ? [
+       <div key="dt" className="d-flex flex-column align-items-center">
+          <span>Doanh Thu</span>
+          <span>Trước Chiết Khấu</span>
+       </div>,
+       
+       "Chiết khấu %",
+       
+       <div key="tck" className="d-flex flex-column align-items-center">
+          <span>Số Tiền</span>
+          <span>Chiết Khấu</span>
+       </div>,
+       
+       <div key="dts" className="d-flex flex-column align-items-center">
+          <span>Doanh Thu</span>
+          <span>Sau Chiết Khấu</span>
+       </div>
+    ] : []),
+    // --------------------------------------------------
+    
     "Hành động",
   ];
 
@@ -740,7 +825,7 @@ const B2CPage = () => {
   const fetchData = async () => {
     try {
       let url = `https://onepasscms-backend.onrender.com/api/yeucau?page=${currentPage}&limit=${itemsPerPage}`;
-      if (currentUser?.is_admin || currentUser?.is_director) { 
+      if (currentUser?.is_admin || currentUser?.is_director||currentUser?.is_accountant) { 
           url += `&is_admin=true`; 
       } else { 
           url += `&userId=${currentUser?.id}`; 
@@ -804,7 +889,7 @@ const handleApprove = async (id) => {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/approve/${id}`, {
+          const res = await fetch(`http://localhost:5000/api/yeucau/approve/${id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ userId: currentUser.id }),
@@ -821,6 +906,286 @@ const handleApprove = async (id) => {
         }
       }
     });
+  };
+  const ApproveModal = ({ request, onClose, onConfirm, currentLanguage }) => {
+    // 1. Khởi tạo State (Tự động điền từ request)
+    const [formData, setFormData] = useState({
+      // --- Thông tin khách hàng & Dịch vụ ---
+      HoTen: request.HoTen || "",
+      MaVung: request.MaVung || "",
+      SoDienThoai: request.SoDienThoai || "",
+      Email: request.Email || "",
+      LoaiDichVu: request.LoaiDichVu || "",
+      TenDichVu: request.TenDichVu || "",
+      GoiDichVu: request.GoiDichVu || "",
+      TenHinhThuc: request.TenHinhThuc || "",
+      CoSoTuVan: request.CoSoTuVan || "",
+      // Format ngày giờ
+      ChonNgay: request.ChonNgay ? new Date(request.ChonNgay).toISOString().split("T")[0] : "",
+      Gio: request.Gio ? (request.Gio.includes("T") ? new Date(request.Gio).toTimeString().substring(0,5) : request.Gio.substring(0,5)) : "",
+      NoiDung: request.NoiDung || "",
+      GhiChu: request.GhiChu || "",
+      
+      // --- Thông tin Tài chính ---
+      DoanhThuTruocChietKhau: request.DoanhThuTruocChietKhau || 0,
+      MucChietKhau: request.MucChietKhau || 0,
+      Vi: request.Vi || 0
+    });
+
+    // Tính toán tài chính real-time
+    const calculateFinance = () => {
+      const dt = parseFloat(String(formData.DoanhThuTruocChietKhau).replace(/\./g, "")) || 0;
+      const ck = parseFloat(formData.MucChietKhau) || 0;
+      const vi = parseFloat(String(formData.Vi).replace(/\./g, "")) || 0;
+      
+      const tienCK = Math.round((dt * ck) / 100);
+      const thucThu = Math.max(0, dt - tienCK - vi);
+      return { dt, tienCK, thucThu, vi };
+    };
+
+    const { dt, tienCK, thucThu, vi } = calculateFinance();
+
+    const handleChange = (eOrName, value) => {
+      let name, val;
+      if (typeof eOrName === 'string') { name = eOrName; val = value; } 
+      else { name = eOrName.target.name; val = eOrName.target.value; }
+
+      if (name === "DoanhThuTruocChietKhau" || name === "Vi") {
+          const raw = val.toString().replace(/\./g, "");
+          if (!isNaN(raw)) setFormData(prev => ({ ...prev, [name]: raw }));
+      } else {
+          setFormData(prev => ({ ...prev, [name]: val }));
+      }
+    };
+
+    const handleSave = () => {
+      onConfirm(request.YeuCauID, formData);
+    };
+
+    // --- STYLE TỐI ƯU (COMPACT) ---
+    const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : "0";
+    const inputHeight = "32px"; // Giảm chiều cao từ 42px xuống 32px
+    const labelStyle = { fontSize: "11px", fontWeight: "600", color: "#4B5563", marginBottom: "2px", display: "block" }; // Font nhỏ hơn, margin ít hơn
+    const inputStyle = { width: "100%", height: inputHeight, padding: "0 8px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", outline: "none", color: "#111827", transition: "border-color 0.2s" };
+
+    // Data Options
+    const serviceTypeList = ["Chứng thực", "Kết hôn", "Khai sinh, khai tử", "Xuất nhập cảnh", "Giấy tờ tuỳ thân", "Nhận nuôi", "Thị thực", "Tư vấn pháp lý", "Dịch vụ B2B", "Khác"];
+    const packageOptions = [{ value: "Thông thường", label: "Thông thường" }, { value: "Cấp tốc", label: "Cấp tốc" }];
+    const branchOptions = [{ value: "Seoul", label: "Seoul" }, { value: "Busan", label: "Busan" }];
+    const formOptions = ["Trực tiếp", "Online", "Email", "Gọi điện", "Messenger", "Kakao Talk", "Zalo"];
+    const areaCodes = [{ value: "+82", label: "+82" }, { value: "+84", label: "+84" }];
+
+    return (
+      <div className="modal-overlay" style={{
+        position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1100, backdropFilter: "blur(2px)", // Blur nhẹ hơn
+        display: "flex", justifyContent: "center", alignItems: "center"
+      }}>
+        <div className="bg-white position-relative d-flex flex-column" 
+            style={{ width: "950px", maxWidth: "95%", maxHeight: "98vh", borderRadius: "12px", boxShadow: "0 15px 30px rgba(0, 0, 0, 0.2)" }}>
+          
+          {/* HEADER */}
+          <div className="d-flex justify-content-between align-items-center px-4 py-2 border-bottom">
+              <div>
+                  <h5 className="fw-bold m-0 text-primary" style={{ fontSize: "18px" }}>
+                      {currentLanguage === "vi" ? "Duyệt Hồ Sơ (B2C)" : "Approve Request (B2C)"}
+                  </h5>
+                  <small className="text-muted" style={{ fontSize: "12px" }}>
+                      {currentLanguage === "vi" ? "Kiểm tra thông tin & nhập doanh thu" : "Verify info & enter revenue"}
+                  </small>
+              </div>
+              <button onClick={onClose} className="border-0 bg-light rounded-circle d-flex align-items-center justify-content-center"
+                  style={{ width: "30px", height: "30px", cursor: "pointer" }}>
+                  <X size={18} color="#6B7280" />
+              </button>
+          </div>
+
+          {/* BODY - Giảm padding xuống px-3 py-2 */}
+          <div className="px-4 py-3 overflow-auto custom-scrollbar" style={{ flex: 1 }}>
+              
+              {/* === PHẦN 1: FORM THÔNG TIN (Sử dụng g-2 để thu hẹp khoảng cách) === */}
+              <div className="row g-2 mb-2">
+                  {/* Hàng 1 */}
+                  <div className="col-md-4">
+                      <label style={labelStyle}>Khách Hàng <span className="text-danger">*</span></label>
+                      <input type="text" name="HoTen" style={inputStyle} value={formData.HoTen} onChange={handleChange} placeholder="Tên khách hàng" />
+                  </div>
+                  <div className="col-md-4">
+                      <label style={labelStyle}>Số Điện Thoại <span className="text-danger">*</span></label>
+                      <div className="d-flex">
+                          <select 
+                              name="MaVung" 
+                              value={formData.MaVung} 
+                              onChange={handleChange} 
+                              style={{...inputStyle, width: "70px", borderRadius: "6px 0 0 6px", borderRight: "none", backgroundColor: "#F9FAFB", cursor: "pointer"}}
+                          >
+                              {areaCodes.map(c => <option key={c.value} value={c.value}>{c.value}</option>)}
+                          </select>
+                          <input type="text" name="SoDienThoai" style={{...inputStyle, borderRadius: "0 6px 6px 0"}} value={formData.SoDienThoai} onChange={handleChange} placeholder="SĐT" />
+                      </div>
+                  </div>
+                  <div className="col-md-4">
+                      <label style={labelStyle}>Email</label>
+                      <input type="text" name="Email" style={inputStyle} value={formData.Email} onChange={handleChange} placeholder="Email" />
+                  </div>
+
+                  {/* Hàng 2 */}
+                  <div className="col-md-4">
+                      <label style={labelStyle}>Loại Dịch Vụ <span className="text-danger">*</span></label>
+                      <ModernSelect name="LoaiDichVu" height={inputHeight} value={formData.LoaiDichVu} options={serviceTypeList.map(s => ({ value: s, label: s }))} onChange={handleChange} placeholder="Chọn loại" />
+                  </div>
+                  <div className="col-md-4">
+                      <label style={labelStyle}>Tên Dịch Vụ</label>
+                      <input type="text" name="TenDichVu" style={inputStyle} value={formData.TenDichVu} onChange={handleChange} placeholder="Tên dịch vụ cụ thể" />
+                  </div>
+                  <div className="col-md-4">
+                      <label style={labelStyle}>Gói Dịch Vụ</label>
+                      <ModernSelect name="GoiDichVu" height={inputHeight} value={formData.GoiDichVu} options={packageOptions} onChange={handleChange} placeholder="Chọn gói" />
+                  </div>
+
+                  {/* Hàng 3 */}
+                  <div className="col-md-4">
+                      <label style={labelStyle}>Kênh Liên Hệ</label>
+                      <ModernSelect name="TenHinhThuc" height={inputHeight} value={formData.TenHinhThuc} options={formOptions.map(v => ({ value: v, label: v }))} onChange={handleChange} placeholder="Chọn kênh" />
+                  </div>
+                  <div className="col-md-4">
+                      <label style={labelStyle}>Cơ Sở Tư Vấn</label>
+                      <ModernSelect name="CoSoTuVan" height={inputHeight} value={formData.CoSoTuVan} options={branchOptions} onChange={handleChange} placeholder="Chọn cơ sở" />
+                  </div>
+                  <div className="col-md-4">
+                      <label style={labelStyle}>Trạng thái</label>
+                      <div style={{...inputStyle, backgroundColor: "#F3F4F6", color: "#6B7280", display: "flex", alignItems: "center"}}>
+                          Đang xử lý
+                      </div>
+                  </div>
+
+                  {/* Hàng 4 */}
+                  <div className="col-md-6">
+                      <label style={labelStyle}>Ngày Hẹn</label>
+                      <input type="date" name="ChonNgay" style={inputStyle} value={formData.ChonNgay} onChange={handleChange} />
+                  </div>
+                  <div className="col-md-6">
+                      <label style={labelStyle}>Giờ Hẹn</label>
+                      <input type="time" name="Gio" style={inputStyle} value={formData.Gio} onChange={handleChange} />
+                  </div>
+
+                  {/* Hàng 5, 6 */}
+                  <div className="col-12">
+                      <label style={labelStyle}>Nội Dung</label>
+                      <textarea rows={1} name="NoiDung" style={{...inputStyle, height: "32px", resize:"none", paddingTop: "6px"}} value={formData.NoiDung} onChange={handleChange} placeholder="Nội dung tư vấn" />
+                  </div>
+                  <div className="col-12">
+                      <label style={labelStyle}>Ghi Chú</label>
+                      <textarea rows={1} name="GhiChu" style={{...inputStyle, height: "32px", resize:"none", paddingTop: "6px"}} value={formData.GhiChu} onChange={handleChange} placeholder="Ghi chú thêm" />
+                  </div>
+              </div>
+
+              {/* === PHẦN 2: TÀI CHÍNH (Thu gọn) === */}
+              <div className="mt-2 pt-2 border-top">
+                  <h6 className="fw-bold text-dark mb-2" style={{fontSize: "13px"}}>THÔNG TIN TÀI CHÍNH</h6>
+                  
+                  <div className="row g-2 align-items-end">
+                      {/* Doanh thu (Thu nhỏ lại) */}
+                      <div className="col-md-4">
+                          <label style={labelStyle}>Doanh thu (VNĐ) <span className="text-danger">*</span></label>
+                          <div className="position-relative">
+                              <input 
+                                  type="text" 
+                                  name="DoanhThuTruocChietKhau" 
+                                  value={formatNumber(formData.DoanhThuTruocChietKhau)} 
+                                  onChange={handleChange} 
+                                  style={{
+                                      ...inputStyle, 
+                                      height: "36px", // Giảm từ 55px
+                                      fontSize: "14px", // Giảm từ 18px
+                                      fontWeight: "600",
+                                      backgroundColor: "#F8F9FA",
+                                      color: "#2563eb"
+                                  }} 
+                                  placeholder="0"
+                              />
+                          </div>
+                      </div>
+
+                      {/* Chiết khấu */}
+                      <div className="col-md-3">
+                          <label style={labelStyle}>Chiết khấu (%)</label>
+                          <div className="position-relative">
+                              <input 
+                                  type="number" 
+                                  name="MucChietKhau" 
+                                  value={formData.MucChietKhau} 
+                                  onChange={handleChange} 
+                                  style={{
+                                      ...inputStyle, 
+                                      height: "36px", 
+                                      fontSize: "14px", 
+                                      backgroundColor: "#F8F9FA",
+                                  }} 
+                                  placeholder="0"
+                              />
+                          </div>
+                      </div>
+
+                      {/* Trừ ví / Cọc */}
+                      <div className="col-md-5">
+                          <label style={labelStyle}>Trừ Ví / Đã Cọc</label>
+                          <div className="position-relative">
+                              <input 
+                                  type="text" 
+                                  name="Vi" 
+                                  value={formatNumber(formData.Vi)} 
+                                  onChange={handleChange} 
+                                  style={{
+                                      ...inputStyle, 
+                                      height: "36px", 
+                                      fontSize: "14px", 
+                                      backgroundColor: "#F8F9FA",
+                                  }} 
+                                  placeholder="0"
+                              />
+                          </div>
+                      </div>
+
+                      <div className="col-12">
+                          <small className="text-muted fst-italic" style={{fontSize: "11px"}}>
+                              * Thời gian cấp tốc sẽ được hướng dẫn qua người phụ trách.
+                          </small>
+                      </div>
+
+                      {/* Tổng kết tiền (Compact) */}
+                      <div className="col-12 mt-1">
+                          <div className="d-flex justify-content-between align-items-center p-2 rounded" style={{backgroundColor: "#ECFDF5", border: "1px solid #10B981"}}>
+                              <div className="d-flex gap-3 text-secondary" style={{fontSize: "12px"}}>
+                                  <span>CK: <b>{formatNumber(tienCK)}</b></span>
+                                  <span>Trừ: <b className="text-danger">-{formatNumber(vi)}</b></span>
+                              </div>
+                              <div className="d-flex align-items-center gap-2">
+                                  <span className="text-success fw-bold text-uppercase" style={{fontSize: "11px"}}>Thực thu:</span>
+                                  <span className="text-success fw-bold" style={{fontSize: "16px"}}>{formatNumber(thucThu)} ₫</span>
+                              </div>
+                          </div>
+                      </div>
+
+                  </div>
+              </div>
+          </div>
+
+          {/* FOOTER */}
+          <div className="px-4 py-3 border-top bg-white d-flex justify-content-end gap-2" style={{borderRadius: "0 0 12px 12px"}}>
+              <button onClick={onClose} className="btn btn-sm btn-secondary fw-semibold" style={{height: "36px", padding: "0 20px"}}>
+                  {currentLanguage === "vi" ? "Hủy Bỏ" : "Cancel"}
+              </button>
+              <button onClick={handleSave} className="btn btn-sm btn-success fw-bold shadow-sm d-flex align-items-center" 
+                  style={{height: "36px", padding: "0 20px", backgroundColor: "#10B981", border: "none"}}>
+                  <CheckCircle size={16} className="me-2"/>
+                  {currentLanguage === "vi" ? "Duyệt & Cấp mã" : "Approve & Generate Code"}
+              </button>
+          </div>
+
+        </div>
+      </div>
+    );
   };
   const handleDelete = async (id) => {
     try {
@@ -888,7 +1253,14 @@ const handleApprove = async (id) => {
             currentLanguage={currentLanguage}
           />
         )}
-
+{approveModalItem && (
+          <ApproveModal 
+            request={approveModalItem}
+            currentLanguage={currentLanguage}
+            onClose={() => setApproveModalItem(null)}
+            onConfirm={handleConfirmApprove}
+          />
+       )}
         {editingRequest && (
           <RequestEditModal
             request={editingRequest}
@@ -1034,7 +1406,7 @@ const handleApprove = async (id) => {
                           currentUser={currentUser}
                           onEdit={handleEditClick}
                           onDelete={handleDelete}
-                          onApprove={handleApprove}
+                          onApprove={handleApproveClick}
                           currentLanguage={currentLanguage}
                           visibleColumns={visibleColumns}
                           pinnedColumns={pinnedColumns}

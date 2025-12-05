@@ -142,12 +142,12 @@ export default function App() {
           />
 
 
-          <Route path="/kyhoso/:mahoso" element={<KyHoSo />} />
+         
          <Route
             path="/b2c"
             element={
            
-              <AuthGuard user={currentUser} roles={["is_admin", "is_director", "is_staff"]}>
+              <AuthGuard user={currentUser}>
                 <B2CPage
                   currentUser={currentUser}
                   showSidebar={showSidebar}
