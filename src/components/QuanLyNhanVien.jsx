@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import Swal from "sweetalert2"; // 👈 BƯỚC 2: Import SweetAlert2
+import Swal from "sweetalert2";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import EditProfileModal from "./EditProfileModal";
@@ -29,20 +29,29 @@ export default function QuanLyNhanVien() {
   const [showUserModal, setShowUserModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
+  
   const [formData, setFormData] = useState({
     username: "",
     name: "",
     email: "",
     password: "",
-    role: "user", // user, admin, director, accountant
+    role: "user", 
+    // Các quyền chi tiết
+    perm_approve_b2b: false,
+    perm_approve_b2c: false,
+    perm_view_revenue: false,
+    perm_view_staff: false
   });
 
-  // Kiểm tra quyền Admin hoặc Giám đốc
+  // Kiểm tra quyền Admin hoặc Giám đốc để xem trang này
   const canManage =
     currentUser?.is_admin === true ||
     currentUser?.is_admin === "1" ||
     currentUser?.is_director === true ||
     currentUser?.is_director === "1";
+
+  // Kiểm tra xem user hiện tại có phải là Giám đốc không (để phân quyền)
+  const isDirector = currentUser?.is_director === true || currentUser?.is_director === "1";
 
   useEffect(() => {
     const saved = localStorage.getItem("language");
@@ -54,7 +63,6 @@ export default function QuanLyNhanVien() {
     if (saved) setCurrentUser(JSON.parse(saved));
   }, []);
 
-  // Hàm load lại user
   const fetchUsers = async () => {
     try {
       const res = await fetch("https://onepasscms-backend.onrender.com/api/User");
@@ -108,6 +116,10 @@ export default function QuanLyNhanVien() {
       email: "",
       password: "",
       role: "user",
+      perm_approve_b2b: false,
+      perm_approve_b2c: false,
+      perm_view_revenue: false,
+      perm_view_staff: false
     });
     setShowUserModal(true);
   };
@@ -127,11 +139,14 @@ export default function QuanLyNhanVien() {
       email: user.email || "",
       password: "",
       role: role,
+      perm_approve_b2b: user.perm_approve_b2b || false,
+      perm_approve_b2c: user.perm_approve_b2c || false,
+      perm_view_revenue: user.perm_view_revenue || false,
+      perm_view_staff: user.perm_view_staff || false
     });
     setShowUserModal(true);
   };
 
-  // 🔄 BƯỚC 3: Xử lý Xóa bằng SweetAlert2
   const handleDelete = async (id, name) => {
     const isVietnamese = currentLanguage === "vi";
 
@@ -142,8 +157,8 @@ export default function QuanLyNhanVien() {
         : `Are you sure you want to delete employee ${name} This action cannot be undone.`,
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#dc3545", // Màu đỏ (danger)
-      cancelButtonColor: "#6c757d", // Màu xám (secondary)
+      confirmButtonColor: "#dc3545",
+      cancelButtonColor: "#6c757d",
       confirmButtonText: isVietnamese ? "Xóa" : "Yes, delete it!",
       cancelButtonText: isVietnamese ? "Hủy bỏ" : "Cancel",
     });
@@ -179,11 +194,8 @@ export default function QuanLyNhanVien() {
       );
     }
   };
-  // ------------------------------------------
 
-  // Xử lý Lưu (Thêm hoặc Sửa)
   const handleSaveUser = async () => {
-    // --- VALIDATION TRƯỚC KHI GỬI ---
     if (!formData.username || !formData.username.trim()) {
       showToast(
         currentLanguage === "vi"
@@ -193,22 +205,24 @@ export default function QuanLyNhanVien() {
       return;
     }
 
-    // // ĐÃ BẬT LẠI VALIDATION EMAIL VÀ DÙNG showToast
-    // if (!formData.email || !formData.email.trim()) {
-    //   showToast(
-    //     currentLanguage === "vi" ? "Vui lòng nhập Email!" : "Please enter Email!"
-    //   );
-    //   return;
-    // }
-    // -------------------------------
-
     const url = isEditing
       ? `https://onepasscms-backend.onrender.com/api/User/${editingUserId}`
       : "https://onepasscms-backend.onrender.com/api/User";
 
     const method = isEditing ? "PUT" : "POST";
 
-    const payload = { ...formData };
+    // Mapping role dropdown to boolean flags
+    let roleFlags = {
+       is_admin: formData.role === "admin",
+       is_director: formData.role === "director",
+       is_accountant: formData.role === "accountant",
+       is_staff: formData.role === "user"
+    };
+
+    const payload = { 
+        ...formData,
+        ...roleFlags
+    };
 
     payload.email = payload.email.trim();
     payload.username = payload.username.trim();
@@ -216,6 +230,9 @@ export default function QuanLyNhanVien() {
     if (isEditing && !payload.password) {
       delete payload.password;
     }
+    
+    // Xóa trường role string vì API dùng flags
+    delete payload.role;
 
     try {
       const res = await fetch(url, {
@@ -238,7 +255,6 @@ export default function QuanLyNhanVien() {
         setShowUserModal(false);
         fetchUsers();
       } else {
-        // Hiển thị thông báo lỗi từ server (ví dụ: Email trùng)
         showToast(
           currentLanguage === "vi"
             ? `Lỗi: ${result.message}`
@@ -255,7 +271,7 @@ export default function QuanLyNhanVien() {
     }
   };
 
-  // --- LOGIC THỐNG KÊ (GIỮ NGUYÊN) ---
+  // --- LOGIC THỐNG KÊ ---
   const statusOptions =
     currentLanguage === "vi"
       ? [
@@ -350,12 +366,10 @@ export default function QuanLyNhanVien() {
       {/* --- MODAL THÊM/SỬA NHÂN VIÊN (MODERN UI) --- */}
       {showUserModal &&
         (() => {
-          // 1. Định nghĩa bộ từ điển ngôn ngữ ngay trong scope modal
           const translations = {
             vi: {
               titleAdd: "Thêm nhân viên mới",
               titleEdit: "Cập nhật nhân viên",
-              // Đã xóa subTitleAdd và subTitleEdit vì không dùng nữa
               username: "Tên đăng nhập",
               usernamePh: "Nhập tên đăng nhập...",
               fullname: "Họ và tên",
@@ -366,6 +380,14 @@ export default function QuanLyNhanVien() {
               passwordHint: "Để trống nếu không đổi",
               passwordPh: "********",
               role: "Vai trò",
+              permissionsTitle: "Phân quyền chi tiết",
+              permissionsNote: "(Chỉ Giám đốc mới được phép thay đổi)",
+              perms: {
+                b2b: "Duyệt dịch vụ B2B",
+                b2c: "Duyệt dịch vụ B2C",
+                revenue: "Xem doanh thu",
+                staff: "Xem danh sách nhân viên"
+              },
               roles: {
                 user: "Nhân viên",
                 accountant: "Kế toán",
@@ -389,6 +411,14 @@ export default function QuanLyNhanVien() {
               passwordHint: "Leave blank to keep current",
               passwordPh: "********",
               role: "Role / Position",
+              permissionsTitle: "Detailed Permissions",
+              permissionsNote: "(Only Directors can modify)",
+              perms: {
+                b2b: "Approve B2B Services",
+                b2c: "Approve B2C Services",
+                revenue: "View Revenue",
+                staff: "View Employee List"
+              },
               roles: {
                 user: "Staff",
                 accountant: "Accountant",
@@ -412,7 +442,7 @@ export default function QuanLyNhanVien() {
                 zIndex: 1050,
               }}
             >
-              <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-dialog modal-dialog-centered modal-lg"> {/* Đổi thành modal-lg để rộng hơn */}
                 <div className="modal-content border-0 shadow-lg rounded-4">
                   {/* HEADER */}
                   <div className="modal-header border-bottom-0 pb-0">
@@ -420,7 +450,6 @@ export default function QuanLyNhanVien() {
                       <h5 className="modal-title fw-bold text-primary fs-4">
                         {isEditing ? t.titleEdit : t.titleAdd}
                       </h5>
-                      {/* ĐÃ XÓA DÒNG SUBTITLE TIẾNG ANH TẠI ĐÂY */}
                     </div>
                     <button
                       type="button"
@@ -432,114 +461,196 @@ export default function QuanLyNhanVien() {
 
                   {/* BODY */}
                   <div className="modal-body p-4">
-                    {/* Username */}
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold text-dark">
-                        {t.username}
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control bg-light border-0 py-2"
-                        value={formData.username}
-                        onChange={(e) =>
-                          setFormData({ ...formData, username: e.target.value })
-                        }
-                        disabled={isEditing}
-                        placeholder={t.usernamePh}
-                      />
-                    </div>
+                    <div className="row">
+                        {/* Cột trái: Thông tin cơ bản */}
+                        <div className="col-md-6">
+                             {/* Username */}
+                            <div className="mb-3">
+                            <label className="form-label fw-semibold text-dark">
+                                {t.username}
+                            </label>
+                            <input
+                                type="text"
+                                className="form-control bg-light border-0 py-2"
+                                value={formData.username}
+                                onChange={(e) =>
+                                setFormData({ ...formData, username: e.target.value })
+                                }
+                                disabled={isEditing}
+                                placeholder={t.usernamePh}
+                            />
+                            </div>
 
-                    {/* Full Name */}
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold text-dark">
-                        {t.fullname}
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control bg-light border-0 py-2"
-                        value={formData.name}
-                        onChange={(e) =>
-                          setFormData({ ...formData, name: e.target.value })
-                        }
-                        placeholder={t.fullnamePh}
-                      />
-                    </div>
+                            {/* Full Name */}
+                            <div className="mb-3">
+                            <label className="form-label fw-semibold text-dark">
+                                {t.fullname}
+                            </label>
+                            <input
+                                type="text"
+                                className="form-control bg-light border-0 py-2"
+                                value={formData.name}
+                                onChange={(e) =>
+                                setFormData({ ...formData, name: e.target.value })
+                                }
+                                placeholder={t.fullnamePh}
+                            />
+                            </div>
 
-                    {/* Email */}
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold text-dark">
-                        {t.email}
-                      </label>
-                      <input
-                        type="email"
-                        className="form-control bg-light border-0 py-2"
-                        value={formData.email}
-                        onChange={(e) =>
-                          setFormData({ ...formData, email: e.target.value })
-                        }
-                        placeholder={t.emailPh}
-                      />
-                    </div>
+                            {/* Email */}
+                            <div className="mb-3">
+                            <label className="form-label fw-semibold text-dark">
+                                {t.email}
+                            </label>
+                            <input
+                                type="email"
+                                className="form-control bg-light border-0 py-2"
+                                value={formData.email}
+                                onChange={(e) =>
+                                setFormData({ ...formData, email: e.target.value })
+                                }
+                                placeholder={t.emailPh}
+                            />
+                            </div>
 
-                    {/* Password */}
-                    <div className="mb-3">
-                      <label className="form-label d-block mb-1">
-                        <span className="fw-semibold text-dark">
-                          {t.password}
-                        </span>
-                        {isEditing && (
-                          <span className="d-block text-secondary fst-italic small">
-                            ({t.passwordHint})
-                          </span>
-                        )}
-                      </label>
+                            {/* Password */}
+                            <div className="mb-3">
+                            <label className="form-label d-block mb-1">
+                                <span className="fw-semibold text-dark">
+                                {t.password}
+                                </span>
+                                {isEditing && (
+                                <span className="d-block text-secondary fst-italic small">
+                                    ({t.passwordHint})
+                                </span>
+                                )}
+                            </label>
 
-                      <div className="input-group">
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          className="form-control bg-light border-0 py-2"
-                          value={formData.password}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              password: e.target.value,
-                            })
-                          }
-                          placeholder={t.passwordPh}
-                        />
-                        <button
-                          className="btn btn-light border-0 text-secondary"
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          style={{ zIndex: 0 }}
-                        >
-                          <i
-                            className={`bi ${
-                              showPassword ? "bi-eye-slash" : "bi-eye"
-                            }`}
-                          ></i>
-                        </button>
-                      </div>
-                    </div>
+                            <div className="input-group">
+                                <input
+                                type={showPassword ? "text" : "password"}
+                                className="form-control bg-light border-0 py-2"
+                                value={formData.password}
+                                onChange={(e) =>
+                                    setFormData({
+                                    ...formData,
+                                    password: e.target.value,
+                                    })
+                                }
+                                placeholder={t.passwordPh}
+                                />
+                                <button
+                                className="btn btn-light border-0 text-secondary"
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                style={{ zIndex: 0 }}
+                                >
+                                <i
+                                    className={`bi ${
+                                    showPassword ? "bi-eye-slash" : "bi-eye"
+                                    }`}
+                                ></i>
+                                </button>
+                            </div>
+                            </div>
+                        </div>
 
-                    {/* Role */}
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold text-dark">
-                        {t.role}
-                      </label>
-                      <select
-                        className="form-select bg-light border-0 py-2"
-                        value={formData.role}
-                        onChange={(e) =>
-                          setFormData({ ...formData, role: e.target.value })
-                        }
-                        style={{ cursor: "pointer" }}
-                      >
-                        <option value="user">{t.roles.user}</option>
-                        <option value="accountant">{t.roles.accountant}</option>
-                        <option value="director">{t.roles.director}</option>
-                        <option value="admin">{t.roles.admin}</option>
-                      </select>
+                        {/* Cột phải: Vai trò & Phân quyền */}
+                        <div className="col-md-6">
+                            {/* Role */}
+                            <div className="mb-4">
+                                <label className="form-label fw-semibold text-dark">
+                                    {t.role}
+                                </label>
+                                <select
+                                    className="form-select bg-light border-0 py-2"
+                                    value={formData.role}
+                                    onChange={(e) =>
+                                    setFormData({ ...formData, role: e.target.value })
+                                    }
+                                    style={{ cursor: "pointer" }}
+                                >
+                                    <option value="user">{t.roles.user}</option>
+                                    <option value="accountant">{t.roles.accountant}</option>
+                                    <option value="director">{t.roles.director}</option>
+                                    <option value="admin">{t.roles.admin}</option>
+                                </select>
+                            </div>
+
+                            {/* Divider */}
+                            <hr className="my-3 text-muted" />
+
+                            {/* Permissions Section */}
+                            <div>
+                                <label className="form-label fw-semibold text-primary d-block">
+                                    <i className="bi bi-shield-lock-fill me-2"></i>
+                                    {t.permissionsTitle}
+                                </label>
+                                {!isDirector && (
+                                     <small className="d-block text-danger fst-italic mb-2">
+                                        {t.permissionsNote}
+                                     </small>
+                                )}
+                                
+                                <div className="d-flex flex-column gap-2 mt-2">
+                                    <div className="form-check">
+                                        <input 
+                                            className="form-check-input" 
+                                            type="checkbox" 
+                                            id="permB2B"
+                                            checked={formData.perm_approve_b2b}
+                                            disabled={!isDirector} 
+                                            onChange={(e) => setFormData({...formData, perm_approve_b2b: e.target.checked})}
+                                        />
+                                        <label className="form-check-label" htmlFor="permB2B">
+                                            {t.perms.b2b}
+                                        </label>
+                                    </div>
+
+                                    <div className="form-check">
+                                        <input 
+                                            className="form-check-input" 
+                                            type="checkbox" 
+                                            id="permB2C"
+                                            checked={formData.perm_approve_b2c}
+                                            disabled={!isDirector}
+                                            onChange={(e) => setFormData({...formData, perm_approve_b2c: e.target.checked})}
+                                        />
+                                        <label className="form-check-label" htmlFor="permB2C">
+                                            {t.perms.b2c}
+                                        </label>
+                                    </div>
+
+                                    <div className="form-check">
+                                        <input 
+                                            className="form-check-input" 
+                                            type="checkbox" 
+                                            id="permRevenue"
+                                            checked={formData.perm_view_revenue}
+                                            disabled={!isDirector}
+                                            onChange={(e) => setFormData({...formData, perm_view_revenue: e.target.checked})}
+                                        />
+                                        <label className="form-check-label" htmlFor="permRevenue">
+                                            {t.perms.revenue}
+                                        </label>
+                                    </div>
+
+                                    <div className="form-check">
+                                        <input 
+                                            className="form-check-input" 
+                                            type="checkbox" 
+                                            id="permStaff"
+                                            checked={formData.perm_view_staff}
+                                            disabled={!isDirector}
+                                            onChange={(e) => setFormData({...formData, perm_view_staff: e.target.checked})}
+                                        />
+                                        <label className="form-check-label" htmlFor="permStaff">
+                                            {t.perms.staff}
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                   </div>
 
@@ -766,6 +877,7 @@ export default function QuanLyNhanVien() {
               </button>
             )}
           </div>
+          
           {/* Danh sách nhân viên */}
           <div className="card shadow-sm p-3" style={{ borderRadius: "12px" }}>
             <h5 className="fw-semibold mb-3">
@@ -780,7 +892,9 @@ export default function QuanLyNhanVien() {
                     <th>Tên</th>
                     <th>Email</th>
                     <th>Vai trò</th>
-                    <th>Tổng dịch vụ phụ trách</th>
+                    {/* Cột Phân Quyền Mới */}
+                    <th>Phân Quyền</th>
+                    <th>Tổng dịch vụ</th>
                     {canManage && <th>Hành động</th>}
                   </tr>
                 </thead>
@@ -802,6 +916,16 @@ export default function QuanLyNhanVien() {
                             : u.is_accountant
                             ? "Kế toán"
                             : "Nhân viên"}
+                        </td>
+                        {/* Hiển thị các badges quyền hạn */}
+                        <td>
+                            <div className="d-flex flex-wrap gap-1 justify-content-center">
+                                {u.perm_approve_b2b && <span className="badge bg-info text-dark" style={{fontSize: '0.7rem'}}>Duyệt B2B</span>}
+                                {u.perm_approve_b2c && <span className="badge bg-primary" style={{fontSize: '0.7rem'}}>Duyệt B2C</span>}
+                                {u.perm_view_revenue && <span className="badge bg-success" style={{fontSize: '0.7rem'}}>Xem Doanh thu</span>}
+                                {u.perm_view_staff && <span className="badge bg-secondary" style={{fontSize: '0.7rem'}}>Xem NV</span>}
+                                {!u.perm_approve_b2b && !u.perm_approve_b2c && !u.perm_view_revenue && !u.perm_view_staff && <span className="text-muted small">-</span>}
+                            </div>
                         </td>
                         <td>{total}</td>
                         {canManage && (

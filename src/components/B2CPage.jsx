@@ -5,7 +5,7 @@ import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import EditProfileModal from "./EditProfileModal";
 import { showToast } from "../utils/toast";
 import useDashboardData from "./CMSDashboard/hooks/useDashboardData";
-import { LayoutGrid, Edit, Trash2, X, Pin, PinOff, PlusCircle } from "lucide-react";
+import { LayoutGrid, Edit, Trash2, X, Pin, PinOff, PlusCircle,CheckCircle } from "lucide-react";
 import Swal from "sweetalert2";
 import "../styles/DashboardList.css";
 
@@ -437,10 +437,12 @@ const RowItem = ({
   currentUser,
   onEdit,
   onDelete,
+  onApprove,
   currentLanguage,
   visibleColumns,
   pinnedColumns,
 }) => {
+  const canApprove = currentUser?.is_director || currentUser?.perm_approve_b2c;
   const canViewFinance = currentUser?.is_accountant || currentUser?.is_director;
 
   const handleDeleteClick = () => {
@@ -477,7 +479,7 @@ const RowItem = ({
   };
   
 
-  const displayMaHoSo = item.TrangThai === "Tư vấn" ? "" : item.MaHoSo || "-";
+  const displayMaHoSo = item.MaHoSo && item.MaHoSo.length > 5 ? item.MaHoSo : "";
   
   const isVisible = (key) => (visibleColumns ? visibleColumns[key] : true);
   const isPinned = (key) => pinnedColumns.includes(key);
@@ -581,9 +583,10 @@ const RowItem = ({
           {displayMaHoSo}
         </td>
       )}
-      {currentUser?.is_admin && isVisible("nguoiPhuTrach") && (
+     {currentUser?.is_admin && isVisible("nguoiPhuTrach") && (
         <td className={isPinned("nguoiPhuTrach") ? "sticky-col" : ""}>
-          {item.NguoiPhuTrach || <span className="text-muted fst-italic"></span>}
+          {/* SỬA THÀNH: item.NguoiPhuTrach?.name */}
+          {item.NguoiPhuTrach?.name || <span className="text-muted fst-italic"></span>}
         </td>
       )}
       {isVisible("ngayHen") && (
@@ -617,9 +620,23 @@ const RowItem = ({
           ) : "-"}
         </td>
       )}
-      {isVisible("hanhDong") && (
+     {isVisible("hanhDong") && (
         <td className={`text-center ${isPinned("hanhDong") ? "sticky-col" : ""}`}>
           <div className="d-flex justify-content-center align-items-center gap-2">
+            
+            {/* --- THÊM NÚT DUYỆT --- */}
+            {canApprove && (
+              <button 
+                className="btn btn-sm btn-success d-flex align-items-center justify-content-center" 
+                style={{ width: 32, height: 32, backgroundColor: "#10b981", borderColor: "#10b981" }} 
+                onClick={() => onApprove(item.YeuCauID)} 
+                title={currentLanguage === "vi" ? "Duyệt" : "Approve"}
+              >
+                <CheckCircle size={16} />
+              </button>
+            )}
+            {/* ---------------------- */}
+
             <button className="btn btn-sm btn-primary d-flex align-items-center justify-content-center" style={{ width: 32, height: 32 }} onClick={() => onEdit(item)} title="Sửa">
               <Edit size={16} />
             </button>
@@ -676,6 +693,12 @@ const B2CPage = () => {
     { key: "goiDichVu", label: "Gói Dịch Vụ" },
     { key: "invoice", label: "Invoice Y/N" },
     ...(canViewFinance ? [{ key: "invoiceUrl", label: "Invoice" }] : []),
+    ...(canViewFinance ? [
+    { key: "doanhThuTruoc", label: "Doanh Thu Trước CK" },
+    { key: "mucChietKhau", label: "% CK" },
+    { key: "soTienChietKhau", label: "Tiền CK" },
+    { key: "doanhThuSau", label: "Doanh Thu Sau CK" },
+] : []),
     { key: "hanhDong", label: "Hành động" },
   ];
 
@@ -717,7 +740,11 @@ const B2CPage = () => {
   const fetchData = async () => {
     try {
       let url = `https://onepasscms-backend.onrender.com/api/yeucau?page=${currentPage}&limit=${itemsPerPage}`;
-      if (currentUser?.is_admin) { url += `&is_admin=true`; } else { url += `&userId=${currentUser?.id}`; }
+      if (currentUser?.is_admin || currentUser?.is_director) { 
+          url += `&is_admin=true`; 
+      } else { 
+          url += `&userId=${currentUser?.id}`; 
+      }
       const res = await fetch(url);
       const json = await res.json();
       if (json.success) { setData(json.data); setTotalPages(json.totalPages || 1); }
@@ -757,7 +784,44 @@ const B2CPage = () => {
       } else { showToast("Lỗi xử lý", "error"); }
     } catch { showToast("Lỗi máy chủ", "error"); }
   };
+const handleApprove = async (id) => {
+    // Kiểm tra quyền trên giao diện trước khi gọi
+    const canApprove = currentUser?.is_director || currentUser?.perm_approve_b2c;
+    if (!canApprove) {
+      showToast(currentLanguage === "vi" ? "Bạn không có quyền duyệt!" : "No permission", "error");
+      return;
+    }
 
+    Swal.fire({
+      title: currentLanguage === "vi" ? "Duyệt hồ sơ này?" : "Approve this request?",
+      text: currentLanguage === "vi" ? "Hệ thống sẽ sinh mã hồ sơ và chuyển trạng thái sang Đang xử lý." : "Generate code and update status to Processing.",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#10b981", // Màu xanh lá
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: currentLanguage === "vi" ? "Duyệt ngay" : "Approve",
+      cancelButtonText: currentLanguage === "vi" ? "Hủy" : "Cancel",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/approve/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: currentUser.id }),
+          });
+          const json = await res.json();
+          if (json.success) {
+            showToast(currentLanguage === "vi" ? "Đã duyệt thành công!" : "Approved successfully!", "success");
+            fetchData(); // Tải lại dữ liệu
+          } else {
+            showToast(json.message || "Lỗi khi duyệt", "error");
+          }
+        } catch (err) {
+          showToast("Lỗi kết nối", "error");
+        }
+      }
+    });
+  };
   const handleDelete = async (id) => {
     try {
       const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${id}`, { method: "DELETE" });
@@ -970,6 +1034,7 @@ const B2CPage = () => {
                           currentUser={currentUser}
                           onEdit={handleEditClick}
                           onDelete={handleDelete}
+                          onApprove={handleApprove}
                           currentLanguage={currentLanguage}
                           visibleColumns={visibleColumns}
                           pinnedColumns={pinnedColumns}
@@ -984,6 +1049,13 @@ const B2CPage = () => {
                     )}
                   </tbody>
                 </table>
+                {canViewFinance && (
+                  <div className="mt-2 fw-bold text-end">
+                    Tổng doanh thu sau chiết khấu:{" "}
+                    {data.reduce((sum, i) => sum + (i.DoanhThuSauChietKhau || 0), 0).toLocaleString("vi-VN")} đ
+                  </div>
+                )}
+
               </div>
 
               <div className="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-white" style={{ marginTop: "0", borderTop: "1px solid #dee2e6" }}>

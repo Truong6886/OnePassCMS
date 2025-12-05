@@ -84,7 +84,7 @@ const formatDateTimeReject = (isoString) => {
 const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
 const unformatNumber = (value) => (value ? value.toString().replace(/\./g, "") : "");
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "https://onepasscms-backend.onrender.com/api";
 
 export default function B2BPage() {
   const [expandedRowId, setExpandedRowId] = useState(null);
@@ -92,6 +92,7 @@ export default function B2BPage() {
   const toggleExpand = (id) => {
     setExpandedRowId(prev => prev === id ? null : id);
   };
+  
   const [availableServices, setAvailableServices] = useState([]);
   const [showAddServiceModal, setShowAddServiceModal] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
@@ -130,37 +131,7 @@ export default function B2BPage() {
     } catch (e) { console.error("Lỗi lấy user list", e); }
   };
 
-  // Mở modal để duyệt (khi chưa có mã)
-  const handleOpenApproveModal = (rec) => {
-    const company = approvedList.find(c => String(c.ID) === String(rec.companyId || rec.DoanhNghiepID));
-    
-    setNewServiceForm({
-      id: rec.ID || rec.id, 
-      DoanhNghiepID: rec.companyId || rec.DoanhNghiepID,
-      SoDKKD: company ? company.SoDKKD : "",
-      LoaiDichVu: rec.serviceType || rec.LoaiDichVu,
-      TenDichVu: rec.serviceName || rec.TenDichVu,
-      NgayBatDau: rec.startDate ? rec.startDate.split('T')[0] : new Date().toISOString().split('T')[0],
-      NgayHoanThanh: rec.endDate ? rec.endDate.split('T')[0] : "",
-      ThuTucCapToc: (rec.package === "Cấp tốc" || rec.package === "Yes") ? "Yes" : "No",
-      YeuCauHoaDon: rec.invoiceYN || "No",
-      DoanhThu: rec.revenueBefore ? formatNumber(rec.revenueBefore) : "",
-      Vi: rec.walletUsage ? formatNumber(rec.walletUsage) : "",
-      GhiChu: rec.GhiChu || "",
-      NguoiPhuTrachId: rec.NguoiPhuTrachId || "",
-      status: rec.TrangThai || rec.status || "Chờ Giám đốc duyệt",
-      ConfirmPassword: "" 
-    });
-    
-    if (company) {
-      let services = [];
-      if (company.DichVu) services.push(...company.DichVu.split(',').map(s => s.trim()));
-      if (company.DichVuKhac) services.push(...company.DichVuKhac.split(',').map(s => s.trim()));
-      setAvailableServices([...new Set(services)].filter(Boolean));
-    }
 
-    setShowAddServiceModal(true);
-  };
 
   // Mở modal để chỉnh sửa (Nút Edit - Pencil)
   const handleEditService = (rec) => {
@@ -251,127 +222,130 @@ export default function B2BPage() {
   };
 
 
-// ... existing imports
 
-// [SEARCH FOR THIS FUNCTION]
 const handleModalSubmit = async () => {
-    if (!newServiceForm.DoanhNghiepID || !newServiceForm.LoaiDichVu) {
-      return showToast("Vui lòng chọn Doanh nghiệp và Loại dịch vụ", "warning");
-    }
-    if (!newServiceForm.ConfirmPassword) {
-      return showToast("Vui lòng nhập mật khẩu của bạn để xác nhận!", "warning");
-    }
+  if (!newServiceForm.DoanhNghiepID || !newServiceForm.LoaiDichVu) {
+    return showToast("Vui lòng chọn Doanh nghiệp và Loại dịch vụ", "warning");
+  }
+  if (!newServiceForm.ConfirmPassword) {
+    return showToast("Vui lòng nhập mật khẩu của bạn để xác nhận!", "warning");
+  }
 
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      // Verify Password logic
-      const verifyRes = await fetch(`${API_BASE}/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: currentUser.username,
-          password: newServiceForm.ConfirmPassword
-        })
-      });
+    // Verify Password
+    const verifyRes = await fetch(`${API_BASE}/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: currentUser.username,
+        password: newServiceForm.ConfirmPassword
+      })
+    });
 
-      const verifyJson = await verifyRes.json();
-      if (!verifyJson.success) {
-        setLoading(false);
-        return showToast("Mật khẩu xác nhận không chính xác!", "error");
-      }
-
-      const isDirector = currentUser?.is_director;
-      const isAccountant = currentUser?.is_accountant;
-      // Removed isApprover check as we focus on specific roles below
-
-      // Xử lý tiền tệ
-      const rawDoanhThu = newServiceForm.DoanhThu ? parseFloat(unformatNumber(newServiceForm.DoanhThu)) : 0;
-      const rawVi = newServiceForm.Vi ? parseFloat(unformatNumber(newServiceForm.Vi)) : 0;
-      
-      // Logic xác định Action duyệt
-      let approveAction = null;
-      if (newServiceForm.id) { 
-          const currentStatus = newServiceForm.status;
-          
-          // [MODIFIED LOGIC STARTS HERE]
-          // Nếu là Kế toán, cho phép duyệt luôn (bỏ qua bước Giám đốc nếu cần)
-          // Miễn là chưa "Đã duyệt" thì Kế toán có thể duyệt và sinh mã
-          if (isAccountant && currentStatus !== "Đã duyệt") {
-              approveAction = "accountant_approve";
-          } 
-          // Logic cũ của Giám đốc (giữ lại để phòng hờ, nhưng UI sẽ ẩn nút)
-          else if (currentStatus === "Chờ Giám đốc duyệt" && isDirector) {
-              approveAction = "director_approve";
-          }
-          // [MODIFIED LOGIC ENDS HERE]
-      }
-
-      const payload = {
-        DoanhNghiepID: newServiceForm.DoanhNghiepID,
-        LoaiDichVu: newServiceForm.LoaiDichVu,
-        TenDichVu: newServiceForm.TenDichVu || "",
-        NgayThucHien: newServiceForm.NgayBatDau,
-        NgayHoanThanh: newServiceForm.NgayHoanThanh || null,
-        ThuTucCapToc: newServiceForm.ThuTucCapToc, 
-        YeuCauHoaDon: newServiceForm.YeuCauHoaDon,
-        GhiChu: newServiceForm.GhiChu || "",
-        NguoiPhuTrachId: newServiceForm.NguoiPhuTrachId,
-        DoanhThuTruocChietKhau: rawDoanhThu,
-        Vi: rawVi,                         
-        MaDichVu: "",
-        approveAction: approveAction         
-      };
-
-      let url = `${API_BASE}/b2b/services`;
-      let method = "POST";
-
-      if (newServiceForm.id) {
-        url = `${API_BASE}/b2b/services/update/${newServiceForm.id}`;
-        method = "PUT";
-      }
-
-      const res = await fetch(url, {
-        method: method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      const json = await res.json();
-      
-      if (json.success) {
-        const newCode = json.data?.ServiceID || json.newCode;
-        
-        if (approveAction === 'accountant_approve' && newCode) {
-             await MySwal.fire({
-              icon: 'success',
-              title: 'Đã duyệt & Cấp mã!',
-              html: `Dịch vụ đã được kích hoạt.<br/>Mã hệ thống: <b>${newCode}</b>`,
-              confirmButtonColor: '#22c55e'
-            });
-        } else if (approveAction === 'director_approve') {
-             await MySwal.fire({
-              icon: 'success',
-              title: 'Đã duyệt!',
-              text: 'Đã chuyển hồ sơ sang cho Kế toán xử lý.',
-              confirmButtonColor: '#22c55e'
-            });
-        } else {
-             showToast(newServiceForm.id ? "Cập nhật thành công!" : "Đã gửi yêu cầu đăng ký!", "success");
-        }
-
-        setShowAddServiceModal(false);
-        loadServices(currentPage.services || 1); 
-      } else {
-        showToast(json.message, "error");
-      }
-    } catch (e) {
-      console.error(e);
-      showToast("Lỗi kết nối server", "error");
-    } finally {
+    const verifyJson = await verifyRes.json();
+    if (!verifyJson.success) {
       setLoading(false);
+      return showToast("Mật khẩu xác nhận không chính xác!", "error");
     }
-  };
+
+    // [SỬA] Xác định quyền duyệt: Giám đốc HOẶC có quyền perm_approve_b2b
+    const canApproveB2B = currentUser?.is_director || currentUser?.perm_approve_b2b;
+
+    // Xử lý tiền tệ
+    const rawDoanhThu = newServiceForm.DoanhThu ? parseFloat(unformatNumber(newServiceForm.DoanhThu)) : 0;
+    const rawVi = newServiceForm.Vi ? parseFloat(unformatNumber(newServiceForm.Vi)) : 0;
+
+    // -----------------------------
+    // Xác định approveAction
+    // -----------------------------
+    let approveAction = null;
+
+    if (newServiceForm.id) {
+      const currentStatus = newServiceForm.status;
+
+      // [SỬA] Chỉ duyệt khi có quyền canApproveB2B và trạng thái phù hợp
+      if (canApproveB2B && currentStatus === "Chờ Kế toán duyệt") {
+        approveAction = "accountant_approve";
+      }
+    }
+
+    // -----------------------------
+    // Payload gửi lên server
+    // -----------------------------
+    const payload = {
+      DoanhNghiepID: newServiceForm.DoanhNghiepID,
+      LoaiDichVu: newServiceForm.LoaiDichVu,
+      TenDichVu: newServiceForm.TenDichVu || "",
+      NgayThucHien: newServiceForm.NgayBatDau,
+      NgayHoanThanh: newServiceForm.NgayHoanThanh || null,
+      ThuTucCapToc: newServiceForm.ThuTucCapToc,
+      YeuCauHoaDon: newServiceForm.YeuCauHoaDon,
+      GhiChu: newServiceForm.GhiChu || "",
+      NguoiPhuTrachId: newServiceForm.NguoiPhuTrachId,
+      DoanhThuTruocChietKhau: rawDoanhThu,
+      Vi: rawVi,
+      approveAction: approveAction,
+      userId: currentUser?.id // [QUAN TRỌNG] Gửi ID người dùng để server check quyền
+    };
+
+    // URL + METHOD
+    let url = `${API_BASE}/b2b/services`;
+    let method = "POST";
+
+    if (newServiceForm.id) {
+      url = `${API_BASE}/b2b/services/update/${newServiceForm.id}`;
+      method = "PUT";
+    }
+
+    // -----------------------------
+    // Gửi request
+    // -----------------------------
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const json = await res.json();
+
+    if (json.success) {
+      const newCode = json.data?.ServiceID || json.newCode;
+
+      // -----------------------------
+      // Hiển thị thông báo theo action
+      // -----------------------------
+      if (approveAction === "accountant_approve" && newCode) {
+        await MySwal.fire({
+          icon: "success",
+          title: "Đã duyệt & Cấp mã!",
+          html: `Dịch vụ đã được kích hoạt.<br/>Mã hệ thống: <b>${newCode}</b>`,
+          confirmButtonColor: "#22c55e"
+        });
+
+        // ★ Sau khi duyệt xong → đổi lại thành trạng thái Edit
+        newServiceForm.status = "Đã duyệt";
+      } 
+      else {
+        showToast(newServiceForm.id ? "Cập nhật thành công!" : "Đã gửi yêu cầu đăng ký!", "success");
+      }
+
+      setShowAddServiceModal(false);
+      loadServices(currentPage.services || 1);
+    } else {
+      showToast(json.message, "error");
+    }
+
+  } catch (e) {
+    console.error(e);
+    showToast("Lỗi kết nối server", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+  const [approveModalOpen, setApproveModalOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState(null);
 
   const [pendingList, setPendingList] = useState([]);
   const [approvedList, setApprovedList] = useState([]);
@@ -544,6 +518,7 @@ const handleModalSubmit = async () => {
           id: item.ID,
           uiId: item.ID ? `server_${item.ID}` : `temp_${index}_${Date.now()}`,
           companyId: item.DoanhNghiepID,
+          companyName: item.TenDoanhNghiep,
           soDKKD: item.SoDKKD,
           serviceType: item.LoaiDichVu,
           serviceName: item.TenDichVu,
@@ -561,6 +536,7 @@ const handleModalSubmit = async () => {
           revenueAfter: item.DoanhThuSauChietKhau,
           totalRevenue: item.TongDoanhThuTichLuy,
           walletUsage: item.Vi,
+          status: item.TrangThai,
           isNew: false 
         }));
         setServiceData(formattedData);
@@ -606,25 +582,110 @@ const handleModalSubmit = async () => {
     setApprovedData(prev => prev.map(item => item.ID === id ? { ...item, [field]: value } : item));
   };
 
-  const savePendingRow = async (item) => {
-    if (!item.TenDoanhNghiep || !item.SoDKKD) return showToast("Thiếu thông tin!", "warning");
-    try {
-      const res = await fetch(`${API_BASE}/b2b/pending/${item.ID}`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          TenDoanhNghiep: item.TenDoanhNghiep, SoDKKD: item.SoDKKD, NguoiDaiDien: item.NguoiDaiDien,
-          DichVu: item.DichVu, DichVuKhac: item.DichVuKhac, PdfPath: item.PdfPath
-        })
-      });
-      const json = await res.json();
-      if (json.success) {
-        showToast("Lưu thành công!", "success");
-        setPendingData(prev => prev.map(p => p.ID === item.ID ? { ...p, ...json.data } : p));
-        cancelEditing("pending", item.ID);
-      } else { showToast(json.message, "error"); }
-    } catch (e) { showToast("Lỗi server", "error"); }
-  };
+const handleApprove = (service) => {
+  // Tìm doanh nghiệp để lấy thông tin đầy đủ
+  const company = approvedList.find(c => String(c.ID) === String(service.companyId));
+  
+  // Lấy danh sách dịch vụ từ doanh nghiệp
+  let availableServices = [];
+  if (company) {
+    if (company.DichVu) availableServices.push(...company.DichVu.split(',').map(s => s.trim()));
+    if (company.DichVuKhac) availableServices.push(...company.DichVuKhac.split(',').map(s => s.trim()));
+    availableServices = [...new Set(availableServices)].filter(Boolean);
+  }
+  
+  setSelectedService({
+    ...service,
+    LoaiDichVu: service.serviceType,
+    TenDichVu: service.serviceName,
+    NgayBatDau: service.startDate,
+    NgayHoanThanh: service.endDate,
+    DoanhThu: service.revenueBefore ? formatNumber(service.revenueBefore) : "",
+    Vi: service.walletUsage ? formatNumber(service.walletUsage) : "",
+    GhiChu: service.GhiChu || "",
+    NguoiPhuTrachId: service.picId || "",
+    ConfirmPassword: "",
+    GoiDichVu: service.package === "Cấp tốc" ? "Yes" : "No",
+    YeuCauHoaDon: service.invoiceYN || "No"
+  });
+  
+  setAvailableServices(availableServices);
+  setApproveModalOpen(true);
+};
 
+const handleApproveSubmit = async () => {
+    if (!selectedService.confirmPassword) {
+        return showToast("Vui lòng nhập mật khẩu để duyệt!", "warning");
+    }
+
+    try {
+        setLoading(true);
+        
+        // XÁC THỰC PASS ADMIN
+        const verifyRes = await fetch(`${API_BASE}/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                username: currentUser.username,
+                password: selectedService.confirmPassword
+            })
+        });
+
+        const verifyJson = await verifyRes.json();
+        if (!verifyJson.success) {
+            setLoading(false);
+            return showToast("Mật khẩu không chính xác!", "error");
+        }
+
+        // Chuẩn bị payload
+        const rawDoanhThu = selectedService.DoanhThu ? parseFloat(unformatNumber(selectedService.DoanhThu)) : 0;
+        const rawVi = selectedService.Vi ? parseFloat(unformatNumber(selectedService.Vi)) : 0;
+
+        const payload = {
+          LoaiDichVu: selectedService.LoaiDichVu || selectedService.serviceType,
+          TenDichVu: selectedService.TenDichVu || selectedService.serviceName,
+          NgayThucHien: selectedService.NgayBatDau || selectedService.startDate,
+          NgayHoanThanh: selectedService.NgayHoanThanh || selectedService.endDate,
+          GoiDichVu: selectedService.GoiDichVu === "Yes" ? "Cấp tốc" : "Thông thường",
+          YeuCauHoaDon: selectedService.YeuCauHoaDon,
+          GhiChu: selectedService.GhiChu || "",
+          NguoiPhuTrachId: selectedService.NguoiPhuTrachId || selectedService.picId,
+          DoanhThuTruocChietKhau: rawDoanhThu,
+          Vi: rawVi,
+          approveAction: "accountant_approve",
+          userId: currentUser?.id // [QUAN TRỌNG] Gửi ID người dùng để server check quyền
+        };
+
+        // Gửi API DUYỆT với dữ liệu đã chỉnh sửa
+        const res = await fetch(`${API_BASE}/b2b/services/update/${selectedService.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        const json = await res.json();
+        if (json.success) {
+            await MySwal.fire({
+                icon: "success",
+                title: "Duyệt thành công!",
+                html: `Mã dịch vụ được cấp: <b>${json.newCode || json.code}</b>`,
+                confirmButtonColor: "#22c55e"
+            });
+
+            setApproveModalOpen(false);
+            setLoading(false);
+            loadServices(currentPage.services);
+        } else {
+            setLoading(false);
+            showToast(json.message, "error");
+        }
+
+    } catch (err) {
+        console.log(err);
+        setLoading(false);
+        showToast("Lỗi server", "error");
+    }
+};
   const saveApprovedRow = async (item) => {
     if (!item.TenDoanhNghiep || !item.SoDKKD) return showToast("Thiếu thông tin", "warning");
     try {
@@ -754,8 +815,9 @@ const handleModalSubmit = async () => {
 
   // --- RENDER SERVICES TAB (MODIFIED) ---
 const renderServicesTab = () => {
-    const canViewRevenue = currentUser?.is_director || currentUser?.is_accountant;
-
+    const canApproveB2B = currentUser?.is_director || currentUser?.perm_approve_b2b;
+    const canViewRevenue = currentUser?.is_director || currentUser?.is_accountant || currentUser?.perm_view_revenue;
+    
     const safeParse = (val) => {
       if (!val) return 0;
       try {
@@ -926,7 +988,6 @@ const renderServicesTab = () => {
                       return (
                         <tr key={currentRowKey} className={rec.isNew ? "" : "bg-white hover:bg-gray-50"}>
                           <td className="text-center border p-0 align-middle">{globalIndex}</td>
-
                           {shouldRenderTotalCell && (
                             <td
                               className="border p-0 align-middle"
@@ -940,8 +1001,9 @@ const renderServicesTab = () => {
                                 backgroundClip: "padding-box"
                               }}
                             >
+                                {/* [SỬA] Dùng trực tiếp rec.companyName thay vì tìm trong approvedList */}
                                 <div className="text-center" style={{ fontSize: "12px", whiteSpace: "normal", wordBreak: "break-word" }}>
-                                  {approvedList.find((c) => String(c.ID) === currentCompanyId)?.TenDoanhNghiep || "--"}
+                                  {rec.companyName || "--"}
                                 </div>
                             </td>
                           )}
@@ -954,8 +1016,9 @@ const renderServicesTab = () => {
                                 zIndex: 1,
                                 backgroundClip: "padding-box"
                               }}>
+                                {/* [SỬA] Dùng trực tiếp rec.soDKKD thay vì tìm trong approvedList */}
                                 <div className="text-center" style={{ fontSize: "12px" }}>
-                                   {approvedList.find((c) => String(c.ID) === currentCompanyId)?.SoDKKD || "--"}
+                                   {rec.soDKKD || "--"}
                                 </div>
                              </td>
                           )}
@@ -1053,52 +1116,84 @@ const renderServicesTab = () => {
                           )}
 
                   
-                        <td className="text-center border p-1 align-middle" style={{ backgroundColor: "white" }}>
-                          <div className="d-flex gap-1 justify-content-center">
-                                <>
-                                  {/* LOGIC NÚT DUYỆT / SỬA */}
-                                 {status === "Chờ Giám đốc duyệt" && isDirector && (
-                                    <button
-                                        className="btn btn-sm shadow-sm"
-                                        style={{ backgroundColor: "#22c55e", color: "#fff", width: 36, height: 36 }}
-                                        title="Giám đốc duyệt (Chuyển Kế toán)"
-                                        onClick={() => handleOpenApproveModal(rec)} 
-                                    >
-                                        <Check size={18} strokeWidth={3} />
-                                    </button>
-                                )}
-                                {status === "Chờ Kế toán duyệt" && isAccountant && (
-                                  <button
-                                      className="btn btn-sm shadow-sm"
-                                      style={{ backgroundColor: "#0ea5e9", color: "#fff", width: 36, height: 36 }}
-                                      title="Kế toán duyệt (Sinh mã)"
-                                      onClick={() => handleOpenApproveModal(rec)} 
-                                  >
-                                      <Check size={18} strokeWidth={3} />
-                                  </button>
-                              )}
-                                   <button
-                                        className="btn btn-sm"
-                                        style={{ backgroundColor: "#f59e0b", color: "#fff", width: 36, height: 36 }}
-                                        onClick={() => handleEditService(rec)} 
-                                    >
-                                        <Edit size={17} strokeWidth={2.3} />
-                                    </button>
-                                                          <button
-                                  className="btn btn-sm"
-                                  style={{ backgroundColor: "#ef4444", color: "#fff", width: 36, height: 36, borderRadius: 6 }}
-                                  onClick={() => deleteServiceRow(rec.id || rec.ID, rec.isNew)}
-                                >
-                                  <Trash2 size={17} strokeWidth={2.3} />
-                                </button>
-                              </>
+                       <td className="text-center align-middle">
+                          <div className="d-flex justify-content-center gap-1">
+                            
+                            {!rec.code && (currentUser?.is_accountant || currentUser?.is_director) ? (
+                              // --- NÚT DUYỆT (MÀU XANH CYAN - GIỐNG ẢNH MẪU) ---
+                              <button
+                                className="btn btn-sm shadow-sm"
+                                title="Duyệt dịch vụ"
+                                onClick={() => handleApprove(rec)}
+                                style={{
+                                  backgroundColor: "#06b6d4", // Cyan-500
+                                  borderColor: "#06b6d4",
+                                  color: "#ffffff",
+                                  width: "32px",
+                                  height: "32px",
+                                  padding: 0,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  borderRadius: "6px",
+                                  transition: "all 0.2s"
+                                }}
+                              >
+                                <Check size={18} strokeWidth={3} />
+                              </button>
+                            ) : (
+                              // --- NÚT SỬA (Màu vàng) ---
+                              <button
+                                className="btn btn-sm shadow-sm"
+                                title="Sửa dịch vụ"
+                                onClick={() => handleEditService(rec)}
+                                style={{
+                                  backgroundColor: "#f59e0b", // Amber-500
+                                  borderColor: "#f59e0b",
+                                  color: "#ffffff",
+                                  width: "32px",
+                                  height: "32px",
+                                  padding: 0,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  borderRadius: "6px",
+                                  transition: "all 0.2s"
+                                }}
+                              >
+                                <Edit size={16} strokeWidth={2.5} />
+                              </button>
+                            )}
+
+                            {/* --- NÚT XÓA (Màu đỏ) --- */}
+                            <button
+                              className="btn btn-sm shadow-sm"
+                              title="Xóa dịch vụ"
+                              onClick={() => handleDeleteService(rec)}
+                              style={{
+                                backgroundColor: "#ef4444", // Red-500
+                                borderColor: "#ef4444",
+                                color: "#ffffff",
+                                width: "32px",
+                                height: "32px",
+                                padding: 0,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                borderRadius: "6px",
+                                transition: "all 0.2s"
+                              }}
+                            >
+                              <Trash2 size={16} strokeWidth={2.5} />
+                            </button>
                           </div>
-                      </td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
+                        </td>
+
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
                       <td colSpan={canViewRevenue ? 14 : 8} className="text-center py-4 text-muted border">
                         Chưa có dữ liệu dịch vụ
                       </td>
@@ -1345,7 +1440,488 @@ const renderServicesTab = () => {
         <div className="px-4 pb-5">{renderTabContent()}</div>
       </div>
     
-   
+{approveModalOpen && selectedService && (
+  <div className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style={{ backgroundColor: "rgba(0,0,0,0.6)", zIndex: 1050, backdropFilter: "blur(2px)" }}>
+    <div 
+      className="bg-white p-4 scrollbar-hide position-relative" 
+      style={{ 
+        width: "600px", 
+        maxWidth: "90%", 
+        maxHeight: "100vh", 
+        overflowY: "auto", 
+        borderRadius: "20px",
+        boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+      }}
+    >
+      {/* Nút đóng */}
+      <button 
+        onClick={() => setApproveModalOpen(false)}
+        className="position-absolute d-flex align-items-center justify-content-center border-0 bg-light rounded-circle text-muted hover-text-dark transition-all"
+        style={{ 
+          top: "15px", 
+          right: "15px", 
+          width: "32px", 
+          height: "32px", 
+          cursor: "pointer", 
+          zIndex: 10 
+        }}
+        title="Đóng"
+      >
+        <X size={20} />
+      </button>
+
+      {/* Header Modal */}
+      <div className="text-center mb-4 mt-2">
+        <h3 className="fw-bold m-0" style={{ color: "#333", fontSize: "20px" }}>
+          Duyệt dịch vụ (B2B)
+        </h3>
+        <p className="text-muted small mt-1 mb-0">Chỉnh sửa thông tin trước khi duyệt</p>
+      </div>
+
+      <div className="row g-3 px-2">
+        {/* Custom Style cho Input */}
+        {(() => {
+          const inputStyle = {
+            width: "100%",
+            padding: "10px 12px",
+            borderRadius: "10px",
+            border: "2px solid #E5E7EB",
+            fontSize: "13px",
+            color: "#374151",
+            backgroundColor: "#F9FAFB",
+            outline: "none",
+            transition: "border-color 0.2s",
+          };
+
+          const arrowSvg = `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3e%3c/svg%3e")`;
+
+          const selectStyle = {
+            ...inputStyle,
+            appearance: "none",
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            backgroundImage: arrowSvg,
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "right 12px center",
+            backgroundSize: "16px",
+            paddingRight: "35px",
+            cursor: "pointer"
+          };
+
+          const labelStyle = {
+            fontSize: "13px",
+            fontWeight: "700",
+            color: "#1F2937",
+            marginBottom: "4px",
+            display: "block",
+          };
+
+          const helperTextStyle = {
+            fontSize: "10px",
+            color: "#3B82F6",
+            marginTop: "3px",
+            fontStyle: "normal",
+          };
+
+          // Tìm doanh nghiệp để lấy danh sách dịch vụ
+          const company = approvedList.find(c => String(c.ID) === String(selectedService.companyId));
+          
+          // Lấy danh sách dịch vụ từ doanh nghiệp
+          let availableServices = [];
+          if (company) {
+            if (company.DichVu) availableServices.push(...company.DichVu.split(',').map(s => s.trim()));
+            if (company.DichVuKhac) availableServices.push(...company.DichVuKhac.split(',').map(s => s.trim()));
+            availableServices = [...new Set(availableServices)].filter(Boolean);
+          }
+
+          // Component ToggleButton
+          const ToggleButton = ({ name, value, onChange }) => (
+            <div className="d-flex gap-2 w-100">
+              {["Yes", "No"].map((option) => (
+                <label
+                  key={option}
+                  className="flex-grow-1 cursor-pointer"
+                  style={{ position: "relative" }}
+                >
+                  <input
+                    type="radio"
+                    name={name}
+                    value={option}
+                    checked={value === option}
+                    onChange={onChange}
+                    className="d-none"
+                  />
+                  <div
+                    className="text-center py-2"
+                    style={{
+                      ...inputStyle,
+                      backgroundColor: value === option ? "#F3F4F6" : "#fff",
+                      borderColor: value === option ? "#9CA3AF" : "#E5E7EB",
+                      color: value === option ? "#000" : "#9CA3AF",
+                      fontWeight: value === option ? "bold" : "normal",
+                      cursor: "pointer",
+                      padding: "8px 0",
+                    }}
+                  >
+                    {option}
+                  </div>
+                </label>
+              ))}
+            </div>
+          );
+
+          // Component ModernSelect
+          const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false }) => {
+            const [isOpen, setIsOpen] = React.useState(false);
+            const containerRef = React.useRef(null);
+
+            const selectedOption = options.find(opt => String(opt.value) === String(value));
+            const displayLabel = selectedOption ? selectedOption.label : placeholder;
+
+            React.useEffect(() => {
+              const handleClickOutside = (event) => {
+                if (containerRef.current && !containerRef.current.contains(event.target)) {
+                  setIsOpen(false);
+                }
+              };
+              document.addEventListener("mousedown", handleClickOutside);
+              return () => document.removeEventListener("mousedown", handleClickOutside);
+            }, []);
+
+            const handleSelect = (val) => {
+              if (disabled) return;
+              onChange({ target: { name, value: val } });
+              setIsOpen(false);
+            };
+
+            return (
+              <div className="position-relative" ref={containerRef} style={{ width: "100%" }}>
+                {/* Box hiển thị chính */}
+                <div 
+                  onClick={() => !disabled && setIsOpen(!isOpen)}
+                  style={{
+                    ...inputStyle,
+                    cursor: disabled ? "not-allowed" : "pointer",
+                    backgroundColor: disabled ? "#F3F4F6" : "#F9FAFB",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    userSelect: "none",
+                    height: "45px" 
+                  }}
+                >
+                  <span style={{ color: value ? "#374151" : "#9CA3AF" }}>
+                    {displayLabel}
+                  </span>
+                  <ChevronDown size={16} color="#6B7280" />
+                </div>
+
+                {/* Dropdown Menu */}
+                {isOpen && !disabled && (
+                  <div 
+                    className="position-absolute w-100 bg-white shadow-sm rounded-bottom border"
+                    style={{
+                      top: "48px", 
+                      left: 0,
+                      zIndex: 1000,
+                      maxHeight: "250px",
+                      overflowY: "auto",
+                      borderRadius: "8px",
+                      padding: "8px",
+                      display: twoColumns ? "grid" : "block",
+                      gridTemplateColumns: twoColumns ? "1fr 1fr" : "none",
+                      gap: twoColumns ? "8px" : "0"
+                    }}
+                  >
+                    {options.length > 0 ? (
+                      options.map((opt, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => handleSelect(opt.value)}
+                          className={`px-3 py-2 transition-all ${twoColumns ? 'rounded' : ''}`}
+                          style={{
+                            cursor: "pointer",
+                            fontSize: "12px",
+                            color: String(opt.value) === String(value) ? "#2563eb" : "#374151",
+                            backgroundColor: String(opt.value) === String(value) ? "#EFF6FF" : (twoColumns ? "#F9FAFB" : "transparent"),
+                            borderBottom: !twoColumns && idx !== options.length - 1 ? "1px solid #f3f4f6" : "none",
+                            border: twoColumns ? "1px solid #E5E7EB" : undefined,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis"
+                          }}
+                          title={opt.label}
+                        >
+                          {opt.label}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="px-3 py-2 text-muted small text-center" style={{ gridColumn: "1 / -1" }}>
+                        Không có dữ liệu
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          };
+
+          // Hàm xử lý thay đổi
+          const handleApproveModalChange = (e) => {
+            const { name, value } = e.target;
+            
+            if (name === "DoanhThu" || name === "Vi") {
+              const rawValue = unformatNumber(value);
+              if (!isNaN(rawValue)) {
+                setSelectedService(prev => ({ ...prev, [name]: formatNumber(rawValue) }));
+              }
+            } 
+            else if (name === "LoaiDichVu") {
+              setSelectedService(prev => ({ 
+                ...prev, 
+                [name]: value,
+                serviceType: value // Cập nhật cả serviceType
+              }));
+            }
+            else {
+              setSelectedService(prev => ({ ...prev, [name]: value }));
+            }
+          };
+
+          return (
+            <>
+              {/* Tên Doanh Nghiệp (readonly) */}
+              <div className="col-md-6">
+                <label style={labelStyle}>
+                  Tên doanh nghiệp
+                </label>
+                <input 
+                  type="text" 
+                  value={company?.TenDoanhNghiep || "--"} 
+                  readOnly 
+                  style={{...inputStyle, backgroundColor: "#F3F4F6", color: "#9CA3AF"}} 
+                />
+              </div>
+              
+              {/* Số ĐKKD (readonly) */}
+              <div className="col-md-6">
+                <label style={labelStyle}>Số đăng ký kinh doanh</label>
+                <input 
+                  type="text" 
+                  value={selectedService.soDKKD || company?.SoDKKD || "--"} 
+                  readOnly 
+                  style={{...inputStyle, backgroundColor: "#F3F4F6", color: "#9CA3AF"}} 
+                />
+              </div>
+
+              {/* Loại dịch vụ (có thể sửa) */}
+              <div className="col-md-6">
+                <label style={labelStyle}>
+                  Loại dịch vụ <span className="text-danger">*</span>
+                </label>
+                <ModernSelect
+                  name="LoaiDichVu"
+                  value={selectedService.serviceType || selectedService.LoaiDichVu || ""}
+                  onChange={handleApproveModalChange}
+                  placeholder="-- Chọn loại dịch vụ --"
+                  options={availableServices.map(svc => ({ value: svc, label: svc }))}
+                />
+              </div>
+
+              {/* Tên dịch vụ chi tiết (có thể sửa) */}
+              <div className="col-md-6">
+                <label style={labelStyle}>Tên dịch vụ chi tiết <span className="text-danger">*</span></label>
+                <input 
+                  type="text" 
+                  name="TenDichVu"
+                  placeholder="Cấp lại hộ chiếu..." 
+                  value={selectedService.serviceName || selectedService.TenDichVu || ""} 
+                  onChange={handleApproveModalChange}
+                  style={inputStyle}
+                />
+              </div>
+
+              {/* Ngày bắt đầu (có thể sửa) */}
+              <div className="col-md-6">
+                <label style={labelStyle}>Ngày bắt đầu <span className="text-danger">*</span></label>
+                <input 
+                  type="date" 
+                  name="NgayBatDau"
+                  value={selectedService.startDate || ""} 
+                  onChange={handleApproveModalChange}
+                  style={inputStyle}
+                />
+              </div>
+
+              {/* Ngày hoàn thành (có thể sửa) */}
+              <div className="col-md-6">
+                <label style={labelStyle}>Ngày hoàn thành mong muốn</label>
+                <input 
+                  type="date" 
+                  name="NgayHoanThanh"
+                  value={selectedService.endDate || ""} 
+                  onChange={handleApproveModalChange}
+                  style={inputStyle}
+                />
+                <div style={helperTextStyle}>
+                  Ngày hoàn thành dịch vụ có thể sai khác tuỳ thuộc vào thực tế hồ sơ.
+                </div>
+              </div>
+
+              {/* Gói dịch vụ (có thể sửa) */}
+              <div className="col-md-6">
+                <label style={labelStyle}>Gói dịch vụ</label>
+                <ToggleButton 
+                  name="GoiDichVu" 
+                  value={selectedService.package === "Cấp tốc" || selectedService.package === "Yes" ? "Yes" : "No"} 
+                  onChange={handleApproveModalChange} 
+                />
+                <div style={helperTextStyle}>
+                  {selectedService.package === "Cấp tốc" || selectedService.package === "Yes" 
+                    ? "Thời gian xử lý nhanh hơn" 
+                    : "Thời gian xử lý tiêu chuẩn"}
+                </div>
+              </div>
+
+              {/* Yêu cầu xuất hóa đơn (có thể sửa) */}
+              <div className="col-md-6">
+                <label style={labelStyle}>Yêu cầu xuất hóa đơn</label>
+                <ToggleButton 
+                  name="YeuCauHoaDon" 
+                  value={selectedService.invoiceYN || "No"} 
+                  onChange={handleApproveModalChange} 
+                />
+                <div style={helperTextStyle}>
+                  Hóa đơn sẽ được gửi về email đăng ký.
+                </div>
+              </div>
+
+              {/* Doanh thu (có thể sửa nếu có quyền) */}
+              {(currentUser?.is_director || currentUser?.is_accountant) && (
+                <div className="col-12">
+                  <label style={labelStyle}>Doanh thu <span className="text-danger">*</span></label>
+                  <div className="d-flex gap-3">
+                    <div style={{ flex: 1 }}>
+                      <input 
+                        type="text" 
+                        name="DoanhThu"
+                        value={selectedService.DoanhThu || formatNumber(selectedService.revenueBefore || "")} 
+                        onChange={handleApproveModalChange}
+                        placeholder="1.000.000" 
+                        style={{...inputStyle, textAlign: "center"}}
+                      />
+                      <div style={helperTextStyle}>Doanh thu trước chiết khấu</div>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <input 
+                        type="text" 
+                        name="Vi"
+                        value={selectedService.Vi || formatNumber(selectedService.walletUsage || "")} 
+                        onChange={handleApproveModalChange}
+                        placeholder="Trừ ví (VND)..." 
+                        style={{...inputStyle, textAlign: "center"}}
+                      />
+                      <div style={helperTextStyle}>Số tiền trừ ví</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Người phụ trách (có thể sửa) */}
+              <div className="col-12">
+                <label style={labelStyle}>
+                  Chọn người phụ trách
+                </label>
+                <ModernSelect
+                  name="NguoiPhuTrachId"
+                  value={selectedService.picId || selectedService.NguoiPhuTrachId || ""}
+                  onChange={handleApproveModalChange}
+                  placeholder="Chọn trong danh sách nhân viên"
+                  twoColumns={true}
+                  options={userList.map(u => ({ 
+                    value: u.id, 
+                    label: `${u.name} (${u.username})` 
+                  }))}
+                />
+              </div>
+
+              {/* Ghi chú (có thể sửa) */}
+              <div className="col-12">
+                <label style={labelStyle}>Ghi chú</label>
+                <input 
+                  type="text" 
+                  name="GhiChu"
+                  placeholder="Nhập ghi chú" 
+                  value={selectedService.GhiChu || ""} 
+                  onChange={handleApproveModalChange}
+                  style={inputStyle}
+                />
+              </div>
+
+              {/* Mật khẩu xác nhận */}
+              <div className="col-12">
+                <label style={labelStyle}>Nhập mật khẩu để duyệt <span className="text-danger">*</span></label>
+                <div className="position-relative">
+                  <input 
+                    type={showConfirmPassword ? "text" : "password"} 
+                    placeholder="******" 
+                    name="ConfirmPassword"
+                    value={selectedService.confirmPassword || ""}
+                    onChange={(e) =>
+                      setSelectedService(prev => ({
+                        ...prev,
+                        confirmPassword: e.target.value
+                      }))
+                    }
+                    autoComplete="new-password"
+                    style={{...inputStyle, paddingRight: "40px"}}
+                  />
+                  <span 
+                    className="position-absolute top-50 translate-middle-y end-0 me-3 cursor-pointer" 
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={{ color: "#6B7280" }}
+                  >
+                    {showConfirmPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
+                  </span>
+                </div>
+                <div style={helperTextStyle}>Mật khẩu tài khoản admin hiện tại</div>
+              </div>
+
+              {/* Nút Submit */}
+              <div className="col-12 mt-3 pt-2">
+                <button 
+                  className="btn w-100 fw-bold shadow-sm" 
+                  onClick={handleApproveSubmit}
+                  disabled={loading}
+                  style={{
+                    backgroundColor: loading ? "#94a3b8" : "#0ea5e9",
+                    color: "white",
+                    padding: "12px", 
+                    borderRadius: "10px",
+                    fontSize: "15px",
+                    border: "none",
+                    boxShadow: "0 4px 6px -1px rgba(14, 165, 233, 0.4)"
+                  }}
+                >
+                  {loading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2"></span>
+                      Đang xử lý...
+                    </>
+                  ) : (
+                    "Duyệt & Cấp mã dịch vụ"
+                  )}
+                </button>
+              </div>
+            </>
+          );
+        })()}
+      </div>
+    </div>
+  </div>
+)}
+
+
       {showAddServiceModal && (
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style={{ backgroundColor: "rgba(0,0,0,0.6)", zIndex: 1050, backdropFilter: "blur(2px)" }}>
           <div 
@@ -1776,23 +2352,31 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                     </div>
 
                     {/* Nút Submit */}
-                    <div className="col-12 mt-3 pt-2">
-                      <button 
-                        className="btn w-100 fw-bold shadow-sm" 
-                        onClick={handleModalSubmit}
-                        style={{
-                          backgroundColor: "#22C55E", 
-                          color: "white",
-                          padding: "12px", 
-                          borderRadius: "10px",
-                          fontSize: "15px",
-                          border: "none",
-                          boxShadow: "0 4px 6px -1px rgba(34, 197, 94, 0.4)"
-                        }}
-                      >
-                        {newServiceForm.id ? "Cập nhật dịch vụ" : "Đăng ký dịch vụ mới"}
-                      </button>
-                    </div>
+                   {/* ... Trong phần render Modal ... */}
+
+          <div className="col-12 mt-3 pt-2">
+            <button 
+              className="btn w-100 fw-bold shadow-sm" 
+              onClick={handleModalSubmit}
+              style={{
+                // Đổi màu nút thành xanh nếu là hành động duyệt
+                backgroundColor: (currentUser?.is_accountant && newServiceForm.status === "Chờ Kế toán duyệt") ? "#0ea5e9" : "#22C55E", 
+                color: "white",
+                padding: "12px", 
+                borderRadius: "10px",
+                fontSize: "15px",
+                border: "none",
+                boxShadow: "0 4px 6px -1px rgba(34, 197, 94, 0.4)"
+              }}
+            >
+              {/* Logic hiển thị Text của nút */}
+              {newServiceForm.id 
+                ? (currentUser?.is_accountant && newServiceForm.status === "Chờ Kế toán duyệt" 
+                    ? "Duyệt & Cấp mã dịch vụ" // Text khi kế toán duyệt
+                    : "Cập nhật dịch vụ")      // Text khi sửa bình thường
+                : "Đăng ký dịch vụ mới"}
+            </button>
+          </div>
                   </>
                 );
               })()}

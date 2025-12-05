@@ -188,7 +188,7 @@ useEffect(() => {
           )}
 
   
-          {(user?.is_accountant || user?.is_director) && (
+          {(user?.is_accountant || user?.is_director || user?.perm_view_revenue) && (
             <li
               style={getItemStyle("doanhthu")}
               onMouseEnter={() => setHoveredItem("doanhthu")}

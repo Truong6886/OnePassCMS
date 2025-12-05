@@ -472,7 +472,7 @@ const currentTotalRevenue = activeTab === "personal"
     : aggregatedCompanyData.reduce((sum, item) => sum + (parseFloat(item.TotalRevenueAfter) || 0), 0);
   const serviceOptions = [
     "tatca",
-    ...new Set(records.map((r) => translateService(typeof r.TenDichVu==='object'?r.TenDichVu.name:r.TenDichVu)).filter(Boolean)),
+    ...new Set(records.map((r) => translateService(typeof r.LoaiDichVu==='object'?r.LoaiDichVu.name:r.LoaiDichVu)).filter(Boolean)),
   ];
   const staffOptions = [
     "tatca",
