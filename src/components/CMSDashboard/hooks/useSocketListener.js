@@ -26,14 +26,49 @@ export default function useSocketListener({
     const socket = socketRef.current;
     const handleForceLogout = (msg) => {
       console.warn("⚠️ Bị buộc đăng xuất:", msg);
-      alert(msg || "Tài khoản của bạn đã được đăng nhập trên thiết bị khác.");
       
-      // 1. Xóa thông tin đăng nhập
-      localStorage.removeItem("currentUser");
-      localStorage.removeItem("sessionToken");
+      const countdownTime = 10000;
+
+
+      Swal.fire({
+        icon: 'warning',
+        title: currentLanguage === 'vi' ? 'Cảnh báo đăng nhập' : 'Login Alert',
+        html: currentLanguage === 'vi' 
+          ? `${msg || "Tài khoản đang đăng nhập nơi khác."}<br/><br/>Hệ thống sẽ đăng xuất sau <b>10</b> giây.`
+          : `${msg || "Account logged in elsewhere."}<br/><br/>Auto logout in <b>10</b> seconds.`,
+        timer: countdownTime,
+        timerProgressBar: true,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: true,
+        confirmButtonText: currentLanguage === 'vi' ? 'Đăng xuất ngay' : 'Logout Now',
+        didOpen: () => {
+          
+          const b = Swal.getHtmlContainer().querySelector('b');
+          if(b) {
+             const timerInterval = setInterval(() => {
+               if(Swal.getTimerLeft()) {
+                  b.textContent = Math.ceil(Swal.getTimerLeft() / 1000);
+               }
+             }, 1000);
+          
+             Swal.getPopup().dataset.timerInterval = timerInterval;
+          }
+        },
+        willClose: () => {
+          
+           if(Swal.getPopup().dataset.timerInterval) {
+             clearInterval(Swal.getPopup().dataset.timerInterval);
+           }
+        }
+      }).then(() => {
       
-      // 2. Reload lại trang về Login (dùng window.location để clear sạch state)
-      window.location.href = "/"; 
+       
+        localStorage.clear();
+        
+       
+        window.location.href = "/login"; 
+      });
     };
     const handleConnect = () => console.log("🟢 Socket connected:", socket.id);
     const handleDisconnect = (reason) =>
