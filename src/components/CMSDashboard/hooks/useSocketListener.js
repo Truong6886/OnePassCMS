@@ -24,15 +24,14 @@ export default function useSocketListener({
     }
 
     const socket = socketRef.current;
-    const handleForceLogout = (msg) => {
-      console.warn("⚠️ Bị buộc đăng xuất:", msg);
+ const handleForceLogout = (msg) => {
+      console.warn("⚠️ Nhận tín hiệu force_logout:", msg);
       
       const countdownTime = 10000;
 
-
       Swal.fire({
         icon: 'warning',
-        title: currentLanguage === 'vi' ? 'Cảnh báo đăng nhập' : 'Login Alert',
+        title: currentLanguage === 'vi' ? 'Phiên đăng nhập hết hạn' : 'Login Alert',
         html: currentLanguage === 'vi' 
           ? `${msg || "Tài khoản đang đăng nhập nơi khác."}<br/><br/>Hệ thống sẽ đăng xuất sau <b>10</b> giây.`
           : `${msg || "Account logged in elsewhere."}<br/><br/>Auto logout in <b>10</b> seconds.`,
@@ -40,37 +39,32 @@ export default function useSocketListener({
         timerProgressBar: true,
         allowOutsideClick: false,
         allowEscapeKey: false,
-        showConfirmButton: true,
         confirmButtonText: currentLanguage === 'vi' ? 'Đăng xuất ngay' : 'Logout Now',
         didOpen: () => {
-          
           const b = Swal.getHtmlContainer().querySelector('b');
-          if(b) {
-             const timerInterval = setInterval(() => {
-               if(Swal.getTimerLeft()) {
-                  b.textContent = Math.ceil(Swal.getTimerLeft() / 1000);
-               }
-             }, 1000);
-          
-             Swal.getPopup().dataset.timerInterval = timerInterval;
-          }
+          const timerInterval = setInterval(() => {
+            if(Swal.getTimerLeft()) {
+              b.textContent = Math.ceil(Swal.getTimerLeft() / 1000);
+            }
+          }, 1000);
+          Swal.getPopup().dataset.timerInterval = timerInterval;
         },
         willClose: () => {
-          
-           if(Swal.getPopup().dataset.timerInterval) {
-             clearInterval(Swal.getPopup().dataset.timerInterval);
-           }
+          clearInterval(Swal.getPopup().dataset.timerInterval);
         }
       }).then(() => {
-      
        
         localStorage.clear();
-        
-       
         window.location.href = "/login"; 
       });
     };
-    const handleConnect = () => console.log("🟢 Socket connected:", socket.id);
+
+    socket.on("force_logout", handleForceLogout);
+    const handleConnect = () => {
+       if (currentUser?.id) {
+          socket.emit("register_user", currentUser.id);
+       }
+    };
     const handleDisconnect = (reason) =>
       console.log("🔴 Socket disconnected. Reason:", reason);
     const handleError = (error) => console.error("❌ Socket error:", error);
