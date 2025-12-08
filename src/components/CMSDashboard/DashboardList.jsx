@@ -42,7 +42,7 @@ const ReadOnlyRow = ({ item, visibleColumns, pinnedColumns, currentUser, current
       {isVisible("coSo") && <td className={`text-center border-target ${isPinned("coSo") ? "sticky-col" : ""}`}>{translateBranch(item.CoSoTuVan)}</td>}
       {isVisible("loaiDichVu") && <td style={{ maxWidth: "150px" }} className={`text-center text-truncate ${isPinned("loaiDichVu") ? "sticky-col" : ""}`} title={translateService(item.LoaiDichVu)}>{translateService(item.LoaiDichVu)}</td>}
       {isVisible("tenDichVu") && <td className={`text-center ${isPinned("tenDichVu") ? "sticky-col" : ""}`}>{item.TenDichVu || ""}</td>}
-      {isVisible("maDichVu") && <td className={`text-center border-target ${isPinned("maDichVu") ? "sticky-col" : ""}`}>{displayMaHoSo}</td>}
+      {isVisible("maDichVu") && <td style={{ width: "120px" }} className={`text-center border-target ${isPinned("maDichVu") ? "sticky-col" : ""}`}>{displayMaHoSo}</td>}
       
       {canViewAssignee && isVisible("nguoiPhuTrach") && (
         <td style={{ width: "110px", maxWidth: "110px" }} className={`text-center text-truncate ${isPinned("nguoiPhuTrach") ? "sticky-col" : ""}`} title={item.NguoiPhuTrach?.name}>
@@ -170,13 +170,16 @@ const DashboardList = ({
   const isVisible = (key) => visibleColumns[key];
   const isPinned = (key) => pinnedColumns.includes(key);
 
-  useEffect(() => {
+ useEffect(() => {
     const fetchStaff = async () => {
       try {
-        const res = await fetch("https://onepasscms-backend.onrender.com/api/User");
+        
+        const res = await authenticatedFetch("https://onepasscms-backend.onrender.com/api/User");
         const json = await res.json();
         if (json.success) setAllStaff(json.data);
-      } catch (err) { console.error(err); }
+      } catch (err) { 
+        console.error(err); 
+      }
     };
     if (canViewAssignee) fetchStaff();
   }, [canViewAssignee]);
@@ -293,7 +296,7 @@ const DashboardList = ({
                     }}
                 >
                     <i className="bi bi-file-earmark-excel"></i>
-                    {currentLanguage === "vi" ? "Tải xuống" : "Download"}
+                    {currentLanguage === "vi" ? "Tải danh sách dịch vụ" : "Download Service List"}
                 </button>
 
                 <div className="position-relative" ref={columnMenuRef}>

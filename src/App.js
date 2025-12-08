@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import Login from "./components/Login";
 import CMSDashboard from "./components/CMSDashboard";
 import TraCuuHoSo from "./components/TraCuuHoSo";
-import KyHoSo from "./components/KyHoSo";
 import QuanLyNhanVien from "./components/QuanLyNhanVien";
 import B2BPage from "./components/B2BPage";
 import B2CPage from "./components/B2CPage";
@@ -128,20 +127,19 @@ export default function App() {
           />
 
          
-          <Route
-            path="/doanhthu"
-            element={
-              <AuthGuard user={currentUser} roles={["is_director", "is_accountant"]}>
-                <DoanhThu
-                  currentUser={currentUser}
-                  showSidebar={showSidebar}
-                  onToggleSidebar={toggleSidebar}
-                />
-              </AuthGuard>
-            }
-          />
-
-
+         <Route
+          path="/doanhthu"
+          element={
+            // ✅ Thêm "perm_view_revenue" vào mảng roles
+            <AuthGuard user={currentUser} roles={["is_director", "is_accountant", "perm_view_revenue"]}>
+              <DoanhThu
+                currentUser={currentUser}
+                showSidebar={showSidebar}
+                onToggleSidebar={toggleSidebar}
+              />
+            </AuthGuard>
+          }
+        />
          
          <Route
             path="/b2c"

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { showToast } from "../../../utils/toast";
 import translateService from "../../../utils/translateService";
+import { authenticatedFetch } from "../../../utils/api";
 export default function useDashboardData() {
 
   const [subViewMode, setSubViewMode] = useState("request");
@@ -69,7 +70,7 @@ export default function useDashboardData() {
       queryParams.append("userId", user?.id || "");
     }
 
-    const res1 = await fetch(
+    const res1 =  await authenticatedFetch(
       `https://onepasscms-backend.onrender.com/api/yeucau?${queryParams.toString()}`
     );
     const result1 = await res1.json();
@@ -80,7 +81,7 @@ export default function useDashboardData() {
       setCurrentPage(result1.currentPage || 1);
     }
 
-    const res2 = await fetch("https://onepasscms-backend.onrender.com/api/User");
+    const res2 =  await authenticatedFetch("https://onepasscms-backend.onrender.com/api/User");
     const result2 = await res2.json();
 
     if (result2.success) setUsers(result2.data);
@@ -100,7 +101,7 @@ export default function useDashboardData() {
 
   const handleSave = async (updatedItem) => {
     try {
-      const res = await fetch(
+      const res =  await authenticatedFetch(
         `https://onepasscms-backend.onrender.com/api/yeucau/${updatedItem.YeuCauID}`,
         {
           method: "PUT",
@@ -177,7 +178,7 @@ const filteredData = data.filter((item) => {
   });
 const handleDelete = async (id) => {
     try {
-      const res = await fetch(
+      const res =  await authenticatedFetch(
         `https://onepasscms-backend.onrender.com/api/yeucau/${id}`,
         {
           method: "DELETE",

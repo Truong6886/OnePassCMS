@@ -29,7 +29,7 @@ const Login = ({ setCurrentUser }) => {
     setError('');
   };
 
-  const handleSubmit = async (e) => {
+ const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -46,10 +46,17 @@ const Login = ({ setCurrentUser }) => {
       
       setCurrentUser(result.user);
 
+      // 1. Lưu thông tin user
       localStorage.setItem("currentUser", JSON.stringify(result.user));
-      console.log("✅ Lưu user vào localStorage:", result.user);
 
-      
+      // 2. [QUAN TRỌNG] Lưu Session Token để dùng cho các request sau này
+      // Token này dùng để so sánh với token trong database
+      if (result.token) {
+          localStorage.setItem("sessionToken", result.token);
+      }
+
+      console.log("✅ Đăng nhập thành công & đã lưu Session Token");
+
       navigate(from, { replace: true });
 
     } catch (err) {
@@ -58,7 +65,7 @@ const Login = ({ setCurrentUser }) => {
     } finally {
       setLoading(false);
     }
-  };
+  };  
 
   return (
     <div 

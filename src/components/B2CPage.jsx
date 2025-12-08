@@ -8,6 +8,7 @@ import useDashboardData from "./CMSDashboard/hooks/useDashboardData";
 import { LayoutGrid, Edit, Trash2, X, Pin, PinOff, PlusCircle, CheckCircle, ChevronDown, Eye, EyeOff } from "lucide-react";
 import Swal from "sweetalert2";
 import "../styles/DashboardList.css";
+import { authenticatedFetch } from "../utils/api";
 
 const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false, height = "36px" }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -574,7 +575,7 @@ const RowItem = ({
       )}
       {/* 11. Người phụ trách (Admin Only) */}
       {currentUser?.is_admin && isVisible("nguoiPhuTrach") && (
-        <td style={{width:"102px"}}  className={isPinned("nguoiPhuTrach") ? "sticky-col" : ""}>
+        <td style={{width:"110px"}}  className={isPinned("nguoiPhuTrach") ? "sticky-col" : ""}>
           {item.NguoiPhuTrach?.name || <span className="text-muted fst-italic"></span>}
         </td>
       )}
@@ -850,19 +851,35 @@ const tableHeaders = [
     fetchCatalogs();
   }, []);
 
-  const fetchData = async () => {
+const fetchData = async () => {
     try {
+      // 1. Tạo URL (Giữ nguyên logic cũ của bạn)
       let url = `https://onepasscms-backend.onrender.com/api/yeucau?page=${currentPage}&limit=${itemsPerPage}`;
-      if (currentUser?.is_admin || currentUser?.is_director||currentUser?.is_accountant) { 
+      
+      if (currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) { 
           url += `&is_admin=true`; 
       } else { 
           url += `&userId=${currentUser?.id}`; 
       }
-      const res = await fetch(url);
+
+ 
+      const res = await authenticatedFetch(url);
+
+      
+      if (!res) return;
+
       const json = await res.json();
-      if (json.success) { setData(json.data); setTotalPages(json.totalPages || 1); }
-      else { showToast("Không thể tải dữ liệu", "error"); }
-    } catch (err) { showToast("Lỗi kết nối server", "error"); }
+      
+      if (json.success) { 
+          setData(json.data); 
+          setTotalPages(json.totalPages || 1); 
+      } else { 
+          showToast("Không thể tải dữ liệu", "error"); 
+      }
+
+    } catch (err) { 
+        showToast("Lỗi kết nối server", "error"); 
+    }
   };
 
   useEffect(() => { fetchData(); }, [currentPage, currentUser]);

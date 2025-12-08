@@ -7,6 +7,7 @@ import EditProfileModal from "./EditProfileModal";
 import { showToast } from "../utils/toast";
 import { Save, Trash2, XCircle, Check, FileText, Edit, Eye, EyeOff, Plus, X, ChevronDown } from "lucide-react";
 import Swal from "sweetalert2";
+import { authenticatedFetch } from "../utils/api";
 import withReactContent from "sweetalert2-react-content";
 const MySwal = withReactContent(Swal);
 
@@ -123,13 +124,16 @@ export default function B2BPage() {
     fetchUsers();
   }, []);
 
-  const fetchUsers = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/User`);
-      const json = await res.json();
-      if (json.success) setUserList(json.data);
-    } catch (e) { console.error("Lỗi lấy user list", e); }
-  };
+const fetchUsers = async () => {
+  try {
+   
+    const res = await authenticatedFetch(`${API_BASE}/User`);
+    if (!res) return;
+
+    const json = await res.json();
+    if (json.success) setUserList(json.data);
+  } catch (e) { console.error("Lỗi lấy user list", e); }
+};
 
 
 
@@ -234,15 +238,21 @@ const handleModalSubmit = async () => {
   try {
     setLoading(true);
 
-    // Verify Password
-    const verifyRes = await fetch(`${API_BASE}/login`, {
+    // 1. Verify Password (Login check) - Dùng authenticatedFetch để đảm bảo phiên còn sống
+    const verifyRes = await authenticatedFetch(`${API_BASE}/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      // Không cần header Content-Type thủ công nữa
       body: JSON.stringify({
         username: currentUser.username,
         password: newServiceForm.ConfirmPassword
       })
     });
+    
+    // Nếu bị đá (phiên hết hạn/người khác đăng nhập) -> dừng lại
+    if (!verifyRes) { 
+        setLoading(false); 
+        return; 
+    }
 
     const verifyJson = await verifyRes.json();
     if (!verifyJson.success) {
@@ -250,7 +260,7 @@ const handleModalSubmit = async () => {
       return showToast("Mật khẩu xác nhận không chính xác!", "error");
     }
 
-    // [SỬA] Xác định quyền duyệt: Giám đốc HOẶC có quyền perm_approve_b2b
+    // [GIỮ NGUYÊN LOGIC CŨ] Xác định quyền duyệt
     const canApproveB2B = currentUser?.is_director || currentUser?.perm_approve_b2b;
 
     // Xử lý tiền tệ
@@ -264,8 +274,6 @@ const handleModalSubmit = async () => {
 
     if (newServiceForm.id) {
       const currentStatus = newServiceForm.status;
-
-      // [SỬA] Chỉ duyệt khi có quyền canApproveB2B và trạng thái phù hợp
       if (canApproveB2B && currentStatus === "Chờ Kế toán duyệt") {
         approveAction = "accountant_approve";
       }
@@ -287,7 +295,7 @@ const handleModalSubmit = async () => {
       DoanhThuTruocChietKhau: rawDoanhThu,
       Vi: rawVi,
       approveAction: approveAction,
-      userId: currentUser?.id // [QUAN TRỌNG] Gửi ID người dùng để server check quyền
+      userId: currentUser?.id 
     };
 
     // URL + METHOD
@@ -300,22 +308,26 @@ const handleModalSubmit = async () => {
     }
 
     // -----------------------------
-    // Gửi request
+    // [QUAN TRỌNG] Gửi request chính bằng authenticatedFetch
     // -----------------------------
-    const res = await fetch(url, {
+    const res = await authenticatedFetch(url, {
       method,
-      headers: { "Content-Type": "application/json" },
+      // Bỏ headers: { "Content-Type": "application/json" } vì hàm chung tự thêm
       body: JSON.stringify(payload)
     });
+
+    // Nếu bị đá (phiên hết hạn) -> dừng lại
+    if (!res) { 
+        setLoading(false); 
+        return; 
+    }
 
     const json = await res.json();
 
     if (json.success) {
       const newCode = json.data?.ServiceID || json.newCode;
 
-      // -----------------------------
-      // Hiển thị thông báo theo action
-      // -----------------------------
+      // Hiển thị thông báo
       if (approveAction === "accountant_approve" && newCode) {
         await MySwal.fire({
           icon: "success",
@@ -323,8 +335,6 @@ const handleModalSubmit = async () => {
           html: `Dịch vụ đã được kích hoạt.<br/>Mã hệ thống: <b>${newCode}</b>`,
           confirmButtonColor: "#22c55e"
         });
-
-        // ★ Sau khi duyệt xong → đổi lại thành trạng thái Edit
         newServiceForm.status = "Đã duyệt";
       } 
       else {
@@ -468,14 +478,19 @@ const handleModalSubmit = async () => {
     setCurrentPage(prev => ({ ...prev, [tab]: page }));
   };
 
+
   const loadData = async () => {
     setLoading(true);
     try {
+    
       const [pendingRes, approvedRes, rejectedRes] = await Promise.all([
-        fetch(`${API_BASE}/b2b/pending`),
-        fetch(`${API_BASE}/b2b/approved`),
-        fetch(`${API_BASE}/b2b/reject`)
+        authenticatedFetch(`${API_BASE}/b2b/pending`),
+        authenticatedFetch(`${API_BASE}/b2b/approved`),
+        authenticatedFetch(`${API_BASE}/b2b/reject`)
       ]);
+
+ 
+      if (!pendingRes || !approvedRes || !rejectedRes) return;
 
       const p = await pendingRes.json();
       const a = await approvedRes.json();
@@ -484,33 +499,48 @@ const handleModalSubmit = async () => {
       setPendingList((p.data || []).map(item => ({ ...item, rejectionReason: "" })));
       setApprovedList(a.data || []);
       setRejectedList(r.data || []);
-      
+
       loadServices(1); 
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+    } catch (err) { 
+      console.error(err); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
+
   const loadPending = async (page = 1) => {
-    const res = await fetch(`${API_BASE}/b2b/pending?page=${page}&limit=20`);
+    const res = await authenticatedFetch(`${API_BASE}/b2b/pending?page=${page}&limit=20`);
+    if (!res) return;
+
     const json = await res.json();
     if (json.success) { setPendingData(json.data); setPendingTotal(json.total); }
   };
 
   const loadApproved = async (page = 1) => {
-    const res = await fetch(`${API_BASE}/b2b/approved?page=${page}&limit=20`);
+    const res = await authenticatedFetch(`${API_BASE}/b2b/approved?page=${page}&limit=20`);
+    if (!res) return; 
+
     const json = await res.json();
     if (json.success) { setApprovedData(json.data); setApprovedTotal(json.total); }
   };
 
   const loadRejected = async (page = 1) => {
-    const res = await fetch(`${API_BASE}/b2b/reject?page=${page}&limit=20`);
+    const res = await authenticatedFetch(`${API_BASE}/b2b/reject?page=${page}&limit=20`);
+    if (!res) return; 
+
     const json = await res.json();
     if (json.success) { setRejectedData(json.data); setRejectedTotal(json.total); }
   };
 
+  // 3. Load Services
   const loadServices = async (page = 1) => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/b2b/services?page=${page}&limit=20`);
+      const res = await authenticatedFetch(`${API_BASE}/b2b/services?page=${page}&limit=20`);
+      
+      if (!res) return;
+
       const json = await res.json();
       if (json.success) {
         const formattedData = (json.data || []).map((item, index) => ({
@@ -613,89 +643,92 @@ const handleApprove = (service) => {
   setApproveModalOpen(true);
 };
 
-const handleApproveSubmit = async () => {
+
+  const handleApproveSubmit = async () => {
     if (!selectedService.confirmPassword) {
-        return showToast("Vui lòng nhập mật khẩu để duyệt!", "warning");
+      return showToast("Vui lòng nhập mật khẩu để duyệt!", "warning");
     }
 
     try {
-        setLoading(true);
-        
-        // XÁC THỰC PASS ADMIN
-        const verifyRes = await fetch(`${API_BASE}/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                username: currentUser.username,
-                password: selectedService.confirmPassword
-            })
+      setLoading(true);
+      
+      
+      const verifyRes = await authenticatedFetch(`${API_BASE}/login`, {
+        method: "POST",
+        body: JSON.stringify({
+          username: currentUser.username,
+          password: selectedService.confirmPassword
+        })
+      });
+      if (!verifyRes) { setLoading(false); return; } 
+
+      const verifyJson = await verifyRes.json();
+      if (!verifyJson.success) {
+        setLoading(false);
+        return showToast("Mật khẩu không chính xác!", "error");
+      }
+
+      const rawDoanhThu = selectedService.DoanhThu ? parseFloat(unformatNumber(selectedService.DoanhThu)) : 0;
+      const rawVi = selectedService.Vi ? parseFloat(unformatNumber(selectedService.Vi)) : 0;
+
+      const payload = {
+        LoaiDichVu: selectedService.LoaiDichVu || selectedService.serviceType,
+        TenDichVu: selectedService.TenDichVu || selectedService.serviceName,
+        NgayThucHien: selectedService.NgayBatDau || selectedService.startDate,
+        NgayHoanThanh: selectedService.NgayHoanThanh || selectedService.endDate,
+        GoiDichVu: selectedService.GoiDichVu === "Yes" ? "Cấp tốc" : "Thông thường",
+        YeuCauHoaDon: selectedService.YeuCauHoaDon,
+        GhiChu: selectedService.GhiChu || "",
+        NguoiPhuTrachId: selectedService.NguoiPhuTrachId || selectedService.picId,
+        DoanhThuTruocChietKhau: rawDoanhThu,
+        Vi: rawVi,
+        approveAction: "accountant_approve",
+        userId: currentUser?.id 
+      };
+
+      
+      const res = await authenticatedFetch(`${API_BASE}/b2b/services/update/${selectedService.id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload)
+      });
+      if (!res) { setLoading(false); return; }
+
+      const json = await res.json();
+      if (json.success) {
+        await MySwal.fire({
+          icon: "success",
+          title: "Duyệt thành công!",
+          html: `Mã dịch vụ được cấp: <b>${json.newCode || json.code}</b>`,
+          confirmButtonColor: "#22c55e"
         });
 
-        const verifyJson = await verifyRes.json();
-        if (!verifyJson.success) {
-            setLoading(false);
-            return showToast("Mật khẩu không chính xác!", "error");
-        }
-
-        // Chuẩn bị payload
-        const rawDoanhThu = selectedService.DoanhThu ? parseFloat(unformatNumber(selectedService.DoanhThu)) : 0;
-        const rawVi = selectedService.Vi ? parseFloat(unformatNumber(selectedService.Vi)) : 0;
-
-        const payload = {
-          LoaiDichVu: selectedService.LoaiDichVu || selectedService.serviceType,
-          TenDichVu: selectedService.TenDichVu || selectedService.serviceName,
-          NgayThucHien: selectedService.NgayBatDau || selectedService.startDate,
-          NgayHoanThanh: selectedService.NgayHoanThanh || selectedService.endDate,
-          GoiDichVu: selectedService.GoiDichVu === "Yes" ? "Cấp tốc" : "Thông thường",
-          YeuCauHoaDon: selectedService.YeuCauHoaDon,
-          GhiChu: selectedService.GhiChu || "",
-          NguoiPhuTrachId: selectedService.NguoiPhuTrachId || selectedService.picId,
-          DoanhThuTruocChietKhau: rawDoanhThu,
-          Vi: rawVi,
-          approveAction: "accountant_approve",
-          userId: currentUser?.id // [QUAN TRỌNG] Gửi ID người dùng để server check quyền
-        };
-
-        // Gửi API DUYỆT với dữ liệu đã chỉnh sửa
-        const res = await fetch(`${API_BASE}/b2b/services/update/${selectedService.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
-
-        const json = await res.json();
-        if (json.success) {
-            await MySwal.fire({
-                icon: "success",
-                title: "Duyệt thành công!",
-                html: `Mã dịch vụ được cấp: <b>${json.newCode || json.code}</b>`,
-                confirmButtonColor: "#22c55e"
-            });
-
-            setApproveModalOpen(false);
-            setLoading(false);
-            loadServices(currentPage.services);
-        } else {
-            setLoading(false);
-            showToast(json.message, "error");
-        }
+        setApproveModalOpen(false);
+        setLoading(false);
+        loadServices(currentPage.services);
+      } else {
+        setLoading(false);
+        showToast(json.message, "error");
+      }
 
     } catch (err) {
-        console.log(err);
-        setLoading(false);
-        showToast("Lỗi server", "error");
+      console.log(err);
+      setLoading(false);
+      showToast("Lỗi server", "error");
     }
-};
+  };
+
   const saveApprovedRow = async (item) => {
     if (!item.TenDoanhNghiep || !item.SoDKKD) return showToast("Thiếu thông tin", "warning");
     try {
-      const res = await fetch(`${API_BASE}/b2b/approved/${item.ID}`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
+      const res = await authenticatedFetch(`${API_BASE}/b2b/approved/${item.ID}`, {
+        method: "PUT",
         body: JSON.stringify({
           TenDoanhNghiep: item.TenDoanhNghiep, SoDKKD: item.SoDKKD,
           NguoiDaiDien: item.NguoiDaiDien, NganhNgheChinh: item.NganhNgheChinh, DiaChi: item.DiaChi
         })
       });
+      if (!res) return;
+
       const json = await res.json();
       if (json.success) {
         showToast("Cập nhật thành công!", "success");
@@ -705,13 +738,16 @@ const handleApproveSubmit = async () => {
     } catch (e) { showToast("Lỗi server", "error"); }
   };
 
+
   const approve = async (id) => {
     const result = await MySwal.fire({
       title: "Xác nhận", text: "Xác nhận duyệt doanh nghiệp này?", icon: "question", showCancelButton: true, confirmButtonColor: "#22c55e", cancelButtonColor: "#ef4444", confirmButtonText: "Duyệt", cancelButtonText: "Hủy"
     });
     if (!result.isConfirmed) return;
     try {
-      const res = await fetch(`${API_BASE}/b2b/approve/${id}`, { method: "POST" });
+      const res = await authenticatedFetch(`${API_BASE}/b2b/approve/${id}`, { method: "POST" });
+      if (!res) return;
+
       const json = await res.json();
       if (json.success) { showToast("Duyệt thành công", "success"); loadData(); } else { showToast(json.message, "error"); }
     } catch (e) { showToast("Lỗi server", "error"); }
@@ -738,11 +774,11 @@ const handleApproveSubmit = async () => {
     if (!reason) return;
 
     try {
-      const res = await fetch(`${API_BASE}/b2b/pending/${item.ID}/reject`, {
+      const res = await authenticatedFetch(`${API_BASE}/b2b/pending/${item.ID}/reject`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason: reason }) 
       });
+      if (!res) return;
 
       const json = await res.json();
       
@@ -759,13 +795,16 @@ const handleApproveSubmit = async () => {
     }
   };
 
+
   const deleteRow = async (id) => {
     const result = await MySwal.fire({
       title: "CẢNH BÁO", text: "Xóa doanh nghiệp này sẽ xóa cả dịch vụ liên quan.", icon: "warning", showCancelButton: true, confirmButtonColor: "#ef4444", cancelButtonColor: "#2563eb", confirmButtonText: "Xóa", cancelButtonText: "Hủy"
     });
     if (!result.isConfirmed) return;
     try {
-      const res = await fetch(`${API_BASE}/b2b/approved/${id}`, { method: "DELETE" });
+      const res = await authenticatedFetch(`${API_BASE}/b2b/approved/${id}`, { method: "DELETE" });
+      if (!res) return;
+
       const json = await res.json();
       if (json.success) {
         showToast("Xóa thành công", "success");
@@ -773,6 +812,7 @@ const handleApproveSubmit = async () => {
       } else { showToast(json.message, "error"); }
     } catch (e) { showToast("Lỗi server", "error"); }
   };
+
 
   const deleteServiceRow = async (id, isNew) => {
     if (isNew) {
@@ -788,7 +828,9 @@ const handleApproveSubmit = async () => {
     if (!result.isConfirmed) return;
 
     try {
-      const res = await fetch(`${API_BASE}/b2b/services/${id}`, { method: "DELETE" });
+      const res = await authenticatedFetch(`${API_BASE}/b2b/services/${id}`, { method: "DELETE" });
+      if (!res) return;
+
       const json = await res.json();
       if (json.success) {
         showToast("Xóa thành công", "success");
@@ -1256,171 +1298,192 @@ const renderServicesTab = () => {
      if(activeTab === 'approved') handleApprovedChange(item.ID, field, e.target.value);
   }
 
+ 
   const renderPendingApprovedTab = () => {
-
-  const totalColumns = 9;
-
-  return (
-    <div className="table-responsive shadow-sm rounded overflow-hidden">
-      <table
-        className="table table-bordered table-sm mb-0 align-middle"
     
-        style={{ fontSize: "12px", tableLayout: "fixed", width: "100%" }}
-      >
-        <thead
-          className="text-white text-center align-middle"
-          style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}
+
+    const totalColumns = activeTab === "pending" ? 8 : 9;
+
+    return (
+      <div className="table-responsive shadow-sm rounded overflow-hidden">
+        <table
+          className="table table-bordered table-sm mb-0 align-middle"
+          style={{ fontSize: "12px", tableLayout: "fixed", width: "100%" }}
         >
-          <tr>
-            <th style={{ width: "40px" }}>{t.stt}</th>
-            <th style={{ width: "160px" }}>{t.tenDN}</th>
-            <th style={{ width: "90px" }}>{t.soDKKD}</th>
-            <th style={{ width: "110px" }}>{t.nguoiDaiDien}</th>
+          <thead
+            className="text-white text-center align-middle"
+            style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}
+          >
+            <tr>
+              <th style={{ width: "40px" }}>{t.stt}</th>
+              <th style={{ width: "160px" }}>{t.tenDN}</th>
+              <th style={{ width: "90px" }}>{t.soDKKD}</th>
+              <th style={{ width: "110px" }}>{t.nguoiDaiDien}</th>
 
-            {activeTab === "pending" && (
-              <>
-                <th style={{ width: "100px" }}>{t.dichVu}</th>
-                <th style={{ width: "70px" }}>{t.giayPhep}</th>
-              </>
-            )}
+              {activeTab === "pending" && (
+                <>
+                  <th style={{ width: "100px" }}>{t.dichVu}</th>
+                  <th style={{ width: "70px" }}>{t.giayPhep}</th>
+                </>
+              )}
 
-            {activeTab === "approved" && (
-              <>
-                <th style={{ width: "120px" }}>{t.nganhNgheChinh}</th>
-                <th style={{ width: "150px" }}>{t.diaChi}</th>
-              </>
-            )}
+              {activeTab === "approved" && (
+                <>
+                  <th style={{ width: "120px" }}>{t.nganhNgheChinh}</th>
+                  <th style={{ width: "150px" }}>{t.diaChi}</th>
+                </>
+              )}
 
-            <th style={{ width: "90px" }}>{t.ngayDangKy}</th>
-            {activeTab === "approved" && (
-              <th style={{ width: "100px" }}>{t.tongDoanhThuTichLuy}</th>
-            )}
-            <th style={{ width: "90px" }}>{t.hanhDong}</th>
-          </tr>
-        </thead>
+              <th style={{ width: "90px" }}>{t.ngayDangKy}</th>
+              {activeTab === "approved" && (
+                <th style={{ width: "100px" }}>{t.tongDoanhThuTichLuy}</th>
+              )}
+              <th style={{ width: "90px" }}>{t.hanhDong}</th>
+            </tr>
+          </thead>
 
-        <tbody>
-          {(activeTab === "pending" ? pendingData : approvedData).map(
-            (item, idx) => {
-              const globalIndex = idx + 1 + (currentPage[activeTab] - 1) * 20;
-              const isEditing = editingRows[activeTab][item.ID];
-              const isExpanded = expandedRowId === item.ID;
+          <tbody>
+            {(activeTab === "pending" ? pendingData : approvedData).map(
+              (item, idx) => {
+                const globalIndex = idx + 1 + (currentPage[activeTab] - 1) * 20;
+                const isEditing = editingRows[activeTab][item.ID];
+                const isExpanded = expandedRowId === item.ID;
 
-              const rowStyle = isEditing ? { backgroundColor: "#fff9c4" } : {};
-              
-              const viewStyle = { fontSize: "12px", height: "30px", lineHeight: "30px", textAlign: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
-              const inputStyle = { width: "100%", height: "100%", border: "none", outline: "none", textAlign: "center", background: "transparent", fontSize: "12px" };
+                const rowStyle = isEditing ? { backgroundColor: "#fff9c4" } : {};
+                
+                // Style cho input và view mode
+                const viewStyle = { fontSize: "12px", height: "30px", lineHeight: "30px", textAlign: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
+                const inputStyle = { width: "100%", height: "100%", border: "none", outline: "none", textAlign: "center", background: "transparent", fontSize: "12px" };
 
-              return (
-                <React.Fragment key={item.ID}>
-                  <tr style={{ height: "30px", ...rowStyle }} className={`bg-white hover:bg-gray-50 ${isExpanded ? "border-bottom-0" : ""}`}>
-                    <td className="text-center border">{globalIndex}</td>
-                    <td className="border">{isEditing ? <input style={inputStyle} value={item.TenDoanhNghiep} onChange={(e) => handleCellEdit("TenDoanhNghiep", item, e)} /> : <div style={viewStyle} title={item.TenDoanhNghiep}>{item.TenDoanhNghiep}</div>}</td>
-                    <td className="border">{isEditing ? <input style={inputStyle} value={item.SoDKKD} onChange={(e) => handleCellEdit("SoDKKD", item, e)} /> : <div style={viewStyle}>{item.SoDKKD}</div>}</td>
-                    <td className="border">{isEditing ? <input style={inputStyle} value={item.NguoiDaiDien} onChange={(e) => handleCellEdit("NguoiDaiDien", item, e)} /> : <div style={viewStyle}>{item.NguoiDaiDien}</div>}</td>
+                return (
+                  <React.Fragment key={item.ID}>
+                    {/* DÒNG DỮ LIỆU CHÍNH */}
+                    <tr style={{ height: "30px", ...rowStyle }} className={`bg-white hover:bg-gray-50 ${isExpanded ? "border-bottom-0" : ""}`}>
+                      <td className="text-center border">{globalIndex}</td>
+                      <td className="border">{isEditing ? <input style={inputStyle} value={item.TenDoanhNghiep} onChange={(e) => handleCellEdit("TenDoanhNghiep", item, e)} /> : <div style={viewStyle} title={item.TenDoanhNghiep}>{item.TenDoanhNghiep}</div>}</td>
+                      <td className="border">{isEditing ? <input style={inputStyle} value={item.SoDKKD} onChange={(e) => handleCellEdit("SoDKKD", item, e)} /> : <div style={viewStyle}>{item.SoDKKD}</div>}</td>
+                      <td className="border">{isEditing ? <input style={inputStyle} value={item.NguoiDaiDien} onChange={(e) => handleCellEdit("NguoiDaiDien", item, e)} /> : <div style={viewStyle}>{item.NguoiDaiDien}</div>}</td>
 
-                    {activeTab === "pending" && (
-                      <>
-                        <td className="border">{isEditing ? <input style={inputStyle} value={item.DichVu || ""} onChange={(e) => handlePendingChange(item.ID, "DichVu", e.target.value)} /> : <div style={viewStyle}>{item.DichVu || ""}</div>}</td>
-                        <td className="border text-center p-0 align-middle">
-                          {item.PdfPath ? (
-                            <div className="d-flex justify-content-center align-items-center gap-2 h-100">
-                              <a href={item.PdfPath} target="_blank" rel="noreferrer" className="text-secondary" title="Mở tab mới">
-                                <FileText size={16} />
-                              </a>
-                              <button 
-                                className="btn btn-sm p-0 border-0" 
-                                onClick={() => toggleExpand(item.ID)}
-                                title={isExpanded ? "Đóng" : "Xem nhanh"}
-                                style={{ color: isExpanded ? "#ef4444" : "#2563eb", display: "flex", alignItems: "center" }}
-                              >
-                                {isExpanded ? <EyeOff size={18} /> : <Eye size={18} />}
-                              </button>
-                            </div>
-                          ) : (
-                            <span style={{ fontSize: "11px" }}>—</span>
-                          )}
-                        </td>
-                      </>
-                    )}
-
-                    {activeTab === "approved" && (
-                      <>
-                        <td className="border">{isEditing ? <input style={inputStyle} value={item.NganhNgheChinh || ""} onChange={(e) => handleApprovedChange(item.ID, "NganhNgheChinh", e.target.value)} /> : <div style={viewStyle}>{item.NganhNgheChinh || ""}</div>}</td>
-                        <td className="border">{isEditing ? <input style={inputStyle} value={item.DiaChi || ""} onChange={(e) => handleApprovedChange(item.ID, "DiaChi", e.target.value)} /> : <div style={viewStyle}>{item.DiaChi || ""}</div>}</td>
-                      </>
-                    )}
-
-                    <td className="text-center border">{formatDateTime(item.NgayTao || item.NgayDangKyB2B)}</td>
-                    {activeTab === "approved" && <td className="text-center border fw-bold text-primary">{formatNumber(calculateCompanyTotalRevenue(item.ID))}</td>}
-                    
-                    <td className="text-center border">
-                      <div className="d-flex gap-1 justify-content-center">
-                        {isEditing ? (
-                          <>
-                            <button className="btn btn-sm p-1" style={{ backgroundColor: "#2563eb", color: "#fff" }} onClick={() => saveEditing(item, activeTab)}><Save size={14} /></button>
-                            <button className="btn btn-sm p-1" style={{ backgroundColor: "#6b7280", color: "#fff" }} onClick={() => cancelEditing(activeTab, item.ID)}><XCircle size={14} /></button>
-                          </>
-                        ) : (
-                          <>
-                            <button className="btn btn-sm p-1" style={{ backgroundColor: "#f59e0b", color: "#fff" }} onClick={() => startEditing(activeTab, item.ID)}><Edit size={14} /></button>
-                            {activeTab === "pending" ? (
-                              <>
-                                <button className="btn btn-sm p-1" style={{ backgroundColor: "#22c55e", color: "#fff" }} onClick={() => approve(item.ID)}><Check size={14} /></button>
-                                <button className="btn btn-sm p-1" style={{ backgroundColor: "#ef4444", color: "#fff" }} onClick={() => reject(item)}><XCircle size={14} /></button>
-                              </>
+                      {/* Cột riêng cho Pending */}
+                      {activeTab === "pending" && (
+                        <>
+                          <td className="border">{isEditing ? <input style={inputStyle} value={item.DichVu || ""} onChange={(e) => handlePendingChange(item.ID, "DichVu", e.target.value)} /> : <div style={viewStyle}>{item.DichVu || ""}</div>}</td>
+                          
+                          {/* [SỬA 2] Cột Giấy Phép: Nút Mắt để mở rộng */}
+                          <td className="border text-center p-0 align-middle">
+                            {item.PdfPath ? (
+                              <div className="d-flex justify-content-center align-items-center gap-2 h-100">
+                                {/* Nút xem nhanh (Expand) */}
+                                <button 
+                                  className="btn btn-sm p-0 border-0" 
+                                  onClick={() => toggleExpand(item.ID)}
+                                  title={isExpanded ? "Đóng xem trước" : "Xem nhanh giấy phép"}
+                                  style={{ color: isExpanded ? "#ef4444" : "#2563eb", display: "flex", alignItems: "center", cursor: "pointer" }}
+                                >
+                                  {isExpanded ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                                
+                                {/* Link mở tab mới (nếu cần) */}
+                                <a href={item.PdfPath} target="_blank" rel="noreferrer" className="text-secondary" title="Mở trong tab mới">
+                                  <FileText size={16} />
+                                </a>
+                              </div>
                             ) : (
-                              <button className="btn btn-sm p-1" style={{ backgroundColor: "#ef4444", color: "#fff" }} onClick={() => deleteRow(item.ID)}><Trash2 size={14} /></button>
+                              <span style={{ fontSize: "11px", color: "#999" }}>—</span>
                             )}
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                          </td>
+                        </>
+                      )}
 
-                  {activeTab === "pending" && isExpanded && item.PdfPath && (
-                    <tr className="bg-white">
-                      <td colSpan={totalColumns} className="border p-0"> 
-                        <div className="p-3 bg-light border-bottom">
-                           <div className="d-flex flex-column align-items-center">
-                             <div className="mb-2 fw-bold text-primary">
-                               Giấy phép ĐKKD: {item.TenDoanhNghiep}
-                             </div>
-                             <div style={{ width: "100%", height: "650px", border: "1px solid #ccc", borderRadius: "4px", backgroundColor: "#525659" }}>
-                                <iframe 
-                                  src={`${item.PdfPath}#toolbar=0&navpanes=0&scrollbar=0`}
-                                  title="Document Viewer"
-                                  width="100%" 
-                                  height="100%" 
-                                  style={{ border: "none" }}
-                                />
-                             </div>
-                           </div>
+                      {/* Cột riêng cho Approved */}
+                      {activeTab === "approved" && (
+                        <>
+                          <td className="border">{isEditing ? <input style={inputStyle} value={item.NganhNgheChinh || ""} onChange={(e) => handleApprovedChange(item.ID, "NganhNgheChinh", e.target.value)} /> : <div style={viewStyle}>{item.NganhNgheChinh || ""}</div>}</td>
+                          <td className="border">{isEditing ? <input style={inputStyle} value={item.DiaChi || ""} onChange={(e) => handleApprovedChange(item.ID, "DiaChi", e.target.value)} /> : <div style={viewStyle}>{item.DiaChi || ""}</div>}</td>
+                        </>
+                      )}
+
+                      <td className="text-center border">{formatDateTime(item.NgayTao || item.NgayDangKyB2B)}</td>
+                      {activeTab === "approved" && <td className="text-center border fw-bold text-primary">{formatNumber(calculateCompanyTotalRevenue(item.ID))}</td>}
+                      
+                      {/* Cột Hành Động */}
+                      <td className="text-center border">
+                        <div className="d-flex gap-1 justify-content-center">
+                          {isEditing ? (
+                            <>
+                              <button className="btn btn-sm p-1" style={{ backgroundColor: "#2563eb", color: "#fff" }} onClick={() => saveEditing(item, activeTab)}><Save size={14} /></button>
+                              <button className="btn btn-sm p-1" style={{ backgroundColor: "#6b7280", color: "#fff" }} onClick={() => cancelEditing(activeTab, item.ID)}><XCircle size={14} /></button>
+                            </>
+                          ) : (
+                            <>
+                              <button className="btn btn-sm p-1" style={{ backgroundColor: "#f59e0b", color: "#fff" }} onClick={() => startEditing(activeTab, item.ID)}><Edit size={14} /></button>
+                              {activeTab === "pending" ? (
+                                <>
+                                  <button className="btn btn-sm p-1" style={{ backgroundColor: "#22c55e", color: "#fff" }} onClick={() => approve(item.ID)}><Check size={14} /></button>
+                                  <button className="btn btn-sm p-1" style={{ backgroundColor: "#ef4444", color: "#fff" }} onClick={() => reject(item)}><XCircle size={14} /></button>
+                                </>
+                              ) : (
+                                <button className="btn btn-sm p-1" style={{ backgroundColor: "#ef4444", color: "#fff" }} onClick={() => deleteRow(item.ID)}><Trash2 size={14} /></button>
+                              )}
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
-                  )}
-                </React.Fragment>
-              );
-            }
-          )}
-          
-          {(activeTab === "pending" ? pendingData : approvedData).length === 0 && (
-            <tr><td colSpan={totalColumns} className="text-center py-3 text-muted">Không có dữ liệu</td></tr>
-          )}
-        </tbody>
-      </table>
 
-      <Pagination
-        current={currentPage[activeTab]}
-        total={activeTab === "pending" ? pendingTotal : approvedTotal}
-        pageSize={20}
-        currentLanguage={currentLanguage}
-        onChange={(page) => handlePageChange(activeTab, page)}
-      />
-    </div>
-  );
-};
+                    {/* [SỬA 3] DÒNG MỞ RỘNG (EXPAND ROW) HIỂN THỊ PDF */}
+                    {activeTab === "pending" && isExpanded && item.PdfPath && (
+                      <tr className="bg-white">
+                        <td colSpan={totalColumns} className="border p-0"> 
+                          <div className="p-3 bg-light border-bottom position-relative">
+                             {/* Nút đóng X ở góc */}
+                             <button 
+                                onClick={() => toggleExpand(item.ID)}
+                                className="position-absolute top-0 end-0 m-2 btn btn-sm btn-light border"
+                                style={{ zIndex: 10 }}
+                             >
+                                <X size={16}/> Đóng
+                             </button>
+
+                             <div className="d-flex flex-column align-items-center">
+                               <div className="mb-2 fw-bold text-primary">
+                                 Giấy phép ĐKKD: {item.TenDoanhNghiep}
+                               </div>
+                               <div style={{ width: "100%", height: "600px", border: "1px solid #ccc", borderRadius: "4px", backgroundColor: "#525659" }}>
+                                  <iframe 
+                                    src={`${item.PdfPath}#toolbar=0&navpanes=0&scrollbar=0`}
+                                    title="Document Viewer"
+                                    width="100%" 
+                                    height="100%" 
+                                    style={{ border: "none" }}
+                                  />
+                               </div>
+                             </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              }
+            )}
+            
+            {(activeTab === "pending" ? pendingData : approvedData).length === 0 && (
+              <tr><td colSpan={totalColumns} className="text-center py-3 text-muted">Không có dữ liệu</td></tr>
+            )}
+          </tbody>
+        </table>
+
+        <Pagination
+          current={currentPage[activeTab]}
+          total={activeTab === "pending" ? pendingTotal : approvedTotal}
+          pageSize={20}
+          currentLanguage={currentLanguage}
+          onChange={(page) => handlePageChange(activeTab, page)}
+        />
+      </div>
+    );
+  };
 
 
   return (

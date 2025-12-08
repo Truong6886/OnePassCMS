@@ -15,7 +15,7 @@ import {
 import { FilterX } from "lucide-react";
 import { showToast } from "../../utils/toast";
 import useDashboardData from "./hooks/useDashboardData";
-
+import { authenticatedFetch } from "../../utils/api";
 const statusColorMap = {
   "Tư vấn": "#3b82f6",
   "Đang xử lý": "#f59e0b",
@@ -147,12 +147,14 @@ const chartDataByTime = allDates.map((dateStr) => {
   const currentTableRows = filteredData.slice(indexOfFirstRow, indexOfLastRow);
 
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
-  const fetchAllData = async () => {
+ const fetchAllData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(
+      // Thay fetch bằng authenticatedFetch
+      const res = await authenticatedFetch(
         `https://onepasscms-backend.onrender.com/api/yeucau?limit=1000`
       );
+      
       const result = await res.json();
       if (result.success) setAllData(result.data);
     } catch (err) {
@@ -175,32 +177,30 @@ const chartDataByTime = allDates.map((dateStr) => {
     setB2bCurrentPage(1);
   }, [selectedCompanyId]);
 
-  const fetchB2BData = async () => {
+ const fetchB2BData = async () => {
     setB2bLoading(true);
     try {
-      // 1. Fetch Services (B2B_SERVICE)
-      const serviceRes = await fetch(
+      // 1. Fetch Services (Thay fetch bằng authenticatedFetch)
+      const serviceRes = await authenticatedFetch(
         "https://onepasscms-backend.onrender.com/api/b2b/services?limit=1000"
       );
       const serviceJson = await serviceRes.json();
       const rawServices = serviceJson.success ? serviceJson.data : [];
 
-      // 2. Fetch Companies (B2B_APPROVED)
-      const companyRes = await fetch(
+      // 2. Fetch Companies (Thay fetch bằng authenticatedFetch)
+      const companyRes = await authenticatedFetch(
         "https://onepasscms-backend.onrender.com/api/b2b/approved"
       );
       const companyJson = await companyRes.json();
       const rawCompanies = companyJson.success ? companyJson.data : [];
 
-      // 3. Merge Data: Enrich service with company info
+      // 3. Merge Data (Giữ nguyên logic cũ)
       const merged = rawServices.map((service) => {
-        // Find company by ID
         const company =
           rawCompanies.find((c) => c.ID === service.DoanhNghiepID) || {};
 
         return {
           ...service,
-          // Prioritize company info from B2B_APPROVED
           TenDoanhNghiep: company.TenDoanhNghiep || service.TenDoanhNghiep,
           SoDienThoai: company.SoDienThoai || service.SoDienThoai,
           Email: company.Email || service.Email,

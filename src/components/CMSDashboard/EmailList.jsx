@@ -1,7 +1,7 @@
 import React from "react";
 import Swal from "sweetalert2"; // 👈 IMPORT SweetAlert2
 import { showToast } from "../../utils/toast";
-
+import { authenticatedFetch } from "../../utils/api"
 const EmailList = ({
   emailList,
   setEmailList,
@@ -30,7 +30,7 @@ const EmailList = ({
     }
 
     try {
-      const res = await fetch(
+      const res = await authenticatedFetch(
         `https://onepasscms-backend.onrender.com/api/email/${item.id}`,
         { method: "DELETE" }
       );

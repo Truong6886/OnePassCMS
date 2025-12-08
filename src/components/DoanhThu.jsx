@@ -137,7 +137,7 @@ export default function DoanhThu() {
   const [companyLineChartData, setCompanyLineChartData] = useState([]);
   const [companyPieChartData, setCompanyPieChartData] = useState([]);
 
-  if (!currentUser?.is_director && !currentUser?.is_accountant) {
+ if (!currentUser?.is_director && !currentUser?.is_accountant && !currentUser?.perm_view_revenue) {
     return (
       <div className="d-flex min-vh-100 bg-light align-items-center justify-content-center flex-column text-primary text-center fw-bold fs-5">
         <p>Bạn không có quyền truy cập trang “Doanh Thu”.</p>

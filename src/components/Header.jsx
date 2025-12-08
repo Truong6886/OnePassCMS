@@ -303,7 +303,7 @@ const handleLanguageChange = (lang) => {
               >
                 <img
                   src={currentUser?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                    currentUser?.username || "User"
+                    currentUser?.name || "User"
                   )}&background=0D8ABC&color=fff&rounded=true&size=128`}
                   alt="avatar"
                   style={{
@@ -317,7 +317,7 @@ const handleLanguageChange = (lang) => {
                 />
                 <div>
                   <div className="fw-bold" style={{ fontSize: "15px" }}>
-                    {currentUser?.username || "User"}
+                    {currentUser?.name || "User"}
                   </div>
                   <div style={{ fontSize: "13px", opacity: 0.9 }}>
                     {currentUser?.email}
