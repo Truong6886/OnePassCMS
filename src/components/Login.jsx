@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import heroBanner from '../assets/herobanner-1.png';
-// 1. Import thêm 2 hook này từ react-router-dom
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const API_BASE = "https://onepasscms-backend.onrender.com/api";
@@ -11,12 +10,16 @@ const Login = ({ setCurrentUser }) => {
   const [error, setError] = useState('');
   const [currentLanguage, setCurrentLanguage] = useState('vi');
 
-  // 2. Khởi tạo hook
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 3. Lấy đường dẫn trước đó (nếu có), nếu không có thì mặc định về trang chủ "/"
-  // Khi bạn vào /B2B mà chưa login, PrivateRoute sẽ đá về Login kèm theo state.from
+  // Xóa cờ logout khi vào trang login
+  useEffect(() => {
+    sessionStorage.removeItem('wasLoggedOut');
+    sessionStorage.removeItem('logoutReason');
+    sessionStorage.removeItem('logoutTime');
+  }, []);
+
   const from = location.state?.from?.pathname || "/";
 
   const onLanguageChange = (lang) => {
@@ -29,7 +32,7 @@ const Login = ({ setCurrentUser }) => {
     setError('');
   };
 
- const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -46,17 +49,18 @@ const Login = ({ setCurrentUser }) => {
       
       setCurrentUser(result.user);
 
-      // 1. Lưu thông tin user
+      // Lưu thông tin user
       localStorage.setItem("currentUser", JSON.stringify(result.user));
 
-      // 2. [QUAN TRỌNG] Lưu Session Token để dùng cho các request sau này
-      // Token này dùng để so sánh với token trong database
+      // Lưu Session Token
       if (result.token) {
-          localStorage.setItem("sessionToken", result.token);
+        localStorage.setItem("sessionToken", result.token);
       }
 
       console.log("✅ Đăng nhập thành công & đã lưu Session Token");
 
+      // Đảm bảo xóa cờ logout trước khi navigate
+      sessionStorage.removeItem('wasLoggedOut');
       navigate(from, { replace: true });
 
     } catch (err) {
@@ -65,7 +69,7 @@ const Login = ({ setCurrentUser }) => {
     } finally {
       setLoading(false);
     }
-  };  
+  };
 
   return (
     <div 
