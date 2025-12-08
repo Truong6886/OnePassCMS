@@ -82,7 +82,7 @@ export default function QuanLyNhanVien() {
     }
   };
 
-  useSocketListener({ currentLanguage, setNotifications, setShowNotification });
+  useSocketListener({ currentLanguage, setNotifications, setShowNotification, currentUser: currentUser});
 
   useEffect(() => { fetchUsers(); }, []);
 

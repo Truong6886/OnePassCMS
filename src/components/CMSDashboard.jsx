@@ -150,6 +150,7 @@ export default function CMSDashboard() {
     setNotifications,
     setHasNewRequest,
     setShowNotification,
+    currentUser: currentUser
   });
   useEffect(() => {
     fetchData(currentPage);

@@ -7,6 +7,7 @@ export default function useSocketListener({
   setNotifications,
   setHasNewRequest,
   setShowNotification,
+  currentUser
 }) {
   const socketRef = useRef(null);
 
@@ -23,7 +24,17 @@ export default function useSocketListener({
     }
 
     const socket = socketRef.current;
-
+    const handleForceLogout = (msg) => {
+      console.warn("⚠️ Bị buộc đăng xuất:", msg);
+      alert(msg || "Tài khoản của bạn đã được đăng nhập trên thiết bị khác.");
+      
+      // 1. Xóa thông tin đăng nhập
+      localStorage.removeItem("currentUser");
+      localStorage.removeItem("sessionToken");
+      
+      // 2. Reload lại trang về Login (dùng window.location để clear sạch state)
+      window.location.href = "/"; 
+    };
     const handleConnect = () => console.log("🟢 Socket connected:", socket.id);
     const handleDisconnect = (reason) =>
       console.log("🔴 Socket disconnected. Reason:", reason);
@@ -144,10 +155,11 @@ export default function useSocketListener({
       socket.off("b2b_service_approved", handleApprovedService);
 
       socket.off("connect", handleConnect);
+      socket.off("force_logout", handleForceLogout);
       socket.off("disconnect", handleDisconnect);
       socket.off("connect_error", handleError);
       socket.off("reconnect_attempt", handleReconnectAttempt);
       socket.off("reconnect", handleReconnect);
     };
-  }, [currentLanguage, setNotifications, setHasNewRequest, setShowNotification]);
+  }, [currentLanguage, setNotifications, setHasNewRequest, setShowNotification, currentUser]);
 }

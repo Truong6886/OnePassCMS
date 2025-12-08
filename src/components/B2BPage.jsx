@@ -458,7 +458,7 @@ const handleModalSubmit = async () => {
 
   const t = translations[currentLanguage] || translations["vi"];
 
-  useSocketListener({ currentLanguage, setNotifications, setHasNewRequest, setShowNotification });
+  useSocketListener({ currentLanguage, setNotifications, setHasNewRequest, setShowNotification , currentUser: currentUser});
 
   useEffect(() => {
     const savedUser = localStorage.getItem("currentUser");
