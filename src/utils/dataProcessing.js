@@ -78,7 +78,7 @@ export function groupChartData(data, translateService) {
 export function getAllServices(data, translateService) {
   return [
     ...new Set(
-      data.map((d) => translateService(d.TenDichVu || "Không xác định"))
+      data.map((d) => translateService(d.LoaiDichVu || "Không xác định"))
     ),
   ];
 }

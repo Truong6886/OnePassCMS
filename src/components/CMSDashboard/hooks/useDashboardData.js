@@ -147,7 +147,7 @@ export default function useDashboardData() {
       ? str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
       : "";
 
-  const filteredData = data.filter((item) => {
+const filteredData = data.filter((item) => {
     const matchSearch =
       item.HoTen?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.Email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -155,10 +155,11 @@ export default function useDashboardData() {
 
     const matchStatus = filterStatus ? item.TrangThai === filterStatus : true;
 
+    
+    const normalizedFilter = normalize(filterDichVu);
     const matchService = filterDichVu
-      ? normalize(translateService(item.TenDichVu)).includes(
-          normalize(filterDichVu)
-        )
+      ? normalize(item.LoaiDichVu).includes(normalizedFilter) || 
+        normalize(translateService(item.TenDichVu)).includes(normalizedFilter)
       : true;
 
     const itemDate = new Date(item.NgayTao);
@@ -168,8 +169,7 @@ export default function useDashboardData() {
 
     let matchUser = true;
     if (filterUser && filterUser !== "--Chọn--")
-      matchUser =
-        String(item.NguoiPhuTrachId) === String(filterUser);
+      matchUser = String(item.NguoiPhuTrachId) === String(filterUser);
 
     return (
       matchSearch && matchStatus && matchService && matchDate && matchUser

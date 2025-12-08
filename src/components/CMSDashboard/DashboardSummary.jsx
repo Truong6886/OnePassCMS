@@ -52,7 +52,7 @@ const DashboardSummary = ({
 
   const filteredData = allData.filter((r) => {
     const matchService = filterDichVu
-      ? translateService(r.TenDichVu) === filterDichVu
+      ? translateService(r.LoaiDichVu) === filterDichVu
       : true;
 
     const regionMap = { "+84": "Việt Nam", "+82": "Hàn Quốc" };
@@ -117,7 +117,7 @@ const chartDataByTime = allDates.map((dateStr) => {
       const rDate = toVNDateString(r.NgayTao);
       
       // 3. Chuẩn hóa tên dịch vụ (Quan trọng: Trim khoảng trắng thừa nếu có)
-      const rServiceRaw = translateService(r.TenDichVu);
+      const rServiceRaw = translateService(r.LoaiDichVu);
       const rService = rServiceRaw ? rServiceRaw.trim() : "";
       const targetService = service ? service.trim() : "";
 
@@ -387,7 +387,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                       dataKey="value"
                       data={Object.entries(
                         filteredData.reduce((acc, cur) => {
-                          const name = translateService(cur.TenDichVu || "Không xác định");
+                          const name = translateService(cur.LoaiDichVu || "Không xác định");
                           acc[name] = (acc[name] || 0) + 1;
                           return acc;
                         }, {})
@@ -400,7 +400,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                     >
                       {Object.entries(
                         filteredData.reduce((acc, cur) => {
-                          const name = translateService(cur.TenDichVu || "Không xác định");
+                          const name = translateService(cur.LoaiDichVu || "Không xác định");
                           acc[name] = (acc[name] || 0) + 1;
                           return acc;
                         }, {})
@@ -441,7 +441,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                 </h6> 
                 {(() => {
                   const grouped = filteredData.reduce((acc, cur) => {
-                    const name = translateService(cur.TenDichVu || "Không xác định");
+                    const name = translateService(cur.LoaiDichVu || "Không xác định");
                     acc[name] = (acc[name] || 0) + 1;
                     return acc;
                   }, {});
@@ -763,7 +763,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                         <td style={{textAlign:"center"}}>{r.MaVung}</td>
                         <td style={{textAlign:"center"}}>{r.SoDienThoai || ""}</td>
                         <td style={{textAlign:"center"}}>{r.Email || ""}</td>
-                        <td style={{textAlign:"center"}}>{translateService(r.TenDichVu)}</td>
+                        <td style={{textAlign:"center"}}>{translateService(r.LoaiDichVu)}</td>
                         <td style={{textAlign:"center"}}>{r.TrangThai}</td>
                         <td style={{textAlign:"center"}}>{r.TenHinhThuc || ""}</td>
                       </tr>
