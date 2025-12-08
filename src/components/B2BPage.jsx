@@ -1035,13 +1035,13 @@ const renderServicesTab = () => {
                                   {rec.code ? (
                                       <span className="fw-bold text-dark">{rec.code}</span>
                                   ) : (
-                                      <span className="badge bg-warning text-dark" style={{fontSize: '10px'}}>Chờ duyệt</span>
+                                    ""
                                   )}
                               </div>
                           </td>
                           <td className="border" style={cellStyle}>
                                 <div className="text-center" style={{ fontSize: "12px", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={rec.picName}>
-                                   {rec.picName || "--"}
+                                   {rec.picName || ""}
                                 </div>
                           </td>
                           <td className="border" style={cellStyle}>

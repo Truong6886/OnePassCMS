@@ -35,12 +35,12 @@ useEffect(() => {
 
   const texts = {
     list: {
-      vi: user?.is_admin ? "Quản Lý Yêu Cầu" : "Danh Sách Yêu Cầu",
-      en: user?.is_admin ? "Manage Requests" : "Request List",
+      vi: "Tổng Quan",
+      en: "Summary",
     },
     hoso: { vi: "Tra Cứu Hồ Sơ", en: "Record Lookup" },
     nhanvien: { vi: "Quản Lý Nhân Viên", en: "Employee Management" },
-    doanhthu: { vi: "Doanh Thu", en: "Revenue" },
+    doanhthu: { vi: "Quản Lý Doanh Thu", en: "Revenue" },
     b2b: {vi:"Quản lý B2B", en: "B2B Management"},
     b2c: {vi:"Quản lý B2C", en: "B2C Management"},
   };
@@ -163,18 +163,19 @@ useEffect(() => {
                     {!collapsed && <span>{texts.b2c[currentLanguage]}</span>}
                 </li>
               )}
-          {/* Tra cứu hồ sơ */}
-          <li
-            style={getItemStyle("hoso")}
-            onMouseEnter={() => setHoveredItem("hoso")}
-            onMouseLeave={() => setHoveredItem(null)}
-            onClick={() => navigate("/hoso")}
-          >
-            <Search size={22} />
-            {!collapsed && <span>{texts.hoso[currentLanguage]}</span>}
-          </li>
-
-        
+              
+          {(user?.is_accountant || user?.is_director || user?.perm_view_revenue) && (
+            <li
+              style={getItemStyle("doanhthu")}
+              onMouseEnter={() => setHoveredItem("doanhthu")}
+              onMouseLeave={() => setHoveredItem(null)}
+              onClick={() => navigate("/doanhthu")}
+            >
+              <DollarSign size={22} />
+              {!collapsed && <span>{texts.doanhthu[currentLanguage]}</span>}
+            </li>
+          )}
+          
           {(user?.is_admin ||user?.is_accountant|| user?.is_director) && (
             <li
               style={getItemStyle("nhanvien")}
@@ -188,17 +189,18 @@ useEffect(() => {
           )}
 
   
-          {(user?.is_accountant || user?.is_director || user?.perm_view_revenue) && (
-            <li
-              style={getItemStyle("doanhthu")}
-              onMouseEnter={() => setHoveredItem("doanhthu")}
-              onMouseLeave={() => setHoveredItem(null)}
-              onClick={() => navigate("/doanhthu")}
-            >
-              <DollarSign size={22} />
-              {!collapsed && <span>{texts.doanhthu[currentLanguage]}</span>}
-            </li>
-          )}
+          {/* Tra cứu hồ sơ */}
+          <li
+            style={getItemStyle("hoso")}
+            onMouseEnter={() => setHoveredItem("hoso")}
+            onMouseLeave={() => setHoveredItem(null)}
+            onClick={() => navigate("/hoso")}
+          >
+            <Search size={22} />
+            {!collapsed && <span>{texts.hoso[currentLanguage]}</span>}
+          </li>
+
+        
          
 
         </ul>

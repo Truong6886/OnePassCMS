@@ -5,12 +5,9 @@ import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import EditProfileModal from "./EditProfileModal";
 import { showToast } from "../utils/toast";
 import useDashboardData from "./CMSDashboard/hooks/useDashboardData";
-import { LayoutGrid, Edit, Trash2, X, Pin, PinOff, PlusCircle,CheckCircle } from "lucide-react";
+import { LayoutGrid, Edit, Trash2, X, Pin, PinOff, PlusCircle, CheckCircle, ChevronDown, Eye, EyeOff } from "lucide-react";
 import Swal from "sweetalert2";
 import "../styles/DashboardList.css";
-
-import { ChevronDown, Eye, EyeOff } from "lucide-react";
-
 
 const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false, height = "36px" }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -40,12 +37,12 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
       <div 
         onClick={() => !disabled && setIsOpen(!isOpen)}
         style={{
-          width: "100%", padding: "0 10px", borderRadius: "8px", // Giảm radius cho gọn
-          border: "1px solid #d1d5db", fontSize: "13px", color: "#374151", // Viền mỏng hơn
+          width: "100%", padding: "0 10px", borderRadius: "8px",
+          border: "1px solid #d1d5db", fontSize: "13px", color: "#374151",
           backgroundColor: disabled ? "#F3F4F6" : "#ffffff",
           cursor: disabled ? "not-allowed" : "pointer",
           display: "flex", justifyContent: "space-between", alignItems: "center",
-          userSelect: "none", height: height, // Sử dụng height dynamic
+          userSelect: "none", height: height,
           transition: "all 0.2s"
         }}
       >
@@ -86,14 +83,39 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   const isNew = !request || !request.YeuCauID;
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+const normalizeServiceType = (val) => {
+      if (!val) return "";
+      const cleanVal = String(val).trim(); // Xóa khoảng trắng thừa
 
+      // Map dữ liệu tiếng Hàn sang tiếng Việt (giống logic ở RowItem)
+      const krMap = {
+        "인증 센터": "Chứng thực", "결혼 이민": "Kết hôn",
+        "출생신고 대행": "Khai sinh, khai tử", "출입국 행정 대행": "Xuất nhập cảnh",
+        "신분증명 서류 대행": "Giấy tờ tuỳ thân", "입양 절차 대행": "Nhận nuôi",
+        "비자 대행": "Thị thực", "법률 컨설팅": "Tư vấn pháp lý",
+        "B2B 서비스": "Dịch vụ B2B", "기타": "Khác",
+      };
+      if (krMap[cleanVal]) return krMap[cleanVal];
+
+      // Map dữ liệu tiếng Anh sang tiếng Việt (nếu có)
+      const enMap = {
+        "Certification": "Chứng thực", "Marriage": "Kết hôn",
+        "Birth/Death Registration": "Khai sinh, khai tử", "Immigration": "Xuất nhập cảnh",
+        "ID Documents": "Giấy tờ tuỳ thân", "Adoption": "Nhận nuôi",
+        "Visa": "Thị thực", "Legal Consultation": "Tư vấn pháp lý",
+        "B2B Service": "Dịch vụ B2B", "Other": "Khác"
+      };
+      if (enMap[cleanVal]) return enMap[cleanVal];
+
+      return cleanVal;
+  };
   const translations = {
     vi: {
       title: isNew ? "Đăng ký dịch vụ mới (B2C)" : `Cập nhật yêu cầu #${request?.YeuCauID || ""}`,
       subtitle: "Nhập thông tin khách hàng và dịch vụ",
       customer: "Khách Hàng", areaCode: "Mã", phone: "Số Điện Thoại", email: "Email",
-      serviceType: "Loại Dịch Vụ", // Label cho Dropdown danh mục
-      serviceName: "Tên Dịch Vụ",  // Label cho Input nhập tên cụ thể
+      serviceType: "Loại Dịch Vụ",
+      serviceName: "Tên Dịch Vụ",
       package: "Gói Dịch Vụ", form: "Kênh Liên Hệ", branch: "Cơ Sở Tư Vấn",
       appointmentDate: "Ngày Hẹn", appointmentTime: "Giờ Hẹn", content: "Nội Dung",
       note: "Ghi Chú", assignee: "Người Phụ Trách", status: "Trạng thái",
@@ -101,12 +123,13 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
       save: isNew ? "Đăng ký dịch vụ mới" : "Lưu thay đổi", processing: "Đang xử lý...",
       selectServiceType: "Chọn Loại Dịch Vụ", 
       enterServiceName: "Nhập Tên Dịch Vụ Cụ Thể",
-      selectPackage: "Chọn Gói Dịch Vụ",
+      selectPackage: "Chọn Gói",
       selectForm: "Chọn Hình Thức", selectBranch: "Chọn Cơ Sở", selectAssignee: "Chọn nhân viên",
       enterName: "Nhập Tên Khách Hàng", enterPhone: "Nhập Số Điện Thoại", enterEmail: "Nhập Email",
       selectNguoiPT: "Chọn Người Phụ Trách",
       enterContent: "Nhập Nội Dung",
-      enterNote: "Nhập Ghi Chú"
+      enterNote: "Nhập Ghi Chú",
+      selectStatus: "Chọn Trạng Thái"
     },
     en: {
       title: isNew ? "Register New Service (B2C)" : `Update Request #${request?.YeuCauID || ""}`,
@@ -126,7 +149,8 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
       enterName: "Customer Name", enterPhone: "Enter Phone Number", enterEmail: "Enter Email",
       selectNguoiPT: "Select Assignee", 
       enterContent: "Enter Content",
-      enterNote: "Enter Note"
+      enterNote: "Enter Note",
+      selectStatus: "Select Status"
     }
   };
   const t = translations[currentLanguage === "vi" ? "vi" : "en"];
@@ -137,8 +161,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           HoTen: "", MaVung: "+84", SoDienThoai: "", Email: "",
           NoiDung: "", GhiChu: "", TenHinhThuc: "",
           CoSoTuVan: "", Gio: "", ChonNgay: "",
-          LoaiDichVu: "", // Cột cũ (Dropdown danh mục)
-          TenDichVu: "",  // Cột mới (Input text)
+          LoaiDichVu: "", TenDichVu: "",
           MaHoSo: "", NguoiPhuTrachId: "",
           TrangThai: "Tư vấn", GoiDichVu: "",
           Invoice: "No", InvoiceUrl: "", ConfirmPassword: "" 
@@ -152,12 +175,11 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           Invoice: request.Invoice || "No",
           MaHoSo: request.MaHoSo || "",
           TrangThai: request.TrangThai || "Tư vấn",
-          LoaiDichVu: request.LoaiDichVu || "", 
+          LoaiDichVu: normalizeServiceType(request.LoaiDichVu), 
           TenDichVu: request.TenDichVu || ""  
         }
   );
 
-  // STYLE CHUNG
   const inputHeight = "38px"; 
   const labelStyle = { fontSize: "11px", fontWeight: "600", color: "#4B5563", marginBottom: "4px", display: "block" };
   const inputStyle = {
@@ -166,10 +188,8 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     backgroundColor: "#ffffff", outline: "none", transition: "border-color 0.2s"
   };
 
-  // --- DATA ---
   const areaCodes = [{ value: "+82", label: "+82" }, { value: "+84", label: "+84" }];
   
-  // Danh sách này bây giờ là LOẠI DỊCH VỤ
   const serviceTypeList = currentLanguage === "vi" ? [
     "Chứng thực", "Kết hôn", "Khai sinh, khai tử", "Xuất nhập cảnh",
     "Giấy tờ tuỳ thân", "Nhận nuôi", "Thị thực", "Tư vấn pháp lý", "Dịch vụ B2B", "Khác"
@@ -194,7 +214,6 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     else { name = eOrName.target.name; val = eOrName.target.value; }
 
     let valueToSave = val;
-    // Map Loại Dịch Vụ
     if (name === "LoaiDichVu" && currentLanguage === "en") valueToSave = serviceTypeMapping[val] || val;
     if (name === "TenHinhThuc" && currentLanguage === "en") valueToSave = formMapping[val] || val;
     if (name === "TrangThai" && currentLanguage === "en") valueToSave = statusMapping[val] || val;
@@ -245,7 +264,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
 
   const getDisplayValue = (field, vietnameseValue) => {
     if (currentLanguage === "vi") return vietnameseValue;
-    if (field === "LoaiDichVu") return reverseServiceTypeMapping[vietnameseValue] || vietnameseValue; // Map loại
+    if (field === "LoaiDichVu") return reverseServiceTypeMapping[vietnameseValue] || vietnameseValue;
     if (field === "TenHinhThuc") return Object.keys(formMapping).find(key => formMapping[key] === vietnameseValue) || vietnameseValue;
     if (field === "TrangThai") return Object.keys(statusMapping).find(key => statusMapping[key] === vietnameseValue) || vietnameseValue;
     if (field === "GoiDichVu") return vietnameseValue === "Thông thường" ? "Standard" : vietnameseValue === "Cấp tốc" ? "Express" : vietnameseValue;
@@ -276,15 +295,13 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           <p className="text-muted m-0 mt-1" style={{ fontSize: "13px" }}>{t.subtitle}</p>
         </div>
 
-        {/* LAYOUT 3-3-2-2 */}
         <div className="row g-3">
           
-          {/* --- HÀNG 1 (3 Cột): Tên | SĐT (có mã vùng gọn) | Email --- */}
+          {/* HÀNG 1 */}
           <div className="col-md-4">
             <label style={labelStyle}>{t.customer} <span className="text-danger">*</span></label>
             <input type="text" name="HoTen" style={inputStyle} value={formData.HoTen} onChange={handleInputChange} placeholder={t.enterName} />
           </div>
-
           <div className="col-md-4">
             <label style={labelStyle}>{t.phone} <span className="text-danger">*</span></label>
             <div className="d-flex">
@@ -304,16 +321,14 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
               />
             </div>
           </div>
-
           <div className="col-md-4">
             <label style={labelStyle}>{t.email}</label>
             <input type="email" name="Email" style={inputStyle} value={formData.Email} onChange={handleInputChange} placeholder={t.enterEmail} />
           </div>
 
-          {/* --- HÀNG 2 (3 Cột): LOẠI DỊCH VỤ (Dropdown) | TÊN DỊCH VỤ (Input) | Gói --- */}
+          {/* HÀNG 2 */}
           <div className="col-md-4">
             <label style={labelStyle}>{t.serviceType} <span className="text-danger">*</span></label>
-            {/* Sử dụng LoaiDichVu cho Dropdown danh mục */}
             <ModernSelect 
                 name="LoaiDichVu" 
                 height={inputHeight} 
@@ -323,53 +338,62 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                 onChange={handleInputChange} 
             />
           </div>
-
           <div className="col-md-4">
             <label style={labelStyle}>{t.serviceName}</label>
-            {/* Sử dụng TenDichVu cho Input nhập tên cụ thể */}
              <input type="text" name="TenDichVu" style={inputStyle} value={formData.TenDichVu} onChange={handleInputChange} placeholder={t.enterServiceName} />
           </div>
-
           <div className="col-md-4">
             <label style={labelStyle}>{t.package}</label>
             <ModernSelect name="GoiDichVu" height={inputHeight} value={getDisplayValue("GoiDichVu", formData.GoiDichVu)} placeholder={t.selectPackage} options={packageOptions} onChange={handleInputChange} />
           </div>
 
-          {/* --- HÀNG 3 (3 Cột): Hình thức | Cơ sở | Người phụ trách/Trạng thái --- */}
+          {/* HÀNG 3: SỬA ĐỔI ĐỂ HIỂN THỊ TRẠNG THÁI CHO TẤT CẢ */}
           <div className="col-md-4">
             <label style={labelStyle}>{t.form}</label>
             <ModernSelect name="TenHinhThuc" height={inputHeight} value={getDisplayValue("TenHinhThuc", formData.TenHinhThuc)} placeholder={t.selectForm} options={formOptions.map(v => ({ value: v, label: v }))} onChange={handleInputChange} />
           </div>
-
           <div className="col-md-4">
             <label style={labelStyle}>{t.branch}</label>
             <ModernSelect name="CoSoTuVan" height={inputHeight} value={formData.CoSoTuVan} placeholder={t.selectBranch} options={branchOptions} onChange={handleInputChange} />
           </div>
+          {/* Cột 3: Status cho mọi người */}
           <div className="col-md-4">
-             {currentUser?.is_admin ? (
-                <>
-                <label style={labelStyle}>{t.assignee}</label>
-                <ModernSelect name="NguoiPhuTrachId" height={inputHeight} value={formData.NguoiPhuTrachId} placeholder={t.selectNguoiPT} options={users.map(u => ({ value: String(u.id), label: u.name }))} onChange={handleInputChange} />
-                </>
-             ) : (
-                <>
-                 <label style={labelStyle}>{t.status}</label>
-                 <div style={{...inputStyle, backgroundColor: "#f3f4f6", display: "flex", alignItems: "center", color: "#6b7280"}}>{formData.TrangThai}</div>
-                </>
-             )}
+             <label style={labelStyle}>{t.status}</label>
+             <ModernSelect 
+                name="TrangThai" 
+                height={inputHeight} 
+                value={getDisplayValue("TrangThai", formData.TrangThai)} 
+                placeholder={t.selectStatus} 
+                options={statusOptions.map(s => ({ value: s, label: s }))} 
+                onChange={handleInputChange} 
+             />
           </div>
 
-          {/* --- HÀNG 4 (2 Cột): Ngày hẹn | Giờ hẹn --- */}
-          <div className="col-md-6">
+          {/* HÀNG 4: NGÀY, GIỜ, (NGƯỜI PHỤ TRÁCH NẾU LÀ ADMIN) */}
+          <div className={currentUser?.is_admin ? "col-md-4" : "col-md-6"}>
             <label style={labelStyle}>{t.appointmentDate}</label>
             <input type="date" name="ChonNgay" style={inputStyle} value={formData.ChonNgay ? new Date(formData.ChonNgay).toISOString().split("T")[0] : ""} onChange={handleInputChange} />
           </div>
-          <div className="col-md-6">
+          <div className={currentUser?.is_admin ? "col-md-4" : "col-md-6"}>
             <label style={labelStyle}>{t.appointmentTime}</label>
             <input type="time" name="Gio" style={inputStyle} value={formatTimeForInput(formData.Gio)} onChange={handleInputChange} />
           </div>
+          {/* Cột 3 (Hàng 4): Người phụ trách - Chỉ Admin mới thấy */}
+          {currentUser?.is_admin && (
+            <div className="col-md-4">
+               <label style={labelStyle}>{t.assignee}</label>
+               <ModernSelect 
+                  name="NguoiPhuTrachId" 
+                  height={inputHeight} 
+                  value={formData.NguoiPhuTrachId} 
+                  placeholder={t.selectNguoiPT} 
+                  options={users.map(u => ({ value: String(u.id), label: u.name }))} 
+                  onChange={handleInputChange} 
+               />
+            </div>
+          )}
 
-          {/* --- CÁC PHẦN DƯỚI (Full Width) --- */}
+          {/* CÁC PHẦN DƯỚI (Full Width) */}
           <div className="col-12">
             <label style={labelStyle}>{t.content}</label>
             <textarea rows={2} type="text" name="NoiDung" style={inputStyle} value={formData.NoiDung} onChange={handleInputChange} placeholder={t.enterContent} />
@@ -486,77 +510,149 @@ const RowItem = ({
 
   const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
   const unformatNumber = (value) => (value ? value.toString().replace(/\./g, "") : "");
-  return (
+ return (
     <tr>
-      {/* CÁC CỘT DỮ LIỆU */}
+      {/* 1. STT */}
       {isVisible("id") && (
         <td className={`text-center fw-semibold border-target ${isPinned("id") ? "sticky-col" : ""}`}>
           {item.YeuCauID}
         </td>
       )}
+      {/* 2. Khách hàng */}
       {isVisible("hoTen") && (
         <td className={`text-center fw-semibold ${isPinned("hoTen") ? "sticky-col" : ""}`} style={{ minWidth: "120px" }}>
           {item.HoTen}
         </td>
       )}
+      {/* 3. Mã vùng */}
       {isVisible("maVung") && (
         <td className={`text-center ${isPinned("maVung") ? "sticky-col" : ""}`}>
           {item.MaVung}
         </td>
       )}
+      {/* 4. Số Điện Thoại */}
       {isVisible("sdt") && (
         <td style={{maxWidth: "150px",width: "110px", textAlign:"center"}} className={isPinned("sdt") ? "sticky-col" : ""}>
           {item.SoDienThoai}
         </td>
       )}
+      {/* 5. Email */}
       {isVisible("email") && (
         <td style={{ maxWidth: "150px",width: "162px" }} className={`text-center text-truncate ${isPinned("email") ? "sticky-col" : ""}`} title={item.Email}>
           {item.Email}
         </td>
       )}
-      {isVisible("noiDung") && (
-        <td 
-          style={{ minWidth: "200px", maxWidth: "300px" }} 
-          className={`${isPinned("noiDung") ? "sticky-col" : ""}`}
-        >
-           <div style={{ 
-               whiteSpace: "pre-wrap",  
-               wordBreak: "break-word",  
-               textAlign: "left",        
-               overflowWrap: "anywhere",
-               paddingLeft: "5px"  
-           }}>
-             {item.NoiDung}
-           </div>
-        </td>
-      )}
-      {isVisible("ghiChu") && (
-        <td style={{ maxWidth: "150px", width: "152px" }} className={`text-center text-truncate ${isPinned("ghiChu") ? "sticky-col" : ""}`} title={item.GhiChu}>
-          {item.GhiChu}
-        </td>
-      )}
+      {/* 6. Hình thức */}
       {isVisible("hinhThuc") && (
         <td className={`text-center border-target ${isPinned("hinhThuc") ? "sticky-col" : ""}`}>
           {item.TenHinhThuc}
         </td>
       )}
+      {/* 7. Cơ sở */}
       {isVisible("coSo") && (
         <td className={`text-center border-target ${isPinned("coSo") ? "sticky-col" : ""}`}>
           {translateBranch(item.CoSoTuVan)}
         </td>
       )}
-     {isVisible("gio") && (
-      <td className={`text-center ${isPinned("gio") ? "sticky-col" : ""}`}>
-        {(() => {
-          if (!item.Gio) return "";
-          if (item.Gio.includes("T")) {
-            return new Date(item.Gio).toLocaleTimeString("vi-VN", { hour12: false, hour: "2-digit", minute: "2-digit" });
-          }
-     
-          return item.Gio.substring(0, 5);
-        })()}
-      </td>
-    )}
+      {/* 8. Loại Dịch Vụ */}
+      {isVisible("loaiDichVu") && (
+        <td style={{ maxWidth: "150px" }} className={`text-center text-truncate ${isPinned("loaiDichVu") ? "sticky-col" : ""}`} title={translateService(item.LoaiDichVu)}>
+          {translateService(item.LoaiDichVu)}
+        </td>
+      )}
+      {/* 9. Tên Dịch Vụ */}
+      {isVisible("tenDichVu") && (
+        <td className={`text-center ${isPinned("tenDichVu") ? "sticky-col" : ""}`}>
+          {item.TenDichVu || ""}
+        </td>
+      )}
+      {/* 10. Mã Dịch Vụ */}
+      {isVisible("maDichVu") && (
+        <td className={`text-center border-target ${isPinned("maDichVu") ? "sticky-col" : ""}`}>
+          {displayMaHoSo}
+        </td>
+      )}
+      {/* 11. Người phụ trách (Admin Only) */}
+      {currentUser?.is_admin && isVisible("nguoiPhuTrach") && (
+        <td style={{width:"102px"}}  className={isPinned("nguoiPhuTrach") ? "sticky-col" : ""}>
+          {item.NguoiPhuTrach?.name || <span className="text-muted fst-italic"></span>}
+        </td>
+      )}
+      {/* 12. Ngày hẹn */}
+      {isVisible("ngayHen") && (
+        <td className={`text-center ${isPinned("ngayHen") ? "sticky-col" : ""}`}>
+          {item.ChonNgay ? new Date(item.ChonNgay).toLocaleDateString("vi-VN") : ""}
+        </td>
+      )}
+      {/* 13. Trạng thái */}
+      {isVisible("trangThai") && (
+        <td className={`text-center ${isPinned("trangThai") ? "sticky-col" : ""}`}>
+          {item.TrangThai}
+        </td>
+      )}
+      {/* 14. Gói Dịch Vụ */}
+      {isVisible("goiDichVu") && (
+        <td style={{width:"102px"}} className={`text-center ${isPinned("goiDichVu") ? "sticky-col" : ""}`}>
+          {item.GoiDichVu || ""}
+        </td>
+      )}
+      {/* 15. Invoice Y/N */}
+      {isVisible("invoice") && (
+        <td className={`text-center ${isPinned("invoice") ? "sticky-col" : ""}`}>
+           {["Yes", "yes", "true", "1"].includes(String(item.Invoice)) ? (
+             <span className="text-success fw-bold">Có</span>
+           ) : (
+             <span className="text-muted"></span>
+           )}
+        </td>
+      )}
+      {/* Invoice Link (Kế toán) */}
+      {canViewFinance && isVisible("invoiceUrl") && (
+        <td style={{ maxWidth: "120px" }} className={isPinned("invoiceUrl") ? "sticky-col" : ""}>
+          {item.InvoiceUrl ? (
+            <a href={item.InvoiceUrl} target="_blank" rel="noreferrer" className="text-decoration-none text-primary d-block text-truncate">Link</a>
+          ) : "-"}
+        </td>
+      )}
+
+      {/* 16. Giờ */}
+      {isVisible("gio") && (
+        <td className={`text-center ${isPinned("gio") ? "sticky-col" : ""}`}>
+          {(() => {
+            if (!item.Gio) return "";
+            if (item.Gio.includes("T")) {
+              return new Date(item.Gio).toLocaleTimeString("vi-VN", { hour12: false, hour: "2-digit", minute: "2-digit" });
+            }
+            return item.Gio.substring(0, 5);
+          })()}
+        </td>
+      )}
+
+      {/* 17. Nội dung (Đã cập nhật style xuống dòng) */}
+      {isVisible("noiDung") && (
+        <td 
+          style={{ minWidth: "200px", maxWidth: "260px" }} 
+          className={`${isPinned("noiDung") ? "sticky-col" : ""}`}
+        >
+           <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", textAlign: "left", overflowWrap: "anywhere", paddingLeft: "5px" }}>
+             {item.NoiDung}
+           </div>
+        </td>
+      )}
+
+      {/* 18. Ghi chú (Đã cập nhật style xuống dòng) */}
+      {isVisible("ghiChu") && (
+        <td 
+          style={{ minWidth: "150px", maxWidth: "250px" }} 
+          className={`${isPinned("ghiChu") ? "sticky-col" : ""}`}
+        >
+           <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", textAlign: "left", overflowWrap: "anywhere", paddingLeft: "5px" }}>
+             {item.GhiChu}
+           </div>
+        </td>
+      )}
+
+      {/* 19. Ngày tạo */}
       {isVisible("ngayTao") && (
         <td className={`text-center text-nowrap border-target ${isPinned("ngayTao") ? "sticky-col" : ""}`} style={{fontSize: "0.8rem"}}>
           {item.NgayTao && (
@@ -568,60 +664,8 @@ const RowItem = ({
           )}
         </td>
       )}
-    {isVisible("loaiDichVu") && (
-        <td style={{ maxWidth: "150px" }} className={`text-center text-truncate ${isPinned("loaiDichVu") ? "sticky-col" : ""}`} title={translateService(item.LoaiDichVu)}>
-          {translateService(item.LoaiDichVu)}
-        </td>
-      )}
-      {/* Cột 2: Tên Dịch Vụ (Cột mới, hiển thị text từ TenDichVu) */}
-      {isVisible("tenDichVu") && (
-        <td className={`text-center ${isPinned("tenDichVu") ? "sticky-col" : ""}`}>
-          {item.TenDichVu || ""}
-        </td>
-      )}
-      {isVisible("maDichVu") && (
-        <td className={`text-center border-target ${isPinned("maDichVu") ? "sticky-col" : ""}`}>
-          {displayMaHoSo}
-        </td>
-      )}
-     {currentUser?.is_admin && isVisible("nguoiPhuTrach") && (
-        <td className={isPinned("nguoiPhuTrach") ? "sticky-col" : ""}>
-          {/* SỬA THÀNH: item.NguoiPhuTrach?.name */}
-          {item.NguoiPhuTrach?.name || <span className="text-muted fst-italic"></span>}
-        </td>
-      )}
-      {isVisible("ngayHen") && (
-        <td className={`text-center ${isPinned("ngayHen") ? "sticky-col" : ""}`}>
-          {item.ChonNgay ? new Date(item.ChonNgay).toLocaleDateString("vi-VN") : ""}
-        </td>
-      )}
-      {isVisible("trangThai") && (
-      <td className={`text-center ${isPinned("trangThai") ? "sticky-col" : ""}`}>
-        {item.TrangThai}
-      </td>
-    )}
-        {isVisible("goiDichVu") && (
-      <td className={`text-center ${isPinned("goiDichVu") ? "sticky-col" : ""}`}>
-        {item.GoiDichVu || ""}
-      </td>
-    )}
-       {isVisible("invoice") && (
-        <td className={`text-center ${isPinned("invoice") ? "sticky-col" : ""}`}>
-           {["Yes", "yes", "true", "1"].includes(String(item.Invoice)) ? (
-             <span className="text-success fw-bold">Có</span>
-           ) : (
-             <span className="text-muted"></span>
-           )}
-        </td>
-      )}
-      {canViewFinance && isVisible("invoiceUrl") && (
-        <td style={{ maxWidth: "120px" }} className={isPinned("invoiceUrl") ? "sticky-col" : ""}>
-          {item.InvoiceUrl ? (
-            <a href={item.InvoiceUrl} target="_blank" rel="noreferrer" className="text-decoration-none text-primary d-block text-truncate">Link</a>
-          ) : "-"}
-        </td>
-      )}
-      
+
+      {/* Các cột tài chính (Ẩn/Hiện theo quyền) */}
       {canViewFinance && isVisible("doanhThuTruoc") && (
         <td className="text-center">{formatNumber(item.DoanhThuTruocChietKhau)}</td>
       )}
@@ -634,11 +678,11 @@ const RowItem = ({
       {canViewFinance && isVisible("doanhThuSau") && (
          <td className="text-center fw-bold text-primary">{formatNumber(item.DoanhThuSauChietKhau)}</td>
       )}
+
+      {/* 20. Hành động */}
       {isVisible("hanhDong") && (
         <td className={`text-center ${isPinned("hanhDong") ? "sticky-col" : ""}`}>
           <div className="d-flex justify-content-center align-items-center gap-2">
-            
-          
             {!hasServiceCode && canApprove && (
               <button 
                 className="btn btn-sm btn-success d-flex align-items-center justify-content-center" 
@@ -649,8 +693,6 @@ const RowItem = ({
                 <CheckCircle size={16} />
               </button>
             )}
-
-          
             {(hasServiceCode || !canApprove) && (
                 <button 
                     className="btn btn-sm btn-primary d-flex align-items-center justify-content-center" 
@@ -661,8 +703,6 @@ const RowItem = ({
                 <Edit size={16} />
                 </button>
             )}
-
-            {/* NÚT XÓA (LUÔN HIỆN) */}
             <button 
                 className="btn btn-sm btn-danger d-flex align-items-center justify-content-center" 
                 style={{ width: 32, height: 32 }} 
@@ -700,36 +740,36 @@ const B2CPage = () => {
  
   const canViewFinance = currentUser?.is_accountant || currentUser?.is_director;
 
-  const initialColumnKeys = [
+const initialColumnKeys = [
     { key: "id", label: "STT" },
-    { key: "hoTen", label: "Họ tên" },
+    { key: "hoTen", label: "Khách hàng" },
     { key: "maVung", label: "Mã vùng" },
-    { key: "sdt", label: "SĐT" },
+    { key: "sdt", label: "Số Điện Thoại" },
     { key: "email", label: "Email" },
-    { key: "noiDung", label: "Nội dung" },
-    { key: "ghiChu", label: "Ghi chú" },
-    { key: "hinhThuc", label: "Hình thức" },
+    { key: "hinhThuc", label: "Kênh Liên Hệ" },
     { key: "coSo", label: "Cơ sở" },
-    { key: "gio", label: "Giờ" },
-    { key: "ngayTao", label: "Ngày tạo" },
     { key: "loaiDichVu", label: "Loại Dịch Vụ" },
     { key: "tenDichVu", label: "Tên Dịch Vụ" },
-    { key: "dichVu", label: "Dịch vụ" },
- 
     { key: "maDichVu", label: "Mã Dịch Vụ" },
     ...(currentUser?.is_admin ? [{ key: "nguoiPhuTrach", label: "Người phụ trách" }] : []),
     { key: "ngayHen", label: "Ngày hẹn" },
     { key: "trangThai", label: "Trạng thái" },
-    { key: "goiDichVu", label: "Gói Dịch Vụ" },
+    { key: "goiDichVu", label: "Gói" },
     { key: "invoice", label: "Invoice Y/N" },
-    ...(canViewFinance ? [{ key: "invoiceUrl", label: "Invoice" }] : []),
-...(canViewFinance ? [
-  { key: "doanhThuTruoc", label: (<span>Doanh Thu<br/>Trước CK</span>) },
-  { key: "mucChietKhau", label: (<span>%<br/>CK</span>) },
-  { key: "soTienChietKhau", label: (<span>Tiền<br/>Chiết Khấu</span>) },
-  { key: "doanhThuSau", label: (<span>Doanh Thu<br/>Sau CK</span>) },
-] : []),
-
+    ...(canViewFinance ? [{ key: "invoiceUrl", label: "Invoice" }] : []), // Giữ Invoice Link cạnh Invoice Y/N
+    { key: "gio", label: "Giờ" },
+    { key: "noiDung", label: "Nội dung" },
+    { key: "ghiChu", label: "Ghi chú" },
+    { key: "ngayTao", label: "Ngày tạo" },
+    
+    // Các cột tài chính (Giữ lại để không bị mất chức năng của kế toán)
+    ...(canViewFinance ? [
+      { key: "doanhThuTruoc", label: (<span>Doanh Thu<br/>Trước CK</span>) },
+      { key: "mucChietKhau", label: (<span>%<br/>CK</span>) },
+      { key: "soTienChietKhau", label: (<span>Tiền<br/>Chiết Khấu</span>) },
+      { key: "doanhThuSau", label: (<span>Doanh Thu<br/>Sau CK</span>) },
+    ] : []),
+    
     { key: "hanhDong", label: "Hành động" },
   ];
 const handleApproveClick = (item) => {
@@ -778,36 +818,24 @@ const handleApproveClick = (item) => {
   const columnMenuRef = useRef(null);
 
 const tableHeaders = [
-    "STT", "Khách hàng", "Mã vùng", "Số Điện Thoại", "Email", "Nội dung", "Ghi chú", 
-    "Hình thức", "Cơ sở", "Giờ", "Ngày tạo", "Loại Dịch Vụ", "Tên Dịch Vụ", "Mã Dịch Vụ",
-    ...(currentUser?.is_admin ? ["Người phụ trách"] : []),
-    "Ngày hẹn", "Trạng thái", "Gói Dịch Vụ", "Invoice Y/N",
+    "STT", "Khách hàng", "Mã vùng", "Số Điện Thoại", "Email", 
+    "Kênh Liên Hệ", "Cơ sở", "Loại Dịch Vụ", "Tên Dịch Vụ", "Mã Dịch Vụ",
+    ...((currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) ? ["Người phụ trách"] : []),
+    "Ngày hẹn", "Trạng thái", "Gói", "Invoice Y/N",
     ...(canViewFinance ? ["Invoice"] : []),
-    
-    // --- SỬA ĐOẠN NÀY: Dùng thẻ <div> để xuống dòng ---
+    "Giờ", "Nội dung", "Ghi chú", "Ngày tạo",
+
+    // --- Giữ cột tài chính ---
     ...(canViewFinance ? [
-       <div key="dt" className="d-flex flex-column align-items-center">
-          <span>Doanh Thu</span>
-          <span>Trước Chiết Khấu</span>
-       </div>,
-       
-       "Chiết khấu %",
-       
-       <div key="tck" className="d-flex flex-column align-items-center">
-          <span>Số Tiền</span>
-          <span>Chiết Khấu</span>
-       </div>,
-       
-       <div key="dts" className="d-flex flex-column align-items-center">
-          <span>Doanh Thu</span>
-          <span>Sau Chiết Khấu</span>
-       </div>
+       <div key="dt" className="d-flex flex-column align-items-center"><span>Doanh Thu</span><span>Trước Chiết Khấu</span></div>,
+       " Mức Chiết khấu ",
+       <div key="tck" className="d-flex flex-column align-items-center"><span>Số Tiền</span><span>Chiết Khấu</span></div>,
+       <div key="dts" className="d-flex flex-column align-items-center"><span>Doanh Thu</span><span>Sau Chiết Khấu</span></div>
     ] : []),
-    // --------------------------------------------------
+    // -------------------------
     
     "Hành động",
   ];
-
   useEffect(() => {
     const fetchCatalogs = async () => {
       try {
@@ -1039,7 +1067,7 @@ const handleApprove = async (id) => {
                       <input type="text" name="TenDichVu" style={inputStyle} value={formData.TenDichVu} onChange={handleChange} placeholder="Tên dịch vụ cụ thể" />
                   </div>
                   <div className="col-md-4">
-                      <label style={labelStyle}>Gói Dịch Vụ</label>
+                      <label style={labelStyle}>Gói</label>
                       <ModernSelect name="GoiDichVu" height={inputHeight} value={formData.GoiDichVu} options={packageOptions} onChange={handleChange} placeholder="Chọn gói" />
                   </div>
 
@@ -1224,7 +1252,13 @@ const handleApprove = async (id) => {
 
   return (
     <div className="d-flex h-100" style={{ background: "#ffffff" }}>
-      <div style={{ width: showSidebar ? "290px" : "70px", transition: "0.3s", zIndex: 100 }}>
+      <div style={{ 
+        width: showSidebar 
+          ? (currentUser?.is_director || currentUser?.is_accountant ? "340px" : "290px") 
+          : "70px", 
+        transition: "0.3s", 
+        zIndex: 100 
+      }}>
         <Sidebar collapsed={!showSidebar} user={currentUser} />
       </div>
 
@@ -1356,7 +1390,7 @@ const handleApprove = async (id) => {
                             return true;
                         });
                         const currentKey = availableKeys[i]?.key;
-                        const allowedPinKeys = ["id", "hoTen", "maVung", "sdt", "email", "noiDung"];
+                        const allowedPinKeys = ["id", "hoTen", "maVung", "sdt", "email"];
                         if (currentKey && !isVisible(currentKey)) return null;
                        
                         return (
@@ -1365,8 +1399,9 @@ const handleApprove = async (id) => {
                                 position: isPinned(currentKey) ? "sticky" : "relative", 
                                 left: isPinned(currentKey) ? "0" : "auto", 
                                 zIndex: isPinned(currentKey) ? 10 : 1, 
-                                backgroundColor: isPinned(currentKey) ? "#ffffff" : "#fff", 
-                                borderRight: isPinned(currentKey) ? "2px solid #2563eb" : "1px solid #dee2e6",
+                                backgroundColor: "#2c4d9e", // --- MÀU MỚI ---
+                                color: "#ffffff",           // --- CHỮ TRẮNG ---
+                                borderRight: "1px solid #4a6fdc", // Viền nhạt hơn chút để phân cách
                                 textAlign: "center",
                                 verticalAlign: "middle"
                             }}
@@ -1384,7 +1419,8 @@ const handleApprove = async (id) => {
                                     position: "absolute", 
                                     right: "2px", 
                                     top: "50%",
-                                    transform: "translateY(-50%)"
+                                    transform: "translateY(-50%)",
+                                    opacity: isPinned(currentKey) ? 1 : 0.5 // Làm mờ nút ghim khi chưa ghim để đỡ rối
                                 }} 
                                 onClick={() => togglePinColumn(currentKey)}
                               >
@@ -1466,7 +1502,7 @@ const handleApprove = async (id) => {
         </div>
       </div>
       
-      <style>{`
+       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
@@ -1475,9 +1511,26 @@ const handleApprove = async (id) => {
         .table-bordered { border: 1px solid #dee2e6 !important; }
         .table-bordered th, .table-bordered td { border: 1px solid #dee2e6 !important; }
         .table-hover tbody tr:hover { background-color: rgba(0, 0, 0, 0.04); }
-        .sticky-col { position: sticky !important; left: 0; z-index: 10 !important; background-color: #ffffff !important; border-right: 2px solid #2563eb !important; }
-        th.sticky-col, td.sticky-col { position: sticky !important; z-index: 5 !important; }
-        th.sticky-col { z-index: 15 !important; }
+        
+        /* --- CSS MỚI CHO STICKY --- */
+        /* Cột dữ liệu (td) khi ghim thì nền trắng */
+        td.sticky-col { 
+            position: sticky !important; 
+            left: 0; 
+            z-index: 5 !important; 
+            background-color: #ffffff !important; 
+            
+        }
+        
+        th.sticky-col { 
+            position: sticky !important; 
+            left: 0; 
+            z-index: 15 !important; 
+            background-color: #2c4d9e !important; 
+            color: #ffffff !important;
+          
+        }
+        
         .table-responsive { scroll-behavior: smooth; }
       `}</style>
     </div>
