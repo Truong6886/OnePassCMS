@@ -574,7 +574,7 @@ const RowItem = ({
         </td>
       )}
 
-      {(currentUser?.is_admin || currentUser?.is_director) && isVisible("nguoiPhuTrach") && (
+      {(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) && isVisible("nguoiPhuTrach") && (
         <td style={{width:"110px", textAlign:"center"}}  className={isPinned("nguoiPhuTrach") ? "sticky-col" : ""}>
           {item.NguoiPhuTrach?.name || <span className="text-muted fst-italic"></span>}
         </td>
@@ -752,7 +752,7 @@ const initialColumnKeys = [
     { key: "loaiDichVu", label: "Loại Dịch Vụ" },
     { key: "tenDichVu", label: "Tên Dịch Vụ" },
     { key: "maDichVu", label: "Mã Dịch Vụ" },
-    ...(currentUser?.is_admin || currentUser?.is_director ? [{ key: "nguoiPhuTrach", label: "Người phụ trách" }] : []),
+    ...(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant ? [{ key: "nguoiPhuTrach", label: "Người phụ trách" }] : []),
     { key: "ngayHen", label: "Ngày hẹn" },
     { key: "trangThai", label: "Trạng thái" },
     { key: "goiDichVu", label: "Gói" },
@@ -829,7 +829,7 @@ const tableHeaders = [
     // --- Giữ cột tài chính ---
     ...(canViewFinance ? [
        <div key="dt" className="d-flex flex-column align-items-center"><span>Doanh Thu</span><span>Trước Chiết Khấu</span></div>,
-       " Mức Chiết khấu ",
+       "Mức Chiết khấu",
        <div key="tck" className="d-flex flex-column align-items-center"><span>Số Tiền</span><span>Chiết Khấu</span></div>,
        <div key="dts" className="d-flex flex-column align-items-center"><span>Doanh Thu</span><span>Sau Chiết Khấu</span></div>
     ] : []),
@@ -1377,7 +1377,7 @@ const handleApprove = async (id) => {
                           {currentLanguage === "vi" ? "Cấu hình cột:" : "Column Configuration:"}
                         </div>
                         {initialColumnKeys.map((col) => {
-                          if (col.key === "nguoiPhuTrach" && !currentUser?.is_admin && !currentUser?.is_director) return null;
+                          if (col.key === "nguoiPhuTrach" && !currentUser?.is_admin && !currentUser?.is_director && !currentUser?.is_accountant) return null;
                           return (
                             <div key={col.key} className="d-flex justify-content-between align-items-center px-1 py-1 m-1">
                               <div className="form-check">
@@ -1395,127 +1395,128 @@ const handleApprove = async (id) => {
               )}
             </div>
 
-            <div className="table-wrapper mt-3" style={{marginLeft:55}}>
-              <div className="table-responsive" style={{ paddingLeft: "0px", position: "relative", maxHeight: "calc(100vh - 300px)", overflow: "auto" }} ref={tableContainerRef}>
-                <table  className="table table-bordered table-hover align-middle mb-0">
-                  <thead>
-                    <tr>
-                      {tableHeaders.map((header, i) => {
-                       const availableKeys = initialColumnKeys.filter(k => {
-                          if (k.key === 'nguoiPhuTrach' && !currentUser?.is_admin && !currentUser?.is_director) return false;
-
-                          if (k.key === 'invoiceUrl' && !canViewFinance) return false;
-                          return true;
+           <div className="table-wrapper mt-3" style={{marginLeft:55}}>
+            <div className="table-responsive" style={{ paddingLeft: "0px", position: "relative", maxHeight: "calc(100vh - 340px)", overflow: "auto", borderBottom: "1px solid #dee2e6" }} ref={tableContainerRef}>
+              <table className="table table-bordered table-hover align-middle mb-0">
+                <thead>
+                  <tr>
+                    {tableHeaders.map((header, i) => {
+                      const availableKeys = initialColumnKeys.filter(k => {
+                        if (k.key === 'nguoiPhuTrach' && !currentUser?.is_admin && !currentUser?.is_director && !currentUser?.is_accountant) return false;
+                        if (k.key === 'invoiceUrl' && !canViewFinance) return false;
+                        return true;
                       });
-                        const currentKey = availableKeys[i]?.key;
-                        const allowedPinKeys = ["id", "hoTen", "maVung", "sdt", "email"];
-                        if (currentKey && !isVisible(currentKey)) return null;
-                       
-                        return (
-                          <th key={i} className={isPinned(currentKey) ? "sticky-col" : ""}
-                            style={{ 
-                                position: isPinned(currentKey) ? "sticky" : "relative", 
-                                left: isPinned(currentKey) ? "0" : "auto", 
-                                zIndex: isPinned(currentKey) ? 10 : 1, 
-                                backgroundColor: "#2c4d9e", // --- MÀU MỚI ---
-                                color: "#ffffff",           // --- CHỮ TRẮNG ---
-                                borderRight: "1px solid #4a6fdc", // Viền nhạt hơn chút để phân cách
-                                textAlign: "center",
-                                verticalAlign: "middle"
-                            }}
-                          >
-                            <div className="d-flex justify-content-center align-items-center position-relative w-100" style={{ minHeight: "24px", paddingRight: "28px" }}>
-                              <span>{header}</span>
-                              {allowedPinKeys.includes(currentKey) && (
-                              <button 
-                                className={`btn btn-sm d-flex align-items-center justify-content-center text-white ${isPinned(currentKey) ? "btn-danger" : ""}`} 
-                                style={{ 
-                                    width: 24, 
-                                    height: 24, 
-                                    padding: 0, 
-                                    borderRadius: "3px", 
-                                    position: "absolute", 
-                                    right: "2px", 
-                                    top: "50%",
-                                    transform: "translateY(-50%)",
-                                    opacity: isPinned(currentKey) ? 1 : 0.5 // Làm mờ nút ghim khi chưa ghim để đỡ rối
-                                }} 
-                                onClick={() => togglePinColumn(currentKey)}
-                              >
-                              {isPinned(currentKey) ? (<PinOff size={12} color="#ffffff" />) : (<Pin size={12} color="#ffffff" />)}
-                              </button>
-                              )}
-                            </div>
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredData.length > 0 ? (
-                      filteredData.map((item) => (
-                        <RowItem
-                          key={item.YeuCauID}
-                          item={item}
-                          currentUser={currentUser}
-                          onEdit={handleEditClick}
-                          onDelete={handleDelete}
-                          onApprove={handleApproveClick}
-                          currentLanguage={currentLanguage}
-                          visibleColumns={visibleColumns}
-                          pinnedColumns={pinnedColumns}
-                        />
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={tableHeaders.length} className="text-center py-4 text-muted">
-                          {currentLanguage === "vi" ? "Không có dữ liệu" : "No data available"}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-                {canViewFinance && (
-                  <div className="mt-2 fw-bold text-end">
-                    Tổng doanh thu sau chiết khấu:{" "}
-                    {data.reduce((sum, i) => sum + (i.DoanhThuSauChietKhau || 0), 0).toLocaleString("vi-VN")} đ
-                  </div>
-                )}
+                      const currentKey = availableKeys[i]?.key;
+                      const allowedPinKeys = ["id", "hoTen", "maVung", "sdt", "email"];
+                      if (currentKey && !isVisible(currentKey)) return null;
 
+                      return (
+                        <th key={i} className={isPinned(currentKey) ? "sticky-col" : ""}
+                          style={{ 
+                              // --- CẬP NHẬT STICKY HEADER ---
+                              position: "sticky",         // Luôn dính
+                              top: 0,                     // Dính lên đỉnh
+                              left: isPinned(currentKey) ? "0" : "auto", 
+                              zIndex: isPinned(currentKey) ? 20 : 10, // Header Pin cao hơn Header thường
+                              backgroundColor: "#2c4d9e", 
+                              color: "#ffffff",           
+                              borderRight: "1px solid #4a6fdc", 
+                              textAlign: "center",
+                              verticalAlign: "middle",
+                              boxShadow: "0 1px 2px rgba(0,0,0,0.2)" // Thêm bóng nhẹ để tách biệt với body
+                          }}
+                        >
+                          <div className="d-flex justify-content-center align-items-center position-relative w-100" style={{ minHeight: "24px", paddingRight: "28px" }}>
+                            <span>{header}</span>
+                            {allowedPinKeys.includes(currentKey) && (
+                            <button 
+                              className={`btn btn-sm d-flex align-items-center justify-content-center text-white ${isPinned(currentKey) ? "btn-danger" : ""}`} 
+                              style={{ 
+                                  width: 24, height: 24, padding: 0, borderRadius: "3px", 
+                                  position: "absolute", right: "2px", top: "50%",
+                                  transform: "translateY(-50%)",
+                                  opacity: isPinned(currentKey) ? 1 : 0.5 
+                              }} 
+                              onClick={() => togglePinColumn(currentKey)}
+                            >
+                            {isPinned(currentKey) ? (<PinOff size={12} color="#ffffff" />) : (<Pin size={12} color="#ffffff" />)}
+                            </button>
+                            )}
+                          </div>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredData.length > 0 ? (
+                    filteredData.map((item) => (
+                      <RowItem
+                        key={item.YeuCauID}
+                        item={item}
+                        currentUser={currentUser}
+                        onEdit={handleEditClick}
+                        onDelete={handleDelete}
+                        onApprove={handleApproveClick}
+                        currentLanguage={currentLanguage}
+                        visibleColumns={visibleColumns}
+                        pinnedColumns={pinnedColumns}
+                      />
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={tableHeaders.length} className="text-center py-4 text-muted">
+                        {currentLanguage === "vi" ? "Không có dữ liệu" : "No data available"}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* --- DI CHUYỂN TỔNG DOANH THU RA ĐÂY (NẰM NGOÀI TABLE-RESPONSIVE) --- */}
+            {canViewFinance && (
+                <div className="d-flex justify-content-end align-items-center px-3 py-2 bg-light border-start border-end border-bottom">
+                  <span className="me-2 text-muted fw-semibold">Tổng doanh thu sau chiết khấu:</span>
+                  <span className="fs-6 fw-bold text-primary">
+                      {data.reduce((sum, i) => sum + (i.DoanhThuSauChietKhau || 0), 0).toLocaleString("vi-VN")} đ
+                  </span>
+                </div>
+            )}
+
+            {/* Pagination giữ nguyên */}
+            <div className="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-white" style={{ marginTop: "0", borderTop: "1px solid #dee2e6" }}>
+              <div className="text-muted small">
+                {currentLanguage === "vi" ? `Hiển thị ${filteredData.length} / ${itemsPerPage} hàng (trang ${currentPage}/${totalPages})` : `Showing ${filteredData.length} / ${itemsPerPage} rows (page ${currentPage}/${totalPages})`}
               </div>
 
-              <div className="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-white" style={{ marginTop: "0", borderTop: "1px solid #dee2e6" }}>
-                <div className="text-muted small">
-                  {currentLanguage === "vi" ? `Hiển thị ${filteredData.length} / ${itemsPerPage} hàng (trang ${currentPage}/${totalPages})` : `Showing ${filteredData.length} / ${itemsPerPage} rows (page ${currentPage}/${totalPages})`}
-                </div>
-
-                <div className="d-flex justify-content-center align-items-center">
-                  <nav>
-                    <ul className="pagination pagination-sm mb-0 shadow-sm">
-                      <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
-                        <button className="page-link" onClick={() => { if (currentPage > 1) setCurrentPage((p) => p - 1); }}>&laquo;</button>
-                      </li>
-                      {Array.from({ length: totalPages }, (_, i) => i + 1)
-                        .filter((p) => p === 1 || p === totalPages || (p >= currentPage - 1 && p <= currentPage + 1))
-                        .map((p, idx, arr) => (
-                          <React.Fragment key={p}>
-                            {idx > 0 && arr[idx - 1] !== p - 1 && (<li className="page-item disabled"><span className="page-link">…</span></li>)}
-                            <li className={`page-item ${currentPage === p ? "active" : ""}`}>
-                              <button className="page-link" onClick={() => { if (p !== currentPage) setCurrentPage(p); }}>{p}</button>
-                            </li>
-                          </React.Fragment>
-                        ))}
-                      <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
-                        <button className="page-link" onClick={() => { if (currentPage < totalPages) setCurrentPage((p) => p + 1); }}>&raquo;</button>
-                      </li>
-                    </ul>
-                  </nav>
-                  <div className="ms-3 text-muted small">
-                    {currentLanguage === "vi" ? `Trang ${currentPage}/${totalPages}` : `Page ${currentPage}/${totalPages}`}
-                  </div>
+              <div className="d-flex justify-content-center align-items-center">
+                <nav>
+                  <ul className="pagination pagination-sm mb-0 shadow-sm">
+                    <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                      <button className="page-link" onClick={() => { if (currentPage > 1) setCurrentPage((p) => p - 1); }}>&laquo;</button>
+                    </li>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter((p) => p === 1 || p === totalPages || (p >= currentPage - 1 && p <= currentPage + 1))
+                      .map((p, idx, arr) => (
+                        <React.Fragment key={p}>
+                          {idx > 0 && arr[idx - 1] !== p - 1 && (<li className="page-item disabled"><span className="page-link">…</span></li>)}
+                          <li className={`page-item ${currentPage === p ? "active" : ""}`}>
+                            <button className="page-link" onClick={() => { if (p !== currentPage) setCurrentPage(p); }}>{p}</button>
+                          </li>
+                        </React.Fragment>
+                      ))}
+                    <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                      <button className="page-link" onClick={() => { if (currentPage < totalPages) setCurrentPage((p) => p + 1); }}>&raquo;</button>
+                    </li>
+                  </ul>
+                </nav>
+                <div className="ms-3 text-muted small">
+                  {currentLanguage === "vi" ? `Trang ${currentPage}/${totalPages}` : `Page ${currentPage}/${totalPages}`}
                 </div>
               </div>
             </div>
+          </div>
           </div>
         </div>
       </div>

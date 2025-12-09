@@ -405,7 +405,7 @@ const handleModalSubmit = async () => {
       soDienThoai: "Số Điện Thoai",
       nganhNgheChinh: "Ngành Nghề Chính",
       diaChi: "Địa Chỉ",
-      chonDN: "Chọn Doanh Nghiệp",
+      chonDN: "Doanh Nghiệp",
       loaiDichVu: "Loại Dịch Vụ",
       tenDichVu: "Tên Dịch Vụ",
       maDichVu: "Mã Dịch Vụ",
@@ -439,7 +439,7 @@ const handleModalSubmit = async () => {
       giayPhep: "Business License",
       nganhNgheChinh: "Main Business Lines",
       diaChi: "Address",
-      chonDN: "Select Company",
+      chonDN: "Company",
       loaiDichVu: "Service Type",
       tenDichVu: "Service Name",
       maDichVu: "Service ID",
@@ -907,13 +907,13 @@ const renderServicesTab = () => {
           </div>
         ) : (
           <>
-            <div className="table-responsive shadow-sm rounded overflow-hidden">
+            <div className="table-responsive shadow-sm rounded">
               <table
                 className="table table-bordered table-sm mb-0 align-middle"
                 style={{
                   fontSize: "12px",
                   tableLayout: "fixed",
-                  width: "100%",
+                 
                   borderCollapse: "collapse",
                   border: "1px solid #dee2e6",
                 }}
@@ -949,9 +949,9 @@ const renderServicesTab = () => {
 
                       <th className="py-2 border" style={{ width: "130px" }}>{t.maDichVu}</th>
                       
-                      <th className="py-2 border" style={{ width: "110px" }}>Người Phụ Trách</th>  
+                      <th className="py-2 border" style={{ width: "118px" }}>Người Phụ Trách</th>  
                       <th className="py-2 border" style={{ width: "100px" }}>{t.ngayBatDau}</th>
-                      <th className="py-2 border" style={{ width: "100px" }}>{t.ngayKetThuc}</th>
+                      <th className="py-2 border" style={{ width: "110px" }}>{t.ngayKetThuc}</th>
                         <th className="py-2 border" style={{ width: "100px" }}>Gói</th>
                       <th className="py-2 border" style={{ width: "90px" }}>Invoice Y/N</th>
                       <th className="py-2 border" style={{ width: "90px" }} title="Link Invoice">Invoice</th>

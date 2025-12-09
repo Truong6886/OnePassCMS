@@ -116,7 +116,7 @@ export default function App() {
           <Route
             path="/nhanvien"
             element={
-              <AuthGuard user={currentUser} roles={["is_admin", "is_director"]}>
+              <AuthGuard user={currentUser}>
                 <QuanLyNhanVien
                   currentUser={currentUser}
                   showSidebar={showSidebar}

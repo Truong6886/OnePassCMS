@@ -334,8 +334,7 @@ const DashboardList = ({
                     onClick={() => setShowFilterMenu(!showFilterMenu)}
                     style={{ height: "40px", borderRadius: "8px", fontWeight: 500 }}
                 >
-                    <Filter size={16} /> 
-                    {currentLanguage === "vi" ? "Bộ lọc" : "Filters"}
+                    <Filter size={16} />
                 </button>
 
                 {showFilterMenu && (

@@ -176,7 +176,7 @@ useEffect(() => {
             </li>
           )}
           
-          {(user?.is_admin ||user?.is_accountant|| user?.is_director) && (
+           
             <li
               style={getItemStyle("nhanvien")}
               onMouseEnter={() => setHoveredItem("nhanvien")}
@@ -186,7 +186,7 @@ useEffect(() => {
               <i className="bi bi-people" style={{ fontSize: 20 }}></i>
               {!collapsed && <span>{texts.nhanvien[currentLanguage]}</span>}
             </li>
-          )}
+          
 
   
           {/* Tra cứu hồ sơ */}
