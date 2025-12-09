@@ -160,7 +160,7 @@ export default function App() {
             path="/b2b"
             element={
        
-              <AuthGuard user={currentUser} roles={["is_director", "is_admin", "is_accountant"]}>
+              <AuthGuard user={currentUser}>
                 <B2BPage
                   currentUser={currentUser}
                   showSidebar={showSidebar}

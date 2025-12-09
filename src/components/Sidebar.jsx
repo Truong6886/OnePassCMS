@@ -141,7 +141,7 @@ useEffect(() => {
             <List size={22} />
             {!collapsed && <span>{texts.list[currentLanguage]}</span>}
           </li>
- {(user?.is_admin ||user?.is_accountant|| user?.is_director) && (
+
             <li
               style={getItemStyle("B2B")}
               onMouseEnter={() => setHoveredItem("B2B")}
@@ -151,8 +151,8 @@ useEffect(() => {
                 <Handshake  style={{ fontSize: 20 }} />
                 {!collapsed && <span>{texts.b2b[currentLanguage]}</span>}
             </li>
-          )}
-              {(user?.is_admin ||user?.is_accountant|| user?.is_director) && (
+
+              
                 <li
                   style={getItemStyle("B2C")}
                   onMouseEnter={() => setHoveredItem("B2C")}
@@ -162,7 +162,7 @@ useEffect(() => {
                     <UserRound  style={{ fontSize: 20 }} />
                     {!collapsed && <span>{texts.b2c[currentLanguage]}</span>}
                 </li>
-              )}
+              
               
           {(user?.is_accountant || user?.is_director || user?.perm_view_revenue) && (
             <li
