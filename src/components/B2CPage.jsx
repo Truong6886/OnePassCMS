@@ -573,9 +573,9 @@ const RowItem = ({
           {displayMaHoSo}
         </td>
       )}
-      {/* 11. Người phụ trách (Admin Only) */}
-      {currentUser?.is_admin && isVisible("nguoiPhuTrach") && (
-        <td style={{width:"110px"}}  className={isPinned("nguoiPhuTrach") ? "sticky-col" : ""}>
+
+      {(currentUser?.is_admin || currentUser?.is_director) && isVisible("nguoiPhuTrach") && (
+        <td style={{width:"110px", textAlign:"center"}}  className={isPinned("nguoiPhuTrach") ? "sticky-col" : ""}>
           {item.NguoiPhuTrach?.name || <span className="text-muted fst-italic"></span>}
         </td>
       )}
@@ -752,7 +752,7 @@ const initialColumnKeys = [
     { key: "loaiDichVu", label: "Loại Dịch Vụ" },
     { key: "tenDichVu", label: "Tên Dịch Vụ" },
     { key: "maDichVu", label: "Mã Dịch Vụ" },
-    ...(currentUser?.is_admin ? [{ key: "nguoiPhuTrach", label: "Người phụ trách" }] : []),
+    ...(currentUser?.is_admin || currentUser?.is_director ? [{ key: "nguoiPhuTrach", label: "Người phụ trách" }] : []),
     { key: "ngayHen", label: "Ngày hẹn" },
     { key: "trangThai", label: "Trạng thái" },
     { key: "goiDichVu", label: "Gói" },
@@ -1377,7 +1377,7 @@ const handleApprove = async (id) => {
                           {currentLanguage === "vi" ? "Cấu hình cột:" : "Column Configuration:"}
                         </div>
                         {initialColumnKeys.map((col) => {
-                          if (col.key === "nguoiPhuTrach" && !currentUser?.is_admin) return null;
+                          if (col.key === "nguoiPhuTrach" && !currentUser?.is_admin && !currentUser?.is_director) return null;
                           return (
                             <div key={col.key} className="d-flex justify-content-between align-items-center px-1 py-1 m-1">
                               <div className="form-check">
@@ -1401,11 +1401,12 @@ const handleApprove = async (id) => {
                   <thead>
                     <tr>
                       {tableHeaders.map((header, i) => {
-                        const availableKeys = initialColumnKeys.filter(k => {
-                            if (k.key === 'nguoiPhuTrach' && !currentUser?.is_admin) return false;
-                            if (k.key === 'invoiceUrl' && !canViewFinance) return false;
-                            return true;
-                        });
+                       const availableKeys = initialColumnKeys.filter(k => {
+                          if (k.key === 'nguoiPhuTrach' && !currentUser?.is_admin && !currentUser?.is_director) return false;
+
+                          if (k.key === 'invoiceUrl' && !canViewFinance) return false;
+                          return true;
+                      });
                         const currentKey = availableKeys[i]?.key;
                         const allowedPinKeys = ["id", "hoTen", "maVung", "sdt", "email"];
                         if (currentKey && !isVisible(currentKey)) return null;
