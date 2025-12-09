@@ -173,7 +173,10 @@ const fetchUsers = async () => {
     setShowAddServiceModal(true);
   };
 
-  const handleOpenAddServiceModal = () => {
+const handleOpenAddServiceModal = () => {
+    // Kiểm tra nếu là Staff (và không phải Director hay Accountant)
+    const isStaff = currentUser?.is_staff && !currentUser?.is_director && !currentUser?.is_accountant && !currentUser?.is_admin;
+
     setNewServiceForm({
       id: null, // Không có ID => Tạo mới
       DoanhNghiepID: "",
@@ -187,7 +190,7 @@ const fetchUsers = async () => {
       DoanhThu: "",
       Vi: "",
       GhiChu: "",
-      NguoiPhuTrachId: "",
+      NguoiPhuTrachId: isStaff ? currentUser.id : "", 
       ConfirmPassword: ""
     });
     setAvailableServices([]);
@@ -1890,23 +1893,25 @@ const renderServicesTab = () => {
                 </div>
               )}
 
-              {/* Người phụ trách (có thể sửa) */}
-              <div className="col-12">
-                <label style={labelStyle}>
-                  Chọn người phụ trách
-                </label>
-                <ModernSelect
-                  name="NguoiPhuTrachId"
-                  value={selectedService.picId || selectedService.NguoiPhuTrachId || ""}
-                  onChange={handleApproveModalChange}
-                  placeholder="Chọn trong danh sách nhân viên"
-                  twoColumns={true}
-                  options={userList.map(u => ({ 
-                    value: u.id, 
-                    label: `${u.name} (${u.username})` 
-                  }))}
-                />
-              </div>
+             
+          {!(currentUser?.is_staff && !currentUser?.is_director && !currentUser?.is_accountant) && (
+            <div className="col-12">
+              <label style={labelStyle}>
+                Chọn người phụ trách <span className="text-danger">*</span>
+              </label>
+              <ModernSelect
+                name="NguoiPhuTrachId"
+                value={newServiceForm.NguoiPhuTrachId}
+                onChange={handleModalChange}
+                placeholder="Chọn trong danh sách nhân viên"
+                twoColumns={true}
+                options={userList.map(u => ({ 
+                  value: u.id, 
+                  label: `${u.name} (${u.username})` 
+                }))}
+              />
+            </div>
+          )}
 
               {/* Ghi chú (có thể sửa) */}
               <div className="col-12">
