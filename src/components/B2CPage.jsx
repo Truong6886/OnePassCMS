@@ -175,6 +175,7 @@ const normalizeServiceType = (val) => {
           GoiDichVu: request.GoiDichVu || "Thông thường",
           Invoice: request.Invoice || "No",
           MaHoSo: request.MaHoSo || "",
+          NguoiPhuTrachId: request.NguoiPhuTrachId || "",
           TrangThai: request.TrangThai || "Tư vấn",
           LoaiDichVu: normalizeServiceType(request.LoaiDichVu), 
           TenDichVu: request.TenDichVu || ""  
@@ -381,18 +382,18 @@ const normalizeServiceType = (val) => {
             <label style={labelStyle}>{t.appointmentTime}</label>
             <input type="time" name="Gio" style={inputStyle} value={formatTimeForInput(formData.Gio)} onChange={handleInputChange} />
           </div>
-          {/* Cột 3 (Hàng 4): Người phụ trách - Chỉ Admin mới thấy */}
-          {currentUser?.is_admin && (
+
+          {(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) && (
             <div className="col-md-4">
-               <label style={labelStyle}>{t.assignee}</label>
-               <ModernSelect 
+              <label style={labelStyle}>{t.assignee}</label>
+              <ModernSelect 
                   name="NguoiPhuTrachId" 
                   height={inputHeight} 
                   value={formData.NguoiPhuTrachId} 
                   placeholder={t.selectNguoiPT} 
                   options={users.map(u => ({ value: String(u.id), label: u.name }))} 
                   onChange={handleInputChange} 
-               />
+              />
             </div>
           )}
 
@@ -954,10 +955,10 @@ const handleApprove = async (id) => {
       }
     });
   };
-  const ApproveModal = ({ request, onClose, onConfirm, currentLanguage }) => {
-    // 1. Khởi tạo State (Tự động điền từ request)
+const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, currentUser }) => {
+  
     const [formData, setFormData] = useState({
-      // --- Thông tin khách hàng & Dịch vụ ---
+  
       HoTen: request.HoTen || "",
       MaVung: request.MaVung || "",
       SoDienThoai: request.SoDienThoai || "",
@@ -967,7 +968,7 @@ const handleApprove = async (id) => {
       GoiDichVu: request.GoiDichVu || "",
       TenHinhThuc: request.TenHinhThuc || "",
       CoSoTuVan: request.CoSoTuVan || "",
-      // Format ngày giờ
+
       ChonNgay: request.ChonNgay ? new Date(request.ChonNgay).toISOString().split("T")[0] : "",
       Gio: request.Gio ? (request.Gio.includes("T") ? new Date(request.Gio).toTimeString().substring(0,5) : request.Gio.substring(0,5)) : "",
       NoiDung: request.NoiDung || "",
@@ -1106,17 +1107,58 @@ const handleApprove = async (id) => {
                       </div>
                   </div>
 
-                  {/* Hàng 4 */}
-                  <div className="col-md-6">
-                      <label style={labelStyle}>Ngày Hẹn</label>
-                      <input type="date" name="ChonNgay" style={inputStyle} value={formData.ChonNgay} onChange={handleChange} />
-                  </div>
-                  <div className="col-md-6">
-                      <label style={labelStyle}>Giờ Hẹn</label>
-                      <input type="time" name="Gio" style={inputStyle} value={formData.Gio} onChange={handleChange} />
-                  </div>
+                
+                {(() => {
+                  
+                  const canAssign = currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant;
+                  
+                 
+                  const colClass = canAssign ? "col-md-4" : "col-md-6";
 
-                  {/* Hàng 5, 6 */}
+                  return (
+                    <>
+                      {/* Ngày Hẹn */}
+                      <div className={colClass}>
+                          <label style={labelStyle}>Ngày Hẹn</label>
+                          <input 
+                            type="date" 
+                            name="ChonNgay" 
+                            style={inputStyle} 
+                            value={formData.ChonNgay} 
+                            onChange={handleChange} 
+                          />
+                      </div>
+
+                      {/* Giờ Hẹn */}
+                      <div className={colClass}>
+                          <label style={labelStyle}>Giờ Hẹn</label>
+                          <input 
+                            type="time" 
+                            name="Gio" 
+                            style={inputStyle} 
+                            value={formData.Gio} 
+                            onChange={handleChange} 
+                          />
+                      </div>
+
+                      {/* Người Phụ Trách (Chỉ hiển thị nếu có quyền) */}
+                      {canAssign && (
+                          <div className="col-md-4">
+                              <label style={labelStyle}>Người Phụ Trách</label>
+                              <ModernSelect 
+                                  name="NguoiPhuTrachId" 
+                                  height={inputHeight} 
+                                  value={formData.NguoiPhuTrachId} 
+                                  placeholder="Chọn nhân viên" 
+                                  options={users.map(u => ({ value: String(u.id), label: u.name }))} 
+                                  onChange={handleChange} 
+                              />
+                          </div>
+                      )}
+                    </>
+                  );
+                })()}
+                        {/* Hàng 5, 6 */}
                   <div className="col-12">
                       <label style={labelStyle}>Nội Dung</label>
                       <textarea rows={1} name="NoiDung" style={{...inputStyle, height: "32px", resize:"none", paddingTop: "6px"}} value={formData.NoiDung} onChange={handleChange} placeholder="Nội dung tư vấn" />
@@ -1306,14 +1348,16 @@ const handleApprove = async (id) => {
             currentLanguage={currentLanguage}
           />
         )}
-{approveModalItem && (
+        {approveModalItem && (
           <ApproveModal 
             request={approveModalItem}
+            users={users} 
+            currentUser={currentUser} 
             currentLanguage={currentLanguage}
             onClose={() => setApproveModalItem(null)}
             onConfirm={handleConfirmApprove}
           />
-       )}
+        )}
         {editingRequest && (
           <RequestEditModal
             request={editingRequest}
