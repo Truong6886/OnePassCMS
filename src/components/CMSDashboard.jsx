@@ -206,7 +206,7 @@ export default function CMSDashboard() {
           setFilterStatus={setFilterStatus}
         />
 
-      {(currentUser?.is_admin || currentUser?.is_accountant ||currentUser?.is_director)  && viewMode === "summary" && (
+      {viewMode === "summary" && (
         <DashboardSummary
           data={filteredData}
           currentLanguage={currentLanguage}
@@ -231,7 +231,7 @@ export default function CMSDashboard() {
 
 
 
-    {(currentUser?.is_admin || currentUser?.is_accountant || currentUser?.is_director)  &&  viewMode === "list" && (
+    {viewMode === "list" && (
      <DashboardList
       subViewMode={subViewMode}
       setSubViewMode={setSubViewMode}
@@ -254,8 +254,8 @@ export default function CMSDashboard() {
       totalPages={totalPages}
       setCurrentPage={setCurrentPage}
     />
+  )}
 
-    )}
 
 
 </div>

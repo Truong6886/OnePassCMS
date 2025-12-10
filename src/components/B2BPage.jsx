@@ -241,10 +241,9 @@ const handleModalSubmit = async () => {
   try {
     setLoading(true);
 
-    // 1. Verify Password (Login check) - Dùng authenticatedFetch để đảm bảo phiên còn sống
-    const verifyRes = await authenticatedFetch(`${API_BASE}/login`, {
+ 
+    const verifyRes = await authenticatedFetch(`${API_BASE}/verify-password`, { 
       method: "POST",
-      // Không cần header Content-Type thủ công nữa
       body: JSON.stringify({
         username: currentUser.username,
         password: newServiceForm.ConfirmPassword
@@ -656,14 +655,14 @@ const handleApprove = (service) => {
       setLoading(true);
       
       
-      const verifyRes = await authenticatedFetch(`${API_BASE}/login`, {
+      const verifyRes = await authenticatedFetch(`${API_BASE}/verify-password`, {
         method: "POST",
         body: JSON.stringify({
           username: currentUser.username,
           password: selectedService.confirmPassword
         })
       });
-      if (!verifyRes) { setLoading(false); return; } 
+      if (!verifyRes) { setLoading(false); return; }
 
       const verifyJson = await verifyRes.json();
       if (!verifyJson.success) {

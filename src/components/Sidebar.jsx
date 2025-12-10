@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
 import logo from "../assets/logo.png";
 import { useNavigate, useLocation } from "react-router-dom";
-import { List, Search, DollarSign, UserRound} from "lucide-react";
-import { Handshake } from 'lucide-react';
+import { List, Search, DollarSign, UserRound, Handshake, Store } from "lucide-react";
 export default function Sidebar({ collapsed = false, user }) {
   const [hoveredItem, setHoveredItem] = useState(null);
   const navigate = useNavigate();
@@ -43,6 +42,7 @@ useEffect(() => {
     doanhthu: { vi: "Quản Lý Doanh Thu", en: "Revenue" },
     b2b: {vi:"Quản lý B2B", en: "B2B Management"},
     b2c: {vi:"Quản lý B2C", en: "B2C Management"},
+    vendor: {vi:"Quản lý Vendor", en: "Vendor Management"},
   };
 
   const sidebarStyle = {
@@ -85,7 +85,9 @@ useEffect(() => {
       (key === "B2B" && currentPath.startsWith("/B2B")) ||
       (key === "B2C" && currentPath.startsWith("/B2C")) ||
       (key === "nhanvien" && currentPath.startsWith("/nhanvien")) ||
-      (key === "doanhthu" && currentPath.startsWith("/doanhthu"));
+      (key === "doanhthu" && currentPath.startsWith("/doanhthu"))||
+      (key === "vendor" && currentPath.startsWith("/vendor"));
+
 
     if (isActive) {
       base.background = "rgba(255,255,255,0.15)";
@@ -162,7 +164,16 @@ useEffect(() => {
                     <UserRound  style={{ fontSize: 20 }} />
                     {!collapsed && <span>{texts.b2c[currentLanguage]}</span>}
                 </li>
-              
+              <li
+              style={getItemStyle("nhanvien")}
+              onMouseEnter={() => setHoveredItem("nhanvien")}
+              onMouseLeave={() => setHoveredItem(null)}
+              onClick={() => navigate("/nhanvien")}
+            >
+              <i className="bi bi-people" style={{ fontSize: 20 }}></i>
+              {!collapsed && <span>{texts.nhanvien[currentLanguage]}</span>}
+            </li>
+          
               
           {(user?.is_accountant || user?.is_director || user?.perm_view_revenue) && (
             <li
@@ -175,17 +186,18 @@ useEffect(() => {
               {!collapsed && <span>{texts.doanhthu[currentLanguage]}</span>}
             </li>
           )}
-          
-           
-            <li
-              style={getItemStyle("nhanvien")}
-              onMouseEnter={() => setHoveredItem("nhanvien")}
-              onMouseLeave={() => setHoveredItem(null)}
-              onClick={() => navigate("/nhanvien")}
-            >
-              <i className="bi bi-people" style={{ fontSize: 20 }}></i>
-              {!collapsed && <span>{texts.nhanvien[currentLanguage]}</span>}
-            </li>
+         
+        {(user?.is_director || user?.is_accountant || user?.is_admin) && (
+          <li
+            style={getItemStyle("vendor")} 
+            onMouseEnter={() => setHoveredItem("vendor")}
+            onMouseLeave={() => setHoveredItem(null)}
+            onClick={() => navigate("/vendor")}
+          >
+            <Store size={22} /> 
+            {!collapsed && <span>{texts.vendor[currentLanguage]}</span>} 
+          </li>
+        )}
           
 
   

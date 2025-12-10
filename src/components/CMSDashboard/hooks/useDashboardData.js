@@ -55,8 +55,7 @@ export default function useDashboardData() {
     const user = JSON.parse(localStorage.getItem("currentUser"));
     setLoading(true);
 
-    // Xác định xem có phải admin hoặc director
-   const isAdminDirectorOrAccountant = user?.is_admin || user?.is_director || user?.is_accountant || user?.is_staff;
+    const isAdminDirectorOrAccountant = user?.is_admin || user?.is_director || user?.is_accountant;
 
 
     const queryParams = new URLSearchParams({
@@ -67,6 +66,8 @@ export default function useDashboardData() {
       is_accountant: user?.is_accountant || false,
       is_staff: user?.is_staff || false
     });
+    
+
     if (!isAdminDirectorOrAccountant) {
       queryParams.append("userId", user?.id || "");
     }

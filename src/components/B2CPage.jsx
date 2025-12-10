@@ -244,8 +244,10 @@ const normalizeServiceType = (val) => {
       }
       try {
         setLoading(true);
-        const verifyRes = await fetch(`https://onepasscms-backend.onrender.com/api/login`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
+        // (ĐỔI URL TẠI ĐÂY)
+        const verifyRes = await fetch(`https://onepasscms-backend.onrender.com/api/verify-password`, {
+          method: "POST", 
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username: currentUser.username, password: formData.ConfirmPassword })
         });
         const verifyJson = await verifyRes.json();

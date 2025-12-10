@@ -16,6 +16,12 @@ import { FilterX } from "lucide-react";
 import { showToast } from "../../utils/toast";
 import useDashboardData from "./hooks/useDashboardData";
 import { authenticatedFetch } from "../../utils/api";
+
+// Helper check role
+const hasRole = (roleValue) => {
+  return roleValue === true || roleValue === "true";
+};
+
 const statusColorMap = {
   "Tư vấn": "#3b82f6",
   "Đang xử lý": "#f59e0b",
@@ -42,14 +48,15 @@ const DashboardSummary = ({
   const [b2bLoading, setB2bLoading] = useState(false);
   const [filterRegion, setFilterRegion] = useState("");
   const [filterMode, setFilterMode] = useState("");
-  const [b2bTimeRange, setB2bTimeRange] = useState(7);
   const { currentPage, setCurrentPage, rowsPerPage } = useDashboardData();
   const [selectedTimeCompanyId, setSelectedTimeCompanyId] = useState("");
 
-  // --- STATE MỚI CHO PHÂN TRANG B2B ---
   const [b2bCurrentPage, setB2bCurrentPage] = useState(1);
   const b2bRowsPerPage = 20;
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
 
+  // --- LOGIC LỌC DỮ LIỆU ---
+  // Không lọc lại theo UserId ở đây vì Server đã trả về đúng.
   const filteredData = allData.filter((r) => {
     const matchService = filterDichVu
       ? translateService(r.LoaiDichVu) === filterDichVu
@@ -65,29 +72,26 @@ const DashboardSummary = ({
 
     return matchService && matchRegion && matchStatus && matchMode;
   });
-// Thay thế hàm toVNDateString cũ bằng hàm này
-const toVNDateString = (dateInput) => {
-  if (!dateInput) return null;
-  const d = new Date(dateInput);
-  if (isNaN(d.getTime())) return null; // Kiểm tra ngày không hợp lệ
 
-  // Ép định dạng YYYY-MM-DD theo giờ Việt Nam
-  try {
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Ho_Chi_Minh',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).format(d);
-  } catch (error) {
-    return d.toISOString().split('T')[0]; // Fallback nếu lỗi
-  }
-};
-  // 2. Tạo danh sách ngày cho trục X (dựa trên timeRange)
+  const toVNDateString = (dateInput) => {
+    if (!dateInput) return null;
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return null;
+    try {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(d);
+    } catch (error) {
+      return d.toISOString().split('T')[0];
+    }
+  };
+
   const getLastNDays = (days) => {
     const arr = [];
     const now = new Date();
-    
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(now); 
       d.setDate(d.getDate() - i);
@@ -96,73 +100,71 @@ const toVNDateString = (dateInput) => {
     return arr;
   };
 
-  // Lấy danh sách ngày chuẩn
   const allDates = getLastNDays(timeRange);
 
-  // 3. Map dữ liệu vào biểu đồ
-// Thay thế đoạn code chartDataByTime cũ bằng đoạn này
-const chartDataByTime = allDates.map((dateStr) => {
-  const dayData = { date: dateStr };
-  
-  // Kiểm tra an toàn cho allServices
-  const servicesToMap = allServices && allServices.length > 0 ? allServices : [];
+  const chartDataByTime = allDates.map((dateStr) => {
+    const dayData = { date: dateStr };
+    const servicesToMap = allServices && allServices.length > 0 ? allServices : [];
 
-  servicesToMap.forEach((service) => {
-    // Tìm số lượng record khớp ngày và tên dịch vụ
-    const count = filteredData.filter((r) => {
-      // 1. Kiểm tra có ngày tạo không
-      if (!r.NgayTao) return false;
+    servicesToMap.forEach((service) => {
+      const count = filteredData.filter((r) => {
+        if (!r.NgayTao) return false;
+        const rDate = toVNDateString(r.NgayTao);
+        const rServiceRaw = translateService(r.LoaiDichVu);
+        const rService = rServiceRaw ? rServiceRaw.trim() : "";
+        const targetService = service ? service.trim() : "";
+        return rDate === dateStr && rService === targetService;
+      }).length;
 
-      // 2. Chuẩn hóa ngày (YYYY-MM-DD)
-      const rDate = toVNDateString(r.NgayTao);
-      
-      // 3. Chuẩn hóa tên dịch vụ (Quan trọng: Trim khoảng trắng thừa nếu có)
-      const rServiceRaw = translateService(r.LoaiDichVu);
-      const rService = rServiceRaw ? rServiceRaw.trim() : "";
-      const targetService = service ? service.trim() : "";
-
-      // 4. So sánh
-      return rDate === dateStr && rService === targetService;
-    }).length;
-
-    dayData[service] = count;
+      dayData[service] = count;
+    });
+    return dayData;
   });
-  return dayData;
-});
- 
-    
 
   const groupedByStatus = filteredData.reduce((acc, cur) => {
     const status = cur.TrangThai || "Không xác định";
     acc[status] = (acc[status] || 0) + 1;
     return acc;
   }, {});
+  
   const totalStatus = Object.values(groupedByStatus).reduce(
     (sum, v) => sum + v,
     0
   );
+  
   const totalPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
   const currentTableRows = filteredData.slice(indexOfFirstRow, indexOfLastRow);
-
-  const [selectedCompanyId, setSelectedCompanyId] = useState("");
- const fetchAllData = async () => {
-    setLoading(true);
-    try {
-      // Thay fetch bằng authenticatedFetch
-      const res = await authenticatedFetch(
-        `https://onepasscms-backend.onrender.com/api/yeucau?limit=1000`
-      );
-      
-      const result = await res.json();
-      if (result.success) setAllData(result.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+  const hasRole = (roleValue) => {
+  return roleValue === true || roleValue === "true";
+};
+const fetchAllData = async () => {
+  setLoading(true);
+  try {
+    const user = JSON.parse(localStorage.getItem("currentUser"));
+    
+    // Tạo URL với các tham số quyền
+    let url = `https://onepasscms-backend.onrender.com/api/yeucau?limit=1000`;
+    
+    // Gửi thông tin quyền lên server để server xử lý lọc
+    if (user?.id) {
+      url += `&userId=${user.id}`;
+      url += `&is_admin=${user.is_admin || false}`;
+      url += `&is_director=${user.is_director || false}`;
+      url += `&is_accountant=${user.is_accountant || false}`;
+      url += `&is_staff=${user.is_staff || false}`;
     }
-  };
+    
+    const res = await authenticatedFetch(url);
+    const result = await res.json();
+    if (result.success) setAllData(result.data);
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchAllData();
@@ -172,29 +174,25 @@ const chartDataByTime = allDates.map((dateStr) => {
     setCurrentPage(1);
   }, [filterDichVu, filterRegion, filterMode, filterStatus, rowsPerPage]);
 
-  // Reset trang B2B về 1 khi đổi bộ lọc công ty
   useEffect(() => {
     setB2bCurrentPage(1);
   }, [selectedCompanyId]);
 
- const fetchB2BData = async () => {
+  const fetchB2BData = async () => {
     setB2bLoading(true);
     try {
-      // 1. Fetch Services (Thay fetch bằng authenticatedFetch)
       const serviceRes = await authenticatedFetch(
         "https://onepasscms-backend.onrender.com/api/b2b/services?limit=1000"
       );
       const serviceJson = await serviceRes.json();
       const rawServices = serviceJson.success ? serviceJson.data : [];
 
-      // 2. Fetch Companies (Thay fetch bằng authenticatedFetch)
       const companyRes = await authenticatedFetch(
         "https://onepasscms-backend.onrender.com/api/b2b/approved"
       );
       const companyJson = await companyRes.json();
       const rawCompanies = companyJson.success ? companyJson.data : [];
 
-      // 3. Merge Data (Giữ nguyên logic cũ)
       const merged = rawServices.map((service) => {
         const company =
           rawCompanies.find((c) => c.ID === service.DoanhNghiepID) || {};
@@ -229,7 +227,6 @@ const chartDataByTime = allDates.map((dateStr) => {
     .map(([id, name]) => ({ id, name }))
     .filter((c) => c.id && c.name !== "Chưa xác định");
 
-  // 2. Lọc danh sách dịch vụ dựa trên selectedCompanyId
   const filteredB2BServices = selectedCompanyId
     ? b2bServices.filter(
         (s) => String(s.DoanhNghiepID) === String(selectedCompanyId)
@@ -253,58 +250,13 @@ const chartDataByTime = allDates.map((dateStr) => {
           return acc;
         }, {})
       ).map(([name, value]) => ({ name, value }));
-  const filteredB2BTimeChart = selectedTimeCompanyId
-    ? b2bServices.filter(
-        (s) => String(s.DoanhNghiepID) === String(selectedTimeCompanyId)
-      )
-    : b2bServices;
-  const b2bFilteredForChart = filteredB2BServices.filter((r) => {
-    if (!r.NgayTao) return false;
-    const date = new Date(r.NgayTao);
-    const now = new Date();
-    const diffDays = (now - date) / (1000 * 60 * 60 * 24);
-    return diffDays <= b2bTimeRange;
-  });
 
-  const b2bDates = Array.from(
-    new Set(
-      b2bFilteredForChart.map((r) =>
-        new Date(r.NgayTao).toISOString().slice(0, 10)
-      )
-    )
-  ).sort();
-
-  // Get all unique service types for the stack
-  const b2bUniqueServiceTypes = Array.from(
-    new Set(b2bServices.map((s) => s.LoaiDichVu || s.serviceName || "Khác"))
-  );
-
-  const b2bChartData = b2bDates.map((date) => {
-    const dayData = { date };
-    b2bUniqueServiceTypes.forEach((serviceType) => {
-      dayData[serviceType] = b2bFilteredForChart.filter(
-        (r) =>
-          new Date(r.NgayTao).toISOString().slice(0, 10) === date &&
-          (r.LoaiDichVu || r.serviceName) === serviceType
-      ).length;
-    });
-    return dayData;
-  });
-
-  const customerTabs = [
-    { key: "individual", labelVi: "Khách Hàng Cá Nhân", labelEn: "Individual" },
-    { key: "b2b", labelVi: "Khách Hàng Doanh Nghiệp", labelEn: "B2B" },
-  ];
-
-  // --- LOGIC PHÂN TRANG B2B ---
-  // 1. Sắp xếp dữ liệu trước (để đảm bảo nhóm được gom lại nếu bị chia cắt bởi trang, nhưng tốt nhất là sắp xếp toàn bộ trước)
   const sortedB2BData = [...filteredB2BServices].sort((a, b) => {
     const nameA = (a.TenDoanhNghiep || a.companyName || "").toLowerCase();
     const nameB = (b.TenDoanhNghiep || b.companyName || "").toLowerCase();
     return nameA.localeCompare(nameB);
   });
 
-  // 2. Tính toán slice cho trang hiện tại
   const b2bIndexOfLastRow = b2bCurrentPage * b2bRowsPerPage;
   const b2bIndexOfFirstRow = b2bIndexOfLastRow - b2bRowsPerPage;
   const currentB2BRows = sortedB2BData.slice(
@@ -313,6 +265,8 @@ const chartDataByTime = allDates.map((dateStr) => {
   );
   const totalB2BPages = Math.ceil(sortedB2BData.length / b2bRowsPerPage) || 1;
 
+  // (Phần render JSX giữ nguyên như bạn đã viết, chỉ lưu ý logic ở trên)
+  // ... Paste phần render JSX của DashboardSummary.jsx vào đây ...
   return (
     <div className="mb-4">
       {/* TABS */}
@@ -325,7 +279,10 @@ const chartDataByTime = allDates.map((dateStr) => {
           fontSize: "1rem",
         }}
       >
-        {customerTabs.map((tab) => (
+        {[
+          { key: "individual", labelVi: "Khách Hàng Cá Nhân", labelEn: "Individual" },
+          { key: "b2b", labelVi: "Khách Hàng Doanh Nghiệp", labelEn: "B2B" },
+        ].map((tab) => (
           <div
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
@@ -357,6 +314,7 @@ const chartDataByTime = allDates.map((dateStr) => {
           flexWrap: "wrap",
         }}
       >
+        {/* LEFT: Charts */}
         <div style={{ flex: "1 1 48%", display: "flex", flexDirection: "column", gap: "2rem" }}>
       
           <div
@@ -365,15 +323,12 @@ const chartDataByTime = allDates.map((dateStr) => {
               borderRadius: "12px",
               padding: "20px",
               boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
-              transition: "transform 0.2s ease, box-shadow 0.2s ease",
               cursor: "pointer",
             }}
             onClick={() => {
               setFilterDichVu(""); 
               showToast(currentLanguage === "vi" ? "Hiển thị toàn bộ danh sách yêu cầu" : "Showing all requests", "info");
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.01)")}
-            onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
           >
             <h5 className="fw-semibold mb-3 text-primary">
               {currentLanguage === "vi" ? "Tổng quan số lượng dịch vụ" : "Service Overview"}
@@ -464,16 +419,6 @@ const chartDataByTime = allDates.map((dateStr) => {
                             e.stopPropagation(); 
                             const newFilter = filterDichVu === name ? "" : name;
                             setFilterDichVu(newFilter);
-                            showToast(
-                              currentLanguage === "vi"
-                                ? newFilter 
-                                  ? `Đang lọc danh sách theo dịch vụ: ${name}` 
-                                  : "Hiển thị toàn bộ danh sách yêu cầu"
-                                : newFilter 
-                                  ? `Filtering requests for: ${name}` 
-                                  : "Showing all requests",
-                              "info"
-                            );
                           }}
                         >
                           <span>{name}</span>
@@ -532,20 +477,19 @@ const chartDataByTime = allDates.map((dateStr) => {
                       opacity={filterDichVu && filterDichVu !== service ? 0.4 : 1}
                       onClick={() => {
                         setFilterDichVu(prev => (prev === service ? "" : service));
-                        showToast(currentLanguage === "vi" ? (filterDichVu === service ? "Hiển thị toàn bộ dịch vụ" : `Đang lọc theo dịch vụ: ${service}`) : "Info", "info");
                       }}
                     />
                   ))}
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-center text-muted py-5">
+               <div className="text-center text-muted py-5">
                 {currentLanguage === "vi" ? "Không có dữ liệu trong khoảng thời gian đã chọn" : "No data available for selected period"}
               </div>
             )}
           </div>
-
-          {/* --- KHU VỰC --- */}
+          
+           {/* --- KHU VỰC --- */}
           <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
             <h5 className="fw-semibold mb-3 text-primary">
               {currentLanguage === "vi" ? "Số lượng dịch vụ theo khu vực" : "Service Count by Region"}
@@ -647,8 +591,8 @@ const chartDataByTime = allDates.map((dateStr) => {
               );
             })()}
           </div>
-
-          {/* --- TRẠNG THÁI --- */}
+          
+           {/* --- TRẠNG THÁI --- */}
           <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", marginTop: "2rem" }}>
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h5 className="fw-semibold text-primary mb-0">
@@ -696,9 +640,11 @@ const chartDataByTime = allDates.map((dateStr) => {
               </div>
             </div>
           </div>
+
+
         </div>
 
-        {/* --- BẢNG DANH SÁCH YÊU CẦU --- */}
+        {/* --- BẢNG DANH SÁCH YÊU CẦU (BÊN PHẢI) --- */}
         <div style={{ flex: "1 1 48%", background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflowY: "auto", maxHeight: "1000px" }}>
           <div className="d-flex justify-content-between align-items-center mb-3" style={{ gap: "1rem" }}>
             <h5 className="fw-semibold mb-0 text-primary">
@@ -711,7 +657,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                   : filterDichVu ? `Request List (${filterDichVu})` : "Request List"}
             </h5>
 
-              {(filterRegion || filterDichVu || filterMode || filterStatus) && (
+             {(filterRegion || filterDichVu || filterMode || filterStatus) && (
                 <button
                   className="btn btn-sm btn-outline-danger d-flex align-items-center gap-1"
                   onClick={() => {

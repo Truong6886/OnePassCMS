@@ -9,18 +9,17 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../src/styles/CMSDashboard.css";
 import DoanhThu from "./components/DoanhThu";
+import Vendor from "./components/Vendor"
 
-// 2. Tạo Component bảo vệ Route (Nằm ngoài App hoặc trong cùng file)
-// Component này giúp lấy đường dẫn hiện tại để Login xong quay lại đúng chỗ
+
 const AuthGuard = ({ children, user, roles = [] }) => {
   const location = useLocation();
 
-  // Chưa đăng nhập -> Đá về Login, kèm theo "địa chỉ nhà" (state.from)
+  
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Đã đăng nhập nhưng không đủ quyền -> Đá về trang chủ
   if (roles.length > 0) {
     const hasPermission = roles.some((role) => user[role]);
     if (!hasPermission) {
@@ -97,7 +96,7 @@ export default function App() {
             }
           />
 
-          {/* ✅ Trang đăng nhập */}
+
           <Route
             path="/login"
             element={
@@ -109,10 +108,9 @@ export default function App() {
             }
           />
 
-          {/* ✅ Tra cứu hồ sơ (public - ai cũng vào được) */}
           <Route path="/hoso" element={<TraCuuHoSo />} />
 
-          {/* ✅ Quản lý nhân viên - Chỉ Admin/Director */}
+
           <Route
             path="/nhanvien"
             element={
@@ -169,7 +167,20 @@ export default function App() {
               </AuthGuard>
             }
           />
-
+          <Route
+          path="/vendor"
+          element={
+         
+            <AuthGuard user={currentUser} roles={["is_director", "is_accountant", "is_admin"]}>
+              <Vendor
+                currentUser={currentUser}
+                showSidebar={showSidebar}
+                onToggleSidebar={toggleSidebar}
+              />
+            </AuthGuard>
+          }
+        />
+         
           {/* Route mặc định */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
