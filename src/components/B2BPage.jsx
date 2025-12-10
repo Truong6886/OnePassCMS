@@ -1213,7 +1213,7 @@ const renderServicesTab = () => {
                             <button
                               className="btn btn-sm shadow-sm"
                               title="Xóa dịch vụ"
-                              onClick={() => handleDeleteService(rec)}
+                              onClick={() => hdeleteServiceRow(rec.id, rec.isNew)}
                               style={{
                                 backgroundColor: "#ef4444", // Red-500
                                 borderColor: "#ef4444",
