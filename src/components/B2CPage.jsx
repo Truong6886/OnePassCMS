@@ -357,7 +357,7 @@ const normalizeServiceType = (val) => {
             <label style={labelStyle}>{t.branch}</label>
             <ModernSelect name="CoSoTuVan" height={inputHeight} value={formData.CoSoTuVan} placeholder={t.selectBranch} options={branchOptions} onChange={handleInputChange} />
           </div>
-          {/* Cột 3: Status cho mọi người */}
+     
           <div className="col-md-4">
              <label style={labelStyle}>{t.status}</label>
              <ModernSelect 
@@ -370,7 +370,7 @@ const normalizeServiceType = (val) => {
              />
           </div>
 
-          {/* HÀNG 4: NGÀY, GIỜ, (NGƯỜI PHỤ TRÁCH NẾU LÀ ADMIN) */}
+    
           <div className={currentUser?.is_admin ? "col-md-4" : "col-md-6"}>
             <label style={labelStyle}>{t.appointmentDate}</label>
             <input type="date" name="ChonNgay" style={inputStyle} value={formData.ChonNgay ? new Date(formData.ChonNgay).toISOString().split("T")[0] : ""} onChange={handleInputChange} />

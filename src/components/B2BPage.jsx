@@ -174,7 +174,7 @@ const fetchUsers = async () => {
   };
 
 const handleOpenAddServiceModal = () => {
-    // Kiểm tra nếu là Staff (và không phải Director hay Accountant)
+   
     const isStaff = currentUser?.is_staff && !currentUser?.is_director && !currentUser?.is_accountant && !currentUser?.is_admin;
 
     setNewServiceForm({

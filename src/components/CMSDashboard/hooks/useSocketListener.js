@@ -25,30 +25,70 @@ export default function useSocketListener({
 
     const socket = socketRef.current;
     const handleForceLogout = (msg) => {
-          console.warn("⚠️ Nhận tín hiệu force_logout:", msg);
+        console.warn("⚠️ Nhận tín hiệu force_logout:", msg);
+
+        // Nội dung thông báo (Việt là chính, Anh/Hàn là phụ)
+        const contentHtml = `
+          <div style="margin-bottom: 15px; line-height: 1.4;">
+            <small style="color: #555;">
+              <i>Session Expired</i><br/>
+              <i>세션이 만료되었습니다</i>
+            </small>
+          </div>
+          <hr style="margin: 10px 0; border: 0; border-top: 1px solid #eee;" />
+          <div style="font-size: 1.1em; font-weight: 500; color: #222; margin-bottom: 8px;">
+            ${msg || "Tài khoản của bạn đã được đăng nhập ở thiết bị khác."}
+          </div>
+          <div style="line-height: 1.4;">
+            <small style="color: #666;">
+              <i>Your account has been logged in on another device.</i><br/>
+              <i>귀하의 계정이 다른 기기에서 로그인되었습니다.</i>
+            </small>
+          </div>
+        `;
+
+        Swal.fire({
+          icon: 'warning',
+          title: 'Phiên đăng nhập hết hạn',
+          html: contentHtml,
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          showCancelButton: false,
+          confirmButtonColor: '#d33',
+        
+          confirmButtonText: 'Đóng & Đăng xuất', 
           
-          
-          Swal.fire({
-            icon: 'warning',
-            title: currentLanguage === 'vi' ? 'Phiên đăng nhập hết hạn' : 'Session Expired',
-            text: msg || (currentLanguage === 'vi' 
-              ? "Tài khoản của bạn đã được đăng nhập ở thiết bị khác." 
-              : "Your account has been logged in on another device."),
-            allowOutsideClick: false, 
-            allowEscapeKey: false,    
-            showCancelButton: false,
-            confirmButtonText: currentLanguage === 'vi' ? 'Đóng & Đăng xuất' : 'Close & Logout',
-            confirmButtonColor: '#d33', 
-          }).then((result) => {
- 
-            if (result.isConfirmed) {
-              localStorage.removeItem("currentUser");
-              localStorage.removeItem("sessionToken");
-              
-              window.location.href = "/login"; 
+         
+          didOpen: () => {
+            // Lấy phần tử nút bấm
+            const confirmBtn = Swal.getConfirmButton();
+            
+        
+            if (confirmBtn) {
+              confirmBtn.style.lineHeight = "1.2"; // Giãn dòng để không bị dính
+              confirmBtn.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                  <span style="font-size: 16px; font-weight: 600;">Đóng & Đăng xuất</span>
+                  <span style="font-size: 11px; font-style: italic; margin-top: 4px; opacity: 0.9;">
+                    Close & Logout
+                  </span>
+                     <span style="font-size: 11px; font-style: italic; margin-top: 4px; opacity: 0.9;">
+                        닫기 및 로그아웃
+                  </span>
+                </div>
+              `;
             }
-          });
-        };
+          }
+          // -------------------------------------
+
+        }).then((result) => {
+          if (result.isConfirmed) {
+            localStorage.removeItem("currentUser");
+            localStorage.removeItem("sessionToken");
+            window.location.href = "/login";
+          }
+        });
+      };
 
       socket.on("force_logout", handleForceLogout);
       const handleConnect = () => {

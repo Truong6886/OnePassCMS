@@ -56,7 +56,7 @@ export default function useDashboardData() {
     setLoading(true);
 
     // Xác định xem có phải admin hoặc director
-   const isAdminDirectorOrAccountant = user?.is_admin || user?.is_director || user?.is_accountant;
+   const isAdminDirectorOrAccountant = user?.is_admin || user?.is_director || user?.is_accountant || user?.is_staff;
 
 
     const queryParams = new URLSearchParams({
@@ -65,6 +65,7 @@ export default function useDashboardData() {
       is_admin: user?.is_admin || false,
       is_director: user?.is_director || false,
       is_accountant: user?.is_accountant || false,
+      is_staff: user?.is_staff || false
     });
     if (!isAdminDirectorOrAccountant) {
       queryParams.append("userId", user?.id || "");
