@@ -374,28 +374,55 @@ const normalizeServiceType = (val) => {
           </div>
 
     
-          <div className={currentUser?.is_admin ? "col-md-4" : "col-md-6"}>
-            <label style={labelStyle}>{t.appointmentDate}</label>
-            <input type="date" name="ChonNgay" style={inputStyle} value={formData.ChonNgay ? new Date(formData.ChonNgay).toISOString().split("T")[0] : ""} onChange={handleInputChange} />
-          </div>
-          <div className={currentUser?.is_admin ? "col-md-4" : "col-md-6"}>
-            <label style={labelStyle}>{t.appointmentTime}</label>
-            <input type="time" name="Gio" style={inputStyle} value={formatTimeForInput(formData.Gio)} onChange={handleInputChange} />
-          </div>
+        
+          {(() => {
+            // 1. Kiểm tra quyền hiển thị Người phụ trách
+            const canAssign = currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant;
+            const colClass = canAssign ? "col-md-4" : "col-md-6";
 
-          {(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) && (
-            <div className="col-md-4">
-              <label style={labelStyle}>{t.assignee}</label>
-              <ModernSelect 
-                  name="NguoiPhuTrachId" 
-                  height={inputHeight} 
-                  value={formData.NguoiPhuTrachId} 
-                  placeholder={t.selectNguoiPT} 
-                  options={users.map(u => ({ value: String(u.id), label: u.name }))} 
-                  onChange={handleInputChange} 
-              />
-            </div>
-          )}
+            return (
+              <>
+                {/* Ngày Hẹn */}
+                <div className={colClass}>
+                  <label style={labelStyle}>{t.appointmentDate}</label>
+                  <input 
+                    type="date" 
+                    name="ChonNgay" 
+                    style={inputStyle} 
+                    value={formData.ChonNgay ? new Date(formData.ChonNgay).toISOString().split("T")[0] : ""} 
+                    onChange={handleInputChange} 
+                  />
+                </div>
+
+                {/* Giờ Hẹn */}
+                <div className={colClass}>
+                  <label style={labelStyle}>{t.appointmentTime}</label>
+                  <input 
+                    type="time" 
+                    name="Gio" 
+                    style={inputStyle} 
+                    value={formatTimeForInput(formData.Gio)} 
+                    onChange={handleInputChange} 
+                  />
+                </div>
+
+                {/* Người Phụ Trách (Chỉ hiện nếu có quyền) */}
+                {canAssign && (
+                  <div className="col-md-4">
+                    <label style={labelStyle}>{t.assignee}</label>
+                    <ModernSelect 
+                        name="NguoiPhuTrachId" 
+                        height={inputHeight} 
+                        value={formData.NguoiPhuTrachId} 
+                        placeholder={t.selectNguoiPT} 
+                        options={users.map(u => ({ value: String(u.id), label: u.name }))} 
+                        onChange={handleInputChange} 
+                    />
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {/* CÁC PHẦN DƯỚI (Full Width) */}
           <div className="col-12">
