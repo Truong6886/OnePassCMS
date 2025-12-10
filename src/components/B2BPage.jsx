@@ -1898,17 +1898,17 @@ const renderServicesTab = () => {
               <label style={labelStyle}>
                 Chọn người phụ trách <span className="text-danger">*</span>
               </label>
-              <ModernSelect
-                name="NguoiPhuTrachId"
-                value={newServiceForm.NguoiPhuTrachId}
-                onChange={handleModalChange}
-                placeholder="Chọn trong danh sách nhân viên"
-                twoColumns={true}
-                options={userList.map(u => ({ 
-                  value: u.id, 
-                  label: `${u.name} (${u.username})` 
-                }))}
-              />
+             <ModernSelect
+                  name="NguoiPhuTrachId"
+                  value={selectedService.NguoiPhuTrachId} 
+                  onChange={handleApproveModalChange}   
+                  placeholder="Chọn trong danh sách nhân viên"
+                  twoColumns={true}
+                  options={userList.map(u => ({ 
+                    value: u.id, 
+                    label: `${u.name} (${u.username})` 
+                  }))}
+                />
             </div>
           )}
 
