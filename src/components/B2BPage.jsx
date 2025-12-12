@@ -101,8 +101,36 @@ export default function B2BPage() {
   const [userList, setUserList] = useState([]);
   const [currentLanguage, setCurrentLanguage] = useState(localStorage.getItem("language") || "vi");
   const [loading, setLoading] = useState(false);
-  
-  // State form
+  const [extraServices, setExtraServices] = useState([]); 
+const handleChangeExtra = (index, value) => {
+    const newArr = [...extraServices];
+    newArr[index] = value;
+    setExtraServices(newArr);
+};
+  const [showExtras, setShowExtras] = useState(false);
+ const handleAddRow = () => {
+    if (extraServices.length < 5) {
+        setExtraServices([...extraServices, ""]);
+    } else {
+        showToast("Chỉ được thêm tối đa 5 dịch vụ bổ sung", "warning");
+    }
+};
+const handleRemoveRow = (index) => {
+    const newArr = [...extraServices];
+    newArr.splice(index, 1);
+   
+    if (newArr.length === 0) {
+        setExtraServices([""]); 
+        setShowExtras(false);   
+    } else {
+        setExtraServices(newArr);
+    }
+};
+  const handleRemoveExtra = (index) => {
+    const newArr = [...extraServices];
+    newArr.splice(index, 1);
+    setExtraServices(newArr);
+  };
   const [newServiceForm, setNewServiceForm] = useState({
     id: null,
     DoanhNghiepID: "",
@@ -132,7 +160,7 @@ const fetchUsers = async () => {
 
     const json = await res.json();
     if (json.success) setUserList(json.data);
-  } catch (e) { console.error("Lỗi lấy user list", e); }
+  } catch (e) { console.error("Lỗi lấy user list", e  ); }
 };
 
 
@@ -141,14 +169,27 @@ const fetchUsers = async () => {
   const handleEditService = (rec) => {
     // Tìm doanh nghiệp để lấy số ĐKKD và danh sách dịch vụ
     const company = approvedList.find(c => String(c.ID) === String(rec.companyId));
+    const fullDanhMuc = rec.DanhMuc || "";
+    const parts = fullDanhMuc.split(" + ");
+    const mainCat = parts[0] || ""; 
+    const extras = parts.slice(1);
     
-    setNewServiceForm({
+if (extras.length > 0) {
+    setExtraServices(extras);
+    setShowExtras(true);
+} else {
+    setExtraServices([""]);
+    setShowExtras(false);
+}
+    setNewServiceForm({ 
       id: rec.id, // ID dịch vụ để update
       DoanhNghiepID: rec.companyId,
       SoDKKD: company ? company.SoDKKD : (rec.soDKKD || ""),
       LoaiDichVu: rec.serviceType,
       TenDichVu: rec.serviceName,
+      DanhMuc: rec.DanhMuc || "",
       NgayBatDau: rec.startDate ? rec.startDate : "",
+      DanhMuc: mainCat,
       NgayHoanThanh: rec.endDate ? rec.endDate : "",
       ThuTucCapToc: (rec.package === "Cấp tốc" || rec.package === "Yes") ? "Yes" : "No",
       YeuCauHoaDon: rec.invoiceYN || "No",
@@ -174,14 +215,16 @@ const fetchUsers = async () => {
   };
 
 const handleOpenAddServiceModal = () => {
-   
     const isStaff = currentUser?.is_staff && !currentUser?.is_director && !currentUser?.is_accountant && !currentUser?.is_admin;
 
+    setExtraServices([""]);
+    setShowExtras(false);
     setNewServiceForm({
-      id: null, // Không có ID => Tạo mới
+      id: null,
       DoanhNghiepID: "",
       SoDKKD: "",
       LoaiDichVu: "",
+      DanhMuc: "",
       TenDichVu: "",
       NgayBatDau: new Date().toISOString().split('T')[0],
       NgayHoanThanh: "",
@@ -195,8 +238,7 @@ const handleOpenAddServiceModal = () => {
     });
     setAvailableServices([]);
     setShowAddServiceModal(true);
-  };
-
+};
   const handleModalChange = (e) => {
     const { name, value } = e.target;
     
@@ -214,9 +256,17 @@ const handleOpenAddServiceModal = () => {
         ...prev,
         [name]: value,
         SoDKKD: selectedCompany ? selectedCompany.SoDKKD : "",
-        LoaiDichVu: "" 
+        LoaiDichVu: "",
+        DanhMuc: ""
       }));
     } 
+    else if (name === "LoaiDichVu") {
+      setNewServiceForm(prev => ({ 
+        ...prev, 
+        [name]: value,
+        DanhMuc: "" 
+      }));
+    }
     else if (name === "DoanhThu" || name === "Vi") {
       const rawValue = unformatNumber(value);
       if (!isNaN(rawValue)) {
@@ -250,7 +300,7 @@ const handleModalSubmit = async () => {
       })
     });
     
-    // Nếu bị đá (phiên hết hạn/người khác đăng nhập) -> dừng lại
+   
     if (!verifyRes) { 
         setLoading(false); 
         return; 
@@ -262,16 +312,14 @@ const handleModalSubmit = async () => {
       return showToast("Mật khẩu xác nhận không chính xác!", "error");
     }
 
-    // [GIỮ NGUYÊN LOGIC CŨ] Xác định quyền duyệt
+   
     const canApproveB2B = currentUser?.is_director || currentUser?.perm_approve_b2b;
 
-    // Xử lý tiền tệ
+
     const rawDoanhThu = newServiceForm.DoanhThu ? parseFloat(unformatNumber(newServiceForm.DoanhThu)) : 0;
     const rawVi = newServiceForm.Vi ? parseFloat(unformatNumber(newServiceForm.Vi)) : 0;
 
-    // -----------------------------
-    // Xác định approveAction
-    // -----------------------------
+
     let approveAction = null;
 
     if (newServiceForm.id) {
@@ -280,14 +328,17 @@ const handleModalSubmit = async () => {
         approveAction = "accountant_approve";
       }
     }
-
-    // -----------------------------
-    // Payload gửi lên server
-    // -----------------------------
+  const validExtras = extraServices.filter(s => s && s.trim() !== "");
+  let finalDanhMuc = newServiceForm.DanhMuc;
+  if (validExtras.length > 0) {
+        finalDanhMuc = `${newServiceForm.DanhMuc} + ${validExtras.join(" + ")}`;
+    }
     const payload = {
       DoanhNghiepID: newServiceForm.DoanhNghiepID,
       LoaiDichVu: newServiceForm.LoaiDichVu,
+      DanhMuc: finalDanhMuc,
       TenDichVu: newServiceForm.TenDichVu || "",
+      DanhMuc: newServiceForm.DanhMuc,
       NgayThucHien: newServiceForm.NgayBatDau,
       NgayHoanThanh: newServiceForm.NgayHoanThanh || null,
       ThuTucCapToc: newServiceForm.ThuTucCapToc,
@@ -309,16 +360,12 @@ const handleModalSubmit = async () => {
       method = "PUT";
     }
 
-    // -----------------------------
-    // [QUAN TRỌNG] Gửi request chính bằng authenticatedFetch
-    // -----------------------------
     const res = await authenticatedFetch(url, {
       method,
-      // Bỏ headers: { "Content-Type": "application/json" } vì hàm chung tự thêm
+   
       body: JSON.stringify(payload)
     });
 
-    // Nếu bị đá (phiên hết hạn) -> dừng lại
     if (!res) { 
         setLoading(false); 
         return; 
@@ -372,7 +419,62 @@ const handleModalSubmit = async () => {
   const [rejectedTotal, setRejectedTotal] = useState(0);
   const [serviceData, setServiceData] = useState([]);
   const [serviceTotal, setServiceTotal] = useState(0);
-
+const B2B_SERVICE_MAPPING = {
+  "Hộ chiếu, Hộ tịch": [
+    "Hộ chiếu cấp mới (Hợp pháp - Trẻ em)",
+    "Hộ chiếu cấp đổi (Hợp pháp - Còn hạn)",
+    "Hộ chiếu cấp đổi (Hợp pháp - Hết hạn)",
+    "Hộ chiếu cấp đổi (Bất hợp pháp - Còn hạn)",
+    "Hộ chiếu cấp đổi (Bất hợp pháp - Hết hạn)",
+    "Hộ chiếu cấp đổi rút gọn (công tác ngắn hạn, du lịch, trục xuất)",
+    "Hộ chiếu bị chú",
+    "Dán ảnh trẻ em",
+    "Cải chính hộ tịch",
+    "Trích lục khai sinh (sao)",
+    "Ghi chú kết hôn (Ghi vào sổ hộ tịch việc kết hôn)",
+    "Ghi chú ly hôn",
+    "Ghi chú khai sinh"
+  ],
+  "Quốc tịch": [
+    "Thôi quốc tịch Việt Nam",
+    "Giấy xác nhận có quốc tịch Việt Nam",
+    "Cấp giấy xác nhận người gốc Việt"
+  ],
+   "Nhận nuôi": [ 
+      "Đăng ký việc nuôi con nuôi",
+      "Đăng ký việc nhận cha, mẹ, con"
+  ],
+  "Nhận nuôi": [
+    "Đăng ký việc nuôi con nuôi",
+    "Đăng ký việc nhận cha, mẹ, con" 
+  ],
+  "Thị thực": [
+    "Giấy miễn thị thực"
+  ],
+  "Khai sinh, khai tử": [
+    "Đăng ký khai sinh"
+  ],
+  "Kết hôn": [
+    "Đăng ký kết hôn Việt - Việt",
+    "Giấy xác nhận tình trạng hôn nhân",
+    "Giấy chứng nhận đủ điều kiện kết hôn Việt - Hàn"
+  ],
+  "Chứng thực": [
+    "Hợp pháp hoá lãnh sự/Chứng nhận lãnh sự",
+    "Công chứng, chứng thực hợp đồng giao dịch",
+    "Hợp đồng ủy quyền",
+    "Ủy quyền",
+    "Ủy quyền đưa con về nước",
+    "Chứng thực chữ ký",
+    "Sao y bản chính"
+  ],
+  "Khác": [
+    "Xác minh",
+    "Dịch Việt - Hàn",
+    "Dịch Hàn - Việt",
+    "Dịch BLX"
+  ]
+};
   const [currentPage, setCurrentPage] = useState({
     pending: 1, approved: 1, rejected: 1, services: 1
   });
@@ -1369,8 +1471,30 @@ const renderServicesTab = () => {
                       {/* Cột riêng cho Pending */}
                       {activeTab === "pending" && (
                         <>
-                          <td className="border">{isEditing ? <input style={inputStyle} value={item.DichVu || ""} onChange={(e) => handlePendingChange(item.ID, "DichVu", e.target.value)} /> : <div style={viewStyle}>{item.DichVu || ""}</div>}</td>
-                          
+                          <td className="border">
+                      {isEditing ? (
+                        <input
+                          style={inputStyle}
+                          value={item.DichVu || ""}
+                          onChange={(e) => handlePendingChange(item.ID, "DichVu", e.target.value)}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            ...viewStyle,
+                            whiteSpace: "normal",  
+                            overflow: "visible",   
+                            textOverflow: "clip",  
+                            height: "auto",        
+                            lineHeight: "1.4",     
+                            padding: "4px"         
+                          }}
+                        >
+                          {item.DichVu || ""}
+                        </div>
+                      )}
+                    </td>
+                                              
                           {/* [SỬA 2] Cột Giấy Phép: Nút Mắt để mở rộng */}
                           <td className="border text-center p-0 align-middle">
                             {item.PdfPath ? (
@@ -1636,101 +1760,143 @@ const renderServicesTab = () => {
           );
 
           // Component ModernSelect
-          const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false }) => {
-            const [isOpen, setIsOpen] = React.useState(false);
-            const containerRef = React.useRef(null);
+       // Cập nhật Component ModernSelect để hỗ trợ Footer (nút cộng)
+const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false, footer, onFooterClick }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const containerRef = React.useRef(null);
 
-            const selectedOption = options.find(opt => String(opt.value) === String(value));
-            const displayLabel = selectedOption ? selectedOption.label : placeholder;
+  const selectedOption = options.find(opt => String(opt.value) === String(value));
+  const displayLabel = selectedOption ? selectedOption.label : placeholder;
 
-            React.useEffect(() => {
-              const handleClickOutside = (event) => {
-                if (containerRef.current && !containerRef.current.contains(event.target)) {
-                  setIsOpen(false);
-                }
-              };
-              document.addEventListener("mousedown", handleClickOutside);
-              return () => document.removeEventListener("mousedown", handleClickOutside);
-            }, []);
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-            const handleSelect = (val) => {
-              if (disabled) return;
-              onChange({ target: { name, value: val } });
-              setIsOpen(false);
-            };
+  const handleSelect = (val) => {
+    if (disabled) return;
+    onChange({ target: { name, value: val } });
+    setIsOpen(false);
+  };
 
-            return (
-              <div className="position-relative" ref={containerRef} style={{ width: "100%" }}>
-                {/* Box hiển thị chính */}
-                <div 
-                  onClick={() => !disabled && setIsOpen(!isOpen)}
+  return (
+    <div className="position-relative" ref={containerRef} style={{ width: "100%" }}>
+      {/* Box hiển thị chính */}
+      <div 
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        style={{
+          width: "100%",
+          padding: "10px 12px",
+          borderRadius: "10px",
+          border: "2px solid #E5E7EB",
+          fontSize: "13px",
+          color: "#374151",
+          backgroundColor: disabled ? "#F3F4F6" : "#F9FAFB",
+          outline: "none",
+          transition: "border-color 0.2s",
+          cursor: disabled ? "not-allowed" : "pointer",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          userSelect: "none",
+          height: "45px" 
+        }}
+      >
+        <span style={{ color: value ? "#374151" : "#9CA3AF" }}>
+          {displayLabel}
+        </span>
+        <ChevronDown size={16} color="#6B7280" />
+      </div>
+
+      {/* Dropdown Menu */}
+      {isOpen && !disabled && (
+        <div 
+          className="position-absolute w-100 bg-white shadow-sm rounded-bottom border"
+          style={{
+            top: "48px", 
+            left: 0,
+            zIndex: 1000,
+            maxHeight: "300px", // Tăng chiều cao để chứa thêm footer
+            overflowY: "auto",
+            borderRadius: "8px",
+            padding: "8px 0", // Padding dọc 0 để footer dính sát nếu cần
+            display: "flex",
+            flexDirection: "column"
+          }}
+        >
+          {/* Vùng danh sách Options */}
+          <div style={{
+            display: twoColumns ? "grid" : "block",
+            gridTemplateColumns: twoColumns ? "1fr 1fr" : "none",
+            gap: twoColumns ? "8px" : "0",
+            padding: "0 8px" // Padding ngang cho nội dung
+          }}>
+            {options.length > 0 ? (
+              options.map((opt, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => handleSelect(opt.value)}
+                  className={`px-3 py-2 transition-all ${twoColumns ? 'rounded' : ''}`}
                   style={{
-                    ...inputStyle,
-                    cursor: disabled ? "not-allowed" : "pointer",
-                    backgroundColor: disabled ? "#F3F4F6" : "#F9FAFB",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    userSelect: "none",
-                    height: "45px" 
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    color: String(opt.value) === String(value) ? "#2563eb" : "#374151",
+                    backgroundColor: String(opt.value) === String(value) ? "#EFF6FF" : (twoColumns ? "#F9FAFB" : "transparent"),
+                    borderBottom: !twoColumns && idx !== options.length - 1 ? "1px solid #f3f4f6" : "none",
+                    border: twoColumns ? "1px solid #E5E7EB" : undefined,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis"
+                  }}
+                  title={opt.label}
+                  onMouseEnter={(e) => {
+                     if(String(opt.value) !== String(value)) e.target.style.backgroundColor = twoColumns ? "#E5E7EB" : "#F3F4F6";
+                  }}
+                  onMouseLeave={(e) => {
+                     if(String(opt.value) !== String(value)) e.target.style.backgroundColor = twoColumns ? "#F9FAFB" : "transparent";
                   }}
                 >
-                  <span style={{ color: value ? "#374151" : "#9CA3AF" }}>
-                    {displayLabel}
-                  </span>
-                  <ChevronDown size={16} color="#6B7280" />
+                  {opt.label}
                 </div>
-
-                {/* Dropdown Menu */}
-                {isOpen && !disabled && (
-                  <div 
-                    className="position-absolute w-100 bg-white shadow-sm rounded-bottom border"
-                    style={{
-                      top: "48px", 
-                      left: 0,
-                      zIndex: 1000,
-                      maxHeight: "250px",
-                      overflowY: "auto",
-                      borderRadius: "8px",
-                      padding: "8px",
-                      display: twoColumns ? "grid" : "block",
-                      gridTemplateColumns: twoColumns ? "1fr 1fr" : "none",
-                      gap: twoColumns ? "8px" : "0"
-                    }}
-                  >
-                    {options.length > 0 ? (
-                      options.map((opt, idx) => (
-                        <div
-                          key={idx}
-                          onClick={() => handleSelect(opt.value)}
-                          className={`px-3 py-2 transition-all ${twoColumns ? 'rounded' : ''}`}
-                          style={{
-                            cursor: "pointer",
-                            fontSize: "12px",
-                            color: String(opt.value) === String(value) ? "#2563eb" : "#374151",
-                            backgroundColor: String(opt.value) === String(value) ? "#EFF6FF" : (twoColumns ? "#F9FAFB" : "transparent"),
-                            borderBottom: !twoColumns && idx !== options.length - 1 ? "1px solid #f3f4f6" : "none",
-                            border: twoColumns ? "1px solid #E5E7EB" : undefined,
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis"
-                          }}
-                          title={opt.label}
-                        >
-                          {opt.label}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="px-3 py-2 text-muted small text-center" style={{ gridColumn: "1 / -1" }}>
-                        Không có dữ liệu
-                      </div>
-                    )}
-                  </div>
-                )}
+              ))
+            ) : (
+              <div className="px-3 py-2 text-muted small text-center">
+                Không có dữ liệu
               </div>
-            );
-          };
+            )}
+          </div>
 
+          {/* Vùng Footer (Nút cộng) */}
+          {footer && (
+            <div 
+               className="border-top mt-2 pt-1"
+               style={{ backgroundColor: "#fdfdfd" }}
+            >
+              <div 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onFooterClick) onFooterClick();
+                  setIsOpen(false); // Đóng dropdown sau khi chọn
+                }}
+                className="px-3 py-2 d-flex align-items-center gap-2 text-primary fw-bold"
+                style={{ cursor: "pointer", fontSize: "12px" }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#EFF6FF"}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+              >
+                {footer}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
           // Hàm xử lý thay đổi
           const handleApproveModalChange = (e) => {
             const { name, value } = e.target;
@@ -1992,11 +2158,14 @@ const renderServicesTab = () => {
       {showAddServiceModal && (
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style={{ backgroundColor: "rgba(0,0,0,0.6)", zIndex: 1050, backdropFilter: "blur(2px)" }}>
           <div 
-            className="bg-white p-4 scrollbar-hide position-relative" 
+            className="bg-white p-3 scrollbar-hide position-relative" 
             style={{ 
               width: "600px", 
-              maxWidth: "90%", 
-              maxHeight: "100vh", 
+              maxWidth: "80%", 
+              maxHeight: "99vh",
+              display: "flex",          
+              flexDirection: "column",   
+              overflow: "hidden",        
               overflowY: "auto", 
               borderRadius: "20px",
               boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
@@ -2020,7 +2189,7 @@ const renderServicesTab = () => {
             </button>
 
             {/* Header Modal */}
-            <div className="text-center mb-4 mt-2">
+            <div className="text-center mb-1 mt-1">
               <h3 className="fw-bold m-0" style={{ color: "#333", fontSize: "20px" }}>
                 {newServiceForm.id ? "Cập nhật dịch vụ (B2B)" : "Đăng ký dịch vụ mới (B2B)"}
               </h3>
@@ -2071,13 +2240,13 @@ const renderServicesTab = () => {
                   const helperTextStyle = {
                     fontSize: "10px",
                     color: "#3B82F6",
-                    marginTop: "3px",
+                    marginTop: "2px",
                     fontStyle: "normal",
                   };
 
                   // Component ToggleButton (Giữ nguyên)
                   const ToggleButton = ({ name, value, onChange }) => (
-                    <div className="d-flex gap-2 w-100">
+                    <div className="d-flex gap-4 w-100">
                       {["Yes", "No"].map((option) => (
                         <label
                           key={option}
@@ -2110,124 +2279,139 @@ const renderServicesTab = () => {
                       ))}
                     </div>
                   );
-            // Component Dropdown Hiện đại (Đã cập nhật hỗ trợ 2 cột)
-const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false }) => {
-  const [isOpen, setIsOpen] = React.useState(false);
-  const containerRef = React.useRef(null);
 
-  const selectedOption = options.find(opt => String(opt.value) === String(value));
-  const displayLabel = selectedOption ? selectedOption.label : placeholder;
+              const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false, footerAction }) => {
+                const [isOpen, setIsOpen] = React.useState(false);
+                const containerRef = React.useRef(null);
 
-  React.useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+                const selectedOption = options.find(opt => String(opt.value) === String(value));
+                const displayLabel = selectedOption ? selectedOption.label : placeholder;
 
-  const handleSelect = (val) => {
-    if (disabled) return;
-    onChange({ target: { name, value: val } });
-    setIsOpen(false);
-  };
+                React.useEffect(() => {
+                  const handleClickOutside = (event) => {
+                    if (containerRef.current && !containerRef.current.contains(event.target)) {
+                      setIsOpen(false);
+                    }
+                  };
+                  document.addEventListener("mousedown", handleClickOutside);
+                  return () => document.removeEventListener("mousedown", handleClickOutside);
+                }, []);
 
-  return (
-    <div className="position-relative" ref={containerRef} style={{ width: "100%" }}>
-      {/* Box hiển thị chính */}
-      <div 
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        style={{
-          // ...inputStyle (bạn copy lại biến inputStyle từ đoạn code trước vào đây hoặc để nguyên nếu đã khai báo ở ngoài)
-          width: "100%",
-          padding: "10px 12px",
-          borderRadius: "10px",
-          border: "2px solid #E5E7EB",
-          fontSize: "13px",
-          color: "#374151",
-          backgroundColor: "#F9FAFB",
-          outline: "none",
-          transition: "border-color 0.2s",
-          // --- End inputStyle
-          
-          cursor: disabled ? "not-allowed" : "pointer",
-          backgroundColor: disabled ? "#F3F4F6" : "#F9FAFB",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          userSelect: "none",
-          height: "45px" 
-        }}
-      >
-        <span style={{ color: value ? "#374151" : "#9CA3AF" }}>
-          {displayLabel}
-        </span>
-        <ChevronDown size={16} color="#6B7280" />
-      </div>
+                const handleSelect = (val) => {
+                  if (disabled) return;
+                  onChange({ target: { name, value: val } });
+                  setIsOpen(false);
+                };
 
-      {/* Dropdown Menu */}
-      {isOpen && !disabled && (
-        <div 
-          className="position-absolute w-100 bg-white shadow-sm rounded-bottom border"
-          style={{
-            top: "48px", 
-            left: 0,
-            zIndex: 1000,
-            maxHeight: "250px",
-            overflowY: "auto",
-            borderRadius: "8px",
-            padding: "8px", // Thêm padding cho container
-            
-            // LOGIC CHIA 2 CỘT Ở ĐÂY
-            display: twoColumns ? "grid" : "block",
-            gridTemplateColumns: twoColumns ? "1fr 1fr" : "none",
-            gap: twoColumns ? "8px" : "0"
-          }}
-        >
-          {options.length > 0 ? (
-            options.map((opt, idx) => (
-              <div
-                key={idx}
-                onClick={() => handleSelect(opt.value)}
-                className={`px-3 py-2 transition-all ${twoColumns ? 'rounded' : ''}`}
-                style={{
-                  cursor: "pointer",
-                  fontSize: "12px", // Giảm font chữ 1 chút nếu chia cột để đỡ bị tràn
-                  color: String(opt.value) === String(value) ? "#2563eb" : "#374151",
-                  backgroundColor: String(opt.value) === String(value) ? "#EFF6FF" : (twoColumns ? "#F9FAFB" : "transparent"), // Nếu 2 cột thì cho nền xám nhẹ cho dễ nhìn
-                  
-                  // Style border khác nhau giữa chế độ list và grid
-                  borderBottom: !twoColumns && idx !== options.length - 1 ? "1px solid #f3f4f6" : "none",
-                  border: twoColumns ? "1px solid #E5E7EB" : undefined,
-                  
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis"
-                }}
-                title={opt.label} // Hover vào sẽ hiện full tên nếu bị cắt
-                onMouseEnter={(e) => {
-                   if(String(opt.value) !== String(value)) e.target.style.backgroundColor = twoColumns ? "#E5E7EB" : "#F3F4F6";
-                }}
-                onMouseLeave={(e) => {
-                   if(String(opt.value) !== String(value)) e.target.style.backgroundColor = twoColumns ? "#F9FAFB" : "transparent";
-                }}
-              >
-                {opt.label}
-              </div>
-            ))
-          ) : (
-            <div className="px-3 py-2 text-muted small text-center" style={{ gridColumn: "1 / -1" }}>
-              Không có dữ liệu
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
+                return (
+                  <div className="position-relative" ref={containerRef} style={{ width: "100%" }}>
+                    {/* Box hiển thị chính */}
+                    <div 
+                      onClick={() => !disabled && setIsOpen(!isOpen)}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: "10px",
+                        border: "2px solid #E5E7EB",
+                        fontSize: "13px",
+                        color: "#374151",
+                        backgroundColor: disabled ? "#F3F4F6" : "#F9FAFB",
+                        outline: "none",
+                        transition: "border-color 0.2s",
+                        cursor: disabled ? "not-allowed" : "pointer",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        userSelect: "none",
+                        height: "45px" 
+                      }}
+                    >
+                      <span style={{ color: value ? "#374151" : "#9CA3AF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {displayLabel}
+                      </span>
+                      <ChevronDown size={16} color="#6B7280" />
+                    </div>
 
+                    {/* Dropdown Menu */}
+                    {isOpen && !disabled && (
+                      <div 
+                        className="position-absolute w-100 bg-white shadow-sm rounded-bottom border"
+                        style={{
+                          top: "48px", 
+                          left: 0,
+                          zIndex: 1000,
+                          maxHeight: "250px",
+                          overflowY: "auto",
+                          borderRadius: "8px",
+                          padding: "8px",
+                          display: "flex",
+                          flexDirection: "column"
+                        }}
+                      >
+                        <div style={{
+                          display: twoColumns ? "grid" : "block",
+                          gridTemplateColumns: twoColumns ? "1fr 1fr" : "none",
+                          gap: twoColumns ? "8px" : "0"
+                        }}>
+                          {options.length > 0 ? (
+                            options.map((opt, idx) => (
+                              <div
+                                key={idx}
+                                onClick={() => handleSelect(opt.value)}
+                                className={`px-3 py-2 transition-all ${twoColumns ? 'rounded' : ''}`}
+                                style={{
+                                  cursor: "pointer",
+                                  fontSize: "12px",
+                                  color: String(opt.value) === String(value) ? "#2563eb" : "#374151",
+                                  backgroundColor: String(opt.value) === String(value) ? "#EFF6FF" : "transparent",
+                                  borderBottom: !twoColumns && idx !== options.length - 1 ? "1px solid #f3f4f6" : "none",
+                                  border: twoColumns ? "1px solid #E5E7EB" : undefined,
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis"
+                                }}
+                                onMouseEnter={(e) => {
+                                  if(String(opt.value) !== String(value)) e.target.style.backgroundColor = twoColumns ? "#E5E7EB" : "#F3F4F6";
+                                }}
+                                onMouseLeave={(e) => {
+                                  if(String(opt.value) !== String(value)) e.target.style.backgroundColor = "transparent";
+                                }}
+                                title={opt.label}
+                              >
+                                {opt.label}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="px-3 py-2 text-muted small text-center">Không có dữ liệu</div>
+                          )}
+                        </div>
+
+                        {/* [NEW] Phần Footer Action (Nút cộng) */}
+                        {footerAction && (
+                          <div 
+                            className="border-top mt-1 pt-1"
+                            style={{ position: "sticky", bottom: 0, backgroundColor: "white" }}
+                          >
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsOpen(false);
+                                footerAction.onClick();
+                              }}
+                              className="px-3 py-2 text-primary d-flex align-items-center gap-2 rounded transition-all"
+                              style={{ cursor: "pointer", fontSize: "12px", fontWeight: "600" }}
+                              onMouseEnter={(e) => e.target.style.backgroundColor = "#EFF6FF"}
+                              onMouseLeave={(e) => e.target.style.backgroundColor = "transparent"}
+                            >
+                              {footerAction.icon} {footerAction.label}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              };
                 return (
                   <>
                   
@@ -2240,7 +2424,7 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                         name="DoanhNghiepID"
                         value={newServiceForm.DoanhNghiepID}
                         onChange={handleModalChange}
-                        placeholder="-- Chọn doanh nghiệp --"
+                        placeholder="Chọn doanh nghiệp"
                         options={approvedList.map(c => ({ value: c.ID, label: c.TenDoanhNghiep }))}
                       />
                     </div>
@@ -2255,9 +2439,9 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                       />
                     </div>
 
-                    {/* Loại dịch vụ */}
+                    
       
-                    <div className="col-md-6">
+                  <div className="col-md-6">
                       <label style={labelStyle}>
                         Loại dịch vụ <span className="text-danger">*</span>
                       </label>
@@ -2265,12 +2449,15 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                         name="LoaiDichVu"
                         value={newServiceForm.LoaiDichVu}
                         onChange={handleModalChange}
-                        placeholder="-- Chọn loại dịch vụ --"
+                        placeholder="Chọn loại dịch vụ"
                         disabled={!newServiceForm.DoanhNghiepID} 
+                        
                         options={availableServices.map(svc => ({ value: svc, label: svc }))}
                       />
                     </div>
 
+             
+                   
                     {/* Tên dịch vụ chi tiết */}
                     <div className="col-md-6">
                       <label style={labelStyle}>Tên dịch vụ chi tiết <span className="text-danger">*</span></label>
@@ -2284,6 +2471,108 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                       />
                     </div>
 
+  <div className="col-md-12">
+    <label style={labelStyle}>
+      Danh mục <span className="text-danger">*</span>
+    </label>
+    
+    <ModernSelect
+      name="DanhMuc"
+      value={newServiceForm.DanhMuc}
+      onChange={handleModalChange}
+      placeholder={newServiceForm.LoaiDichVu ? "Chọn danh mục chính" : "Vui lòng chọn Loại dịch vụ trước"}
+      disabled={!newServiceForm.LoaiDichVu}
+      options={
+        (B2B_SERVICE_MAPPING[newServiceForm.LoaiDichVu] || []).map(dm => ({
+          value: dm,
+          label: dm
+        }))
+      }
+     
+      footerAction={{
+        label: showExtras ? "Ẩn dịch vụ bổ sung" : "Thêm dịch vụ bổ sung (+5)",
+        icon: showExtras ? <EyeOff size={14}/> : <Plus size={14}/>,
+        onClick: () => {
+             // Nếu đang đóng mà mở ra thì reset về 1 dòng rỗng nếu chưa có gì
+             if (!showExtras && extraServices.length === 0) setExtraServices([""]); 
+             setShowExtras(!showExtras);
+        }
+      }}
+    />
+
+
+    {showExtras && (
+        <div className="mt-2 p-3 bg-light rounded border animate__animated animate__fadeIn">
+            <div style={{ fontSize: "11px", color: "#666", marginBottom: "8px", fontStyle: "italic" }}>
+                * Nhập tên dịch vụ phụ (Ví dụ: Dịch thuật, Công chứng...). <br/>
+                * Nhấn nút <b>(+)</b> màu xanh để thêm dòng mới.
+            </div>
+            
+            <div className="d-flex flex-column gap-2">
+                {extraServices.map((service, index) => (
+                    <div key={index} className="d-flex align-items-center gap-2" style={{ width: "100%" }}>
+                        {/* A. Ô NHẬP LIỆU */}
+                        <input
+                            type="text"
+                            placeholder={`Dịch vụ bổ sung ${index + 1}`}
+                            value={service}
+                            onChange={(e) => handleChangeExtra(index, e.target.value)}
+                            style={{
+                                flex: 1, // Tự động giãn full chiều rộng
+                                padding: "8px 10px",
+                                borderRadius: "6px",
+                                border: "1px solid #ddd",
+                                fontSize: "13px",
+                                outline: "none",
+                                minWidth: 0 
+                            }}
+                        />
+
+                        {/* B. NÚT XÓA (X) - LUÔN HIỆN */}
+                        <button
+                            type="button"
+                            onClick={() => handleRemoveRow(index)}
+                            className="btn btn-outline-danger d-flex align-items-center justify-content-center"
+                            style={{ 
+                                width: "38px", 
+                                height: "38px", 
+                                padding: 0,
+                                borderRadius: "6px",
+                                flexShrink: 0
+                            }}
+                            title="Xóa dòng này"
+                        >
+                            <X size={18} />
+                        </button>
+
+                 
+                        {index === extraServices.length - 1 && extraServices.length < 5 && (
+                            <button
+                                type="button"
+                                onClick={handleAddRow}
+                                className="btn btn-primary d-flex align-items-center justify-content-center"
+                                style={{ 
+                                    width: "38px", 
+                                    height: "38px", 
+                                    padding: 0,
+                                    borderRadius: "6px",
+                                    flexShrink: 0,
+                                    backgroundColor: "#22c55e", // Màu xanh lá
+                                    borderColor: "#22c55e",
+                                    color: "white"
+                                }}
+                                title="Thêm dòng mới"
+                            >
+                                <Plus size={18} />
+                            </button>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    )}
+</div>
+
                     {/* Ngày bắt đầu */}
                     <div className="col-md-6">
                       <label style={labelStyle}>Ngày bắt đầu <span className="text-danger">*</span></label>
@@ -2295,7 +2584,7 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                         style={inputStyle}
                       />
                     </div>
-
+                      
                     {/* Ngày hoàn thành */}
                     <div className="col-md-6">
                       <label style={labelStyle}>Ngày hoàn thành mong muốn <span className="text-danger">*</span></label>
@@ -2328,6 +2617,24 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                         Hóa đơn sẽ được gửi về email đăng ký khi đăng ký doanh nghiệp trên hệ thống.
                       </div>
                     </div>
+                    <div className="col-md-12">
+                        <label style={labelStyle}>
+                          Chọn người phụ trách <span className="text-danger">*</span>
+                        </label>
+                        <ModernSelect
+                          name="NguoiPhuTrachId"
+                          value={newServiceForm.NguoiPhuTrachId}
+                          onChange={handleModalChange}
+                          placeholder="Chọn trong danh sách nhân viên"
+                          
+                          twoColumns={true}  
+                          
+                          options={userList.map(u => ({ 
+                            value: u.id, 
+                            label: `${u.name} (${u.username})` 
+                          }))}
+                        />
+                      </div>
 
                     {/* Doanh thu & Chiết khấu/Ví */}
                     {(currentUser?.is_director || currentUser?.is_accountant) && (
@@ -2363,8 +2670,8 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
 
                     {/* Ghi chú */}
                     <div className="col-12">
-                      <label style={labelStyle}>Ghi chú <span className="text-danger">*</span></label>
-                      <input 
+                      <label style={labelStyle}>Ghi chú </label>
+                      <textarea
                         type="text" 
                         name="GhiChu" 
                         placeholder="Nhập ghi chú" 
@@ -2374,25 +2681,8 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                       />
                     </div>
 
-                    {/* Người phụ trách */}
-                      <div className="col-12">
-                        <label style={labelStyle}>
-                          Chọn người phụ trách <span className="text-danger">*</span>
-                        </label>
-                        <ModernSelect
-                          name="NguoiPhuTrachId"
-                          value={newServiceForm.NguoiPhuTrachId}
-                          onChange={handleModalChange}
-                          placeholder="Chọn trong danh sách nhân viên"
-                          
-                          twoColumns={true}  // <--- THÊM DÒNG NÀY ĐỂ CHIA 2 CỘT
-                          
-                          options={userList.map(u => ({ 
-                            value: u.id, 
-                            label: `${u.name} (${u.username})` 
-                          }))}
-                        />
-                      </div>
+                   
+                    
 
                     {/* Mật khẩu xác nhận */}
                     <div className="col-12">
@@ -2421,7 +2711,7 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                     {/* Nút Submit */}
                    {/* ... Trong phần render Modal ... */}
 
-          <div className="col-12 mt-3 pt-2">
+          <div className="col-12 mt-2 pt-2">
             <button 
               className="btn w-100 fw-bold shadow-sm" 
               onClick={handleModalSubmit}
