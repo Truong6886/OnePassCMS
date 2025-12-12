@@ -89,19 +89,7 @@ const API_BASE = "https://onepasscms-backend.onrender.com/api";
 
 export default function B2BPage() {
   const [expandedRowId, setExpandedRowId] = useState(null);
-  // Hàm tách chuỗi dịch vụ thông minh (Không tách cụm có dấu phẩy đặc biệt)
-  const parseServicesString = (str) => {
-    if (!str) return [];
-    // 1. Thay thế dấu phẩy trong các cụm từ đặc biệt bằng ký tự tạm (ví dụ dấu |)
-    let temp = str.replace(/Hộ chiếu, Hộ tịch/gi, "Hộ chiếu| Hộ tịch")
-                  .replace(/Khai sinh, khai tử/gi, "Khai sinh| khai tử");
-    
-    // 2. Tách chuỗi bằng dấu phẩy
-    const parts = temp.split(',');
 
-    // 3. Hoàn tác ký tự tạm và xóa khoảng trắng thừa
-    return parts.map(s => s.trim().replace(/\|/g, ",")).filter(Boolean);
-  };
   const toggleExpand = (id) => {
     setExpandedRowId(prev => prev === id ? null : id);
   };
