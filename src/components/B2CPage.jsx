@@ -5,15 +5,66 @@ import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import EditProfileModal from "./EditProfileModal";
 import { showToast } from "../utils/toast";
 import useDashboardData from "./CMSDashboard/hooks/useDashboardData";
-import { LayoutGrid, Edit, Trash2, X, Pin, PinOff, PlusCircle, CheckCircle, ChevronDown, Eye, EyeOff } from "lucide-react";
+import { LayoutGrid, Edit, Trash2, X, Pin, PinOff, PlusCircle, CheckCircle, ChevronDown, Eye, EyeOff, Plus } from "lucide-react";
 import Swal from "sweetalert2";
 import "../styles/DashboardList.css";
 import { authenticatedFetch } from "../utils/api";
+const B2C_CATEGORY_LIST = {
+  "Hộ chiếu, Hộ tịch": [
+    "Hộ chiếu cấp mới (Hợp pháp - Trẻ em)",
+    "Hộ chiếu cấp đổi (Hợp pháp - Còn hạn)",
+    "Hộ chiếu cấp đổi (Hợp pháp - Hết hạn)",
+    "Hộ chiếu cấp đổi (Bất hợp pháp - Còn hạn)",
+    "Hộ chiếu cấp đổi (Bất hợp pháp - Hết hạn)",
+    "Hộ chiếu cấp đổi rút gọn (công tác ngắn hạn, du lịch, trục xuất)",
+    "Hộ chiếu bị chú",
+    "Dán ảnh trẻ em",
+    "Cải chính hộ tịch",
+    "Trích lục khai sinh (sao)",
+    "Ghi chú kết hôn (Ghi vào sổ hộ tịch việc kết hôn)",
+    "Ghi chú ly hôn",
+    "Ghi chú khai sinh"
+  ],
+  "Quốc tịch": [
+    "Thôi quốc tịch Việt Nam",
+    "Giấy xác nhận có quốc tịch Việt Nam",
+    "Cấp giấy xác nhận người gốc Việt"
+  ],
+  "Nhận nuôi": [
+    "Đăng ký việc nuôi con nuôi",
+    "Đăng ký việc nhận cha, mẹ, con"
+  ],
+  "Thị thực": [
+    "Giấy miễn thị thực"
+  ],
+  "Khai sinh, khai tử": [
+    "Đăng ký khai sinh"
+  ],
+  "Kết hôn": [
+    "Đăng ký kết hôn Việt - Việt",
+    "Giấy xác nhận tình trạng hôn nhân",
+    "Giấy chứng nhận đủ điều kiện kết hôn Việt - Hàn"
+  ],
+  "Chứng thực": [
+    "Hợp pháp hoá lãnh sự/Chứng nhận lãnh sự",
+    "Công chứng, chứng thực hợp đồng giao dịch",
+    "Hợp đồng ủy quyền",
+    "Ủy quyền",
+    "Ủy quyền đưa con về nước",
+    "Chứng thực chữ ký",
+    "Sao y bản chính"
+  ],
+  "Khác": [
+    "Xác minh",
+    "Dịch Việt - Hàn",
+    "Dịch Hàn - Việt",
+    "Dịch BLX"
+  ]
+};
 
-const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false, height = "36px" }) => {
+const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false, height = "38px", footerAction }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
-
   const selectedOption = options.find(opt => String(opt.value) === String(value));
   const displayLabel = selectedOption ? selectedOption.label : placeholder;
 
@@ -54,75 +105,132 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
       {isOpen && !disabled && (
         <div className="position-absolute w-100 bg-white shadow rounded border"
           style={{
-            top: "100%", left: 0, marginTop: "4px", zIndex: 1000, maxHeight: "200px", overflowY: "auto",
+            top: "100%", left: 0, marginTop: "4px", zIndex: 1000, maxHeight: "250px", overflowY: "auto",
             borderRadius: "8px", padding: "4px",
-            display: twoColumns ? "grid" : "block",
-            gridTemplateColumns: twoColumns ? "1fr 1fr" : "none", gap: twoColumns ? "4px" : "0"
+            display: "flex", flexDirection: "column"
           }}
         >
-          {options.map((opt, idx) => (
-            <div key={idx} onClick={() => handleSelect(opt.value)}
-              className={`px-2 py-2 transition-all ${twoColumns ? 'rounded' : 'rounded'}`}
-              style={{
-                cursor: "pointer", fontSize: "12px",
-                color: String(opt.value) === String(value) ? "#2563eb" : "#374151",
-                backgroundColor: String(opt.value) === String(value) ? "#EFF6FF" : "transparent",
-              }}
-              onMouseEnter={(e) => { if(String(opt.value) !== String(value)) e.target.style.backgroundColor = "#F3F4F6"; }}
-              onMouseLeave={(e) => { if(String(opt.value) !== String(value)) e.target.style.backgroundColor = "transparent"; }}
+          <div style={{
+             display: twoColumns ? "grid" : "block",
+             gridTemplateColumns: twoColumns ? "1fr 1fr" : "none", gap: twoColumns ? "4px" : "0"
+          }}>
+            {options.map((opt, idx) => (
+              <div key={idx} onClick={() => handleSelect(opt.value)}
+                className={`px-2 py-2 transition-all ${twoColumns ? 'rounded' : 'rounded'}`}
+                style={{
+                  cursor: "pointer", fontSize: "12px",
+                  color: String(opt.value) === String(value) ? "#2563eb" : "#374151",
+                  backgroundColor: String(opt.value) === String(value) ? "#EFF6FF" : "transparent",
+                }}
+                onMouseEnter={(e) => { if(String(opt.value) !== String(value)) e.target.style.backgroundColor = "#F3F4F6"; }}
+                onMouseLeave={(e) => { if(String(opt.value) !== String(value)) e.target.style.backgroundColor = "transparent"; }}
+              >
+                {opt.label}
+              </div>
+            ))}
+          </div>
+
+          {/* [THÊM MỚI] Footer Action (Nút +) */}
+          {footerAction && (
+            <div 
+              className="border-top mt-1 pt-1"
+              style={{ position: "sticky", bottom: 0, backgroundColor: "white" }}
             >
-              {opt.label}
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsOpen(false);
+                  footerAction.onClick();
+                }}
+                className="px-2 py-2 text-primary d-flex align-items-center gap-2 rounded transition-all"
+                style={{ cursor: "pointer", fontSize: "12px", fontWeight: "600" }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = "#EFF6FF"}
+                onMouseLeave={(e) => e.target.style.backgroundColor = "transparent"}
+              >
+                {footerAction.icon} {footerAction.label}
+              </div>
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>
   );
 };
 
-const RequestEditModal = ({ request, users, currentUser, onClose, onSave, currentLanguage }) => {
+const RequestEditModal = ({ request, users, currentUser, onClose, onSave, currentLanguage, dichvuList }) => {
   const isNew = !request || !request.YeuCauID;
+
+  // Lấy danh sách dịch vụ từ API
+  const canApprove = currentUser?.is_director || currentUser?.is_accountant || currentUser?.perm_approve_b2c;
+  const serviceTypeList = dichvuList && dichvuList.length > 0 
+    ? dichvuList.map(dv => dv.LoaiDichVu) 
+    : [];
+
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-const normalizeServiceType = (val) => {
-      if (!val) return "";
-      const cleanVal = String(val).trim(); // Xóa khoảng trắng thừa
+  const [extraServices, setExtraServices] = useState(() => {
+        if (isNew || !request.DanhMuc) return [""];
+        const parts = request.DanhMuc.split(" + ");
+        return parts.length > 1 ? parts.slice(1) : [""];
+    });
+  const [showExtras, setShowExtras] = useState(() => {
+      if (isNew || !request.DanhMuc) return false;
+      return request.DanhMuc.split(" + ").length > 1;
+  });
+  const handleAddRow = () => {
+      if (extraServices.length < 5) {
+          setExtraServices([...extraServices, ""]);
+      } else {
+          showToast("Chỉ được thêm tối đa 5 dịch vụ bổ sung", "warning");
+      }
+  };
 
-      // Map dữ liệu tiếng Hàn sang tiếng Việt (giống logic ở RowItem)
+  const handleRemoveRow = (index) => {
+      const newArr = [...extraServices];
+      newArr.splice(index, 1);
+      if (newArr.length === 0) {
+          setExtraServices([""]);
+          setShowExtras(false);
+      } else {
+          setExtraServices(newArr);
+      }
+  };
+
+  const handleChangeExtra = (index, value) => {
+      const newArr = [...extraServices];
+      newArr[index] = value;
+      setExtraServices(newArr);
+  };
+  // Hàm chuẩn hóa loại dịch vụ
+  const normalizeServiceType = (val) => {
+      if (!val) return "";
+      const cleanVal = String(val).trim();
       const krMap = {
         "인증 센터": "Chứng thực", "결혼 이민": "Kết hôn",
-        "출생신고 대행": "Khai sinh, khai tử", "출입국 행정 대행": "Xuất nhập cảnh",
-        "신분증명 서류 대행": "Giấy tờ tuỳ thân", "입양 절차 대행": "Nhận nuôi",
+        "출생신고 대행": "Khai sinh, khai tử", "국적 대행": "Quốc tịch",
+        "여권 • 호적 대행": "Hộ chiếu, Hộ tịch", "입양 절차 대행": "Nhận nuôi",
         "비자 대행": "Thị thực", "법률 컨설팅": "Tư vấn pháp lý",
         "B2B 서비스": "Dịch vụ B2B", "기타": "Khác",
       };
       if (krMap[cleanVal]) return krMap[cleanVal];
-
-      // Map dữ liệu tiếng Anh sang tiếng Việt (nếu có)
-      const enMap = {
-        "Certification": "Chứng thực", "Marriage": "Kết hôn",
-        "Birth/Death Registration": "Khai sinh, khai tử", "Immigration": "Xuất nhập cảnh",
-        "ID Documents": "Giấy tờ tuỳ thân", "Adoption": "Nhận nuôi",
-        "Visa": "Thị thực", "Legal Consultation": "Tư vấn pháp lý",
-        "B2B Service": "Dịch vụ B2B", "Other": "Khác"
-      };
-      if (enMap[cleanVal]) return enMap[cleanVal];
-
       return cleanVal;
   };
+
   const translations = {
     vi: {
       title: isNew ? "Đăng ký dịch vụ mới (B2C)" : `Cập nhật yêu cầu #${request?.YeuCauID || ""}`,
       subtitle: "Nhập thông tin khách hàng và dịch vụ",
       customer: "Khách Hàng", areaCode: "Mã", phone: "Số Điện Thoại", email: "Email",
       serviceType: "Loại Dịch Vụ",
+      category: "Danh Mục",
       serviceName: "Tên Dịch Vụ",
-      package: "Gói Dịch Vụ", form: "Kênh Liên Hệ", branch: "Cơ Sở Tư Vấn",
+      package: "Gói", form: "Kênh Liên Hệ", branch: "Cơ Sở Tư Vấn",
       appointmentDate: "Ngày Hẹn", appointmentTime: "Giờ Hẹn", content: "Nội Dung",
       note: "Ghi Chú", assignee: "Người Phụ Trách", status: "Trạng thái",
       confirmPassword: "Mật khẩu xác nhận", passwordHelper: "Mật khẩu của bạn",
       save: isNew ? "Đăng ký dịch vụ mới" : "Lưu thay đổi", processing: "Đang xử lý...",
       selectServiceType: "Chọn Loại Dịch Vụ", 
+      selectCategory: "Chọn Danh Mục Chi Tiết",
       enterServiceName: "Nhập Tên Dịch Vụ Cụ Thể",
       selectPackage: "Chọn Gói",
       selectForm: "Chọn Hình Thức", selectBranch: "Chọn Cơ Sở", selectAssignee: "Chọn nhân viên",
@@ -137,6 +245,7 @@ const normalizeServiceType = (val) => {
       subtitle: "Enter customer and service information",
       customer: "Customer", areaCode: "Code", phone: "Phone Number", email: "Email",
       serviceType: "Service Type",
+      category: "Category",
       serviceName: "Service Name",
       package: "Package", form: "Contact Channel", branch: "Branch",
       appointmentDate: "Date", appointmentTime: "Time", content: "Content",
@@ -144,6 +253,7 @@ const normalizeServiceType = (val) => {
       confirmPassword: "Confirm Password", passwordHelper: "Your password",
       save: isNew ? "Register New Service" : "Save Changes", processing: "Processing...",
       selectServiceType: "Select Service Type", 
+      selectCategory: "Select Category",
       enterServiceName: "Enter Specific Service Name",
       selectPackage: "Select Service Package",
       selectForm: "Select Form", selectBranch: "Select Branch", selectAssignee: "Select Staff",
@@ -162,10 +272,13 @@ const normalizeServiceType = (val) => {
           HoTen: "", MaVung: "+84", SoDienThoai: "", Email: "",
           NoiDung: "", GhiChu: "", TenHinhThuc: "",
           CoSoTuVan: "", Gio: "", ChonNgay: "",
-          LoaiDichVu: "", TenDichVu: "",
-          MaHoSo: "", NguoiPhuTrachId: "",
+          LoaiDichVu: "",
+          DanhMuc: "", TenDichVu: "",
+          MaHoSo: "", NguoiPhuTrachId: currentUser?.id || "",
           TrangThai: "Tư vấn", GoiDichVu: "",
-          Invoice: "No", InvoiceUrl: "", ConfirmPassword: "" 
+          Invoice: "No", InvoiceUrl: "", ConfirmPassword: "" ,DoanhThuTruocChietKhau: 0,
+          MucChietKhau: 0,
+          Vi: 0
         }
       : { 
           ...request,
@@ -178,49 +291,37 @@ const normalizeServiceType = (val) => {
           NguoiPhuTrachId: request.NguoiPhuTrachId || "",
           TrangThai: request.TrangThai || "Tư vấn",
           LoaiDichVu: normalizeServiceType(request.LoaiDichVu), 
+         DanhMuc: (request.DanhMuc || "").split(" + ")[0],
           TenDichVu: request.TenDichVu || ""  
         }
   );
 
+  const handleServiceTypeChange = (eOrName) => {
+      handleInputChange(eOrName);
+      setFormData(prev => ({...prev, DanhMuc: ""}));
+  };
+
+  // --- STYLES GIỐNG B2B ---
   const inputHeight = "38px"; 
-  const labelStyle = { fontSize: "11px", fontWeight: "600", color: "#4B5563", marginBottom: "4px", display: "block" };
+  const labelStyle = { fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "4px", display: "block" };
   const inputStyle = {
-    width: "100%", height: inputHeight, padding: "0 10px", borderRadius: "6px",
+    width: "100%", height: inputHeight, padding: "0 10px", borderRadius: "8px",
     border: "1px solid #d1d5db", fontSize: "13px", color: "#111827",
-    backgroundColor: "#ffffff", outline: "none", transition: "border-color 0.2s"
+    backgroundColor: "#F9FAFB", outline: "none", transition: "border-color 0.2s"
   };
 
   const areaCodes = [{ value: "+82", label: "+82" }, { value: "+84", label: "+84" }];
   
-  const serviceTypeList = currentLanguage === "vi" ? [
-    "Chứng thực", "Kết hôn", "Khai sinh, khai tử", "Xuất nhập cảnh",
-    "Giấy tờ tuỳ thân", "Nhận nuôi", "Thị thực", "Tư vấn pháp lý", "Dịch vụ B2B", "Khác"
-  ] : [
-    "Certification", "Marriage", "Birth/Death Registration", "Immigration",
-    "ID Documents", "Adoption", "Visa", "Legal Consultation", "B2B Service", "Other"
-  ];
-  
-  const serviceTypeMapping = { "Certification": "Chứng thực", "Marriage": "Kết hôn", "Birth/Death Registration": "Khai sinh, khai tử", "Immigration": "Xuất nhập cảnh", "ID Documents": "Giấy tờ tuỳ thân", "Adoption": "Nhận nuôi", "Visa": "Thị thực", "Legal Consultation": "Tư vấn pháp lý", "B2B Service": "Dịch vụ B2B", "Other": "Khác" };
-  const reverseServiceTypeMapping = Object.fromEntries(Object.entries(serviceTypeMapping).map(([en, vi]) => [vi, en]));
-  
   const formOptions = currentLanguage === "vi" ? ["Messenger","Kakao Talk", "Zalo","Naver Talk", "Email", "Gọi điện","Trực tiếp"] : ["Messenger","Kakao Talk", "Zalo","Naver Talk", "Email", "Phone", "Direct"];
-  const formMapping = { "Direct": "Trực tiếp", "Online": "Online", "Email": "Email", "Phone": "Gọi điện" };
   const branchOptions = [{ value: "Seoul", label: "Seoul" }, { value: "Busan", label: "Busan" }];
   const statusOptions = currentLanguage === "vi" ? ["Tư vấn", "Đang xử lý", "Đang nộp hồ sơ", "Hoàn thành"] : ["Consultation", "Processing", "Submitting Documents", "Completed"];
-  const statusMapping = { "Consultation": "Tư vấn", "Processing": "Đang xử lý", "Submitting Documents": "Đang nộp hồ sơ", "Completed": "Hoàn thành" };
   const packageOptions = currentLanguage === "vi" ? [{ value: "Thông thường", label: "Thông thường" }, { value: "Cấp tốc", label: "Cấp tốc" }] : [{ value: "Thông thường", label: "Standard" }, { value: "Cấp tốc", label: "Express" }];
 
   const handleInputChange = (eOrName, value) => {
     let name, val;
     if (typeof eOrName === 'string') { name = eOrName; val = value; } 
     else { name = eOrName.target.name; val = eOrName.target.value; }
-
-    let valueToSave = val;
-    if (name === "LoaiDichVu" && currentLanguage === "en") valueToSave = serviceTypeMapping[val] || val;
-    if (name === "TenHinhThuc" && currentLanguage === "en") valueToSave = formMapping[val] || val;
-    if (name === "TrangThai" && currentLanguage === "en") valueToSave = statusMapping[val] || val;
-
-    setFormData((prev) => ({ ...prev, [name]: valueToSave }));
+    setFormData((prev) => ({ ...prev, [name]: val }));
   };
 
   const formatTimeForInput = (val) => {
@@ -232,12 +333,21 @@ const normalizeServiceType = (val) => {
     }
     return val.substring(0, 5);
   };
-
+const handleMoneyChange = (e) => {
+    const { name, value } = e.target;
+    const raw = value.toString().replace(/\./g, "");
+    if (!isNaN(raw)) {
+        setFormData(prev => ({ ...prev, [name]: raw }));
+    }
+  };
   const handleSave = async () => {
+    // 1. Kiểm tra validation cơ bản
     if (!formData.HoTen || !formData.SoDienThoai) {
         showToast(currentLanguage === "vi" ? "Thiếu tên hoặc SĐT" : "Missing Name/Phone", "warning");
         return;
     }
+
+    // 2. Kiểm tra mật khẩu nếu là tạo mới
     if (isNew) {
       if (!formData.ConfirmPassword) {
         showToast(currentLanguage === "vi" ? "Nhập mật khẩu xác nhận!" : "Enter password!", "warning");
@@ -245,7 +355,6 @@ const normalizeServiceType = (val) => {
       }
       try {
         setLoading(true);
-        // (ĐỔI URL TẠI ĐÂY)
         const verifyRes = await fetch(`https://onepasscms-backend.onrender.com/api/verify-password`, {
           method: "POST", 
           headers: { "Content-Type": "application/json" },
@@ -259,22 +368,32 @@ const normalizeServiceType = (val) => {
         }
       } catch (err) { setLoading(false); return; }
     }
-    const payload = { ...formData };
+
+
+    const validExtras = extraServices.filter(s => s && s.trim() !== "");
+    let finalDanhMuc = formData.DanhMuc; 
+    
+  
+    if (validExtras.length > 0) {
+        finalDanhMuc = `${formData.DanhMuc} + ${validExtras.join(" + ")}`;
+    }
+  
+
+
+    const payload = { 
+        ...formData, 
+        autoApprove: isNew && canApprove,
+        DanhMuc: finalDanhMuc
+    };
+    
     delete payload.ConfirmPassword;
+
     setLoading(true);
     await onSave(payload);
     setLoading(false);
   };
-
-  const getDisplayValue = (field, vietnameseValue) => {
-    if (currentLanguage === "vi") return vietnameseValue;
-    if (field === "LoaiDichVu") return reverseServiceTypeMapping[vietnameseValue] || vietnameseValue;
-    if (field === "TenHinhThuc") return Object.keys(formMapping).find(key => formMapping[key] === vietnameseValue) || vietnameseValue;
-    if (field === "TrangThai") return Object.keys(statusMapping).find(key => statusMapping[key] === vietnameseValue) || vietnameseValue;
-    if (field === "GoiDichVu") return vietnameseValue === "Thông thường" ? "Standard" : vietnameseValue === "Cấp tốc" ? "Express" : vietnameseValue;
-    return vietnameseValue;
-  };
-
+  const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : "0";
+  const discountOptions = [{ value: 0, label: "0%" }, { value: 5, label: "5%" }, { value: 10, label: "10%" }, { value: 12, label: "12%" }, { value: 15, label: "15%" }, { value: 17, label: "17%" }, { value: 30, label: "30%" }];
   return (
     <div className="modal-overlay" style={{
       position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
@@ -285,23 +404,25 @@ const normalizeServiceType = (val) => {
           style={{ 
             width: "800px",
             maxWidth: "95%", 
-            borderRadius: "12px", 
-            boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" 
+            borderRadius: "16px", 
+            boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
+            maxHeight: "90vh",
+            overflowY: "auto"
           }}
       >
         <button onClick={onClose} className="position-absolute d-flex align-items-center justify-content-center border-0 bg-light rounded-circle"
-            style={{ top: "12px", right: "12px", width: "30px", height: "30px", cursor: "pointer", zIndex: 10 }}>
-            <X size={16} />
+            style={{ top: "15px", right: "15px", width: "32px", height: "32px", cursor: "pointer", zIndex: 10 }}>
+            <X size={18} />
         </button>
 
-        <div className="text-center mb-4">
+        <div className="text-center mb-4 mt-2">
           <h3 className="fw-bold m-0" style={{ fontSize: "20px", color: "#111827" }}>{t.title}</h3>
           <p className="text-muted m-0 mt-1" style={{ fontSize: "13px" }}>{t.subtitle}</p>
         </div>
 
         <div className="row g-3">
           
-          {/* HÀNG 1 */}
+          {/* === HÀNG 1: THÔNG TIN KHÁCH HÀNG === */}
           <div className="col-md-4">
             <label style={labelStyle}>{t.customer} <span className="text-danger">*</span></label>
             <input type="text" name="HoTen" style={inputStyle} value={formData.HoTen} onChange={handleInputChange} placeholder={t.enterName} />
@@ -315,7 +436,7 @@ const normalizeServiceType = (val) => {
                 onChange={handleInputChange} 
                 style={{
                   ...inputStyle, width: "70px", borderTopRightRadius: 0, borderBottomRightRadius: 0,
-                  padding: "0 5px", textAlign: "center", backgroundColor: "#f9fafb", cursor: "pointer", appearance: "auto"
+                  padding: "0 5px", textAlign: "center", backgroundColor: "#f3f4f6", cursor: "pointer", appearance: "auto"
                 }}
               >
                 {areaCodes.map(c => <option key={c.value} value={c.value}>{c.value}</option>)}
@@ -330,153 +451,196 @@ const normalizeServiceType = (val) => {
             <input type="email" name="Email" style={inputStyle} value={formData.Email} onChange={handleInputChange} placeholder={t.enterEmail} />
           </div>
 
-          {/* HÀNG 2 */}
-          <div className="col-md-4">
+       <div className="col-md-4">
             <label style={labelStyle}>{t.serviceType} <span className="text-danger">*</span></label>
             <ModernSelect 
                 name="LoaiDichVu" 
                 height={inputHeight} 
-                value={getDisplayValue("LoaiDichVu", formData.LoaiDichVu)} 
+                value={formData.LoaiDichVu} 
                 placeholder={t.selectServiceType} 
                 options={serviceTypeList.map(s => ({ value: s, label: s }))} 
-                onChange={handleInputChange} 
+                onChange={handleServiceTypeChange} 
             />
           </div>
+      
           <div className="col-md-4">
             <label style={labelStyle}>{t.serviceName}</label>
              <input type="text" name="TenDichVu" style={inputStyle} value={formData.TenDichVu} onChange={handleInputChange} placeholder={t.enterServiceName} />
           </div>
           <div className="col-md-4">
             <label style={labelStyle}>{t.package}</label>
-            <ModernSelect name="GoiDichVu" height={inputHeight} value={getDisplayValue("GoiDichVu", formData.GoiDichVu)} placeholder={t.selectPackage} options={packageOptions} onChange={handleInputChange} />
+            <ModernSelect name="GoiDichVu" height={inputHeight} value={formData.GoiDichVu} placeholder={t.selectPackage} options={packageOptions} onChange={handleInputChange} />
           </div>
+          
+          <div className="col-12">
+             <label style={labelStyle}>{t.category} (Chi tiết) <span className="text-danger">*</span></label>
+             <ModernSelect 
+                name="DanhMuc" 
+                height={inputHeight} 
+                value={formData.DanhMuc} 
+                placeholder={t.selectCategory} 
+                options={(B2C_CATEGORY_LIST[formData.LoaiDichVu] || []).map(dm => ({ value: dm, label: dm }))} 
+                onChange={handleInputChange}
+                disabled={!formData.LoaiDichVu}
+                // Nút + Thêm dịch vụ bổ sung
+                footerAction={{
+                    label: showExtras ? "Ẩn dịch vụ bổ sung" : "Thêm dịch vụ bổ sung (+5)",
+                    icon: showExtras ? <EyeOff size={14}/> : <Plus size={14}/>,
+                    onClick: () => {
+                         if (!showExtras && extraServices.length === 0) setExtraServices([""]); 
+                         setShowExtras(!showExtras);
+                    }
+                }}
+            />
+            
+            {/* Vùng nhập Dịch vụ bổ sung (Hiển thị khi bật showExtras) */}
+            {showExtras && (
+                <div className="mt-2 p-3 bg-light rounded border animate__animated animate__fadeIn">
+                    <div style={{ fontSize: "11px", color: "#666", marginBottom: "8px", fontStyle: "italic" }}>
+                        * Nhập tên dịch vụ phụ (Ví dụ: Dịch thuật, Công chứng...). <br/>
+                        * Nhấn nút <b>(+)</b> màu xanh để thêm dòng mới.
+                    </div>
+                    
+                    <div className="d-flex flex-column gap-2">
+                        {extraServices.map((service, index) => (
+                            <div key={index} className="d-flex align-items-center gap-2" style={{ width: "100%" }}>
+                                <input
+                                    type="text"
+                                    placeholder={`Dịch vụ bổ sung ${index + 1}`}
+                                    value={service}
+                                    onChange={(e) => handleChangeExtra(index, e.target.value)}
+                                    style={{ ...inputStyle, flex: 1 }}
+                                />
+                                <button type="button" onClick={() => handleRemoveRow(index)} className="btn btn-outline-danger d-flex align-items-center justify-content-center" style={{ width: "38px", height: "38px", padding: 0, borderRadius: "6px" }} title="Xóa">
+                                    <Trash2 size={16} />
+                                </button>
+                                {index === extraServices.length - 1 && extraServices.length < 5 && (
+                                    <button type="button" onClick={handleAddRow} className="btn btn-primary d-flex align-items-center justify-content-center" style={{ width: "38px", height: "38px", padding: 0, borderRadius: "6px", backgroundColor: "#22c55e", borderColor: "#22c55e" }} title="Thêm">
+                                        <Plus size={18} />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+          </div>
+         
 
-          {/* HÀNG 3: SỬA ĐỔI ĐỂ HIỂN THỊ TRẠNG THÁI CHO TẤT CẢ */}
+          {/* === HÀNG 4: THÔNG TIN KHÁC === */}
           <div className="col-md-4">
             <label style={labelStyle}>{t.form}</label>
-            <ModernSelect name="TenHinhThuc" height={inputHeight} value={getDisplayValue("TenHinhThuc", formData.TenHinhThuc)} placeholder={t.selectForm} options={formOptions.map(v => ({ value: v, label: v }))} onChange={handleInputChange} />
+            <ModernSelect name="TenHinhThuc" height={inputHeight} value={formData.TenHinhThuc} placeholder={t.selectForm} options={formOptions.map(v => ({ value: v, label: v }))} onChange={handleInputChange} />
           </div>
           <div className="col-md-4">
             <label style={labelStyle}>{t.branch}</label>
             <ModernSelect name="CoSoTuVan" height={inputHeight} value={formData.CoSoTuVan} placeholder={t.selectBranch} options={branchOptions} onChange={handleInputChange} />
           </div>
-     
           <div className="col-md-4">
              <label style={labelStyle}>{t.status}</label>
              <ModernSelect 
                 name="TrangThai" 
                 height={inputHeight} 
-                value={getDisplayValue("TrangThai", formData.TrangThai)} 
+                value={formData.TrangThai} 
                 placeholder={t.selectStatus} 
                 options={statusOptions.map(s => ({ value: s, label: s }))} 
                 onChange={handleInputChange} 
              />
           </div>
 
-    
-        
+          {/* === HÀNG 5: LỊCH HẸN & NGƯỜI PHỤ TRÁCH === */}
           {(() => {
-            // 1. Kiểm tra quyền hiển thị Người phụ trách
             const canAssign = currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant;
             const colClass = canAssign ? "col-md-4" : "col-md-6";
-
             return (
               <>
-                {/* Ngày Hẹn */}
                 <div className={colClass}>
                   <label style={labelStyle}>{t.appointmentDate}</label>
-                  <input 
-                    type="date" 
-                    name="ChonNgay" 
-                    style={inputStyle} 
-                    value={formData.ChonNgay ? new Date(formData.ChonNgay).toISOString().split("T")[0] : ""} 
-                    onChange={handleInputChange} 
-                  />
+                  <input type="date" name="ChonNgay" style={inputStyle} value={formData.ChonNgay ? new Date(formData.ChonNgay).toISOString().split("T")[0] : ""} onChange={handleInputChange} />
                 </div>
-
-                {/* Giờ Hẹn */}
                 <div className={colClass}>
                   <label style={labelStyle}>{t.appointmentTime}</label>
-                  <input 
-                    type="time" 
-                    name="Gio" 
-                    style={inputStyle} 
-                    value={formatTimeForInput(formData.Gio)} 
-                    onChange={handleInputChange} 
-                  />
+                  <input type="time" name="Gio" style={inputStyle} value={formatTimeForInput(formData.Gio)} onChange={handleInputChange} />
                 </div>
-
-                {/* Người Phụ Trách (Chỉ hiện nếu có quyền) */}
                 {canAssign && (
                   <div className="col-md-4">
                     <label style={labelStyle}>{t.assignee}</label>
-                    <ModernSelect 
-                        name="NguoiPhuTrachId" 
-                        height={inputHeight} 
-                        value={formData.NguoiPhuTrachId} 
-                        placeholder={t.selectNguoiPT} 
-                        options={users.map(u => ({ value: String(u.id), label: u.name }))} 
-                        onChange={handleInputChange} 
-                    />
+                    <ModernSelect name="NguoiPhuTrachId" height={inputHeight} value={formData.NguoiPhuTrachId} placeholder={t.selectNguoiPT} options={users.map(u => ({ value: String(u.id), label: u.name }))} onChange={handleInputChange} />
                   </div>
                 )}
               </>
             );
           })()}
 
-          {/* CÁC PHẦN DƯỚI (Full Width) */}
+          {/* === HÀNG 6: NỘI DUNG & GHI CHÚ === */}
           <div className="col-12">
             <label style={labelStyle}>{t.content}</label>
-            <textarea rows={2} type="text" name="NoiDung" style={inputStyle} value={formData.NoiDung} onChange={handleInputChange} placeholder={t.enterContent} />
+            <textarea rows={2} name="NoiDung" style={inputStyle} value={formData.NoiDung} onChange={handleInputChange} placeholder={t.enterContent} />
           </div>
 
           <div className="col-12">
             <label style={labelStyle}>{t.note}</label>
-            <textarea 
-              rows={2}
-              type="text" 
-              name="GhiChu" 
-              style={inputStyle} 
-              value={formData.GhiChu} 
-              onChange={handleInputChange} 
-              placeholder={t.enterNote} 
-            />
+            <textarea rows={2} name="GhiChu" style={inputStyle} value={formData.GhiChu} onChange={handleInputChange} placeholder={t.enterNote} />
           </div>
+{isNew && canApprove && (
+                <div className="col-12 mt-3 pt-2 border-top">
+                    
+                    <div className="row g-3">
+                        <div className="col-md-4">
+                            <label style={labelStyle}>Doanh thu (VNĐ)</label>
+                            <input 
+                                type="text" 
+                                name="DoanhThuTruocChietKhau" 
+                                value={formatNumber(formData.DoanhThuTruocChietKhau)} 
+                                onChange={handleMoneyChange} 
+                                style={{...inputStyle, color: "#2563eb", fontWeight: "bold"}} 
+                                placeholder="0" 
+                            />
+                        </div>
+                        <div className="col-md-4">
+                            <label style={labelStyle}>Mức Chiết khấu (%)</label>
+                            <ModernSelect 
+                                name="MucChietKhau" 
+                                height={inputHeight} 
+                                value={formData.MucChietKhau} 
+                                options={discountOptions} 
+                                onChange={(e) => setFormData(prev => ({...prev, MucChietKhau: e.target.value}))} 
+                            />
+                        </div>
+                       
+                       
+                    </div>
+                </div>
+            )}
 
-          {/* FOOTER */}
           <div className="col-12 mt-2">
             {isNew ? (
                 <div className="d-flex flex-column gap-3">
                     <div>
                         <label style={labelStyle}>{t.confirmPassword} <span className="text-danger">*</span></label>
                         <div className="position-relative">
-                            <input 
-                            type={showConfirmPassword ? "text" : "password"} 
-                            placeholder="******" 
-                            value={formData.ConfirmPassword}
-                            onChange={handleInputChange}
-                            name="ConfirmPassword"
-                            style={inputStyle}
-                            />
+                            <input type={showConfirmPassword ? "text" : "password"} placeholder="******" value={formData.ConfirmPassword} onChange={handleInputChange} name="ConfirmPassword" style={inputStyle} />
                             <span className="position-absolute top-50 translate-middle-y end-0 me-2 cursor-pointer" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
                             {showConfirmPassword ? <EyeOff size={14}/> : <Eye size={14}/>}
                             </span>
                         </div>
                     </div>
                     <div>
-                        <button className="btn fw-bold w-100 shadow-sm" onClick={handleSave} disabled={loading}
-                        style={{ backgroundColor: "#10b981", color: "white", height: "42px", borderRadius: "6px", fontSize: "14px" }}>
+                        <button className="btn fw-bold w-100 shadow-sm" onClick={handleSave} disabled={loading} style={{ backgroundColor: "#10b981", color: "white", height: "42px", borderRadius: "8px", fontSize: "14px" }}>
                         {loading ? <span className="spinner-border spinner-border-sm"></span> : t.save}
                         </button>
                     </div>
                 </div>
             ) : (
-                <div className="col-12">
-                    <button className="btn fw-bold w-100 shadow-sm" onClick={handleSave} disabled={loading}
-                    style={{ backgroundColor: "#2563eb", color: "white", height: "42px", borderRadius: "6px", textTransform: "uppercase" }}>
-                    {loading ? <span className="spinner-border spinner-border-sm"></span> : t.save}
-                    </button>
-                </div>
+                <div className="col-12 mt-3">
+                <button className="btn fw-bold w-100 shadow-sm" onClick={handleSave} disabled={loading} style={{ backgroundColor: "#10b981", color: "white", height: "42px", borderRadius: "8px", fontSize: "14px" }}>
+                   {loading ? <span className="spinner-border spinner-border-sm"></span> : (
+                       isNew && canApprove 
+                       ? (currentLanguage === "vi" ? "ĐĂNG KÝ & DUYỆT LUÔN (CẤP MÃ)" : "REGISTER & AUTO APPROVE") 
+                       : t.save
+                   )}
+                </button>
+            </div>
             )}
           </div>
 
@@ -589,6 +753,26 @@ const RowItem = ({
       {isVisible("loaiDichVu") && (
         <td style={{ maxWidth: "150px" }} className={`text-center text-truncate ${isPinned("loaiDichVu") ? "sticky-col" : ""}`} title={translateService(item.LoaiDichVu)}>
           {translateService(item.LoaiDichVu)}
+        </td>
+      )}
+     {isVisible("danhMuc") && (
+        <td 
+          className={`text-start ${isPinned("danhMuc") ? "sticky-col" : ""}`} // Đổi text-center thành text-start cho đẹp
+          style={{ maxWidth: "250px", minWidth: "160px", verticalAlign: "middle" }} // verticalAlign: middle để cột Loại dịch vụ tự canh giữa
+        >
+          <div style={{ fontSize: "12px", lineHeight: "1.5" }}>
+            {(item.DanhMuc || "").split(" + ").map((text, index) => (
+                <div key={index} style={{ 
+                    borderTop: index > 0 ? "1px dashed #eee" : "none", // Gạch ngang mờ phân cách
+                    paddingTop: index > 0 ? "4px" : "0",
+                    marginTop: index > 0 ? "4px" : "0",
+                    fontWeight: index === 0 ? "600" : "400", // Dòng chính in đậm
+                    color: index === 0 ? "#2563eb" : "#374151" // Dòng chính màu xanh
+                }}>
+                  {index > 0 && "- "} {text}
+                </div>
+            ))}
+          </div>
         </td>
       )}
       {/* 9. Tên Dịch Vụ */}
@@ -711,9 +895,11 @@ const RowItem = ({
       )}
 
       {/* 20. Hành động */}
-      {isVisible("hanhDong") && (
+     {isVisible("hanhDong") && (
         <td className={`text-center ${isPinned("hanhDong") ? "sticky-col" : ""}`}>
           <div className="d-flex justify-content-center align-items-center gap-2">
+            
+           
             {!hasServiceCode && canApprove && (
               <button 
                 className="btn btn-sm btn-success d-flex align-items-center justify-content-center" 
@@ -724,7 +910,9 @@ const RowItem = ({
                 <CheckCircle size={16} />
               </button>
             )}
-            {(hasServiceCode || !canApprove) && (
+
+
+            {hasServiceCode && (
                 <button 
                     className="btn btn-sm btn-primary d-flex align-items-center justify-content-center" 
                     style={{ width: 32, height: 32 }} 
@@ -734,14 +922,19 @@ const RowItem = ({
                 <Edit size={16} />
                 </button>
             )}
-            <button 
-                className="btn btn-sm btn-danger d-flex align-items-center justify-content-center" 
-                style={{ width: 32, height: 32 }} 
-                onClick={handleDeleteClick} 
-                title={currentLanguage === "vi" ? "Xóa" : "Delete"}
-            >
-              <Trash2 size={16} />
-            </button>
+
+          
+            {hasServiceCode && (
+                <button 
+                    className="btn btn-sm btn-danger d-flex align-items-center justify-content-center" 
+                    style={{ width: 32, height: 32 }} 
+                    onClick={handleDeleteClick} 
+                    title={currentLanguage === "vi" ? "Xóa" : "Delete"}
+                >
+                  <Trash2 size={16} />
+                </button>
+            )}
+            
           </div>
         </td>
       )}
@@ -770,7 +963,27 @@ const B2CPage = () => {
   const [editingRequest, setEditingRequest] = useState(null);
  
   const canViewFinance = currentUser?.is_accountant || currentUser?.is_director;
+useEffect(() => {
+    const fetchDichVu = async () => {
+      try {
+       
+        const res = await fetch("https://onepasscms-backend.onrender.com/api/dichvu");
+        
+        if (!res.ok) throw new Error("Kết nối thất bại");
 
+        const json = await res.json();
+
+        if (json.success) {
+
+          setDichvuList(json.data);
+        }
+      } catch (err) {
+        console.error("❌ Lỗi tải danh mục dịch vụ:", err);
+      }
+    };
+
+    fetchDichVu();
+  }, []); 
 const initialColumnKeys = [
     { key: "id", label: "STT" },
     { key: "hoTen", label: "Khách hàng" },
@@ -780,6 +993,7 @@ const initialColumnKeys = [
     { key: "hinhThuc", label: "Kênh Liên Hệ" },
     { key: "coSo", label: "Cơ sở" },
     { key: "loaiDichVu", label: "Loại Dịch Vụ" },
+    { key: "danhMuc", label: "Danh Mục" },
     { key: "tenDichVu", label: "Tên Dịch Vụ" },
     { key: "maDichVu", label: "Mã Dịch Vụ" },
     ...(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant ? [{ key: "nguoiPhuTrach", label: "Người phụ trách" }] : []),
@@ -850,7 +1064,7 @@ const handleApproveClick = (item) => {
 
 const tableHeaders = [
     "STT", "Khách hàng", "Mã vùng", "Số Điện Thoại", "Email", 
-    "Kênh Liên Hệ", "Cơ sở", "Loại Dịch Vụ", "Tên Dịch Vụ", "Mã Dịch Vụ",
+    "Kênh Liên Hệ", "Cơ sở", "Loại Dịch Vụ", "Danh Mục","Tên Dịch Vụ", "Mã Dịch Vụ",
     ...((currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) ? ["Người phụ trách"] : []),
     "Ngày hẹn", "Trạng thái", "Gói", "Invoice Y/N",
     ...(canViewFinance ? ["Invoice"] : []),
@@ -982,327 +1196,297 @@ const handleApprove = async (id) => {
       }
     });
   };
-const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, currentUser }) => {
+const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, currentUser, dichvuList }) => {
   
-    const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState({
+    HoTen: request.HoTen || "",
+    MaVung: request.MaVung || "+84",
+    SoDienThoai: request.SoDienThoai || "",
+    Email: request.Email || "",
+    LoaiDichVu: request.LoaiDichVu || "",
+    TenDichVu: request.TenDichVu || "",
+    GoiDichVu: request.GoiDichVu || "Thông thường",
+    TenHinhThuc: request.TenHinhThuc || "",
+    CoSoTuVan: request.CoSoTuVan || "",
+    DanhMuc: (request.DanhMuc || "").split(" + ")[0], 
+    ChonNgay: request.ChonNgay ? new Date(request.ChonNgay).toISOString().split("T")[0] : "",
+    Gio: request.Gio ? (request.Gio.includes("T") ? new Date(request.Gio).toTimeString().substring(0,5) : request.Gio.substring(0,5)) : "",
+    NoiDung: request.NoiDung || "",
+    GhiChu: request.GhiChu || "",
+    
+    // Trạng thái có thể chỉnh sửa
+    TrangThai: request.TrangThai || "Đang xử lý",
+
+    DoanhThuTruocChietKhau: request.DoanhThuTruocChietKhau || 0,
+    MucChietKhau: request.MucChietKhau || 0,
+    Vi: request.Vi || 0,
+    ConfirmPassword: ""
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Xử lý danh mục phụ
+  const [extraServices, setExtraServices] = useState(() => {
+        if (!request.DanhMuc) return [""];
+        const parts = request.DanhMuc.split(" + ");
+        return parts.length > 1 ? parts.slice(1) : [""];
+  });
+  const [showExtras, setShowExtras] = useState(extraServices.length > 0 && extraServices[0] !== "");
+
+  const handleChange = (eOrName, value) => {
+    let name, val;
+    if (typeof eOrName === 'string') { name = eOrName; val = value; } 
+    else { name = eOrName.target.name; val = eOrName.target.value; }
+
+    if (name === "DoanhThuTruocChietKhau" || name === "Vi") {
+        const raw = val.toString().replace(/\./g, "");
+        if (!isNaN(raw)) setFormData(prev => ({ ...prev, [name]: raw }));
+    } else {
+        setFormData(prev => ({ ...prev, [name]: val }));
+    }
+  };
+
+  const handleSave = async () => {
+    if (!formData.ConfirmPassword) {
+        showToast("Vui lòng nhập mật khẩu xác nhận!", "warning");
+        return;
+    }
+    try {
+        setLoading(true);
+        const verifyRes = await fetch(`https://onepasscms-backend.onrender.com/api/verify-password`, {
+          method: "POST", 
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: currentUser.username, password: formData.ConfirmPassword })
+        });
+        const verifyJson = await verifyRes.json();
+        if (!verifyJson.success) {
+          setLoading(false);
+          showToast("Mật khẩu không chính xác!", "error");
+          return;
+        }
+    } catch (err) { setLoading(false); return; }
+
+    const validExtras = extraServices.filter(s => s && s.trim() !== "");
+    let finalDanhMuc = formData.DanhMuc;
+    if (validExtras.length > 0) {
+        finalDanhMuc = `${formData.DanhMuc} + ${validExtras.join(" + ")}`;
+    }
+
+    const payload = { ...formData, DanhMuc: finalDanhMuc };
+    delete payload.ConfirmPassword;
+    
+    await onConfirm(request.YeuCauID, payload);
+    setLoading(false);
+  };
+
+  const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : "0";
+
+  const inputHeight = "38px"; 
+  const labelStyle = { fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "4px", display: "block" };
+  const inputStyle = {
+    width: "100%", height: inputHeight, padding: "0 10px", borderRadius: "8px",
+    border: "1px solid #d1d5db", fontSize: "13px", color: "#111827",
+    backgroundColor: "#F9FAFB", outline: "none", transition: "border-color 0.2s"
+  };
+
+  const serviceTypeList = dichvuList?.map(dv => dv.LoaiDichVu) || [];
+  const packageOptions = [{ value: "Thông thường", label: "Thông thường" }, { value: "Cấp tốc", label: "Cấp tốc" }];
+  const branchOptions = [{ value: "Seoul", label: "Seoul" }, { value: "Busan", label: "Busan" }];
+  const formOptions = ["Trực tiếp", "Online", "Email", "Gọi điện", "Messenger", "Kakao Talk", "Zalo"];
+  const areaCodes = [{ value: "+82", label: "+82" }, { value: "+84", label: "+84" }];
+  const statusOptions = currentLanguage === "vi" ? ["Tư vấn", "Đang xử lý", "Đang nộp hồ sơ", "Hoàn thành"] : ["Consultation", "Processing", "Submitting Documents", "Completed"];
+
+
+  const discountOptions = [   
+    { value: 5, label: "5%" },
+    { value: 10, label: "10%" },
+    { value: 12, label: "12%" },
+    { value: 15, label: "15%" },
+    { value: 17, label: "17%" },
+    { value: 30, label: "30%" }
+  ];
+
+  return (
+    <div className="modal-overlay" style={{
+      position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+      backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1100, backdropFilter: "blur(3px)",
+      display: "flex", justifyContent: "center", alignItems: "center"
+    }}>
+      <div className="bg-white p-4 position-relative" 
+          style={{ 
+            width: "800px",
+            maxWidth: "95%", 
+            borderRadius: "16px", 
+            boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
+            maxHeight: "90vh",
+            overflowY: "auto"
+          }}
+      >
+        <button onClick={onClose} className="position-absolute d-flex align-items-center justify-content-center border-0 bg-light rounded-circle"
+            style={{ top: "15px", right: "15px", width: "32px", height: "32px", cursor: "pointer", zIndex: 10 }}>
+            <X size={18} />
+        </button>
+
+        <div className="text-center mb-4 mt-2">
+          <h3 className="fw-bold m-0" style={{ fontSize: "20px", color: "#111827" }}>
+             {currentLanguage === "vi" ? "Duyệt hồ sơ & Cấp mã" : "Approve Request"}
+          </h3>
+          <p className="text-muted m-0 mt-1" style={{ fontSize: "13px" }}>Kiểm tra thông tin và nhập doanh thu</p>
+        </div>
+
+        <div className="row g-3"> 
   
-      HoTen: request.HoTen || "",
-      MaVung: request.MaVung || "",
-      SoDienThoai: request.SoDienThoai || "",
-      Email: request.Email || "",
-      LoaiDichVu: request.LoaiDichVu || "",
-      TenDichVu: request.TenDichVu || "",
-      GoiDichVu: request.GoiDichVu || "",
-      TenHinhThuc: request.TenHinhThuc || "",
-      CoSoTuVan: request.CoSoTuVan || "",
+            <div className="col-md-4">
+                <label style={labelStyle}>Khách Hàng <span className="text-danger">*</span></label>
+                <input type="text" name="HoTen" style={inputStyle} value={formData.HoTen} onChange={handleChange} />
+            </div>
+            <div className="col-md-4">
+                <label style={labelStyle}>Số Điện Thoại <span className="text-danger">*</span></label>
+                <div className="d-flex">
+                    <select name="MaVung" value={formData.MaVung} onChange={handleChange} style={{...inputStyle, width: "70px", borderTopRightRadius: 0, borderBottomRightRadius: 0, padding: "0 5px", textAlign: "center", backgroundColor: "#f3f4f6"}}>
+                        {areaCodes.map(c => <option key={c.value} value={c.value}>{c.value}</option>)}
+                    </select>
+                    <input type="text" name="SoDienThoai" style={{...inputStyle, flex: 1, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: "none"}} value={formData.SoDienThoai} onChange={handleChange} />
+                </div>
+            </div>
+            <div className="col-md-4">
+                <label style={labelStyle}>Email</label>
+                <input type="text" name="Email" style={inputStyle} value={formData.Email} onChange={handleChange} />
+            </div>
 
-      ChonNgay: request.ChonNgay ? new Date(request.ChonNgay).toISOString().split("T")[0] : "",
-      Gio: request.Gio ? (request.Gio.includes("T") ? new Date(request.Gio).toTimeString().substring(0,5) : request.Gio.substring(0,5)) : "",
-      NoiDung: request.NoiDung || "",
-      GhiChu: request.GhiChu || "",
-      
-      // --- Thông tin Tài chính ---
-      DoanhThuTruocChietKhau: request.DoanhThuTruocChietKhau || 0,
-      MucChietKhau: request.MucChietKhau || 0,
-      Vi: request.Vi || 0
-    });
 
-    // Tính toán tài chính real-time
-    const calculateFinance = () => {
-      const dt = parseFloat(String(formData.DoanhThuTruocChietKhau).replace(/\./g, "")) || 0;
-      const ck = parseFloat(formData.MucChietKhau) || 0;
-      const vi = parseFloat(String(formData.Vi).replace(/\./g, "")) || 0;
-      
-      const tienCK = Math.round((dt * ck) / 100);
-      const thucThu = Math.max(0, dt - tienCK - vi);
-      return { dt, tienCK, thucThu, vi };
-    };
+            <div className="col-md-4">
+                <label style={labelStyle}>Loại Dịch Vụ <span className="text-danger">*</span></label>
+                <ModernSelect name="LoaiDichVu" height={inputHeight} value={formData.LoaiDichVu} options={serviceTypeList.map(s => ({ value: s, label: s }))} onChange={handleChange} />
+            </div>
+            <div className="col-md-4">
+                <label style={labelStyle}>Tên Dịch Vụ</label>
+                <input type="text" name="TenDichVu" style={inputStyle} value={formData.TenDichVu} onChange={handleChange} />
+            </div>
+            <div className="col-md-4">
+                <label style={labelStyle}>Gói Dịch Vụ</label>
+                <ModernSelect name="GoiDichVu" height={inputHeight} value={formData.GoiDichVu} options={packageOptions} onChange={handleChange} />
+            </div>
 
-    const { dt, tienCK, thucThu, vi } = calculateFinance();
-
-    const handleChange = (eOrName, value) => {
-      let name, val;
-      if (typeof eOrName === 'string') { name = eOrName; val = value; } 
-      else { name = eOrName.target.name; val = eOrName.target.value; }
-
-      if (name === "DoanhThuTruocChietKhau" || name === "Vi") {
-          const raw = val.toString().replace(/\./g, "");
-          if (!isNaN(raw)) setFormData(prev => ({ ...prev, [name]: raw }));
-      } else {
-          setFormData(prev => ({ ...prev, [name]: val }));
-      }
-    };
-
-    const handleSave = () => {
-      onConfirm(request.YeuCauID, formData);
-    };
-
-    // --- STYLE TỐI ƯU (COMPACT) ---
-    const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : "0";
-    const inputHeight = "32px"; // Giảm chiều cao từ 42px xuống 32px
-    const labelStyle = { fontSize: "11px", fontWeight: "600", color: "#4B5563", marginBottom: "2px", display: "block" }; // Font nhỏ hơn, margin ít hơn
-    const inputStyle = { width: "100%", height: inputHeight, padding: "0 8px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", outline: "none", color: "#111827", transition: "border-color 0.2s" };
-
-    // Data Options
-    const serviceTypeList = ["Chứng thực", "Kết hôn", "Khai sinh, khai tử", "Xuất nhập cảnh", "Giấy tờ tuỳ thân", "Nhận nuôi", "Thị thực", "Tư vấn pháp lý", "Dịch vụ B2B", "Khác"];
-    const packageOptions = [{ value: "Thông thường", label: "Thông thường" }, { value: "Cấp tốc", label: "Cấp tốc" }];
-    const branchOptions = [{ value: "Seoul", label: "Seoul" }, { value: "Busan", label: "Busan" }];
-    const formOptions = ["Trực tiếp", "Online", "Email", "Gọi điện", "Messenger", "Kakao Talk", "Zalo"];
-    const areaCodes = [{ value: "+82", label: "+82" }, { value: "+84", label: "+84" }];
-
-    return (
-      <div className="modal-overlay" style={{
-        position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1100, backdropFilter: "blur(2px)", // Blur nhẹ hơn
-        display: "flex", justifyContent: "center", alignItems: "center"
-      }}>
-        <div className="bg-white position-relative d-flex flex-column" 
-            style={{ width: "950px", maxWidth: "95%", maxHeight: "98vh", borderRadius: "12px", boxShadow: "0 15px 30px rgba(0, 0, 0, 0.2)" }}>
           
-          {/* HEADER */}
-          <div className="d-flex justify-content-between align-items-center px-4 py-2 border-bottom">
-              <div>
-                  <h5 className="fw-bold m-0 text-primary" style={{ fontSize: "18px" }}>
-                      {currentLanguage === "vi" ? "Duyệt Hồ Sơ (B2C)" : "Approve Request (B2C)"}
-                  </h5>
-                  <small className="text-muted" style={{ fontSize: "12px" }}>
-                      {currentLanguage === "vi" ? "Kiểm tra thông tin & nhập doanh thu" : "Verify info & enter revenue"}
-                  </small>
-              </div>
-              <button onClick={onClose} className="border-0 bg-light rounded-circle d-flex align-items-center justify-content-center"
-                  style={{ width: "30px", height: "30px", cursor: "pointer" }}>
-                  <X size={18} color="#6B7280" />
-              </button>
-          </div>
+            <div className="col-12">
+                <label style={labelStyle}>Danh Mục (Chi tiết) <span className="text-danger">*</span></label>
+                <ModernSelect 
+                    name="DanhMuc" 
+                    height={inputHeight} 
+                    value={formData.DanhMuc} 
+                    options={(B2C_CATEGORY_LIST[formData.LoaiDichVu] || []).map(dm => ({ value: dm, label: dm }))} 
+                    onChange={handleChange}
+                    footerAction={{
+                        label: showExtras ? "Ẩn dịch vụ bổ sung" : "Thêm dịch vụ bổ sung (+5)",
+                        icon: showExtras ? <EyeOff size={14}/> : <Plus size={14}/>,
+                        onClick: () => setShowExtras(!showExtras)
+                    }}
+                />
+                 {showExtras && (
+                    <div className="mt-2 p-3 bg-light rounded border">
+                        {extraServices.map((service, index) => (
+                            <div key={index} className="d-flex mb-2 gap-2">
+                                <input className="form-control form-control-sm" value={service} onChange={(e) => {
+                                    const newArr = [...extraServices]; newArr[index] = e.target.value; setExtraServices(newArr);
+                                }} placeholder={`Dịch vụ phụ ${index+1}`} />
+                                <button className="btn btn-sm btn-outline-danger" onClick={() => {
+                                     const newArr = [...extraServices]; newArr.splice(index, 1); setExtraServices(newArr);
+                                }}><Trash2 size={14}/></button>
+                            </div>
+                        ))}
+                        <button className="btn btn-sm btn-primary" onClick={() => setExtraServices([...extraServices, ""])}><Plus size={14}/> Thêm dòng</button>
+                    </div>
+                )}
+            </div>
 
-          {/* BODY - Giảm padding xuống px-3 py-2 */}
-          <div className="px-4 py-3 overflow-auto custom-scrollbar" style={{ flex: 1 }}>
-              
-              {/* === PHẦN 1: FORM THÔNG TIN (Sử dụng g-2 để thu hẹp khoảng cách) === */}
-              <div className="row g-2 mb-2">
-                  {/* Hàng 1 */}
-                  <div className="col-md-4">
-                      <label style={labelStyle}>Khách Hàng <span className="text-danger">*</span></label>
-                      <input type="text" name="HoTen" style={inputStyle} value={formData.HoTen} onChange={handleChange} placeholder="Tên khách hàng" />
-                  </div>
-                  <div className="col-md-4">
-                      <label style={labelStyle}>Số Điện Thoại <span className="text-danger">*</span></label>
-                      <div className="d-flex">
-                          <select 
-                              name="MaVung" 
-                              value={formData.MaVung} 
-                              onChange={handleChange} 
-                              style={{...inputStyle, width: "70px", borderRadius: "6px 0 0 6px", borderRight: "none", backgroundColor: "#F9FAFB", cursor: "pointer"}}
-                          >
-                              {areaCodes.map(c => <option key={c.value} value={c.value}>{c.value}</option>)}
-                          </select>
-                          <input type="text" name="SoDienThoai" style={{...inputStyle, borderRadius: "0 6px 6px 0"}} value={formData.SoDienThoai} onChange={handleChange} placeholder="SĐT" />
-                      </div>
-                  </div>
-                  <div className="col-md-4">
-                      <label style={labelStyle}>Email</label>
-                      <input type="text" name="Email" style={inputStyle} value={formData.Email} onChange={handleChange} placeholder="Email" />
-                  </div>
+ 
+            <div className="col-md-4">
+                <label style={labelStyle}>Kênh Liên Hệ</label>
+                <ModernSelect name="TenHinhThuc" height={inputHeight} value={formData.TenHinhThuc} options={formOptions.map(v => ({ value: v, label: v }))} onChange={handleChange} />
+            </div>
+            <div className="col-md-4">
+                <label style={labelStyle}>Cơ Sở Tư Vấn</label>
+                <ModernSelect name="CoSoTuVan" height={inputHeight} value={formData.CoSoTuVan} options={branchOptions} onChange={handleChange} />
+            </div>
+            <div className="col-md-4">
+                 <label style={labelStyle}>Trạng thái</label>
+                 <ModernSelect name="TrangThai" height={inputHeight} value={formData.TrangThai} options={statusOptions.map(s => ({ value: s, label: s }))} onChange={handleChange} />
+            </div>
 
-                  {/* Hàng 2 */}
-                  <div className="col-md-4">
-                      <label style={labelStyle}>Loại Dịch Vụ <span className="text-danger">*</span></label>
-                      <ModernSelect name="LoaiDichVu" height={inputHeight} value={formData.LoaiDichVu} options={serviceTypeList.map(s => ({ value: s, label: s }))} onChange={handleChange} placeholder="Chọn loại" />
-                  </div>
-                  <div className="col-md-4">
-                      <label style={labelStyle}>Tên Dịch Vụ</label>
-                      <input type="text" name="TenDichVu" style={inputStyle} value={formData.TenDichVu} onChange={handleChange} placeholder="Tên dịch vụ cụ thể" />
-                  </div>
-                  <div className="col-md-4">
-                      <label style={labelStyle}>Gói</label>
-                      <ModernSelect name="GoiDichVu" height={inputHeight} value={formData.GoiDichVu} options={packageOptions} onChange={handleChange} placeholder="Chọn gói" />
-                  </div>
+          
+            <div className="col-md-4">
+                <label style={labelStyle}>Ngày Hẹn</label>
+                <input type="date" name="ChonNgay" style={inputStyle} value={formData.ChonNgay} onChange={handleChange} />
+            </div>
+            <div className="col-md-4">
+                <label style={labelStyle}>Giờ Hẹn</label>
+                <input type="time" name="Gio" style={inputStyle} value={formData.Gio} onChange={handleChange} />
+            </div>
+            <div className="col-md-4">
+                <label style={labelStyle}>Người Phụ Trách</label>
+                <ModernSelect name="NguoiPhuTrachId" height={inputHeight} value={formData.NguoiPhuTrachId} options={users.map(u => ({ value: String(u.id), label: u.name }))} onChange={handleChange} />
+            </div>
 
-                  {/* Hàng 3 */}
-                  <div className="col-md-4">
-                      <label style={labelStyle}>Kênh Liên Hệ</label>
-                      <ModernSelect name="TenHinhThuc" height={inputHeight} value={formData.TenHinhThuc} options={formOptions.map(v => ({ value: v, label: v }))} onChange={handleChange} placeholder="Chọn kênh" />
-                  </div>
-                  <div className="col-md-4">
-                      <label style={labelStyle}>Cơ Sở Tư Vấn</label>
-                      <ModernSelect name="CoSoTuVan" height={inputHeight} value={formData.CoSoTuVan} options={branchOptions} onChange={handleChange} placeholder="Chọn cơ sở" />
-                  </div>
-                  <div className="col-md-4">
-                      <label style={labelStyle}>Trạng thái</label>
-                      <div style={{...inputStyle, backgroundColor: "#F3F4F6", color: "#6B7280", display: "flex", alignItems: "center"}}>
-                          Đang xử lý
-                      </div>
-                  </div>
 
-                
-                {(() => {
-                  
-                  const canAssign = currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant;
-                  
-                 
-                  const colClass = canAssign ? "col-md-4" : "col-md-6";
+            <div className="col-12">
+                <label style={labelStyle}>Nội Dung</label>
+                <textarea rows={2} name="NoiDung" style={inputStyle} value={formData.NoiDung} onChange={handleChange} />
+            </div>
+             <div className="col-12">
+                <label style={labelStyle}>Ghi Chú</label>
+                <textarea rows={2} name="GhiChu" style={inputStyle} value={formData.GhiChu} onChange={handleChange} />
+            </div>
 
-                  return (
-                    <>
-                      {/* Ngày Hẹn */}
-                      <div className={colClass}>
-                          <label style={labelStyle}>Ngày Hẹn</label>
-                          <input 
-                            type="date" 
-                            name="ChonNgay" 
-                            style={inputStyle} 
-                            value={formData.ChonNgay} 
+            <div className="col-12 mt-3 pt-2 border-top">
+                <div className="row g-3">
+                    <div className="col-md-4">
+                        <label style={labelStyle}>Doanh thu (VNĐ) <span className="text-danger">*</span></label>
+                        <input type="text" name="DoanhThuTruocChietKhau" value={formatNumber(formData.DoanhThuTruocChietKhau)} onChange={handleChange} style={{...inputStyle, color: "#2563eb", fontWeight: "bold"}} placeholder="0" />
+                    </div>
+
+                    <div className="col-md-4">
+                        <label style={labelStyle}>Chiết khấu (%)</label>
+                        <ModernSelect 
+                            name="MucChietKhau" 
+                            height={inputHeight} 
+                            value={formData.MucChietKhau} 
+                            options={discountOptions} 
                             onChange={handleChange} 
-                          />
-                      </div>
+                            placeholder="0%"
+                        />
+                    </div>
 
-                      {/* Giờ Hẹn */}
-                      <div className={colClass}>
-                          <label style={labelStyle}>Giờ Hẹn</label>
-                          <input 
-                            type="time" 
-                            name="Gio" 
-                            style={inputStyle} 
-                            value={formData.Gio} 
-                            onChange={handleChange} 
-                          />
-                      </div>
+                    <div className="col-md-4">
+                        <label style={labelStyle}>Trừ Ví / Đã Cọc</label>
+                        <input type="text" name="Vi" value={formatNumber(formData.Vi)} onChange={handleChange} style={inputStyle} placeholder="0" />
+                    </div>
+                </div>
+            </div>
 
-                      {/* Người Phụ Trách (Chỉ hiển thị nếu có quyền) */}
-                      {canAssign && (
-                          <div className="col-md-4">
-                              <label style={labelStyle}>Người Phụ Trách</label>
-                              <ModernSelect 
-                                  name="NguoiPhuTrachId" 
-                                  height={inputHeight} 
-                                  value={formData.NguoiPhuTrachId} 
-                                  placeholder="Chọn nhân viên" 
-                                  options={users.map(u => ({ value: String(u.id), label: u.name }))} 
-                                  onChange={handleChange} 
-                              />
-                          </div>
-                      )}
-                    </>
-                  );
-                })()}
-                        {/* Hàng 5, 6 */}
-                  <div className="col-12">
-                      <label style={labelStyle}>Nội Dung</label>
-                      <textarea rows={1} name="NoiDung" style={{...inputStyle, height: "32px", resize:"none", paddingTop: "6px"}} value={formData.NoiDung} onChange={handleChange} placeholder="Nội dung tư vấn" />
-                  </div>
-                  <div className="col-12">
-                      <label style={labelStyle}>Ghi Chú</label>
-                      <textarea rows={1} name="GhiChu" style={{...inputStyle, height: "32px", resize:"none", paddingTop: "6px"}} value={formData.GhiChu} onChange={handleChange} placeholder="Ghi chú thêm" />
-                  </div>
-              </div>
+            {/* === MẬT KHẨU & NÚT LƯU === */}
+            <div className="col-12 mt-2">
+                <label style={labelStyle}>Mật khẩu xác nhận <span className="text-danger">*</span></label>
+                <div className="position-relative">
+                    <input type={showConfirmPassword ? "text" : "password"} placeholder="******" value={formData.ConfirmPassword} onChange={handleChange} name="ConfirmPassword" style={inputStyle} />
+                    <span className="position-absolute top-50 translate-middle-y end-0 me-2 cursor-pointer" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                    {showConfirmPassword ? <EyeOff size={14}/> : <Eye size={14}/>}
+                    </span>
+                </div>
+            </div>
 
-              {/* === PHẦN 2: TÀI CHÍNH (Thu gọn) === */}
-              <div className="mt-2 pt-2 border-top">
-                  <h6 className="fw-bold text-dark mb-2" style={{fontSize: "13px"}}>THÔNG TIN TÀI CHÍNH</h6>
-                  
-                  <div className="row g-2 align-items-end">
-                      {/* Doanh thu (Thu nhỏ lại) */}
-                      <div className="col-md-4">
-                          <label style={labelStyle}>Doanh thu (VNĐ) <span className="text-danger">*</span></label>
-                          <div className="position-relative">
-                              <input 
-                                  type="text" 
-                                  name="DoanhThuTruocChietKhau" 
-                                  value={formatNumber(formData.DoanhThuTruocChietKhau)} 
-                                  onChange={handleChange} 
-                                  style={{
-                                      ...inputStyle, 
-                                      height: "36px", // Giảm từ 55px
-                                      fontSize: "14px", // Giảm từ 18px
-                                      fontWeight: "600",
-                                      backgroundColor: "#F8F9FA",
-                                      color: "#2563eb"
-                                  }} 
-                                  placeholder="0"
-                              />
-                          </div>
-                      </div>
-
-                      {/* Chiết khấu */}
-                      <div className="col-md-3">
-                          <label style={labelStyle}>Chiết khấu (%)</label>
-                          <div className="position-relative">
-                              <input 
-                                  type="number" 
-                                  name="MucChietKhau" 
-                                  value={formData.MucChietKhau} 
-                                  onChange={handleChange} 
-                                  style={{
-                                      ...inputStyle, 
-                                      height: "36px", 
-                                      fontSize: "14px", 
-                                      backgroundColor: "#F8F9FA",
-                                  }} 
-                                  placeholder="0"
-                              />
-                          </div>
-                      </div>
-
-                      {/* Trừ ví / Cọc */}
-                      <div className="col-md-5">
-                          <label style={labelStyle}>Trừ Ví / Đã Cọc</label>
-                          <div className="position-relative">
-                              <input 
-                                  type="text" 
-                                  name="Vi" 
-                                  value={formatNumber(formData.Vi)} 
-                                  onChange={handleChange} 
-                                  style={{
-                                      ...inputStyle, 
-                                      height: "36px", 
-                                      fontSize: "14px", 
-                                      backgroundColor: "#F8F9FA",
-                                  }} 
-                                  placeholder="0"
-                              />
-                          </div>
-                      </div>
-
-                      <div className="col-12">
-                          <small className="text-muted fst-italic" style={{fontSize: "11px"}}>
-                              * Thời gian cấp tốc sẽ được hướng dẫn qua người phụ trách.
-                          </small>
-                      </div>
-
-                      {/* Tổng kết tiền (Compact) */}
-                      <div className="col-12 mt-1">
-                          <div className="d-flex justify-content-between align-items-center p-2 rounded" style={{backgroundColor: "#ECFDF5", border: "1px solid #10B981"}}>
-                              <div className="d-flex gap-3 text-secondary" style={{fontSize: "12px"}}>
-                                  <span>CK: <b>{formatNumber(tienCK)}</b></span>
-                                  <span>Trừ: <b className="text-danger">-{formatNumber(vi)}</b></span>
-                              </div>
-                              <div className="d-flex align-items-center gap-2">
-                                  <span className="text-success fw-bold text-uppercase" style={{fontSize: "11px"}}>Thực thu:</span>
-                                  <span className="text-success fw-bold" style={{fontSize: "16px"}}>{formatNumber(thucThu)} ₫</span>
-                              </div>
-                          </div>
-                      </div>
-
-                  </div>
-              </div>
-          </div>
-
-          {/* FOOTER */}
-          <div className="px-4 py-3 border-top bg-white d-flex justify-content-end gap-2" style={{borderRadius: "0 0 12px 12px"}}>
-              <button onClick={onClose} className="btn btn-sm btn-secondary fw-semibold" style={{height: "36px", padding: "0 20px"}}>
-                  {currentLanguage === "vi" ? "Hủy Bỏ" : "Cancel"}
-              </button>
-              <button onClick={handleSave} className="btn btn-sm btn-success fw-bold shadow-sm d-flex align-items-center" 
-                  style={{height: "36px", padding: "0 20px", backgroundColor: "#10B981", border: "none"}}>
-                  <CheckCircle size={16} className="me-2"/>
-                  {currentLanguage === "vi" ? "Duyệt & Cấp mã" : "Approve & Generate Code"}
-              </button>
-          </div>
+            <div className="col-12 mt-3">
+                <button className="btn fw-bold w-100 shadow-sm" onClick={handleSave} disabled={loading} style={{ backgroundColor: "#10b981", color: "white", height: "42px", borderRadius: "8px", fontSize: "14px" }}>
+                   {loading ? <span className="spinner-border spinner-border-sm"></span> : (currentLanguage === "vi" ? "DUYỆT & CẤP MÃ HỒ SƠ" : "APPROVE & GENERATE CODE")}
+                </button>
+            </div>
 
         </div>
       </div>
-    );
-  };
+    </div>
+  );
+};
   const handleDelete = async (id) => {
     try {
       const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${id}`, { method: "DELETE" });
@@ -1381,21 +1565,22 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
             users={users} 
             currentUser={currentUser} 
             currentLanguage={currentLanguage}
+            dichvuList={dichvuList} 
             onClose={() => setApproveModalItem(null)}
             onConfirm={handleConfirmApprove}
           />
         )}
-        {editingRequest && (
+       {editingRequest && (
           <RequestEditModal
             request={editingRequest}
             users={users}
             currentUser={currentUser}
             currentLanguage={currentLanguage}
+            dichvuList={dichvuList} 
             onClose={() => setEditingRequest(null)}
             onSave={handleModalSave}
           />
         )}
-
         <div style={{marginTop:100}}></div>
 
         <div className="mb-4">
@@ -1468,7 +1653,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
               )}
             </div>
 
-           <div className="table-wrapper mt-3" style={{marginLeft:55}}>
+           <div className="table-wrapper mt-3" style={{marginLeft:70}}>
             <div className="table-responsive" style={{ paddingLeft: "0px", position: "relative", maxHeight: "calc(100vh - 340px)", overflow: "auto", borderBottom: "1px solid #dee2e6" }} ref={tableContainerRef}>
               <table className="table table-bordered table-hover align-middle mb-0">
                 <thead>
