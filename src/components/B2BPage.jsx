@@ -11,6 +11,25 @@ import { authenticatedFetch } from "../utils/api";
 import withReactContent from "sweetalert2-react-content";
 const MySwal = withReactContent(Swal);
 
+const parseServices = (sourceStr) => {
+  if (!sourceStr) return [];
+  
+
+  let temp = sourceStr
+    .replace(/Hộ chiếu,\s*Hộ tịch/gi, "TOKEN_HO_CHIEU_HO_TICH")
+    .replace(/Khai sinh,\s*khai tử/gi, "TOKEN_KHAI_SINH_KHAI_TU");
+
+
+  const list = temp.split(',');
+
+ 
+  return list.map(item => {
+    let s = item.trim();
+    if (s.includes("TOKEN_HO_CHIEU_HO_TICH")) return "Hộ chiếu, Hộ tịch";
+    if (s.includes("TOKEN_KHAI_SINH_KHAI_TU")) return "Khai sinh, khai tử";
+    return s;
+  }).filter(Boolean);
+};
 function Pagination({ current = 1, total = 0, pageSize = 20, onChange, currentLanguage = "vi" }) {
   const totalPages = Math.ceil(total / pageSize) || 1;
   const currentPage = Math.min(Math.max(current, 1), totalPages);
@@ -201,11 +220,11 @@ if (extras.length > 0) {
       status: rec.TrangThai || rec.status || "Chờ Giám đốc duyệt"
     });
 
-    // Populate dropdown loại dịch vụ
+ 
     if (company) {
       let services = [];
-      if (company.DichVu) services.push(...company.DichVu.split(',').map(s => s.trim()));
-      if (company.DichVuKhac) services.push(...company.DichVuKhac.split(',').map(s => s.trim()));
+      if (company.DichVu) services.push(...parseServices(company.DichVu));
+      if (company.DichVuKhac) services.push(...parseServices(company.DichVuKhac));
       setAvailableServices([...new Set(services)].filter(Boolean));
     } else {
         setAvailableServices([]);
@@ -242,12 +261,13 @@ const handleOpenAddServiceModal = () => {
   const handleModalChange = (e) => {
     const { name, value } = e.target;
     
-    if (name === "DoanhNghiepID") {
+   if (name === "DoanhNghiepID") {
       const selectedCompany = approvedList.find(c => String(c.ID) === String(value));
       let services = [];
       if (selectedCompany) {
-        if (selectedCompany.DichVu) services.push(...selectedCompany.DichVu.split(',').map(s => s.trim()));
-        if (selectedCompany.DichVuKhac) services.push(...selectedCompany.DichVuKhac.split(',').map(s => s.trim()));
+        
+        if (selectedCompany.DichVu) services.push(...parseServices(selectedCompany.DichVu));
+        if (selectedCompany.DichVuKhac) services.push(...parseServices(selectedCompany.DichVuKhac));
       }
       const uniqueServices = [...new Set(services)].filter(Boolean);
       setAvailableServices(uniqueServices);
@@ -717,14 +737,13 @@ const B2B_SERVICE_MAPPING = {
   };
 
 const handleApprove = (service) => {
-  // Tìm doanh nghiệp để lấy thông tin đầy đủ
   const company = approvedList.find(c => String(c.ID) === String(service.companyId));
   
-  // Lấy danh sách dịch vụ từ doanh nghiệp
+ 
   let availableServices = [];
   if (company) {
-    if (company.DichVu) availableServices.push(...company.DichVu.split(',').map(s => s.trim()));
-    if (company.DichVuKhac) availableServices.push(...company.DichVuKhac.split(',').map(s => s.trim()));
+    if (company.DichVu) availableServices.push(...parseServices(company.DichVu));
+    if (company.DichVuKhac) availableServices.push(...parseServices(company.DichVuKhac));
     availableServices = [...new Set(availableServices)].filter(Boolean);
   }
   
@@ -1712,17 +1731,16 @@ const renderServicesTab = () => {
             fontStyle: "normal",
           };
 
-          // Tìm doanh nghiệp để lấy danh sách dịch vụ
-          const company = approvedList.find(c => String(c.ID) === String(selectedService.companyId));
+         const company = approvedList.find(c => String(c.ID) === String(selectedService.companyId));
           
-          // Lấy danh sách dịch vụ từ doanh nghiệp
+         
           let availableServices = [];
           if (company) {
-            if (company.DichVu) availableServices.push(...company.DichVu.split(',').map(s => s.trim()));
-            if (company.DichVuKhac) availableServices.push(...company.DichVuKhac.split(',').map(s => s.trim()));
+ 
+            if (company.DichVu) availableServices.push(...parseServices(company.DichVu));
+            if (company.DichVuKhac) availableServices.push(...parseServices(company.DichVuKhac));
             availableServices = [...new Set(availableServices)].filter(Boolean);
           }
-
           // Component ToggleButton
           const ToggleButton = ({ name, value, onChange }) => (
             <div className="d-flex gap-2 w-100">
