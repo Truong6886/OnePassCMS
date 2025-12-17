@@ -5,7 +5,7 @@ import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import EditProfileModal from "./EditProfileModal";
 import { showToast } from "../utils/toast";
 import useDashboardData from "./CMSDashboard/hooks/useDashboardData";
-import { LayoutGrid, Edit, Trash2, X, Pin, PinOff, PlusCircle, CheckCircle, ChevronDown, Eye, EyeOff, Plus } from "lucide-react";
+import { LayoutGrid, Edit, Trash2, X, Pin, PinOff, PlusCircle, Check, ChevronDown, Eye, EyeOff, Plus } from "lucide-react";
 import Swal from "sweetalert2";
 import "../styles/DashboardList.css";
 import { authenticatedFetch } from "../utils/api";
@@ -162,24 +162,55 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
 
   // Lấy danh sách dịch vụ từ API
   const canApprove = currentUser?.is_director || currentUser?.is_accountant || currentUser?.perm_approve_b2c;
+  
+  // Tạo list loại dịch vụ cho Select
   const serviceTypeList = dichvuList && dichvuList.length > 0 
     ? dichvuList.map(dv => dv.LoaiDichVu) 
     : [];
 
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Helper formats
+  const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : "0";
+  const unformatMoney = (val) => val ? parseFloat(val.toString().replace(/\./g, "")) : 0;
+
+  // --- 1. STATE DỊCH VỤ PHỤ (EXTRA SERVICES) ---
   const [extraServices, setExtraServices] = useState(() => {
-        if (isNew || !request.DanhMuc) return [""];
-        const parts = request.DanhMuc.split(" + ");
-        return parts.length > 1 ? parts.slice(1) : [""];
-    });
+    // Ưu tiên đọc từ JSON ChiTietDichVu nếu có
+    if (request && request.ChiTietDichVu) {
+        let details = typeof request.ChiTietDichVu === 'string' ? JSON.parse(request.ChiTietDichVu) : request.ChiTietDichVu;
+        if (details.sub && details.sub.length > 0) {
+             return details.sub.map(s => ({
+                 name: s.name,
+                 revenue: s.revenue ? formatNumber(s.revenue) : "", 
+                 discount: s.discount || ""
+             }));
+        }
+    }
+    // Fallback logic cũ (split string từ DanhMuc)
+    if (!request || !request.DanhMuc) return [{ name: "", revenue: "", discount: "" }];
+    const parts = request.DanhMuc.split(" + ");
+    if (parts.length > 1) {
+        return parts.slice(1).map(name => ({ name: name, revenue: "", discount: "" }));
+    }
+    return [{ name: "", revenue: "", discount: "" }];
+  });
+
   const [showExtras, setShowExtras] = useState(() => {
       if (isNew || !request.DanhMuc) return false;
+      // Nếu có sub-services trong mảng extraServices (không phải mảng rỗng mặc định)
+      if (request.ChiTietDichVu) {
+         let details = typeof request.ChiTietDichVu === 'string' ? JSON.parse(request.ChiTietDichVu) : request.ChiTietDichVu;
+         return details?.sub?.length > 0;
+      }
       return request.DanhMuc.split(" + ").length > 1;
   });
+
+  // --- CÁC HÀM XỬ LÝ EXTRA SERVICES ---
   const handleAddRow = () => {
       if (extraServices.length < 5) {
-          setExtraServices([...extraServices, ""]);
+          setExtraServices([...extraServices, { name: "", revenue: "", discount: "" }]);
       } else {
           showToast("Chỉ được thêm tối đa 5 dịch vụ bổ sung", "warning");
       }
@@ -189,31 +220,36 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
       const newArr = [...extraServices];
       newArr.splice(index, 1);
       if (newArr.length === 0) {
-          setExtraServices([""]);
+          setExtraServices([{ name: "", revenue: "", discount: "" }]);
           setShowExtras(false);
       } else {
           setExtraServices(newArr);
       }
   };
 
-  const handleChangeExtra = (index, value) => {
+  const handleChangeExtra = (index, field, value) => {
       const newArr = [...extraServices];
-      newArr[index] = value;
+      if (field === "revenue") {
+        const raw = value.replace(/\./g, "");
+        if (!isNaN(raw)) {
+            newArr[index][field] = raw.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+      } else {
+        newArr[index][field] = value;
+      }
       setExtraServices(newArr);
   };
-  // Hàm chuẩn hóa loại dịch vụ
+
+  // --- HÀM HELPER & TRANSLATIONS ---
   const normalizeServiceType = (val) => {
       if (!val) return "";
       const cleanVal = String(val).trim();
       const krMap = {
-        "인증 센터": "Chứng thực", "결혼 이민": "Kết hôn",
-        "출생신고 대행": "Khai sinh, khai tử", "국적 대행": "Quốc tịch",
-        "여권 • 호적 대행": "Hộ chiếu, Hộ tịch", "입양 절차 대행": "Nhận nuôi",
-        "비자 대행": "Thị thực", "법률 컨설팅": "Tư vấn pháp lý",
+        "인증 센터": "Chứng thực", "결혼 이민": "Kết hôn", "출생신고 대행": "Khai sinh, khai tử", "국적 대행": "Quốc tịch",
+        "여권 • 호적 대행": "Hộ chiếu, Hộ tịch", "입양 절차 대행": "Nhận nuôi", "비자 대행": "Thị thực", "법률 컨설팅": "Tư vấn pháp lý",
         "B2B 서비스": "Dịch vụ B2B", "기타": "Khác",
       };
-      if (krMap[cleanVal]) return krMap[cleanVal];
-      return cleanVal;
+      return krMap[cleanVal] || cleanVal;
   };
 
   const translations = {
@@ -221,64 +257,49 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
       title: isNew ? "Đăng ký dịch vụ mới (B2C)" : `Cập nhật yêu cầu #${request?.YeuCauID || ""}`,
       subtitle: "Nhập thông tin khách hàng và dịch vụ",
       customer: "Khách Hàng", areaCode: "Mã", phone: "Số Điện Thoại", email: "Email",
-      serviceType: "Loại Dịch Vụ",
-      category: "Danh Mục",
-      serviceName: "Tên Dịch Vụ",
+      serviceType: "Loại Dịch Vụ", category: "Danh Mục", serviceName: "Tên Dịch Vụ",
       package: "Gói", form: "Kênh Liên Hệ", branch: "Cơ Sở Tư Vấn",
       appointmentDate: "Ngày Hẹn", appointmentTime: "Giờ Hẹn", content: "Nội Dung",
       note: "Ghi Chú", assignee: "Người Phụ Trách", status: "Trạng thái",
-      confirmPassword: "Mật khẩu xác nhận", passwordHelper: "Mật khẩu của bạn",
-      save: isNew ? "Đăng ký dịch vụ mới" : "Lưu thay đổi", processing: "Đang xử lý...",
-      selectServiceType: "Chọn Loại Dịch Vụ", 
-      selectCategory: "Chọn Danh Mục Chi Tiết",
-      enterServiceName: "Nhập Tên Dịch Vụ Cụ Thể",
-      selectPackage: "Chọn Gói",
-      selectForm: "Chọn Hình Thức", selectBranch: "Chọn Cơ Sở", selectAssignee: "Chọn nhân viên",
-      enterName: "Nhập Tên Khách Hàng", enterPhone: "Nhập Số Điện Thoại", enterEmail: "Nhập Email",
-      selectNguoiPT: "Chọn Người Phụ Trách",
-      enterContent: "Nhập Nội Dung",
-      enterNote: "Nhập Ghi Chú",
-      selectStatus: "Chọn Trạng Thái"
+      confirmPassword: "Mật khẩu xác nhận", 
+      save: isNew ? "Đăng ký dịch vụ mới" : "Lưu thay đổi",
+      selectServiceType: "Chọn Loại Dịch Vụ", selectCategory: "Chọn Danh Mục Chi Tiết",
+      enterServiceName: "Nhập Tên Dịch Vụ Cụ Thể", selectPackage: "Chọn Gói",
+      selectForm: "Chọn Hình Thức", selectBranch: "Chọn Cơ Sở", selectNguoiPT: "Chọn Người Phụ Trách", selectStatus: "Chọn Trạng Thái",
+      enterName: "Nhập Tên Khách Hàng", enterPhone: "Nhập Số Điện Thoại", enterEmail: "Nhập Email", enterContent: "Nhập Nội Dung", enterNote: "Nhập Ghi Chú",
     },
     en: {
       title: isNew ? "Register New Service (B2C)" : `Update Request #${request?.YeuCauID || ""}`,
       subtitle: "Enter customer and service information",
-      customer: "Customer", areaCode: "Code", phone: "Phone Number", email: "Email",
-      serviceType: "Service Type",
-      category: "Category",
-      serviceName: "Service Name",
-      package: "Package", form: "Contact Channel", branch: "Branch",
+      customer: "Customer", areaCode: "Code", phone: "Phone", email: "Email",
+      serviceType: "Service Type", category: "Category", serviceName: "Service Name",
+      package: "Package", form: "Channel", branch: "Branch",
       appointmentDate: "Date", appointmentTime: "Time", content: "Content",
       note: "Note", assignee: "Assignee", status: "Status",
-      confirmPassword: "Confirm Password", passwordHelper: "Your password",
-      save: isNew ? "Register New Service" : "Save Changes", processing: "Processing...",
-      selectServiceType: "Select Service Type", 
-      selectCategory: "Select Category",
-      enterServiceName: "Enter Specific Service Name",
-      selectPackage: "Select Service Package",
-      selectForm: "Select Form", selectBranch: "Select Branch", selectAssignee: "Select Staff",
-      enterName: "Customer Name", enterPhone: "Enter Phone Number", enterEmail: "Enter Email",
-      selectNguoiPT: "Select Assignee", 
-      enterContent: "Enter Content",
-      enterNote: "Enter Note",
-      selectStatus: "Select Status"
+      confirmPassword: "Confirm Password",
+      save: isNew ? "Register New Service" : "Save Changes",
+      selectServiceType: "Select Type", selectCategory: "Select Category",
+      enterServiceName: "Enter Service Name", selectPackage: "Select Package",
+      selectForm: "Select Channel", selectBranch: "Select Branch", selectNguoiPT: "Select Assignee", selectStatus: "Select Status",
+      enterName: "Enter Name", enterPhone: "Enter Phone", enterEmail: "Enter Email", enterContent: "Enter Content", enterNote: "Enter Note",
     }
   };
   const t = translations[currentLanguage === "vi" ? "vi" : "en"];
 
+  // --- STATE FORM DATA ---
   const [formData, setFormData] = useState(
     isNew
       ? {
           HoTen: "", MaVung: "+84", SoDienThoai: "", Email: "",
           NoiDung: "", GhiChu: "", TenHinhThuc: "",
           CoSoTuVan: "", Gio: "", ChonNgay: "",
-          LoaiDichVu: "",
-          DanhMuc: "", TenDichVu: "",
+          LoaiDichVu: "", DanhMuc: "", TenDichVu: "",
           MaHoSo: "", NguoiPhuTrachId: currentUser?.id || "",
           TrangThai: "Tư vấn", GoiDichVu: "",
-          Invoice: "No", InvoiceUrl: "", ConfirmPassword: "" ,DoanhThuTruocChietKhau: 0,
+          Invoice: "No", InvoiceUrl: "", ConfirmPassword: "",
+          DoanhThuTruocChietKhau: "0", // String format
           MucChietKhau: 0,
-          Vi: 0
+          Vi: "0" // String format
         }
       : { 
           ...request,
@@ -291,8 +312,11 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           NguoiPhuTrachId: request.NguoiPhuTrachId || "",
           TrangThai: request.TrangThai || "Tư vấn",
           LoaiDichVu: normalizeServiceType(request.LoaiDichVu), 
-         DanhMuc: (request.DanhMuc || "").split(" + ")[0],
-          TenDichVu: request.TenDichVu || ""  
+          DanhMuc: (request.DanhMuc || "").split(" + ")[0],
+          TenDichVu: request.TenDichVu || "",
+          // Format tiền khi load lên
+          DoanhThuTruocChietKhau: formatNumber(request.DoanhThuTruocChietKhau),
+          Vi: formatNumber(request.Vi)
         }
   );
 
@@ -301,27 +325,20 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
       setFormData(prev => ({...prev, DanhMuc: ""}));
   };
 
-  // --- STYLES GIỐNG B2B ---
-  const inputHeight = "38px"; 
-  const labelStyle = { fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "4px", display: "block" };
-  const inputStyle = {
-    width: "100%", height: inputHeight, padding: "0 10px", borderRadius: "8px",
-    border: "1px solid #d1d5db", fontSize: "13px", color: "#111827",
-    backgroundColor: "#F9FAFB", outline: "none", transition: "border-color 0.2s"
-  };
-
-  const areaCodes = [{ value: "+82", label: "+82" }, { value: "+84", label: "+84" }];
-  
-  const formOptions = currentLanguage === "vi" ? ["Messenger","Kakao Talk", "Zalo","Naver Talk", "Email", "Gọi điện","Trực tiếp"] : ["Messenger","Kakao Talk", "Zalo","Naver Talk", "Email", "Phone", "Direct"];
-  const branchOptions = [{ value: "Seoul", label: "Seoul" }, { value: "Busan", label: "Busan" }];
-  const statusOptions = currentLanguage === "vi" ? ["Tư vấn", "Đang xử lý", "Đang nộp hồ sơ", "Hoàn thành"] : ["Consultation", "Processing", "Submitting Documents", "Completed"];
-  const packageOptions = currentLanguage === "vi" ? [{ value: "Thông thường", label: "Thông thường" }, { value: "Cấp tốc", label: "Cấp tốc" }] : [{ value: "Thông thường", label: "Standard" }, { value: "Cấp tốc", label: "Express" }];
-
   const handleInputChange = (eOrName, value) => {
     let name, val;
     if (typeof eOrName === 'string') { name = eOrName; val = value; } 
     else { name = eOrName.target.name; val = eOrName.target.value; }
     setFormData((prev) => ({ ...prev, [name]: val }));
+  };
+
+  // Xử lý nhập tiền (cho DoanhThu và Vi)
+  const handleMoneyChange = (e) => {
+    const { name, value } = e.target;
+    const raw = value.toString().replace(/\./g, "");
+    if (!isNaN(raw)) {
+        setFormData(prev => ({ ...prev, [name]: formatNumber(raw) }));
+    }
   };
 
   const formatTimeForInput = (val) => {
@@ -333,21 +350,16 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     }
     return val.substring(0, 5);
   };
-const handleMoneyChange = (e) => {
-    const { name, value } = e.target;
-    const raw = value.toString().replace(/\./g, "");
-    if (!isNaN(raw)) {
-        setFormData(prev => ({ ...prev, [name]: raw }));
-    }
-  };
+
+  // --- HÀM LƯU DỮ LIỆU ---
   const handleSave = async () => {
-    // 1. Kiểm tra validation cơ bản
+    // 1. Validation
     if (!formData.HoTen || !formData.SoDienThoai) {
         showToast(currentLanguage === "vi" ? "Thiếu tên hoặc SĐT" : "Missing Name/Phone", "warning");
         return;
     }
 
-    // 2. Kiểm tra mật khẩu nếu là tạo mới
+    // 2. Kiểm tra mật khẩu (nếu là mới hoặc yêu cầu xác nhận)
     if (isNew) {
       if (!formData.ConfirmPassword) {
         showToast(currentLanguage === "vi" ? "Nhập mật khẩu xác nhận!" : "Enter password!", "warning");
@@ -369,21 +381,66 @@ const handleMoneyChange = (e) => {
       } catch (err) { setLoading(false); return; }
     }
 
-
-    const validExtras = extraServices.filter(s => s && s.trim() !== "");
-    let finalDanhMuc = formData.DanhMuc; 
+    // 3. TÍNH TOÁN TÀI CHÍNH (MAIN + SUB)
+    // a. Doanh thu dịch vụ CHÍNH
+    const mainRevenue = unformatMoney(formData.DoanhThuTruocChietKhau);
+    const mainDiscount = parseFloat(formData.MucChietKhau || 0);
+    const mainDiscountAmount = mainRevenue * (mainDiscount / 100);
     
-  
-    if (validExtras.length > 0) {
-        finalDanhMuc = `${formData.DanhMuc} + ${validExtras.join(" + ")}`;
-    }
-  
+    // b. Doanh thu dịch vụ PHỤ
+    const validExtras = extraServices.filter(s => s.name && s.name.trim() !== "");
+    let extraRevenue = 0;
+    let extraDiscountAmount = 0;
 
+    const subServicesData = validExtras.map(sub => {
+        const r = unformatMoney(sub.revenue);
+        const d = parseFloat(sub.discount || 0);
+        extraRevenue += r;
+        extraDiscountAmount += r * (d / 100);
+        return {
+            name: sub.name,
+            revenue: r,
+            discount: d
+        };
+    });
+
+    // c. Tạo object JSON ChiTietDichVu
+    const chiTietDichVu = {
+        main: {
+            revenue: mainRevenue,
+            discount: mainDiscount
+        },
+        sub: subServicesData
+    };
+
+    // d. Tổng hợp
+    const totalRevenue = mainRevenue + extraRevenue;
+    const totalDiscountAmount = mainDiscountAmount + extraDiscountAmount;
+    
+    // Tính % chiết khấu trung bình (để lưu vào cột MucChietKhau phẳng)
+    let averageDiscountPercent = totalRevenue > 0 ? (totalDiscountAmount / totalRevenue) * 100 : 0;
+    averageDiscountPercent = Math.round(averageDiscountPercent * 100) / 100;
+
+    // e. Tạo chuỗi DanhMuc hiển thị
+    let finalDanhMuc = formData.DanhMuc; 
+    if (validExtras.length > 0) {
+        finalDanhMuc = `${formData.DanhMuc} + ${validExtras.map(e => e.name).join(" + ")}`;
+    }
 
     const payload = { 
         ...formData, 
         autoApprove: isNew && canApprove,
-        DanhMuc: finalDanhMuc
+        DanhMuc: finalDanhMuc,
+        
+        // Cập nhật các trường tổng hợp
+        DoanhThuTruocChietKhau: totalRevenue,
+        MucChietKhau: averageDiscountPercent,
+        SoTienChietKhau: totalDiscountAmount,
+        DoanhThuSauChietKhau: totalRevenue - totalDiscountAmount - unformatMoney(formData.Vi),
+        Vi: unformatMoney(formData.Vi),
+
+        // Gửi JSON chi tiết
+        ChiTietDichVu: chiTietDichVu 
     };
     
     delete payload.ConfirmPassword;
@@ -392,8 +449,21 @@ const handleMoneyChange = (e) => {
     await onSave(payload);
     setLoading(false);
   };
-  const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : "0";
+
+  // --- STYLES ---
+  const inputStyle = {
+    width: "100%", height: "38px", padding: "0 10px", borderRadius: "8px",
+    border: "1px solid #d1d5db", fontSize: "13px", color: "#111827",
+    backgroundColor: "#F9FAFB", outline: "none", transition: "border-color 0.2s"
+  };
+  const labelStyle = { fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "4px", display: "block" };
+  const areaCodes = [{ value: "+82", label: "+82" }, { value: "+84", label: "+84" }];
+  const formOptions = currentLanguage === "vi" ? ["Messenger","Kakao Talk", "Zalo","Naver Talk", "Email", "Gọi điện","Trực tiếp"] : ["Messenger","Kakao Talk", "Zalo","Naver Talk", "Email", "Phone", "Direct"];
+  const branchOptions = [{ value: "Seoul", label: "Seoul" }, { value: "Busan", label: "Busan" }];
+  const statusOptions = currentLanguage === "vi" ? ["Tư vấn", "Đang xử lý", "Đang nộp hồ sơ", "Hoàn thành"] : ["Consultation", "Processing", "Submitting Documents", "Completed"];
+  const packageOptions = [{ value: "Thông thường", label: "Thông thường" }, { value: "Cấp tốc", label: "Cấp tốc" }];
   const discountOptions = [{ value: 0, label: "0%" }, { value: 5, label: "5%" }, { value: 10, label: "10%" }, { value: 12, label: "12%" }, { value: 15, label: "15%" }, { value: 17, label: "17%" }, { value: 30, label: "30%" }];
+
   return (
     <div className="modal-overlay" style={{
       position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
@@ -401,17 +471,9 @@ const handleMoneyChange = (e) => {
       display: "flex", justifyContent: "center", alignItems: "center"
     }}>
       <div className="bg-white p-4 position-relative" 
-          style={{ 
-            width: "800px",
-            maxWidth: "95%", 
-            borderRadius: "16px", 
-            boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
-            maxHeight: "90vh",
-            overflowY: "auto"
-          }}
+          style={{ width: "800px", maxWidth: "95%", borderRadius: "16px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", maxHeight: "90vh", overflowY: "auto" }}
       >
-        <button onClick={onClose} className="position-absolute d-flex align-items-center justify-content-center border-0 bg-light rounded-circle"
-            style={{ top: "15px", right: "15px", width: "32px", height: "32px", cursor: "pointer", zIndex: 10 }}>
+        <button onClick={onClose} className="position-absolute d-flex align-items-center justify-content-center border-0 bg-light rounded-circle" style={{ top: "15px", right: "15px", width: "32px", height: "32px", cursor: "pointer", zIndex: 10 }}>
             <X size={18} />
         </button>
 
@@ -421,8 +483,7 @@ const handleMoneyChange = (e) => {
         </div>
 
         <div className="row g-3">
-          
-          {/* === HÀNG 1: THÔNG TIN KHÁCH HÀNG === */}
+          {/* KHÁCH HÀNG */}
           <div className="col-md-4">
             <label style={labelStyle}>{t.customer} <span className="text-danger">*</span></label>
             <input type="text" name="HoTen" style={inputStyle} value={formData.HoTen} onChange={handleInputChange} placeholder={t.enterName} />
@@ -430,20 +491,10 @@ const handleMoneyChange = (e) => {
           <div className="col-md-4">
             <label style={labelStyle}>{t.phone} <span className="text-danger">*</span></label>
             <div className="d-flex">
-              <select 
-                name="MaVung" 
-                value={formData.MaVung} 
-                onChange={handleInputChange} 
-                style={{
-                  ...inputStyle, width: "70px", borderTopRightRadius: 0, borderBottomRightRadius: 0,
-                  padding: "0 5px", textAlign: "center", backgroundColor: "#f3f4f6", cursor: "pointer", appearance: "auto"
-                }}
-              >
+              <select name="MaVung" value={formData.MaVung} onChange={handleInputChange} style={{...inputStyle, width: "70px", borderTopRightRadius: 0, borderBottomRightRadius: 0, padding: "0 5px", textAlign: "center", backgroundColor: "#f3f4f6"}}>
                 {areaCodes.map(c => <option key={c.value} value={c.value}>{c.value}</option>)}
               </select>
-              <input type="text" name="SoDienThoai" style={{ ...inputStyle, flex: 1, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: "none" }} 
-                value={formData.SoDienThoai} onChange={handleInputChange} placeholder={t.enterPhone} 
-              />
+              <input type="text" name="SoDienThoai" style={{ ...inputStyle, flex: 1, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: "none" }} value={formData.SoDienThoai} onChange={handleInputChange} placeholder={t.enterPhone} />
             </div>
           </div>
           <div className="col-md-4">
@@ -451,104 +502,86 @@ const handleMoneyChange = (e) => {
             <input type="email" name="Email" style={inputStyle} value={formData.Email} onChange={handleInputChange} placeholder={t.enterEmail} />
           </div>
 
-       <div className="col-md-4">
+          {/* DỊCH VỤ */}
+          <div className="col-md-4">
             <label style={labelStyle}>{t.serviceType} <span className="text-danger">*</span></label>
-            <ModernSelect 
-                name="LoaiDichVu" 
-                height={inputHeight} 
-                value={formData.LoaiDichVu} 
-                placeholder={t.selectServiceType} 
-                options={serviceTypeList.map(s => ({ value: s, label: s }))} 
-                onChange={handleServiceTypeChange} 
-            />
+            <ModernSelect name="LoaiDichVu" height="38px" value={formData.LoaiDichVu} placeholder={t.selectServiceType} options={serviceTypeList.map(s => ({ value: s, label: s }))} onChange={handleServiceTypeChange} />
           </div>
-      
           <div className="col-md-4">
             <label style={labelStyle}>{t.serviceName}</label>
-             <input type="text" name="TenDichVu" style={inputStyle} value={formData.TenDichVu} onChange={handleInputChange} placeholder={t.enterServiceName} />
+            <input type="text" name="TenDichVu" style={inputStyle} value={formData.TenDichVu} onChange={handleInputChange} placeholder={t.enterServiceName} />
           </div>
           <div className="col-md-4">
             <label style={labelStyle}>{t.package}</label>
-            <ModernSelect name="GoiDichVu" height={inputHeight} value={formData.GoiDichVu} placeholder={t.selectPackage} options={packageOptions} onChange={handleInputChange} />
+            <ModernSelect name="GoiDichVu" height="38px" value={formData.GoiDichVu} placeholder={t.selectPackage} options={packageOptions} onChange={handleInputChange} />
           </div>
-          
+
+          {/* DANH MỤC & DỊCH VỤ PHỤ */}
           <div className="col-12">
              <label style={labelStyle}>{t.category} (Chi tiết) <span className="text-danger">*</span></label>
              <ModernSelect 
                 name="DanhMuc" 
-                height={inputHeight} 
+                height="38px" 
                 value={formData.DanhMuc} 
                 placeholder={t.selectCategory} 
                 options={(B2C_CATEGORY_LIST[formData.LoaiDichVu] || []).map(dm => ({ value: dm, label: dm }))} 
                 onChange={handleInputChange}
                 disabled={!formData.LoaiDichVu}
-                // Nút + Thêm dịch vụ bổ sung
                 footerAction={{
                     label: showExtras ? "Ẩn dịch vụ bổ sung" : "Thêm dịch vụ bổ sung (+5)",
                     icon: showExtras ? <EyeOff size={14}/> : <Plus size={14}/>,
                     onClick: () => {
-                         if (!showExtras && extraServices.length === 0) setExtraServices([""]); 
+                         if (!showExtras && extraServices.length === 0) setExtraServices([{ name: "", revenue: "", discount: "" }]); 
                          setShowExtras(!showExtras);
                     }
                 }}
             />
             
-            {/* Vùng nhập Dịch vụ bổ sung (Hiển thị khi bật showExtras) */}
             {showExtras && (
                 <div className="mt-2 p-3 bg-light rounded border animate__animated animate__fadeIn">
                     <div style={{ fontSize: "11px", color: "#666", marginBottom: "8px", fontStyle: "italic" }}>
-                        * Nhập tên dịch vụ phụ (Ví dụ: Dịch thuật, Công chứng...). <br/>
-                        * Nhấn nút <b>(+)</b> màu xanh để thêm dòng mới.
+                        Nhập tên dịch vụ bổ sung. {canApprove && "Nhập doanh thu và chiết khấu riêng (Nếu có)."}
                     </div>
-                    
                     <div className="d-flex flex-column gap-2">
                         {extraServices.map((service, index) => (
-                            <div key={index} className="d-flex align-items-center gap-2" style={{ width: "100%" }}>
-                                <input
-                                    type="text"
-                                    placeholder={`Dịch vụ bổ sung ${index + 1}`}
-                                    value={service}
-                                    onChange={(e) => handleChangeExtra(index, e.target.value)}
-                                    style={{ ...inputStyle, flex: 1 }}
-                                />
-                                <button type="button" onClick={() => handleRemoveRow(index)} className="btn btn-outline-danger d-flex align-items-center justify-content-center" style={{ width: "38px", height: "38px", padding: 0, borderRadius: "6px" }} title="Xóa">
+                            <div key={index} className="d-flex align-items-center gap-2">
+                                <input type="text" placeholder={`Dịch vụ phụ ${index + 1}`} value={service.name} onChange={(e) => handleChangeExtra(index, "name", e.target.value)} style={{ ...inputStyle, flex: 2 }} />
+                                {canApprove && (
+                                  <>
+                                    <input type="text" placeholder="Doanh thu" value={service.revenue} onChange={(e) => handleChangeExtra(index, "revenue", e.target.value)} style={{ ...inputStyle, flex: 1, textAlign: "right" }} />
+                                    <select className="form-select form-select-sm" value={service.discount || ""} onChange={(e) => handleChangeExtra(index, "discount", e.target.value)} style={{ flex: 0.6, height: "38px", fontSize: "12px" }}>
+                                        <option value="">0%</option>
+                                        {[5,10,12,15,17,20,30].map(d => <option key={d} value={d}>{d}%</option>)}
+                                    </select>
+                                  </>
+                                )}
+                                <button type="button" onClick={() => handleRemoveRow(index)} className="btn btn-outline-danger d-flex align-items-center justify-content-center" style={{ width: "38px", height: "38px", padding: 0, borderRadius: "6px" }}>
                                     <Trash2 size={16} />
                                 </button>
-                                {index === extraServices.length - 1 && extraServices.length < 5 && (
-                                    <button type="button" onClick={handleAddRow} className="btn btn-primary d-flex align-items-center justify-content-center" style={{ width: "38px", height: "38px", padding: 0, borderRadius: "6px", backgroundColor: "#22c55e", borderColor: "#22c55e" }} title="Thêm">
-                                        <Plus size={18} />
-                                    </button>
-                                )}
                             </div>
                         ))}
+                        {extraServices.length < 5 && (
+                           <button type="button" onClick={handleAddRow} className="btn btn-sm btn-primary d-flex gap-1" style={{ width: "fit-content" }}><Plus size={14} /> Thêm dòng</button>
+                        )}
                     </div>
                 </div>
             )}
           </div>
          
-
-          {/* === HÀNG 4: THÔNG TIN KHÁC === */}
+          {/* INFO KHÁC */}
           <div className="col-md-4">
             <label style={labelStyle}>{t.form}</label>
-            <ModernSelect name="TenHinhThuc" height={inputHeight} value={formData.TenHinhThuc} placeholder={t.selectForm} options={formOptions.map(v => ({ value: v, label: v }))} onChange={handleInputChange} />
+            <ModernSelect name="TenHinhThuc" height="38px" value={formData.TenHinhThuc} placeholder={t.selectForm} options={formOptions.map(v => ({ value: v, label: v }))} onChange={handleInputChange} />
           </div>
           <div className="col-md-4">
             <label style={labelStyle}>{t.branch}</label>
-            <ModernSelect name="CoSoTuVan" height={inputHeight} value={formData.CoSoTuVan} placeholder={t.selectBranch} options={branchOptions} onChange={handleInputChange} />
+            <ModernSelect name="CoSoTuVan" height="38px" value={formData.CoSoTuVan} placeholder={t.selectBranch} options={branchOptions} onChange={handleInputChange} />
           </div>
           <div className="col-md-4">
              <label style={labelStyle}>{t.status}</label>
-             <ModernSelect 
-                name="TrangThai" 
-                height={inputHeight} 
-                value={formData.TrangThai} 
-                placeholder={t.selectStatus} 
-                options={statusOptions.map(s => ({ value: s, label: s }))} 
-                onChange={handleInputChange} 
-             />
+             <ModernSelect name="TrangThai" height="38px" value={formData.TrangThai} placeholder={t.selectStatus} options={statusOptions.map(s => ({ value: s, label: s }))} onChange={handleInputChange} />
           </div>
 
-          {/* === HÀNG 5: LỊCH HẸN & NGƯỜI PHỤ TRÁCH === */}
           {(() => {
             const canAssign = currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant;
             const colClass = canAssign ? "col-md-4" : "col-md-6";
@@ -565,53 +598,60 @@ const handleMoneyChange = (e) => {
                 {canAssign && (
                   <div className="col-md-4">
                     <label style={labelStyle}>{t.assignee}</label>
-                    <ModernSelect name="NguoiPhuTrachId" height={inputHeight} value={formData.NguoiPhuTrachId} placeholder={t.selectNguoiPT} options={users.map(u => ({ value: String(u.id), label: u.name }))} onChange={handleInputChange} />
+                    <ModernSelect name="NguoiPhuTrachId" height="38px" value={formData.NguoiPhuTrachId} placeholder={t.selectNguoiPT} options={users.map(u => ({ value: String(u.id), label: u.name }))} onChange={handleInputChange} />
                   </div>
                 )}
               </>
             );
           })()}
 
-          {/* === HÀNG 6: NỘI DUNG & GHI CHÚ === */}
           <div className="col-12">
             <label style={labelStyle}>{t.content}</label>
             <textarea rows={2} name="NoiDung" style={inputStyle} value={formData.NoiDung} onChange={handleInputChange} placeholder={t.enterContent} />
           </div>
-
           <div className="col-12">
             <label style={labelStyle}>{t.note}</label>
             <textarea rows={2} name="GhiChu" style={inputStyle} value={formData.GhiChu} onChange={handleInputChange} placeholder={t.enterNote} />
           </div>
-{isNew && canApprove && (
-                <div className="col-12 mt-3 pt-2 border-top">
-                    
-                    <div className="row g-3">
-                        <div className="col-md-4">
-                            <label style={labelStyle}>Doanh thu (VNĐ)</label>
-                            <input 
-                                type="text" 
-                                name="DoanhThuTruocChietKhau" 
-                                value={formatNumber(formData.DoanhThuTruocChietKhau)} 
-                                onChange={handleMoneyChange} 
-                                style={{...inputStyle, color: "#2563eb", fontWeight: "bold"}} 
-                                placeholder="0" 
-                            />
-                        </div>
-                        <div className="col-md-4">
-                            <label style={labelStyle}>Mức Chiết khấu (%)</label>
-                            <ModernSelect 
-                                name="MucChietKhau" 
-                                height={inputHeight} 
-                                value={formData.MucChietKhau} 
-                                options={discountOptions} 
-                                onChange={(e) => setFormData(prev => ({...prev, MucChietKhau: e.target.value}))} 
-                            />
-                        </div>
-                       
-                       
+
+          {/* --- TÀI CHÍNH (3 CỘT: Doanh Thu, Chiết Khấu, Ví) --- */}
+          {canApprove && (
+            <div className="col-12 mt-3 pt-2 border-top">
+                <div className="row g-3">
+                    <div className="col-md-4">
+                        <label style={labelStyle}>Doanh Thu<span className="text-danger">*</span></label>
+                        <input 
+                            type="text" 
+                            name="DoanhThuTruocChietKhau" 
+                            value={formData.DoanhThuTruocChietKhau} 
+                            onChange={handleMoneyChange} 
+                            style={{...inputStyle, textAlign: "center"}} 
+                        />
+                    </div>
+                    <div className="col-md-4">
+                        <label style={labelStyle}>Mức Chiết Khấu (%)</label>
+                        <ModernSelect 
+                            name="MucChietKhau" 
+                            height="38px" 
+                            value={formData.MucChietKhau} 
+                            options={discountOptions} 
+                            onChange={(e) => setFormData(prev => ({...prev, MucChietKhau: e.target.value}))} 
+                        />
+                    </div>
+                    <div className="col-md-4">
+                        <label style={labelStyle}>Trừ Ví</label>
+                        <input 
+                            type="text" 
+                            name="Vi" 
+                            value={formData.Vi} 
+                            onChange={handleMoneyChange} 
+                            style={{...inputStyle, textAlign: "center"}} 
+                            placeholder="0"
+                        />
                     </div>
                 </div>
-            )}
+            </div>
+          )}
 
           <div className="col-12 mt-2">
             {isNew ? (
@@ -621,26 +661,26 @@ const handleMoneyChange = (e) => {
                         <div className="position-relative">
                             <input type={showConfirmPassword ? "text" : "password"} placeholder="******" value={formData.ConfirmPassword} onChange={handleInputChange} name="ConfirmPassword" style={inputStyle} />
                             <span className="position-absolute top-50 translate-middle-y end-0 me-2 cursor-pointer" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
-                            {showConfirmPassword ? <EyeOff size={14}/> : <Eye size={14}/>}
+                                {showConfirmPassword ? <EyeOff size={14}/> : <Eye size={14}/>}
                             </span>
                         </div>
                     </div>
                     <div>
                         <button className="btn fw-bold w-100 shadow-sm" onClick={handleSave} disabled={loading} style={{ backgroundColor: "#10b981", color: "white", height: "42px", borderRadius: "8px", fontSize: "14px" }}>
-                        {loading ? <span className="spinner-border spinner-border-sm"></span> : t.save}
+                            {loading ? <span className="spinner-border spinner-border-sm"></span> : t.save}
                         </button>
                     </div>
                 </div>
             ) : (
                 <div className="col-12 mt-3">
-                <button className="btn fw-bold w-100 shadow-sm" onClick={handleSave} disabled={loading} style={{ backgroundColor: "#10b981", color: "white", height: "42px", borderRadius: "8px", fontSize: "14px" }}>
-                   {loading ? <span className="spinner-border spinner-border-sm"></span> : (
-                       isNew && canApprove 
-                       ? (currentLanguage === "vi" ? "ĐĂNG KÝ & DUYỆT LUÔN (CẤP MÃ)" : "REGISTER & AUTO APPROVE") 
-                       : t.save
-                   )}
-                </button>
-            </div>
+                    <button className="btn fw-bold w-100 shadow-sm" onClick={handleSave} disabled={loading} style={{ backgroundColor: "#10b981", color: "white", height: "42px", borderRadius: "8px", fontSize: "14px" }}>
+                       {loading ? <span className="spinner-border spinner-border-sm"></span> : (
+                           isNew && canApprove 
+                           ? (currentLanguage === "vi" ? "ĐĂNG KÝ & DUYỆT LUÔN (CẤP MÃ)" : "REGISTER & AUTO APPROVE") 
+                           : t.save
+                       )}
+                    </button>
+                </div>
             )}
           </div>
 
@@ -649,6 +689,8 @@ const handleMoneyChange = (e) => {
     </div>
   );
 };
+
+
 
 
 const RowItem = ({
@@ -664,6 +706,23 @@ const RowItem = ({
   const canApprove = currentUser?.is_director || currentUser?.perm_approve_b2c;
   const canViewFinance = currentUser?.is_accountant || currentUser?.is_director;
   const hasServiceCode = item.MaHoSo && item.MaHoSo.length > 5;
+const translateService = (val) => {
+      if (!val) return "";
+      const map = {
+        "인증 센터": "Chứng thực",
+        "결혼 이민": "Kết hôn",
+        "출생신고 대행": "Khai sinh, khai tử",
+        "국적 대행": "Quốc tịch",
+        "여권 • 호적 대행": "Hộ chiếu, Hộ tịch",
+        "입양 절차 대행": "Nhận nuôi",
+        "비자 대행": "Thị thực",
+        "법률 컨설팅": "Tư vấn pháp lý",
+        "B2B 서비스": "Dịch vụ B2B",
+        "기타": "Khác",
+      };
+      return map[String(val).trim()] || val;
+  };
+  // --- [ĐÃ SỬA] THÊM HÀM XỬ LÝ XÓA ---
   const handleDeleteClick = () => {
     Swal.fire({
       title: currentLanguage === "vi" ? "Bạn chắc chắn chứ?" : "Are you sure?",
@@ -681,267 +740,250 @@ const RowItem = ({
     });
   };
 
-  const translateService = (serviceName) => {
-    const map = {
-      "인증 센터": "Chứng thực", "결혼 이민": "Kết hôn",
-      "출생신고 대행": "Khai sinh, khai tử", "출입국 행정 대행": "Xuất nhập cảnh",
-      "신분증명 서류 대행": "Giấy tờ tuỳ thân", "입양 절차 대행": "Nhận nuôi",
-      "비자 대행": "Thị thực", "법률 컨설팅": "Tư vấn pháp lý",
-      "B2B 서비스": "Dịch vụ B2B", 기타: "Khác",
-    };
-    return map[serviceName] || serviceName;
+  // --- Xử lý dữ liệu ChiTietDichVu (Tách dòng) ---
+  const details = typeof item.ChiTietDichVu === 'string' 
+      ? JSON.parse(item.ChiTietDichVu) 
+      : (item.ChiTietDichVu || { main: {}, sub: [] });
+
+  let rowsToRender = [];
+
+  // Dòng chính (Main)
+  const mainData = {
+      isMain: true,
+      name: item.DanhMuc ? item.DanhMuc.split(" + ")[0] : "",
+      revenue: (details.main && details.main.revenue !== undefined) ? details.main.revenue : item.DoanhThuTruocChietKhau,
+      discount: (details.main && details.main.discount !== undefined) ? details.main.discount : item.MucChietKhau,
   };
+  rowsToRender.push(mainData);
 
-  const translateBranch = (branch) => {
-    const map = { 서울: "Seoul", 부산: "Busan" };
-    return map[branch] || branch || "";
+  // Các dòng phụ (Sub)
+  if (details.sub && details.sub.length > 0) {
+      details.sub.forEach(sub => {
+          rowsToRender.push({
+              isMain: false,
+              name: sub.name,
+              revenue: sub.revenue,
+              discount: sub.discount
+          });
+      });
+  } else {
+      // Fallback: Dữ liệu cũ
+      const parts = (item.DanhMuc || "").split(" + ");
+      if (parts.length > 1) {
+          parts.slice(1).forEach(subName => {
+              rowsToRender.push({
+                  isMain: false,
+                  name: subName,
+                  revenue: 0, 
+                  discount: 0
+              });
+          });
+      }
+  }
+
+  const rowSpanCount = rowsToRender.length;
+
+  // Helper Functions
+  const calculateRowStats = (row) => {
+      const rev = Number(row.revenue) || 0;
+      const disc = Number(row.discount) || 0;
+      const discAmount = rev * (disc / 100);
+      const after = rev - discAmount;
+      return { rev, disc, discAmount, after };
   };
-
-
-  const displayMaHoSo = item.MaHoSo && item.MaHoSo.length > 5 ? item.MaHoSo : "";
-  
-  const isVisible = (key) => (visibleColumns ? visibleColumns[key] : true);
-  const isPinned = (key) => pinnedColumns.includes(key);
+  const totalRevenueAfterDiscount = rowsToRender.reduce((sum, row) => {
+      const rev = Number(row.revenue) || 0;
+      const disc = Number(row.discount) || 0;
+      const discAmount = rev * (disc / 100);
+      const after = rev - discAmount;
+      return sum + after;
+  }, 0);
 
   const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
-  const unformatNumber = (value) => (value ? value.toString().replace(/\./g, "") : "");
- return (
-    <tr>
-      {/* 1. STT */}
-      {isVisible("id") && (
-        <td className={`text-center fw-semibold border-target ${isPinned("id") ? "sticky-col" : ""}`}>
-          {item.YeuCauID}
-        </td>
-      )}
-      {/* 2. Khách hàng */}
-      {isVisible("hoTen") && (
-        <td className={`text-center fw-semibold ${isPinned("hoTen") ? "sticky-col" : ""}`} style={{ minWidth: "120px" }}>
-          {item.HoTen}
-        </td>
-      )}
-      {/* 3. Mã vùng */}
-      {isVisible("maVung") && (
-        <td className={`text-center ${isPinned("maVung") ? "sticky-col" : ""}`}>
-          {item.MaVung}
-        </td>
-      )}
-      {/* 4. Số Điện Thoại */}
-      {isVisible("sdt") && (
-        <td style={{maxWidth: "150px",width: "110px", textAlign:"center"}} className={isPinned("sdt") ? "sticky-col" : ""}>
-          {item.SoDienThoai}
-        </td>
-      )}
-      {/* 5. Email */}
-      {isVisible("email") && (
-        <td style={{ maxWidth: "150px",width: "162px" }} className={`text-center text-truncate ${isPinned("email") ? "sticky-col" : ""}`} title={item.Email}>
-          {item.Email}
-        </td>
-      )}
-      {/* 6. Hình thức */}
-      {isVisible("hinhThuc") && (
-        <td className={`text-center border-target ${isPinned("hinhThuc") ? "sticky-col" : ""}`}>
-          {item.TenHinhThuc}
-        </td>
-      )}
-      {/* 7. Cơ sở */}
-      {isVisible("coSo") && (
-        <td className={`text-center border-target ${isPinned("coSo") ? "sticky-col" : ""}`}>
-          {translateBranch(item.CoSoTuVan)}
-        </td>
-      )}
-      {/* 8. Loại Dịch Vụ */}
-      {isVisible("loaiDichVu") && (
-        <td style={{ maxWidth: "150px" }} className={`text-center text-truncate ${isPinned("loaiDichVu") ? "sticky-col" : ""}`} title={translateService(item.LoaiDichVu)}>
-          {translateService(item.LoaiDichVu)}
-        </td>
-      )}
-     {isVisible("danhMuc") && (
-        <td 
-          className={`text-start ${isPinned("danhMuc") ? "sticky-col" : ""}`} // Đổi text-center thành text-start cho đẹp
-          style={{ maxWidth: "250px", minWidth: "160px", verticalAlign: "middle" }} // verticalAlign: middle để cột Loại dịch vụ tự canh giữa
-        >
-          <div style={{ fontSize: "12px", lineHeight: "1.5" }}>
-            {(item.DanhMuc || "").split(" + ").map((text, index) => (
-                <div key={index} style={{ 
-                    borderTop: index > 0 ? "1px dashed #eee" : "none", // Gạch ngang mờ phân cách
-                    paddingTop: index > 0 ? "4px" : "0",
-                    marginTop: index > 0 ? "4px" : "0",
-                    fontWeight: index === 0 ? "600" : "400", // Dòng chính in đậm
-                    color: index === 0 ? "#2563eb" : "#374151" // Dòng chính màu xanh
-                }}>
-                  {index > 0 && "- "} {text}
-                </div>
-            ))}
-          </div>
-        </td>
-      )}
-      {/* 9. Tên Dịch Vụ */}
-      {isVisible("tenDichVu") && (
-        <td className={`text-center ${isPinned("tenDichVu") ? "sticky-col" : ""}`}>
-          {item.TenDichVu || ""}
-        </td>
-      )}
-      {/* 10. Mã Dịch Vụ */}
-      {isVisible("maDichVu") && (
-        <td className={`text-center border-target ${isPinned("maDichVu") ? "sticky-col" : ""}`}>
-          {displayMaHoSo}
-        </td>
-      )}
+  const translateBranch = (branch) => { const map = { 서울: "Seoul", 부산: "Busan" }; return map[branch] || branch || ""; };
 
-      {(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) && isVisible("nguoiPhuTrach") && (
-        <td style={{width:"110px", textAlign:"center"}}  className={isPinned("nguoiPhuTrach") ? "sticky-col" : ""}>
-          {item.NguoiPhuTrach?.name || <span className="text-muted fst-italic"></span>}
-        </td>
-      )}
-      {/* 12. Ngày hẹn */}
-      {isVisible("ngayHen") && (
-        <td className={`text-center ${isPinned("ngayHen") ? "sticky-col" : ""}`}>
-          {item.ChonNgay ? new Date(item.ChonNgay).toLocaleDateString("vi-VN") : ""}
-        </td>
-      )}
-      {/* 13. Trạng thái */}
-      {isVisible("trangThai") && (
-        <td className={`text-center ${isPinned("trangThai") ? "sticky-col" : ""}`}>
-          {item.TrangThai}
-        </td>
-      )}
-      {/* 14. Gói Dịch Vụ */}
-      {isVisible("goiDichVu") && (
-        <td style={{width:"102px"}} className={`text-center ${isPinned("goiDichVu") ? "sticky-col" : ""}`}>
-          {item.GoiDichVu || ""}
-        </td>
-      )}
-      {/* 15. Invoice Y/N */}
-      {isVisible("invoice") && (
-        <td className={`text-center ${isPinned("invoice") ? "sticky-col" : ""}`}>
-           {["Yes", "yes", "true", "1"].includes(String(item.Invoice)) ? (
-             <span className="text-success fw-bold">Có</span>
-           ) : (
-             <span className="text-muted"></span>
-           )}
-        </td>
-      )}
-      {/* Invoice Link (Kế toán) */}
-      {canViewFinance && isVisible("invoiceUrl") && (
-        <td style={{ maxWidth: "120px" }} className={isPinned("invoiceUrl") ? "sticky-col" : ""}>
-          {item.InvoiceUrl ? (
-            <a href={item.InvoiceUrl} target="_blank" rel="noreferrer" className="text-decoration-none text-primary d-block text-truncate">Link</a>
-          ) : "-"}
-        </td>
-      )}
+  const isVisible = (key) => (visibleColumns ? visibleColumns[key] : true);
+  const isPinned = (key) => pinnedColumns.includes(key);
+  const getStickyClass = (key) => isPinned(key) ? "sticky-col" : "";
 
-      {/* 16. Giờ */}
-      {isVisible("gio") && (
-        <td className={`text-center ${isPinned("gio") ? "sticky-col" : ""}`}>
-          {(() => {
-            if (!item.Gio) return "";
-            if (item.Gio.includes("T")) {
-              return new Date(item.Gio).toLocaleTimeString("vi-VN", { hour12: false, hour: "2-digit", minute: "2-digit" });
-            }
-            return item.Gio.substring(0, 5);
-          })()}
-        </td>
-      )}
+  // Style cho ô gộp (Merged Cells)
+  const mergedStyle = {
+      verticalAlign: "middle",
+      backgroundColor: "#fff", 
+      borderBottom: "1px solid #dee2e6"
+  };
 
-      {/* 17. Nội dung (Đã cập nhật style xuống dòng) */}
-      {isVisible("noiDung") && (
-        <td 
-          style={{ minWidth: "200px", maxWidth: "260px" }} 
-          className={`${isPinned("noiDung") ? "sticky-col" : ""}`}
-        >
-           <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", textAlign: "left", overflowWrap: "anywhere", paddingLeft: "5px" }}>
-             {item.NoiDung}
-           </div>
-        </td>
-      )}
+  return (
+    <>
+      {rowsToRender.map((row, idx) => {
+        const isFirst = idx === 0;
+        const stats = calculateRowStats(row);
 
-      {/* 18. Ghi chú (Đã cập nhật style xuống dòng) */}
-      {isVisible("ghiChu") && (
-        <td 
-          style={{ minWidth: "150px", maxWidth: "250px" }} 
-          className={`${isPinned("ghiChu") ? "sticky-col" : ""}`}
-        >
-           <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", textAlign: "left", overflowWrap: "anywhere", paddingLeft: "5px" }}>
-             {item.GhiChu}
-           </div>
-        </td>
-      )}
-
-      {/* 19. Ngày tạo */}
-      {isVisible("ngayTao") && (
-        <td className={`text-center text-nowrap border-target ${isPinned("ngayTao") ? "sticky-col" : ""}`} style={{fontSize: "0.8rem"}}>
-          {item.NgayTao && (
-            <>
-              {new Date(item.NgayTao).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}
-              <br />
-              {new Date(item.NgayTao).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false })}
-            </>
-          )}
-        </td>
-      )}
-
-      {/* Các cột tài chính (Ẩn/Hiện theo quyền) */}
-      {canViewFinance && isVisible("doanhThuTruoc") && (
-        <td className="text-center">{formatNumber(item.DoanhThuTruocChietKhau)}</td>
-      )}
-      {canViewFinance && isVisible("mucChietKhau") && (
-        <td className="text-center">{item.MucChietKhau ? `${item.MucChietKhau}%` : "-"}</td>
-      )}
-      {canViewFinance && isVisible("soTienChietKhau") && (
-        <td className="text-center">{formatNumber(item.SoTienChietKhau)}</td>
-      )}
-      {canViewFinance && isVisible("doanhThuSau") && (
-         <td className="text-center fw-bold text-primary">{formatNumber(item.DoanhThuSauChietKhau)}</td>
-      )}
-
-      {/* 20. Hành động */}
-     {isVisible("hanhDong") && (
-        <td className={`text-center ${isPinned("hanhDong") ? "sticky-col" : ""}`}>
-          <div className="d-flex justify-content-center align-items-center gap-2">
+        return (
+          <tr key={`${item.YeuCauID}_${idx}`} className="hover-bg-gray">
             
-           
-            {!hasServiceCode && canApprove && (
-              <button 
-                className="btn btn-sm btn-success d-flex align-items-center justify-content-center" 
-                style={{ width: 32, height: 32, backgroundColor: "#10b981", borderColor: "#10b981" }} 
-                onClick={() => onApprove(item)} 
-                title={currentLanguage === "vi" ? "Duyệt & Cấp mã" : "Approve"}
-              >
-                <CheckCircle size={16} />
-              </button>
+            {/* === CÁC CỘT GỘP (CHỈ RENDER Ở DÒNG ĐẦU TIÊN) === */}
+            
+            {isVisible("id") && isFirst && (
+              <td rowSpan={rowSpanCount} className={`text-center fw-semibold border-target ${getStickyClass("id")}`} style={mergedStyle}>
+                {item.YeuCauID}
+              </td>
             )}
 
+            {isVisible("hoTen") && isFirst && (
+              <td rowSpan={rowSpanCount} className={`text-center fw-semibold ${getStickyClass("hoTen")}`} style={{...mergedStyle, minWidth: "120px"}}>
+                {item.HoTen}
+              </td>
+            )}
 
-            {hasServiceCode && (
-                <button 
-                    className="btn btn-sm btn-primary d-flex align-items-center justify-content-center" 
-                    style={{ width: 32, height: 32 }} 
-                    onClick={() => onEdit(item)} 
-                    title={currentLanguage === "vi" ? "Sửa thông tin" : "Edit"}
-                >
-                <Edit size={16} />
-                </button>
+            {isVisible("maVung") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("maVung")}`} style={mergedStyle}>{item.MaVung}</td>}
+            {isVisible("sdt") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("sdt")}`} style={mergedStyle}>{item.SoDienThoai}</td>}
+            {isVisible("email") && isFirst && <td rowSpan={rowSpanCount} className={`text-center text-truncate ${getStickyClass("email")}`} style={{...mergedStyle, maxWidth: "150px"}} title={item.Email}>{item.Email}</td>}
+
+            {isVisible("hinhThuc") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("hinhThuc")}`} style={mergedStyle}>{item.TenHinhThuc}</td>}
+            {isVisible("coSo") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("coSo")}`} style={mergedStyle}>{translateBranch(item.CoSoTuVan)}</td>}
+            {isVisible("loaiDichVu") && isFirst && (
+                <td rowSpan={rowSpanCount} className={`text-center text-truncate ${getStickyClass("loaiDichVu")}`} style={{...mergedStyle, maxWidth: "150px"}}>
+                    {/* Gọi hàm dịch ở đây */}
+                    {translateService(item.LoaiDichVu)} 
+                </td>
+            )}
+
+            {isVisible("danhMuc") && (
+                <td className={`text-start ${getStickyClass("danhMuc")}`} style={{ minWidth: "200px", verticalAlign: "middle" }}>
+                    
+                    <div style={{ fontWeight: row.isMain ? "400" : "400", color: row.isMain ? "" : "" ,paddingLeft:3, whiteSpace: "normal"}}>
+                        {row.name}
+                    </div>
+                </td>
+            )}
+            {isVisible("tenDichVu") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("tenDichVu")}`} style={mergedStyle}>{item.TenDichVu || ""}</td>}
+            {isVisible("maDichVu") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("maDichVu")}`}style={{...mergedStyle,width:130}}>{hasServiceCode ? item.MaHoSo : ""}</td>}
+
+            {(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) && isVisible("nguoiPhuTrach") && isFirst && (
+                <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("nguoiPhuTrach")}`} style={mergedStyle}>
+                    {item.NguoiPhuTrach?.name || ""}
+                </td>
+            )}
+
+            {isVisible("ngayHen") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("ngayHen")}`} style={mergedStyle}>{item.ChonNgay ? new Date(item.ChonNgay).toLocaleDateString("vi-VN") : ""}</td>}
+            {isVisible("trangThai") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("trangThai")}`} style={mergedStyle}>{item.TrangThai}</td>}
+            {isVisible("goiDichVu") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("goiDichVu")}`} style={{...mergedStyle,width:102}}>{item.GoiDichVu}</td>}
+            {isVisible("invoice") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("invoice")}`} style={mergedStyle}>{["Yes","true","1"].includes(String(item.Invoice)) ? <span className="text-success fw-bold">Có</span> : ""}</td>}
+            {canViewFinance && isVisible("invoiceUrl") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("invoiceUrl")}`} style={mergedStyle}>{item.InvoiceUrl ? <a href={item.InvoiceUrl} target="_blank" rel="noreferrer">Link</a> : "-"}</td>}
+            
+            {isVisible("gio") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("gio")}`} style={mergedStyle}>{item.Gio ? item.Gio.substring(0,5) : ""}</td>}
+              {isVisible("noiDung") && isFirst && (
+                <td rowSpan={rowSpanCount} className={getStickyClass("noiDung")} style={{...mergedStyle, maxWidth: "250px",width:270, whiteSpace: "normal", wordWrap: "break-word"}}>
+                    {item.NoiDung}
+                </td>
+            )}
+
+            {/* SỬA CỘT GHI CHÚ: Bỏ text-truncate, thêm whiteSpace: "normal" */}
+            {isVisible("ghiChu") && isFirst && (
+                <td rowSpan={rowSpanCount} className={getStickyClass("ghiChu")} style={{...mergedStyle, maxWidth: "200px",width:270, whiteSpace: "normal", wordWrap: "break-word"}}>
+                    {item.GhiChu}
+                </td>
+            )}
+            {isVisible("ngayTao") && isFirst && (
+              <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("ngayTao")}`} style={mergedStyle}>
+                {item.NgayTao ? new Date(item.NgayTao).toLocaleDateString("vi-VN") : ""}
+              </td>
+            )}
+            {/* === CỘT TÀI CHÍNH (RIÊNG TỪNG DÒNG) === */}
+            {canViewFinance && isVisible("doanhThuTruoc") && (
+                <td className="text-center">{formatNumber(stats.rev)}</td>
+            )}
+            {canViewFinance && isVisible("mucChietKhau") && (
+                <td className="text-center">{stats.disc}%</td>
+            )}
+            {canViewFinance && isVisible("soTienChietKhau") && (
+                <td className="text-center">{formatNumber(stats.discAmount)}</td>
+            )}
+            {canViewFinance && isVisible("doanhThuSau") && (
+                <td className="text-center fw-bold text-primary">{formatNumber(stats.after)}</td>
             )}
 
           
-            {hasServiceCode && (
-                <button 
-                    className="btn btn-sm btn-danger d-flex align-items-center justify-content-center" 
-                    style={{ width: 32, height: 32 }} 
-                    onClick={handleDeleteClick} 
-                    title={currentLanguage === "vi" ? "Xóa" : "Delete"}
+            {canViewFinance && isVisible("tongDoanhThuTichLuy") && isFirst && (
+                <td 
+                    rowSpan={rowSpanCount} 
+                    className="text-center fw-bold text-success" 
+                    style={mergedStyle}    
                 >
-                  <Trash2 size={16} />
-                </button>
+                    {/* Thay item.TongDoanhThuTichLuy bằng biến mới tính */}
+                    {formatNumber(totalRevenueAfterDiscount)}
+                </td>
             )}
-            
-          </div>
-        </td>
-      )}
-    </tr>
+            {/* Hành động (Gộp) */}
+            {isVisible("hanhDong") && isFirst && (
+                <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("hanhDong")}`} style={mergedStyle}>
+                     <div className="d-flex justify-content-center align-items-center gap-2">
+                        
+                        {/* CASE 1: CHƯA DUYỆT (Chưa có mã hồ sơ) */}
+                        {!hasServiceCode && canApprove && (
+                            <>
+                                {/* Nút Duyệt: Đổi sang màu Cyan giống B2B */}
+                                <button 
+                                    className="btn btn-sm text-white shadow-sm d-flex align-items-center justify-content-center" 
+                                    style={{
+                                        width: 32, 
+                                        height: 32, 
+                                        backgroundColor: "#06b6d4", // Màu Cyan giống ảnh
+                                        borderColor: "#06b6d4",
+                                        borderRadius: "6px"
+                                    }} 
+                                    onClick={() => onApprove(item)} 
+                                    title={currentLanguage === "vi" ? "Duyệt" : "Approve"}
+                                >
+                                    <Check size={18} strokeWidth={2.5} />
+                                </button>
+
+                                {/* Nút Xoá: Hiển thị ngay cạnh nút duyệt */}
+                                <button 
+                                    className="btn btn-sm btn-danger shadow-sm d-flex align-items-center justify-content-center" 
+                                    style={{width: 32, height: 32, borderRadius: "6px"}} 
+                                    onClick={handleDeleteClick} 
+                                    title={currentLanguage === "vi" ? "Xóa" : "Delete"}
+                                >
+                                    <Trash2 size={16}/>
+                                </button>
+                            </>
+                        )}
+
+                        {/* CASE 2: ĐÃ DUYỆT (Đã có mã hồ sơ) */}
+                        {hasServiceCode && (
+                            <>
+                                {/* Nút Sửa */}
+                                <button 
+                                    className="btn btn-sm btn-primary shadow-sm d-flex align-items-center justify-content-center" 
+                                    style={{width: 32, height: 32, borderRadius: "6px"}} 
+                                    onClick={() => onEdit(item)} 
+                                    title={currentLanguage === "vi" ? "Sửa" : "Edit"}
+                                >
+                                    <Edit size={16}/>
+                                </button>
+
+                                {/* Nút Xoá */}
+                                <button 
+                                    className="btn btn-sm btn-danger shadow-sm d-flex align-items-center justify-content-center" 
+                                    style={{width: 32, height: 32, borderRadius: "6px"}} 
+                                    onClick={handleDeleteClick} 
+                                    title={currentLanguage === "vi" ? "Xóa" : "Delete"}
+                                >
+                                    <Trash2 size={16}/>
+                                </button>
+                            </>
+                        )}
+                     </div>
+                </td>
+            )}
+          </tr>
+        );
+      })}
+    </>
   );
 };
-
 const B2CPage = () => {
   const { currentUser } = useDashboardData();
   const [showSidebar, setShowSidebar] = useState(true);
@@ -1013,6 +1055,7 @@ const initialColumnKeys = [
       { key: "mucChietKhau", label: (<span>%<br/>CK</span>) },
       { key: "soTienChietKhau", label: (<span>Tiền<br/>Chiết Khấu</span>) },
       { key: "doanhThuSau", label: (<span>Doanh Thu<br/>Sau CK</span>) },
+      { key: "tongDoanhThuTichLuy", label: (<span>Tổng Doanh Thu<br/>Sau Chiết Khấu</span>) },
     ] : []),
     
     { key: "hanhDong", label: "Hành động" },
@@ -1075,7 +1118,9 @@ const tableHeaders = [
        <div key="dt" className="d-flex flex-column align-items-center"><span>Doanh Thu</span><span>Trước Chiết Khấu</span></div>,
        "Mức Chiết khấu",
        <div key="tck" className="d-flex flex-column align-items-center"><span>Số Tiền</span><span>Chiết Khấu</span></div>,
-       <div key="dts" className="d-flex flex-column align-items-center"><span>Doanh Thu</span><span>Sau Chiết Khấu</span></div>
+       <div key="dts" className="d-flex flex-column align-items-center"><span>Doanh Thu</span><span>Sau Chiết Khấu</span></div>,
+       <div key="tdttl" className="d-flex flex-column align-items-center"><span>Tổng Doanh Thu</span><span>Sau Chiết Khấu</span></div>
+       
     ] : []),
     // -------------------------
     
@@ -1198,6 +1243,10 @@ const handleApprove = async (id) => {
   };
 const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, currentUser, dichvuList }) => {
   
+  // Helper formats
+  const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : "0";
+  const unformatMoney = (val) => val ? parseFloat(val.toString().replace(/\./g, "")) : 0;
+
   const [formData, setFormData] = useState({
     HoTen: request.HoTen || "",
     MaVung: request.MaVung || "+84",
@@ -1214,26 +1263,51 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
     NoiDung: request.NoiDung || "",
     GhiChu: request.GhiChu || "",
     
-    // Trạng thái có thể chỉnh sửa
+    // Trạng thái
     TrangThai: request.TrangThai || "Đang xử lý",
 
-    DoanhThuTruocChietKhau: request.DoanhThuTruocChietKhau || 0,
+    // Tài chính (Chỉ là hiển thị ban đầu, sẽ tính lại khi save)
+    DoanhThuTruocChietKhau: formatNumber(request.DoanhThuTruocChietKhau),
     MucChietKhau: request.MucChietKhau || 0,
-    Vi: request.Vi || 0,
+    Vi: formatNumber(request.Vi),
     ConfirmPassword: ""
   });
 
   const [loading, setLoading] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Xử lý danh mục phụ
+  // --- 1. STATE DỊCH VỤ PHỤ (EXTRA SERVICES) ---
   const [extraServices, setExtraServices] = useState(() => {
-        if (!request.DanhMuc) return [""];
+        // Ưu tiên đọc từ JSON ChiTietDichVu
+        if (request && request.ChiTietDichVu) {
+            let details = typeof request.ChiTietDichVu === 'string' ? JSON.parse(request.ChiTietDichVu) : request.ChiTietDichVu;
+            if (details.sub && details.sub.length > 0) {
+                 return details.sub.map(s => ({
+                     name: s.name,
+                     revenue: s.revenue ? formatNumber(s.revenue) : "", 
+                     discount: s.discount || ""
+                 }));
+            }
+        }
+        // Fallback: Tách từ chuỗi DanhMuc cũ
+        if (!request.DanhMuc) return [{ name: "", revenue: "", discount: "" }];
         const parts = request.DanhMuc.split(" + ");
-        return parts.length > 1 ? parts.slice(1) : [""];
+        if (parts.length > 1) {
+            return parts.slice(1).map(name => ({ name: name, revenue: "", discount: "" }));
+        }
+        return [{ name: "", revenue: "", discount: "" }];
   });
-  const [showExtras, setShowExtras] = useState(extraServices.length > 0 && extraServices[0] !== "");
 
+  const [showExtras, setShowExtras] = useState(() => {
+      // Logic hiển thị nút mở rộng
+      if (request.ChiTietDichVu) {
+           let details = typeof request.ChiTietDichVu === 'string' ? JSON.parse(request.ChiTietDichVu) : request.ChiTietDichVu;
+           return details?.sub?.length > 0;
+      }
+      return (request.DanhMuc || "").split(" + ").length > 1;
+  });
+
+  // --- XỬ LÝ FORM ---
   const handleChange = (eOrName, value) => {
     let name, val;
     if (typeof eOrName === 'string') { name = eOrName; val = value; } 
@@ -1241,13 +1315,40 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
 
     if (name === "DoanhThuTruocChietKhau" || name === "Vi") {
         const raw = val.toString().replace(/\./g, "");
-        if (!isNaN(raw)) setFormData(prev => ({ ...prev, [name]: raw }));
+        if (!isNaN(raw)) setFormData(prev => ({ ...prev, [name]: formatNumber(raw) }));
     } else {
         setFormData(prev => ({ ...prev, [name]: val }));
     }
   };
 
+  // --- XỬ LÝ DỊCH VỤ PHỤ ---
+  const handleChangeExtra = (index, field, value) => {
+      const newArr = [...extraServices];
+      if (field === "revenue") {
+        const raw = value.replace(/\./g, "");
+        if (!isNaN(raw)) {
+            newArr[index][field] = raw.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+      } else {
+        newArr[index][field] = value;
+      }
+      setExtraServices(newArr);
+  };
+
+  const handleRemoveRow = (index) => {
+      const newArr = [...extraServices];
+      newArr.splice(index, 1);
+      if (newArr.length === 0) {
+          setExtraServices([{ name: "", revenue: "", discount: "" }]); // Reset về 1 dòng trống
+          setShowExtras(false);
+      } else {
+          setExtraServices(newArr);
+      }
+  };
+
+  // --- HÀM SAVE ---
   const handleSave = async () => {
+    // 1. Check Password
     if (!formData.ConfirmPassword) {
         showToast("Vui lòng nhập mật khẩu xác nhận!", "warning");
         return;
@@ -1267,20 +1368,73 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
         }
     } catch (err) { setLoading(false); return; }
 
-    const validExtras = extraServices.filter(s => s && s.trim() !== "");
+    // 2. TÍNH TOÁN TÀI CHÍNH (MAIN + SUB)
+    // a. Main Service
+    const mainRevenue = unformatMoney(formData.DoanhThuTruocChietKhau);
+    const mainDiscount = parseFloat(formData.MucChietKhau || 0);
+    const mainDiscountAmount = mainRevenue * (mainDiscount / 100);
+
+    // b. Sub Services
+    const validExtras = extraServices.filter(s => s.name && s.name.trim() !== "");
+    let extraRevenue = 0;
+    let extraDiscountAmount = 0;
+
+    const subServicesData = validExtras.map(sub => {
+        const r = unformatMoney(sub.revenue);
+        const d = parseFloat(sub.discount || 0);
+        extraRevenue += r;
+        extraDiscountAmount += r * (d / 100);
+        return {
+            name: sub.name,
+            revenue: r,
+            discount: d
+        };
+    });
+
+    // c. Tạo JSON Structure
+    const chiTietDichVu = {
+        main: {
+            revenue: mainRevenue,
+            discount: mainDiscount
+        },
+        sub: subServicesData
+    };
+
+    // d. Tổng hợp
+    const totalRevenue = mainRevenue + extraRevenue;
+    const totalDiscountAmount = mainDiscountAmount + extraDiscountAmount;
+    
+    // Tính % chiết khấu trung bình
+    let averageDiscountPercent = totalRevenue > 0 ? (totalDiscountAmount / totalRevenue) * 100 : 0;
+    averageDiscountPercent = Math.round(averageDiscountPercent * 100) / 100;
+
+    // e. Tạo tên DanhMuc hiển thị
     let finalDanhMuc = formData.DanhMuc;
     if (validExtras.length > 0) {
-        finalDanhMuc = `${formData.DanhMuc} + ${validExtras.join(" + ")}`;
+        finalDanhMuc = `${formData.DanhMuc} + ${validExtras.map(e => e.name).join(" + ")}`;
     }
 
-    const payload = { ...formData, DanhMuc: finalDanhMuc };
+    // f. Tạo payload
+    const payload = { 
+        ...formData, 
+        DanhMuc: finalDanhMuc,
+        
+        // Ghi đè các trường tài chính bằng số tổng đã tính
+        DoanhThuTruocChietKhau: totalRevenue,
+        MucChietKhau: averageDiscountPercent,
+        SoTienChietKhau: totalDiscountAmount,
+        DoanhThuSauChietKhau: totalRevenue - totalDiscountAmount - unformatMoney(formData.Vi),
+        Vi: unformatMoney(formData.Vi),
+
+        // Gửi JSON chi tiết
+        ChiTietDichVu: chiTietDichVu
+    };
+    
     delete payload.ConfirmPassword;
     
     await onConfirm(request.YeuCauID, payload);
     setLoading(false);
   };
-
-  const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : "0";
 
   const inputHeight = "38px"; 
   const labelStyle = { fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "4px", display: "block" };
@@ -1296,16 +1450,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
   const formOptions = ["Trực tiếp", "Online", "Email", "Gọi điện", "Messenger", "Kakao Talk", "Zalo"];
   const areaCodes = [{ value: "+82", label: "+82" }, { value: "+84", label: "+84" }];
   const statusOptions = currentLanguage === "vi" ? ["Tư vấn", "Đang xử lý", "Đang nộp hồ sơ", "Hoàn thành"] : ["Consultation", "Processing", "Submitting Documents", "Completed"];
-
-
-  const discountOptions = [   
-    { value: 5, label: "5%" },
-    { value: 10, label: "10%" },
-    { value: 12, label: "12%" },
-    { value: 15, label: "15%" },
-    { value: 17, label: "17%" },
-    { value: 30, label: "30%" }
-  ];
+  const discountOptions = [{ value: 0, label: "0%" }, { value: 5, label: "5%" }, { value: 10, label: "10%" }, { value: 12, label: "12%" }, { value: 15, label: "15%" }, { value: 17, label: "17%" }, { value: 30, label: "30%" }];
 
   return (
     <div className="modal-overlay" style={{
@@ -1314,14 +1459,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
       display: "flex", justifyContent: "center", alignItems: "center"
     }}>
       <div className="bg-white p-4 position-relative" 
-          style={{ 
-            width: "800px",
-            maxWidth: "95%", 
-            borderRadius: "16px", 
-            boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
-            maxHeight: "90vh",
-            overflowY: "auto"
-          }}
+          style={{ width: "800px", maxWidth: "95%", borderRadius: "16px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", maxHeight: "90vh", overflowY: "auto" }}
       >
         <button onClick={onClose} className="position-absolute d-flex align-items-center justify-content-center border-0 bg-light rounded-circle"
             style={{ top: "15px", right: "15px", width: "32px", height: "32px", cursor: "pointer", zIndex: 10 }}>
@@ -1337,6 +1475,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
 
         <div className="row g-3"> 
   
+            {/* THÔNG TIN KHÁCH HÀNG */}
             <div className="col-md-4">
                 <label style={labelStyle}>Khách Hàng <span className="text-danger">*</span></label>
                 <input type="text" name="HoTen" style={inputStyle} value={formData.HoTen} onChange={handleChange} />
@@ -1355,7 +1494,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                 <input type="text" name="Email" style={inputStyle} value={formData.Email} onChange={handleChange} />
             </div>
 
-
+            {/* DỊCH VỤ & DANH MỤC */}
             <div className="col-md-4">
                 <label style={labelStyle}>Loại Dịch Vụ <span className="text-danger">*</span></label>
                 <ModernSelect name="LoaiDichVu" height={inputHeight} value={formData.LoaiDichVu} options={serviceTypeList.map(s => ({ value: s, label: s }))} onChange={handleChange} />
@@ -1369,7 +1508,6 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                 <ModernSelect name="GoiDichVu" height={inputHeight} value={formData.GoiDichVu} options={packageOptions} onChange={handleChange} />
             </div>
 
-          
             <div className="col-12">
                 <label style={labelStyle}>Danh Mục (Chi tiết) <span className="text-danger">*</span></label>
                 <ModernSelect 
@@ -1381,27 +1519,41 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                     footerAction={{
                         label: showExtras ? "Ẩn dịch vụ bổ sung" : "Thêm dịch vụ bổ sung (+5)",
                         icon: showExtras ? <EyeOff size={14}/> : <Plus size={14}/>,
-                        onClick: () => setShowExtras(!showExtras)
+                        onClick: () => {
+                             if (!showExtras && extraServices.length === 0) setExtraServices([{ name: "", revenue: "", discount: "" }]); 
+                             setShowExtras(!showExtras);
+                        }
                     }}
                 />
                  {showExtras && (
-                    <div className="mt-2 p-3 bg-light rounded border">
-                        {extraServices.map((service, index) => (
-                            <div key={index} className="d-flex mb-2 gap-2">
-                                <input className="form-control form-control-sm" value={service} onChange={(e) => {
-                                    const newArr = [...extraServices]; newArr[index] = e.target.value; setExtraServices(newArr);
-                                }} placeholder={`Dịch vụ phụ ${index+1}`} />
-                                <button className="btn btn-sm btn-outline-danger" onClick={() => {
-                                     const newArr = [...extraServices]; newArr.splice(index, 1); setExtraServices(newArr);
-                                }}><Trash2 size={14}/></button>
-                            </div>
-                        ))}
-                        <button className="btn btn-sm btn-primary" onClick={() => setExtraServices([...extraServices, ""])}><Plus size={14}/> Thêm dòng</button>
+                    <div className="mt-2 p-3 bg-light rounded border animate__animated animate__fadeIn">
+                        <div style={{ fontSize: "11px", color: "#666", marginBottom: "8px", fontStyle: "italic" }}>
+                           Nhập tên dịch vụ bổ sung, doanh thu và chiết khấu (nếu có).
+                        </div>
+                        <div className="d-flex flex-column gap-2">
+                            {extraServices.map((service, index) => (
+                                <div key={index} className="d-flex align-items-center gap-2">
+                                    <input type="text" placeholder={`Dịch vụ phụ ${index + 1}`} value={service.name} onChange={(e) => handleChangeExtra(index, "name", e.target.value)} style={{ ...inputStyle, flex: 2 }} />
+                                    
+                                    <input type="text" placeholder="Doanh thu" value={service.revenue} onChange={(e) => handleChangeExtra(index, "revenue", e.target.value)} style={{ ...inputStyle, flex: 1, textAlign: "right" }} />
+                                    
+                                    <select className="form-select form-select-sm" value={service.discount || ""} onChange={(e) => handleChangeExtra(index, "discount", e.target.value)} style={{ flex: 0.6, height: inputHeight, fontSize: "12px" }}>
+                                        <option value="">0%</option>
+                                        {discountOptions.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                                    </select>
+
+                                    <button className="btn btn-outline-danger d-flex align-items-center justify-content-center" onClick={() => handleRemoveRow(index)} style={{ width: "38px", height: "38px", padding: 0 }}><Trash2 size={16}/></button>
+                                </div>
+                            ))}
+                            {extraServices.length < 5 && (
+                                <button className="btn btn-sm btn-primary d-flex gap-1" onClick={() => setExtraServices([...extraServices, { name: "", revenue: "", discount: "" }])} style={{width:"fit-content"}}><Plus size={14}/> Thêm dòng</button>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
 
- 
+            {/* INFO KHÁC */}
             <div className="col-md-4">
                 <label style={labelStyle}>Kênh Liên Hệ</label>
                 <ModernSelect name="TenHinhThuc" height={inputHeight} value={formData.TenHinhThuc} options={formOptions.map(v => ({ value: v, label: v }))} onChange={handleChange} />
@@ -1414,7 +1566,6 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                  <label style={labelStyle}>Trạng thái</label>
                  <ModernSelect name="TrangThai" height={inputHeight} value={formData.TrangThai} options={statusOptions.map(s => ({ value: s, label: s }))} onChange={handleChange} />
             </div>
-
           
             <div className="col-md-4">
                 <label style={labelStyle}>Ngày Hẹn</label>
@@ -1429,7 +1580,6 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                 <ModernSelect name="NguoiPhuTrachId" height={inputHeight} value={formData.NguoiPhuTrachId} options={users.map(u => ({ value: String(u.id), label: u.name }))} onChange={handleChange} />
             </div>
 
-
             <div className="col-12">
                 <label style={labelStyle}>Nội Dung</label>
                 <textarea rows={2} name="NoiDung" style={inputStyle} value={formData.NoiDung} onChange={handleChange} />
@@ -1439,11 +1589,12 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                 <textarea rows={2} name="GhiChu" style={inputStyle} value={formData.GhiChu} onChange={handleChange} />
             </div>
 
+            {/* === TÀI CHÍNH === */}
             <div className="col-12 mt-3 pt-2 border-top">
                 <div className="row g-3">
                     <div className="col-md-4">
-                        <label style={labelStyle}>Doanh thu (VNĐ) <span className="text-danger">*</span></label>
-                        <input type="text" name="DoanhThuTruocChietKhau" value={formatNumber(formData.DoanhThuTruocChietKhau)} onChange={handleChange} style={{...inputStyle, color: "#2563eb", fontWeight: "bold"}} placeholder="0" />
+                        <label style={labelStyle}>Doanh thu (Dịch vụ chính) <span className="text-danger">*</span></label>
+                        <input type="text" name="DoanhThuTruocChietKhau" value={formData.DoanhThuTruocChietKhau} onChange={handleChange} style={{...inputStyle, color: "#2563eb", fontWeight: "bold", textAlign: "center"}} placeholder="0" />
                     </div>
 
                     <div className="col-md-4">
@@ -1453,14 +1604,14 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                             height={inputHeight} 
                             value={formData.MucChietKhau} 
                             options={discountOptions} 
-                            onChange={handleChange} 
+                            onChange={(e) => setFormData(prev => ({...prev, MucChietKhau: e.target.value}))} 
                             placeholder="0%"
                         />
                     </div>
 
                     <div className="col-md-4">
                         <label style={labelStyle}>Trừ Ví / Đã Cọc</label>
-                        <input type="text" name="Vi" value={formatNumber(formData.Vi)} onChange={handleChange} style={inputStyle} placeholder="0" />
+                        <input type="text" name="Vi" value={formData.Vi} onChange={handleChange} style={{...inputStyle, textAlign: "center"}} placeholder="0" />
                     </div>
                 </div>
             </div>
@@ -1653,9 +1804,9 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
               )}
             </div>
 
-           <div className="table-wrapper mt-3" style={{marginLeft:70}}>
+           <div className="table-wrapper mt-3" style={{marginLeft:80}}>
             <div className="table-responsive" style={{ paddingLeft: "0px", position: "relative", maxHeight: "calc(100vh - 340px)", overflow: "auto", borderBottom: "1px solid #dee2e6" }} ref={tableContainerRef}>
-              <table className="table table-bordered table-hover align-middle mb-0">
+              <table className="table table-bordered align-middle mb-0">
                 <thead>
                   <tr>
                     {tableHeaders.map((header, i) => {
@@ -1735,7 +1886,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
             {/* --- DI CHUYỂN TỔNG DOANH THU RA ĐÂY (NẰM NGOÀI TABLE-RESPONSIVE) --- */}
             {canViewFinance && (
                 <div className="d-flex justify-content-end align-items-center px-3 py-2 bg-light border-start border-end border-bottom">
-                  <span className="me-2 text-muted fw-semibold">Tổng doanh thu sau chiết khấu:</span>
+                  <span className="me-2 text-muted fw-semibold">Tổng doanh thu tích luỹ:</span>
                   <span className="fs-6 fw-bold text-primary">
                       {data.reduce((sum, i) => sum + (i.DoanhThuSauChietKhau || 0), 0).toLocaleString("vi-VN")} đ
                   </span>

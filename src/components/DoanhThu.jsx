@@ -97,8 +97,18 @@ const translations = {
     clearFilter: "Clear Filter"
   },
 };
-
+  const getServiceTypeOptions = (records) => {
+  const types = records.map(r => {
+      // Xử lý nếu LoaiDichVu là object hoặc string
+      const val = typeof r.LoaiDichVu === 'object' ? r.LoaiDichVu?.name : r.LoaiDichVu;
+      return translateService(val);
+  }).filter(Boolean);
+  return ["tatca", ...new Set(types)];
+};  
 export default function DoanhThu() {
+
+  const [records, setRecords] = useState([])
+  
   const [collapsed, setCollapsed] = useState(false);
   const {
     showEditModal,
@@ -119,7 +129,7 @@ export default function DoanhThu() {
   const savedUser = localStorage.getItem("currentUser");
   const currentUser = savedUser ? JSON.parse(savedUser) : null;
 
-  const [records, setRecords] = useState([]);
+ 
   const [filteredRecords, setFilteredRecords] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [savingRow, setSavingRow] = useState(null);
@@ -134,25 +144,17 @@ export default function DoanhThu() {
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const filterMenuRef = useRef(null);
   const [staffList, setStaffList] = useState([]); 
-
+  const serviceOptions = getServiceTypeOptions(records);
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
   const columnMenuRef = useRef(null);
 
-  const [visibleColumns, setVisibleColumns] = useState({
-      stt: true,
-      khachHang: true, // Used for Company Name in B2B tab
-      loaiDichVu: true,
-      tenDichVu: true,
-      nguoiPhuTrach: true,
-      invoiceYN: true,
-      invoiceFile: true,
-      dtTruoc: true,
-      mucCK: true,
-      tienCK: true,
-      dtSau: true,
-      hanhDong: true
-  });
-
+ const [visibleColumns, setVisibleColumns] = useState({
+    stt: true, khachHang: true, loaiDichVu: true, tenDichVu: true,
+    nguoiPhuTrach: true, invoiceYN: true, invoiceFile: true,
+    dtTruoc: true, mucCK: true, tienCK: true, dtSau: true, 
+    tongDoanhThu: true, 
+    hanhDong: true
+});
   const columnLabels = {
       stt: "STT",
       khachHang: activeTab === "personal" ? "Khách Hàng" : "Doanh Nghiệp",
@@ -165,6 +167,7 @@ export default function DoanhThu() {
       mucCK: "Mức Chiết khấu",
       tienCK: "Số Tiền Chiết Khấu",
       dtSau: "Doanh Thu Sau Chiết Khấu",
+      tongDoanhThu: "Tổng Doanh Thu",
       hanhDong: "Hành động"
   };
 
@@ -361,26 +364,13 @@ export default function DoanhThu() {
     return () => clearTimeout(timeOutId);
   }, [searchTerm, companySearchTerm, tableSelectedStaff, tableSelectedInvoice, tableSelectedDiscount]);
 
-  // ================== FILTER ==================
-  const handleFilter = () => {
+
+const handleFilter = () => {
     const isPersonal = activeTab === "personal";
     let filtered = isPersonal ? records : companyRecords;
     const term = isPersonal ? searchTerm : companySearchTerm;
 
     // 1. Search (Text)
-    if (term.trim() !== "") {
-      const keyword = term.toLowerCase();
-      filtered = filtered.filter((r) => {
-        if (isPersonal) {
-          return (r.HoTen?.toLowerCase() || "").includes(keyword) || (r.Email?.toLowerCase() || "").includes(keyword) || (r.SoDienThoai?.toLowerCase() || "").includes(keyword);
-        } else {
-           const company = approvedCompanies.find(c => String(c.ID) === String(r.DoanhNghiepID));
-           return (company ? company.TenDoanhNghiep.toLowerCase() : "").includes(keyword);
-        }
-      });
-    }
-
-    // 2. Date Filter
     if (startDate || endDate) {
       filtered = filtered.filter((r) => {
         const date = new Date(r.NgayTao);
@@ -390,6 +380,23 @@ export default function DoanhThu() {
         if(e) e.setHours(23,59,59,999);
         return (!s || date >= s) && (!e || date <= e);
       });
+    }
+
+   
+    if (isPersonal) {
+  
+      if (selectedService !== "tatca") {
+          filtered = filtered.filter(r => {
+              const type = typeof r.LoaiDichVu === 'object' ? r.LoaiDichVu?.name : r.LoaiDichVu;
+              return translateService(type) === selectedService;
+          });
+      }
+      if (selectedStaff !== "tatca") {
+          filtered = filtered.filter(r => {
+              const staffName = typeof r.NguoiPhuTrach === "object" ? r.NguoiPhuTrach?.username : r.NguoiPhuTrach;
+              return staffName === selectedStaff;
+          });
+      }
     }
 
     // 3. Dropdown Service & Staff (Top Bar - only for Personal currently)
@@ -404,10 +411,8 @@ export default function DoanhThu() {
     }
 
     // 4. Advanced Filters (From Menu: Staff, Invoice, Discount) - Applies to BOTH Tabs
-    if (tableSelectedStaff !== "tatca") {
+   if (tableSelectedStaff !== "tatca") {
         filtered = filtered.filter(r => {
-             // Logic for personal: r.NguoiPhuTrach (object or string)
-             // Logic for company: r.NguoiPhuTrachName (string) or r.NguoiPhuTrach (object)
              let staffName = "";
              if (isPersonal) {
                 staffName = typeof r.NguoiPhuTrach === "object" ? r.NguoiPhuTrach?.username : r.NguoiPhuTrach;
@@ -419,7 +424,6 @@ export default function DoanhThu() {
     }
     if (tableSelectedInvoice !== "tatca") {
         filtered = filtered.filter(r => {
-           // Personal: r.Invoice. Company: r.YeuCauHoaDon or r.Invoice
            const invVal = isPersonal ? r.Invoice : (r.YeuCauHoaDon || r.Invoice);
            const hasInvoice = ["Yes", "yes", "true", "1", "có", "y"].includes(String(invVal).toLowerCase());
            return tableSelectedInvoice === "yes" ? hasInvoice : !hasInvoice;
@@ -429,7 +433,6 @@ export default function DoanhThu() {
          filtered = filtered.filter(r => String(r.MucChietKhau || 0) === String(tableSelectedDiscount));
     }
 
-    // Set Data
     if (isPersonal) {
       setFilteredRecords(filtered);
       prepareChartData(filtered, viewMode, "personal");
@@ -611,7 +614,7 @@ export default function DoanhThu() {
     ? filteredRecords.reduce((sum, item) => sum + (parseFloat(item.DoanhThuSauChietKhau) || parseFloat(item.DoanhThu) || 0), 0)
     : filteredCompanyRecords.reduce((sum, item) => sum + (parseFloat(item.DoanhThuSauChietKhau) || 0), 0); 
 
-  const serviceOptions = ["tatca", ...new Set(records.map((r) => translateService(typeof r.LoaiDichVu==='object'?r.LoaiDichVu.name:r.LoaiDichVu)).filter(Boolean))];
+ 
   const fixedDiscounts = [5, 10, 12, 15, 17, 30];
 
   return (
@@ -912,7 +915,41 @@ const PersonalRow = ({ item, index, onSave, onDelete, savingRow, visibleColumns 
     const [selectedFile, setSelectedFile] = useState(null);
     const [uploading, setUploading] = useState(false);
 
-    // ... (Giữ nguyên phần state formData và useEffect)
+    
+    const details = typeof item.ChiTietDichVu === 'string' 
+        ? JSON.parse(item.ChiTietDichVu) 
+        : (item.ChiTietDichVu || { main: {}, sub: [] });
+
+    let rowsToRender = [];
+    
+   
+    rowsToRender.push({
+        isMain: true,
+        name: item.DanhMuc ? item.DanhMuc.split(" + ")[0] : item.TenDichVu,
+        revenue: (details.main && details.main.revenue !== undefined) ? details.main.revenue : item.DoanhThuTruocChietKhau,
+        discount: (details.main && details.main.discount !== undefined) ? details.main.discount : item.MucChietKhau,
+    });
+
+
+    if (details.sub && Array.isArray(details.sub)) {
+        details.sub.forEach(sub => {
+            rowsToRender.push({
+                isMain: false,
+                name: sub.name,
+                revenue: sub.revenue || 0,
+                discount: sub.discount || 0
+            });
+        });
+    }
+
+    const rowSpanCount = rowsToRender.length;
+    const totalRevenueOfRequest = rowsToRender.reduce((sum, row) => {
+            const rev = parseCurrency(row.revenue); // Hàm parseCurrency lấy từ props hoặc cha
+            const disc = parseFloat(row.discount) || 0;
+            const afterDisc = rev - (rev * disc / 100);
+            return sum + afterDisc;
+        }, 0);
+    // State chỉnh sửa (Chỉ áp dụng cho dòng Main/Tổng quát)
     const [formData, setFormData] = useState({
         DoanhThuTruocChietKhau: formatCurrency(item.DoanhThuTruocChietKhau || item.DoanhThu || 0),
         MucChietKhau: item.MucChietKhau || 0,
@@ -929,14 +966,11 @@ const PersonalRow = ({ item, index, onSave, onDelete, savingRow, visibleColumns 
         });
         setSelectedFile(null);
     }, [item]);
-    // ...
 
     const handleChange = (field, val) => setFormData(prev => ({ ...prev, [field]: val }));
 
     const handleFileChange = (e) => {
-        if (e.target.files && e.target.files[0]) {
-            setSelectedFile(e.target.files[0]);
-        }
+        if (e.target.files && e.target.files[0]) setSelectedFile(e.target.files[0]);
     };
 
     const handleSaveClick = async () => {
@@ -946,191 +980,186 @@ const PersonalRow = ({ item, index, onSave, onDelete, savingRow, visibleColumns 
             try {
                 const formUpload = new FormData();
                 formUpload.append("file", selectedFile);
-                const res = await fetch("https://onepasscms-backend.onrender.com/api/upload-invoice", {
-                    method: "POST",
-                    body: formUpload
-                });
+                const res = await fetch("https://onepasscms-backend.onrender.com/api/upload-invoice", { method: "POST", body: formUpload });
                 const data = await res.json();
                 if (data.success) {
                     finalUrl = data.url;
-                    // Cập nhật state ngay lập tức để hiển thị
                     setFormData(prev => ({ ...prev, InvoiceUrl: finalUrl, Invoice: "Yes" }));
                 } else {
                     toast.error("Lỗi upload: " + data.message);
-                    setUploading(false);
-                    return;
+                    setUploading(false); return;
                 }
-            } catch (err) {
-                toast.error("Lỗi kết nối upload");
-                setUploading(false);
-                return;
-            }
+            } catch (err) { toast.error("Lỗi kết nối upload"); setUploading(false); return; }
             setUploading(false);
         }
         await onSave(item.YeuCauID, { ...formData, InvoiceUrl: finalUrl });
-        setIsEditing(false);
-        setSelectedFile(null);
+        setIsEditing(false); setSelectedFile(null);
     };
 
-    const handleCancelClick = () => {
-        setIsEditing(false);
-        setSelectedFile(null);
-        setFormData({
-            DoanhThuTruocChietKhau: formatCurrency(item.DoanhThuTruocChietKhau || item.DoanhThu || 0),
-            MucChietKhau: item.MucChietKhau || 0,
-            Invoice: ["Yes", "yes", "true", "1"].includes(String(item.Invoice)) ? "Yes" : "No",
-            InvoiceUrl: item.InvoiceUrl || ""
-        });
-    };
-    
-    // ... (Giữ nguyên logic tính toán tiền)
-    const dtTruoc = parseCurrency(formData.DoanhThuTruocChietKhau);
-    const ck = parseFloat(formData.MucChietKhau) || 0;
-    const tienCK = (dtTruoc * ck) / 100;
-    const dtSau = dtTruoc - tienCK;
+    const handleCancelClick = () => { setIsEditing(false); setSelectedFile(null); };
 
+    // Styles
     const editBgColor = "#fff9c4"; 
     const editBorderColor = "#fff9c4"; 
     const rowBackgroundColor = isEditing ? editBgColor : (index % 2 === 0 ? "#f9fafb" : "white");
-
-    const cellStyle = {
-        verticalAlign: "middle",
-        backgroundColor: "transparent", 
-        borderBottom: "1px solid #dee2e6"
-    };
-    const inputStyle = {
-        width: "100%", height: "100%", 
-        border: `1px solid ${editBorderColor}`,
-        background: "#fff", 
-        textAlign: "center", outline: "none", fontWeight: "bold", 
-        display: "block", margin: 0, fontSize: "13px",
-        color: "#000", borderRadius: "4px", padding: "4px"
-    };
+    const cellStyle = { verticalAlign: "middle", backgroundColor: "transparent", borderBottom: "1px solid #dee2e6" };
+    const mergedStyle = { ...cellStyle, backgroundColor: isEditing ? editBgColor : (index % 2 === 0 ? "#f9fafb" : "white") };
+    
+    const inputStyle = { width: "100%", height: "100%", border: `1px solid ${editBorderColor}`, background: "#fff", textAlign: "center", outline: "none", fontWeight: "bold", display: "block", margin: 0, fontSize: "13px", color: "#000", borderRadius: "4px", padding: "4px" };
     const tdEditPadding = { ...cellStyle, padding: "4px", height: "40px" };
 
     return (
-        <tr style={{ backgroundColor: rowBackgroundColor }}>
-            {visibleColumns.stt && <td className="text-center" style={cellStyle}>{item.YeuCauID}</td>}
-            {visibleColumns.khachHang && <td className="text-center fw-semibold" style={cellStyle}>{item.HoTen}</td>}
-            {visibleColumns.loaiDichVu && (
-                <td className="text-center text-truncate" style={{ maxWidth: 100, ...cellStyle }}>
-                    {translateService(typeof item.LoaiDichVu === 'object' ? item.LoaiDichVu?.name : item.LoaiDichVu)}
-                </td>
-            )}
-            {visibleColumns.tenDichVu && <td style={cellStyle}>{item.TenDichVu}</td>}
-            {visibleColumns.nguoiPhuTrach && <td className="text-center" style={cellStyle}>{typeof item.NguoiPhuTrach === 'object' ? item.NguoiPhuTrach?.name : item.NguoiPhuTrach}</td>}
+        <>
+            {rowsToRender.map((row, idx) => {
+                const isFirst = idx === 0;
 
-            {visibleColumns.invoiceYN && (
-                <td className="text-center" style={isEditing ? tdEditPadding : cellStyle}>
-                    {isEditing ? (
-                        <select
-                            value={formData.Invoice}
-                            onChange={(e) => handleChange("Invoice", e.target.value)}
-                            style={{ ...inputStyle, cursor: "pointer", color: formData.Invoice === "Yes" ? "green" : "gray" }}
-                        >
-                            <option value="Yes">Yes</option>
-                            <option value="No">No</option>
-                        </select>
-                    ) : (
-                        <span>{formData.Invoice === "Yes" ? "Yes" : "No"}</span>
-                    )}
-                </td>
-            )}
+                // Tính toán tiền: Nếu đang edit và là dòng đầu, dùng formData. Nếu không, dùng dữ liệu row
+                const rawRev = isEditing && isFirst ? formData.DoanhThuTruocChietKhau : row.revenue;
+                const rev = parseCurrency(rawRev);
+                
+                const rawDisc = isEditing && isFirst ? formData.MucChietKhau : row.discount;
+                const disc = parseFloat(rawDisc) || 0;
+                
+                const discAmt = (rev * disc) / 100;
+                const afterDisc = rev - discAmt;
 
-            {/* --- CỘT INVOICE ĐƯỢC SỬA ĐỔI --- */}
-            {visibleColumns.invoiceFile && (
-                <td className="text-center" style={cellStyle}>
-                    <div className="d-flex align-items-center justify-content-center gap-2">
-                        {/* 1. Luôn hiển thị link cũ nếu có (cả khi đang Edit) */}
-                        {formData.InvoiceUrl && (
-                            <a 
-                                href={formData.InvoiceUrl} target="_blank" rel="noreferrer" 
-                                className="btn btn-sm btn-outline-primary border p-0 d-flex align-items-center justify-content-center"
-                                style={{ width: 30, height: 30 }}
-                                title="Xem file hiện tại"
-                            >
-                                <FileText size={16} />
-                            </a>
-                        )}
-
-                        {/* 2. Khi đang Edit: Hiện thêm nút Upload */}
-                        {isEditing && (
-                            <div className="position-relative">
-                                <input 
-                                    type="file" id={`file-upload-${item.YeuCauID}`} style={{ display: "none" }} 
-                                    onChange={handleFileChange} accept=".pdf,.jpg,.png,.doc,.docx"
-                                />
-                                <label 
-                                    htmlFor={`file-upload-${item.YeuCauID}`} 
-                                    className={`btn btn-sm ${selectedFile ? 'btn-success' : 'btn-light border'} p-0 d-flex align-items-center justify-content-center`}
-                                    style={{ 
-                                        width: 30, height: 30, cursor: "pointer", 
-                                        color: selectedFile ? "#fff" : "#0d6efd"
-                                    }}
-                                    title={selectedFile ? "Đã chọn file" : "Tải file mới lên"}
-                                >
-                                    {selectedFile ? <Check size={16} /> : <Upload size={16} />}
-                                </label>
-                            </div>
-                        )}
+                return (
+                    <tr key={`${item.YeuCauID}_${idx}`} style={{ backgroundColor: rowBackgroundColor }}>
                         
-                        {/* 3. Nếu không có file và không edit */}
-                        {!isEditing && !formData.InvoiceUrl && <span className="text-muted small">-</span>}
-                    </div>
-                </td>
-            )}
-
-            {visibleColumns.dtTruoc && (
-                <td style={isEditing ? tdEditPadding : { ...cellStyle, textAlign: "center" }}>
-                    {isEditing ? (
-                        <input type="text" value={formData.DoanhThuTruocChietKhau}
-                            onChange={(e) => { const val = e.target.value.replace(/\D/g, ""); handleChange("DoanhThuTruocChietKhau", formatCurrency(val)); }}
-                            style={inputStyle}
-                        />
-                    ) : <span>{formData.DoanhThuTruocChietKhau}</span>}
-                </td>
-            )}
-
-            {/* ... Các cột còn lại giữ nguyên ... */}
-            {visibleColumns.mucCK && (
-                <td className="text-center" style={isEditing ? tdEditPadding : cellStyle}>
-                    {isEditing ? (
-                        <select value={formData.MucChietKhau} onChange={(e) => handleChange("MucChietKhau", e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
-                            <option value="0">0%</option><option value="5">5%</option><option value="10">10%</option><option value="12">12%</option><option value="15">15%</option><option value="17">17%</option><option value="30">30%</option>
-                        </select>
-                    ) : <span>{formData.MucChietKhau}%</span>}
-                </td>
-            )}
-
-            {visibleColumns.tienCK && <td className="text-center text-muted" style={cellStyle}>{formatCurrency(tienCK)}</td>}
-            {visibleColumns.dtSau && <td className="text-center fw-bold text-primary" style={cellStyle}>{formatCurrency(dtSau)}</td>}
-
-            {visibleColumns.hanhDong && (
-                <td className="text-center" style={cellStyle}>
-                    <div className="d-flex justify-content-center gap-2">
-                        {isEditing ? (
-                            <>
-                                <button onClick={handleSaveClick} disabled={savingRow === item.YeuCauID || uploading} className="btn btn-sm btn-success text-white p-0 d-flex align-items-center justify-content-center" style={{ width: 30, height: 30 }}>
-                                    {(savingRow === item.YeuCauID || uploading) ? <span className="spinner-border spinner-border-sm" style={{width: "1rem", height: "1rem"}}></span> : <Save size={16} />}
-                                </button>
-                                <button onClick={handleCancelClick} disabled={uploading} className="btn btn-sm btn-secondary text-white p-0 d-flex align-items-center justify-content-center" style={{ width: 30, height: 30 }}>
-                                    <span style={{ fontWeight: "bold", fontSize: "14px" }}>X</span>
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <button onClick={() => setIsEditing(true)} className="btn btn-sm btn-light border text-primary p-0 d-flex align-items-center justify-content-center" style={{ width: 30, height: 30, background: "white" }}>
-                                    <Edit size={16} />
-                                </button>
-                                <button onClick={() => onDelete(item.YeuCauID)} className="btn btn-sm btn-light border text-danger p-0 d-flex align-items-center justify-content-center" style={{ width: 30, height: 30, background: "white" }}>
-                                    <Trash2 size={16} />
-                                </button>
-                            </>
+                        {/* 1. STT (Gộp) */}
+                        {visibleColumns.stt && isFirst && (
+                            <td rowSpan={rowSpanCount} className="text-center" style={mergedStyle}>{item.YeuCauID}</td>
                         )}
-                    </div>
-                </td>
-            )}
-        </tr>
+
+                        {/* 2. Khách Hàng (Gộp) */}
+                        {visibleColumns.khachHang && isFirst && (
+                            <td rowSpan={rowSpanCount} className="text-center fw-semibold" style={mergedStyle}>{item.HoTen}</td>
+                        )}
+
+                        {/* 3. Loại Dịch Vụ (Gộp) */}
+                        {visibleColumns.loaiDichVu && isFirst && (
+                            <td rowSpan={rowSpanCount} className="text-center text-truncate" style={{ maxWidth: 100, ...mergedStyle }}>
+                                {translateService(typeof item.LoaiDichVu === 'object' ? item.LoaiDichVu?.name : item.LoaiDichVu)}
+                            </td>
+                        )}
+
+                        {/* 4. Tên Dịch Vụ (RIÊNG TỪNG DÒNG) */}
+                        {visibleColumns.tenDichVu && (
+                            <td className="text-center" style={{...cellStyle, color: row.isMain ? "#000" : "#000", fontStyle: row.isMain ? "normal" : "normal"}}>
+                                {row.name}
+                            </td>
+                        )}
+
+                        {/* 5. Người Phụ Trách (Gộp) */}
+                        {visibleColumns.nguoiPhuTrach && isFirst && (
+                            <td rowSpan={rowSpanCount} className="text-center" style={mergedStyle}>
+                                {typeof item.NguoiPhuTrach === 'object' ? item.NguoiPhuTrach?.name : item.NguoiPhuTrach}
+                            </td>
+                        )}
+
+                        {/* 6. Invoice Y/N (Gộp) - Edit tại đây */}
+                        {visibleColumns.invoiceYN && isFirst && (
+                            <td rowSpan={rowSpanCount} className="text-center" style={isEditing ? tdEditPadding : mergedStyle}>
+                                {isEditing ? (
+                                    <select value={formData.Invoice} onChange={(e) => handleChange("Invoice", e.target.value)} style={{ ...inputStyle, cursor: "pointer", color: formData.Invoice === "Yes" ? "green" : "gray" }}>
+                                        <option value="Yes">Yes</option><option value="No">No</option>
+                                    </select>
+                                ) : (
+                                    <span>{formData.Invoice === "Yes" ? "Yes" : "No"}</span>
+                                )}
+                            </td>
+                        )}
+
+                        {/* 7. Invoice File (Gộp) - Edit tại đây */}
+                        {visibleColumns.invoiceFile && isFirst && (
+                            <td rowSpan={rowSpanCount} className="text-center" style={mergedStyle}>
+                                <div className="d-flex align-items-center justify-content-center gap-2">
+                                    {formData.InvoiceUrl && (
+                                        <a href={formData.InvoiceUrl} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline-primary border p-0 d-flex align-items-center justify-content-center" style={{ width: 30, height: 30 }} title="Xem file">
+                                            <FileText size={16} />
+                                        </a>
+                                    )}
+                                    {isEditing && (
+                                        <div className="position-relative">
+                                            <input type="file" id={`file-upload-${item.YeuCauID}`} style={{ display: "none" }} onChange={handleFileChange} accept=".pdf,.jpg,.png,.doc,.docx" />
+                                            <label htmlFor={`file-upload-${item.YeuCauID}`} className={`btn btn-sm ${selectedFile ? 'btn-success' : 'btn-light border'} p-0 d-flex align-items-center justify-content-center`} style={{ width: 30, height: 30, cursor: "pointer", color: selectedFile ? "#fff" : "#0d6efd" }}>
+                                                {selectedFile ? <Check size={16} /> : <Upload size={16} />}
+                                            </label>
+                                        </div>
+                                    )}
+                                    {!isEditing && !formData.InvoiceUrl && <span className="text-muted small">-</span>}
+                                </div>
+                            </td>
+                        )}
+
+                        {/* 8. Doanh Thu Trước CK (RIÊNG TỪNG DÒNG) - Chỉ edit được dòng đầu */}
+                        {visibleColumns.dtTruoc && (
+                            <td style={isEditing && isFirst ? tdEditPadding : { ...cellStyle, textAlign: "center" }}>
+                                {isEditing && isFirst ? (
+                                    <input type="text" value={formData.DoanhThuTruocChietKhau} onChange={(e) => { const val = e.target.value.replace(/\D/g, ""); handleChange("DoanhThuTruocChietKhau", formatCurrency(val)); }} style={inputStyle} />
+                                ) : (
+                                    <span>{formatCurrency(rev)}</span>
+                                )}
+                            </td>
+                        )}
+
+                        {/* 9. Mức CK (RIÊNG TỪNG DÒNG) */}
+                        {visibleColumns.mucCK && (
+                            <td className="text-center" style={isEditing && isFirst ? tdEditPadding : cellStyle}>
+                                {isEditing && isFirst ? (
+                                    <select value={formData.MucChietKhau} onChange={(e) => handleChange("MucChietKhau", e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
+                                        <option value="0">0%</option><option value="5">5%</option><option value="10">10%</option><option value="12">12%</option><option value="15">15%</option><option value="17">17%</option><option value="30">30%</option>
+                                    </select>
+                                ) : (
+                                    <span>{disc}%</span>
+                                )}
+                            </td>
+                        )}
+
+                        {/* 10. Tiền CK */}
+                        {visibleColumns.tienCK && (
+                            <td className="text-center text-muted" style={cellStyle}>{formatCurrency(discAmt)}</td>
+                        )}
+
+                        {/* 11. Doanh Thu Sau CK */}
+                        {visibleColumns.dtSau && (
+                            <td className="text-center fw-bold text-primary" style={cellStyle}>{formatCurrency(afterDisc)}</td>
+                        )}
+                      {visibleColumns.tongDoanhThu && isFirst && (
+                            <td rowSpan={rowSpanCount} className="text-center fw-bold text-success" style={mergedStyle}>
+                                {formatCurrency(totalRevenueOfRequest)}
+                            </td>
+                        )}
+                        {/* 12. Hành Động (Gộp) */}
+                        {visibleColumns.hanhDong && isFirst && (
+                            <td rowSpan={rowSpanCount} className="text-center" style={mergedStyle}>
+                                <div className="d-flex justify-content-center gap-2">
+                                    {isEditing ? (
+                                        <>
+                                            <button onClick={handleSaveClick} disabled={savingRow === item.YeuCauID || uploading} className="btn btn-sm btn-success text-white p-0 d-flex align-items-center justify-content-center" style={{ width: 30, height: 30 }}>
+                                                {(savingRow === item.YeuCauID || uploading) ? <span className="spinner-border spinner-border-sm" style={{width: "1rem", height: "1rem"}}></span> : <Save size={16} />}
+                                            </button>
+                                            <button onClick={handleCancelClick} disabled={uploading} className="btn btn-sm btn-secondary text-white p-0 d-flex align-items-center justify-content-center" style={{ width: 30, height: 30 }}>
+                                                <span style={{ fontWeight: "bold", fontSize: "14px" }}>X</span>
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button onClick={() => setIsEditing(true)} className="btn btn-sm btn-light border text-primary p-0 d-flex align-items-center justify-content-center" style={{ width: 30, height: 30, background: "white" }}>
+                                                <Edit size={16} />
+                                            </button>
+                                            <button onClick={() => onDelete(item.YeuCauID)} className="btn btn-sm btn-light border text-danger p-0 d-flex align-items-center justify-content-center" style={{ width: 30, height: 30, background: "white" }}>
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            </td>
+                        )}
+                    </tr>
+                );
+            })}
+        </>
     );
 };
 
@@ -1152,6 +1181,7 @@ const PersonalTable = ({ loading, data, handleSaveRow, handleDeleteRow, savingRo
               {visibleColumns.mucCK && <th style={{width: "90px"}}> Mức Chiết khấu</th>}
               {visibleColumns.tienCK && <th style={{width: "130px"}}>Số tiền<br/>chiết khấu</th>}
               {visibleColumns.dtSau && <th style={{width: "130px"}}>Doanh thu<br/>Sau Chiết Khấu</th>}
+              {visibleColumns.tongDoanhThu && <th style={{width: "130px"}}>Tổng Doanh Thu <br/>Sau Chiết Khấu</th>}
               {visibleColumns.hanhDong && <th style={{width: "100px"}}>Hành động</th>}
             </tr>
           </thead>
