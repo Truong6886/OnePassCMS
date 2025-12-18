@@ -2,14 +2,16 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { showToast } from "../../utils/toast";
 import "../../styles/DashboardList.css";
 import EmailList from "./EmailList";
-import { LayoutGrid, Pin, PinOff, Filter, ChevronRight, Check, X } from "lucide-react"; 
+import { LayoutGrid, Pin, PinOff, Filter, ChevronRight, Check, X, FileText } from "lucide-react"; 
 import { exportRequestsToExcel } from "../../utils/exportExcel";
+import { authenticatedFetch } from "../../utils/api";
 
-// --- 1. ReadOnlyRow Component (Đã bỏ cột tài chính) ---
-const ReadOnlyRow = ({ item, visibleColumns, pinnedColumns, currentUser, currentLanguage }) => {
+// --- 1. B2C Request Row (Đã cập nhật đầy đủ logic tài chính) ---
+const B2CRequestRow = ({ item, visibleColumns, pinnedColumns, currentUser, currentLanguage }) => {
   const isVisible = (key) => (visibleColumns ? visibleColumns[key] : true);
   const isPinned = (key) => pinnedColumns.includes(key);
-  
+  const getStickyClass = (key) => isPinned(key) ? "sticky-col" : "";
+
   const canViewFinance = currentUser?.is_accountant || currentUser?.is_director;
   const canViewAssignee = currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant;
 
@@ -30,68 +32,190 @@ const ReadOnlyRow = ({ item, visibleColumns, pinnedColumns, currentUser, current
   };
 
   const displayMaHoSo = item.MaHoSo && item.MaHoSo.length > 5 ? item.MaHoSo : "";
+  const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+
+  // --- Logic Tách Dòng (Main/Sub) ---
+  const details = typeof item.ChiTietDichVu === 'string' 
+      ? JSON.parse(item.ChiTietDichVu) 
+      : (item.ChiTietDichVu || { main: {}, sub: [] });
+
+  let rowsToRender = [];
+
+  // 1. Dòng chính
+  const mainData = {
+      isMain: true,
+      name: item.DanhMuc ? item.DanhMuc.split(" + ")[0] : "", 
+      revenue: (details.main && details.main.revenue !== undefined) ? details.main.revenue : item.DoanhThuTruocChietKhau,
+      discount: (details.main && details.main.discount !== undefined) ? details.main.discount : item.MucChietKhau,
+  };
+  rowsToRender.push(mainData);
+
+  // 2. Dòng phụ
+  if (details.sub && details.sub.length > 0) {
+      details.sub.forEach(sub => {
+          rowsToRender.push({
+              isMain: false,
+              name: sub.name,
+              revenue: sub.revenue,
+              discount: sub.discount
+          });
+      });
+  } else {
+      // Fallback
+      const parts = (item.DanhMuc || "").split(" + ");
+      if (parts.length > 1) {
+          parts.slice(1).forEach(subName => {
+              rowsToRender.push({
+                  isMain: false,
+                  name: subName,
+                  revenue: 0, 
+                  discount: 0
+              });
+          });
+      }
+  }
+  
+  const rowSpanCount = rowsToRender.length;
+  
+  // Tính tổng doanh thu sau chiết khấu của cả cụm (để hiển thị cột Tổng Doanh Thu Tích Luỹ)
+  const totalRevenueAfterDiscount = rowsToRender.reduce((sum, row) => {
+      const rev = Number(row.revenue) || 0;
+      const disc = Number(row.discount) || 0;
+      const discAmount = rev * (disc / 100);
+      return sum + (rev - discAmount);
+  }, 0);
+
+  const mergedStyle = { verticalAlign: "middle", backgroundColor: "#fff", borderBottom: "1px solid #dee2e6" };
 
   return (
-    <tr>
-      {isVisible("id") && <td className={`text-center fw-semibold border-target ${isPinned("id") ? "sticky-col" : ""}`}>{item.YeuCauID}</td>}
-      {isVisible("hoTen") && <td className={`text-center fw-semibold ${isPinned("hoTen") ? "sticky-col" : ""}`} style={{ minWidth: "120px" }}>{item.HoTen}</td>}
-      {isVisible("maVung") && <td className={`text-center ${isPinned("maVung") ? "sticky-col" : ""}`}>{item.MaVung}</td>}
-      {isVisible("sdt") && <td style={{ maxWidth: "150px", width: "110px", textAlign: "center" }} className={isPinned("sdt") ? "sticky-col" : ""}>{item.SoDienThoai}</td>}
-      {isVisible("email") && <td style={{ maxWidth: "162px" }} className={`text-center text-truncate ${isPinned("email") ? "sticky-col" : ""}`} title={item.Email}>{item.Email}</td>}
-      {isVisible("hinhThuc") && <td className={`text-center border-target ${isPinned("hinhThuc") ? "sticky-col" : ""}`}>{item.TenHinhThuc}</td>}
-      {isVisible("coSo") && <td className={`text-center border-target ${isPinned("coSo") ? "sticky-col" : ""}`}>{translateBranch(item.CoSoTuVan)}</td>}
-      {isVisible("loaiDichVu") && <td style={{ maxWidth: "150px" }} className={`text-center text-truncate ${isPinned("loaiDichVu") ? "sticky-col" : ""}`} title={translateService(item.LoaiDichVu)}>{translateService(item.LoaiDichVu)}</td>}
-      {isVisible("tenDichVu") && <td className={`text-center ${isPinned("tenDichVu") ? "sticky-col" : ""}`}>{item.TenDichVu || ""}</td>}
-      {isVisible("maDichVu") && <td style={{ width: "120px" }} className={`text-center border-target ${isPinned("maDichVu") ? "sticky-col" : ""}`}>{displayMaHoSo}</td>}
-      
-      {canViewAssignee && isVisible("nguoiPhuTrach") && (
-        <td style={{ width: "110px", maxWidth: "110px" }} className={`text-center text-truncate ${isPinned("nguoiPhuTrach") ? "sticky-col" : ""}`} title={item.NguoiPhuTrach?.name}>
-          {item.NguoiPhuTrach?.name || <span className="text-muted fst-italic"></span>}
-        </td>
-      )}
+    <>
+      {rowsToRender.map((row, idx) => {
+        const isFirst = idx === 0;
+        
+        // Tính toán tài chính từng dòng
+        const rev = Number(row.revenue) || 0;
+        const disc = Number(row.discount) || 0;
+        const discAmount = rev * (disc / 100);
+        const after = rev - discAmount;
 
-      {isVisible("ngayHen") && <td className={`text-center ${isPinned("ngayHen") ? "sticky-col" : ""}`}>{item.ChonNgay ? new Date(item.ChonNgay).toLocaleDateString("vi-VN") : ""}</td>}
-      {isVisible("trangThai") && <td className={`text-center ${isPinned("trangThai") ? "sticky-col" : ""}`}>{item.TrangThai}</td>}
-      {isVisible("goiDichVu") && <td style={{width:100}} className={`text-center ${isPinned("goiDichVu") ? "sticky-col" : ""}`}>{item.GoiDichVu || ""}</td>}
-      
-      {isVisible("invoice") && (
-        <td className={`text-center ${isPinned("invoice") ? "sticky-col" : ""}`}>
-           {["Yes", "yes", "true", "1"].includes(String(item.Invoice)) ? <span className="text-success fw-bold">Có</span> : <span className="text-muted"></span>}
-        </td>
-      )}
-      
-      {canViewFinance && isVisible("invoiceUrl") && (
-        <td style={{ maxWidth: "120px" }} className={isPinned("invoiceUrl") ? "sticky-col" : ""}>
-          {item.InvoiceUrl ? <a href={item.InvoiceUrl} target="_blank" rel="noreferrer" className="text-decoration-none text-primary d-block text-truncate">Link</a> : "-"}
-        </td>
-      )}
+        return (
+          <tr key={`${item.YeuCauID}_${idx}`} className="hover-bg-gray">
+             {/* STT */}
+             {isVisible("id") && isFirst && <td rowSpan={rowSpanCount} className={`text-center fw-semibold border-target ${getStickyClass("id")}`} style={mergedStyle}>{item.YeuCauID}</td>}
+             
+             {/* Khách hàng */}
+             {isVisible("hoTen") && isFirst && <td rowSpan={rowSpanCount} className={`text-center fw-semibold ${getStickyClass("hoTen")}`} style={{...mergedStyle, minWidth: "120px"}}>{item.HoTen}</td>}
+             
+             {/* Thông tin liên hệ */}
+             {isVisible("maVung") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("maVung")}`} style={mergedStyle}>{item.MaVung}</td>}
+             {isVisible("sdt") && isFirst && <td rowSpan={rowSpanCount} style={{ maxWidth: "150px", width: "110px", textAlign: "center", ...mergedStyle }} className={getStickyClass("sdt")}>{item.SoDienThoai}</td>}
+             {isVisible("email") && isFirst && <td rowSpan={rowSpanCount} style={{ maxWidth: "162px", ...mergedStyle }} className={`text-center text-truncate ${getStickyClass("email")}`} title={item.Email}>{item.Email}</td>}
+             
+             {/* Thông tin dịch vụ */}
+             {isVisible("hinhThuc") && isFirst && <td rowSpan={rowSpanCount} className={`text-center border-target ${getStickyClass("hinhThuc")}`} style={mergedStyle}>{item.TenHinhThuc}</td>}
+             {isVisible("coSo") && isFirst && <td rowSpan={rowSpanCount} className={`text-center border-target ${getStickyClass("coSo")}`} style={mergedStyle}>{translateBranch(item.CoSoTuVan)}</td>}
+             
+             {/* Loại dịch vụ (Gộp) */}
+             {isVisible("loaiDichVu") && isFirst && (
+                <td rowSpan={rowSpanCount} style={{ maxWidth: "150px", ...mergedStyle }} className={`text-center text-truncate ${getStickyClass("loaiDichVu")}`} title={translateService(item.LoaiDichVu)}>
+                    {translateService(item.LoaiDichVu)}
+                </td>
+             )}
 
-      {isVisible("gio") && (
-        <td className={`text-center ${isPinned("gio") ? "sticky-col" : ""}`}>
-          {item.Gio ? (item.Gio.includes("T") ? new Date(item.Gio).toLocaleTimeString("vi-VN", { hour12: false, hour: "2-digit", minute: "2-digit" }) : item.Gio.substring(0, 5)) : ""}
-        </td>
-      )}
+             {/* Tên dịch vụ (Gộp) */}
+             {isVisible("tenDichVu") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("tenDichVu")}`} style={mergedStyle}>{item.TenDichVu || ""}</td>}
 
-      {isVisible("noiDung") && (
-        <td style={{ minWidth: "200px", maxWidth: "260px" }} className={`${isPinned("noiDung") ? "sticky-col" : ""}`}>
-           <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", textAlign: "left", overflowWrap: "anywhere", paddingLeft: "5px" }}>{item.NoiDung}</div>
-        </td>
-      )}
+             {/* DANH MỤC (KHÔNG GỘP - Render từng dòng) */}
+             {isVisible("danhMuc") && (
+                <td className={`text-start ${getStickyClass("danhMuc")}`} style={{ minWidth: "200px", verticalAlign: "middle", borderBottom: "1px solid #dee2e6" }}>
+                    <div style={{ 
+                        fontWeight: row.isMain ? "600" : "400", 
+                        color: row.isMain ? "#2563eb" : "#4b5563",
+                        paddingLeft: row.isMain ? "0px" : "15px",
+                        whiteSpace: "normal"
+                    }}>
+                        {row.isMain ? "" : "+ "}{row.name}
+                    </div>
+                </td>
+             )}
 
-      {isVisible("ghiChu") && (
-        <td style={{ minWidth: "150px", maxWidth: "250px" }} className={`${isPinned("ghiChu") ? "sticky-col" : ""}`}>
-           <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", textAlign: "left", overflowWrap: "anywhere", paddingLeft: "5px" }}>{item.GhiChu}</div>
-        </td>
-      )}
+             {/* Mã hồ sơ */}
+             {isVisible("maDichVu") && isFirst && <td rowSpan={rowSpanCount} style={{ width: "120px", ...mergedStyle }} className={`text-center border-target ${getStickyClass("maDichVu")}`}>{displayMaHoSo}</td>}
 
-      {isVisible("ngayTao") && (
-        <td className={`text-center text-nowrap border-target ${isPinned("ngayTao") ? "sticky-col" : ""}`} style={{fontSize: "0.8rem"}}>
-          {item.NgayTao && (
-            <>{new Date(item.NgayTao).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}<br />{new Date(item.NgayTao).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false })}</>
-          )}
-        </td>
-      )}
-    </tr>
+             {/* Người phụ trách */}
+             {canViewAssignee && isVisible("nguoiPhuTrach") && isFirst && (
+                <td rowSpan={rowSpanCount} style={{ width: "110px", maxWidth: "110px", ...mergedStyle }} className={`text-center text-truncate ${getStickyClass("nguoiPhuTrach")}`} title={item.NguoiPhuTrach?.name}>
+                  {item.NguoiPhuTrach?.name || <span className="text-muted fst-italic"></span>}
+                </td>
+             )}
+
+             {/* Thông tin khác */}
+             {isVisible("ngayHen") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("ngayHen")}`} style={mergedStyle}>{item.ChonNgay ? new Date(item.ChonNgay).toLocaleDateString("vi-VN") : ""}</td>}
+             {isVisible("trangThai") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("trangThai")}`} style={mergedStyle}>{item.TrangThai}</td>}
+             {isVisible("goiDichVu") && isFirst && <td rowSpan={rowSpanCount} style={{width:100, ...mergedStyle}} className={`text-center ${getStickyClass("goiDichVu")}`}>{item.GoiDichVu || ""}</td>}
+             
+             {isVisible("invoice") && isFirst && (
+                <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("invoice")}`} style={mergedStyle}>
+                   {["Yes", "yes", "true", "1"].includes(String(item.Invoice)) ? <span className="text-success fw-bold">Có</span> : <span className="text-muted"></span>}
+                </td>
+             )}
+             
+             {canViewFinance && isVisible("invoiceUrl") && isFirst && (
+                <td rowSpan={rowSpanCount} style={{ maxWidth: "120px", ...mergedStyle }} className={getStickyClass("invoiceUrl")}>
+                  {item.InvoiceUrl ? <a href={item.InvoiceUrl} target="_blank" rel="noreferrer" className="text-decoration-none text-primary d-block text-truncate">Link</a> : "-"}
+                </td>
+             )}
+
+             {isVisible("gio") && isFirst && (
+                <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("gio")}`} style={mergedStyle}>
+                  {item.Gio ? (item.Gio.includes("T") ? new Date(item.Gio).toLocaleTimeString("vi-VN", { hour12: false, hour: "2-digit", minute: "2-digit" }) : item.Gio.substring(0, 5)) : ""}
+                </td>
+             )}
+
+             {isVisible("noiDung") && isFirst && (
+                <td rowSpan={rowSpanCount} style={{ minWidth: "200px", maxWidth: "260px", ...mergedStyle }} className={`${getStickyClass("noiDung")}`}>
+                   <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", textAlign: "left", overflowWrap: "anywhere", paddingLeft: "5px" }}>{item.NoiDung}</div>
+                </td>
+             )}
+
+             {isVisible("ghiChu") && isFirst && (
+                <td rowSpan={rowSpanCount} style={{ minWidth: "150px", maxWidth: "250px", ...mergedStyle }} className={`${getStickyClass("ghiChu")}`}>
+                   <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", textAlign: "left", overflowWrap: "anywhere", paddingLeft: "5px" }}>{item.GhiChu}</div>
+                </td>
+             )}
+
+             {isVisible("ngayTao") && isFirst && (
+                <td rowSpan={rowSpanCount} className={`text-center text-nowrap border-target ${getStickyClass("ngayTao")}`} style={{fontSize: "0.8rem", ...mergedStyle}}>
+                  {item.NgayTao && (
+                    <>{new Date(item.NgayTao).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}<br />{new Date(item.NgayTao).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false })}</>
+                  )}
+                </td>
+             )}
+
+            {/* === CÁC CỘT TÀI CHÍNH === */}
+            {canViewFinance && isVisible("doanhThuTruoc") && (
+                <td className="text-center" style={{borderBottom: "1px solid #dee2e6"}}>{formatNumber(rev)}</td>
+            )}
+            {canViewFinance && isVisible("mucChietKhau") && (
+                <td className="text-center" style={{borderBottom: "1px solid #dee2e6"}}>{disc}%</td>
+            )}
+            {canViewFinance && isVisible("soTienChietKhau") && (
+                <td className="text-center" style={{borderBottom: "1px solid #dee2e6"}}>{formatNumber(discAmount)}</td>
+            )}
+            {canViewFinance && isVisible("doanhThuSau") && (
+                <td className="text-center fw-bold text-primary" style={{borderBottom: "1px solid #dee2e6"}}>{formatNumber(after)}</td>
+            )}
+            
+            {canViewFinance && isVisible("tongDoanhThuTichLuy") && isFirst && (
+                <td rowSpan={rowSpanCount} className="text-center fw-bold text-success" style={mergedStyle}>
+                    {formatNumber(totalRevenueAfterDiscount)}
+                </td>
+            )}
+
+          </tr>
+        );
+      })}
+    </>
   );
 };
 
@@ -99,7 +223,10 @@ const ReadOnlyRow = ({ item, visibleColumns, pinnedColumns, currentUser, current
 const DashboardList = ({
   subViewMode,
   setSubViewMode,
-  data,
+  data, 
+  totalPages,   
+  currentPage, 
+  setCurrentPage, 
   emailList,
   setEmailList,
   currentLanguage,
@@ -109,13 +236,18 @@ const DashboardList = ({
   tableContainerRef,
 }) => {
   
+  // ... (State và cấu hình cột giữ nguyên như cũ) ...
   const [filterService, setFilterService] = useState("");
   const [filterAssignee, setFilterAssignee] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterPackage, setFilterPackage] = useState("");
   const [allStaff, setAllStaff] = useState([]);
   
-  const [currentPage, setCurrentPage] = useState(1);
+  const [b2bData, setB2bData] = useState([]);
+  const [b2bLoading, setB2bLoading] = useState(false);
+  const [b2bPage, setB2bPage] = useState(1);
+  const [b2bTotal, setB2bTotal] = useState(0);
+
   const itemsPerPage = 20;
 
   const [showFilterMenu, setShowFilterMenu] = useState(false);
@@ -124,7 +256,6 @@ const DashboardList = ({
   const canViewFinance = currentUser?.is_accountant || currentUser?.is_director;
   const canViewAssignee = currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant;
 
-  // --- Cấu hình cột (Đã bỏ cột tài chính) ---
   const initialColumnKeys = [
     { key: "id", label: "STT" },
     { key: "hoTen", label: "Khách hàng" },
@@ -135,6 +266,7 @@ const DashboardList = ({
     { key: "coSo", label: "Cơ sở" },
     { key: "loaiDichVu", label: "Loại Dịch Vụ" },
     { key: "tenDichVu", label: "Tên Dịch Vụ" },
+    { key: "danhMuc", label: "Danh Mục" },
     { key: "maDichVu", label: "Mã Dịch Vụ" },
     ...(canViewAssignee ? [{ key: "nguoiPhuTrach", label: "Người phụ trách" }] : []),
     { key: "ngayHen", label: "Ngày hẹn" },
@@ -146,15 +278,31 @@ const DashboardList = ({
     { key: "noiDung", label: "Nội dung" },
     { key: "ghiChu", label: "Ghi chú" },
     { key: "ngayTao", label: "Ngày tạo" },
+    
+    ...(canViewFinance ? [
+      { key: "doanhThuTruoc", label: "Doanh Thu Trước CK" },
+      { key: "mucChietKhau", label: "% CK" },
+      { key: "soTienChietKhau", label: "Tiền Chiết Khấu" },
+      { key: "doanhThuSau", label: "Doanh Thu Sau CK" },
+      { key: "tongDoanhThuTichLuy", label: "Tổng Doanh Thu Sau CK" },
+    ] : []),
   ];
 
   const tableHeaders = [
     "STT", "Khách hàng", "Mã vùng", "Số Điện Thoại", "Email", 
-    "Hình thức", "Cơ sở", "Loại Dịch Vụ", "Tên Dịch Vụ", "Mã Dịch Vụ",
+    "Hình thức", "Cơ sở", "Loại Dịch Vụ", "Tên Dịch Vụ", "Danh Mục", "Mã Dịch Vụ",
     ...(canViewAssignee ? ["Người phụ trách"] : []),
     "Ngày hẹn", "Trạng thái", "Gói Dịch Vụ", "Invoice Y/N",
     ...(canViewFinance ? ["Invoice"] : []),
     "Giờ", "Nội dung", "Ghi chú", "Ngày tạo",
+
+    ...(canViewFinance ? [
+       <div key="dt" className="d-flex flex-column align-items-center"><span>Doanh Thu</span><span>Trước Chiết Khấu</span></div>,
+       "Mức Chiết khấu",
+       <div key="tck" className="d-flex flex-column align-items-center"><span>Số Tiền</span><span>Chiết Khấu</span></div>,
+       <div key="dts" className="d-flex flex-column align-items-center"><span>Doanh Thu</span><span>Sau Chiết Khấu</span></div>,
+       <div key="tdttl" className="d-flex flex-column align-items-center"><span>Tổng Doanh Thu</span><span>Sau Chiết Khấu</span></div>
+    ] : []),
   ];
 
   const [visibleColumns, setVisibleColumns] = useState(() => {
@@ -170,20 +318,41 @@ const DashboardList = ({
   const isVisible = (key) => visibleColumns[key];
   const isPinned = (key) => pinnedColumns.includes(key);
 
- useEffect(() => {
+  // ... (Các useEffect và function khác giữ nguyên) ...
+  useEffect(() => {
     const fetchStaff = async () => {
       try {
-        
         const res = await authenticatedFetch("https://onepasscms-backend.onrender.com/api/User");
         const json = await res.json();
         if (json.success) setAllStaff(json.data);
-      } catch (err) { 
-        console.error(err); 
-      }
+      } catch (err) { console.error(err); }
     };
     if (canViewAssignee) fetchStaff();
   }, [canViewAssignee]);
 
+  const fetchB2BData = async (page = 1) => {
+    setB2bLoading(true);
+    try {
+        const res = await authenticatedFetch(`https://onepasscms-backend.onrender.com/api/b2b/services?page=${page}&limit=${itemsPerPage}`);
+        const json = await res.json();
+        if (json.success) {
+            setB2bData(json.data || []);
+            setB2bTotal(json.total || 0);
+        }
+    } catch (e) {
+        console.error("B2B Fetch Error", e);
+    } finally {
+        setB2bLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (subViewMode === "b2b") {
+        fetchB2BData(b2bPage);
+    }
+  }, [subViewMode, b2bPage]);
+  
+  // ... (Xử lý cột, export, filter - giữ nguyên) ...
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (columnMenuRef.current && !columnMenuRef.current.contains(event.target)) {
@@ -242,12 +411,7 @@ const DashboardList = ({
     });
   }, [data, searchTerm, filterService, filterAssignee, filterStatus, filterPackage]);
 
-  useEffect(() => { setCurrentPage(1); }, [searchTerm, filterService, filterAssignee, filterStatus, filterPackage]);
-
-  const totalItems = filteredData.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentTableRows = filteredData.slice(startIndex, startIndex + itemsPerPage);
+  const currentTableRows = filteredData; 
 
   const handleExportExcel = () => {
     const ok = exportRequestsToExcel(filteredData, currentLanguage);
@@ -256,11 +420,158 @@ const DashboardList = ({
 
   const hasActiveFilters = filterService || filterAssignee || filterStatus || filterPackage;
 
+
+  // --- RENDER B2B TABLE (ĐÃ CHỈNH SỬA STT GỘP) ---
+  const renderB2BTable = () => {
+     const sortedB2BData = [...b2bData].sort((a, b) => {
+        const compA = String(a.DoanhNghiepID || "");
+        const compB = String(b.DoanhNghiepID || "");
+        if (compA !== "" && compB === "") return -1;
+        if (compA === "" && compB !== "") return 1;
+        if (compA !== "" && compB !== "") return compA.localeCompare(compB);
+        return (a.ID || 0) - (b.ID || 0);
+    });
+
+    const getSubRowCount = (danhMucStr) => {
+        if (!danhMucStr) return 1;
+        return danhMucStr.split(" + ").length;
+    };
+
+    const b2bTotalPages = Math.ceil(b2bTotal / 50) || 1; 
+    const b2bHeaderStyle = { backgroundColor: "#1e3a8a", color: "#fff", textAlign: "center", verticalAlign: "middle", whiteSpace: "pre-wrap" };
+    
+    // --- [MỚI] Biến đếm số thứ tự Doanh nghiệp ---
+    let companySttCounter = 0;
+
+    return (
+        <div>
+             <div className="table-responsive shadow-sm rounded">
+                <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: "12px", borderCollapse: "collapse", tableLayout: "fixed" }}>
+                   <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a" }}>
+                    <tr>
+                        <th className="py-2 border" style={{ width: "40px", ...b2bHeaderStyle }}>STT</th>
+                        <th className="py-2 border" style={{ width: "120px", ...b2bHeaderStyle }}>Doanh Nghiệp</th>
+                        <th className="py-2 border" style={{ width: "90px", ...b2bHeaderStyle }}>Số ĐKKD</th>
+                        <th className="py-2 border" style={{ width: "100px", ...b2bHeaderStyle }}>Loại dịch vụ</th>
+                        <th className="py-2 border" style={{ width: "140px", ...b2bHeaderStyle }}>Tên dịch vụ</th>
+                        <th className="py-2 border" style={{ width: "180px", ...b2bHeaderStyle }}>Danh mục</th>
+                        <th className="py-2 border" style={{ width: "160px", ...b2bHeaderStyle }}>Mã Dịch Vụ</th>
+                        <th className="py-2 border" style={{ width: "110px", ...b2bHeaderStyle }}>Người Phụ Trách</th>
+                        <th className="py-2 border" style={{ width: "90px", ...b2bHeaderStyle }}>Ngày Bắt Đầu</th>
+                        <th className="py-2 border" style={{ width: "90px", ...b2bHeaderStyle }}>Ngày Kết Thúc</th>
+                        <th className="py-2 border" style={{ width: "100px", ...b2bHeaderStyle }}>Gói</th>
+                       
+                    </tr>
+                   </thead>
+                   <tbody>
+                      {b2bLoading ? (
+                           <tr><td colSpan="13" className="text-center py-4">Đang tải dữ liệu...</td></tr>
+                      ) : sortedB2BData.length > 0 ? (
+                        sortedB2BData.map((rec, idx) => {
+                            const servicesList = (rec.DanhMuc || "").split(" + ");
+                            const subRowsCount = servicesList.length;
+
+                            const currentCompanyId = String(rec.DoanhNghiepID || "");
+                            const prevCompanyId = idx > 0 ? String(sortedB2BData[idx - 1].DoanhNghiepID || "") : null;
+
+                            let shouldRenderCompanyCell = false;
+                            let companyRowSpan = 0;
+
+                            if (!currentCompanyId || currentCompanyId !== prevCompanyId) {
+                                shouldRenderCompanyCell = true;
+                                // --- [MỚI] Tăng biến đếm khi gặp doanh nghiệp mới ---
+                                companySttCounter++;
+
+                                for (let i = idx; i < sortedB2BData.length; i++) {
+                                    const nextRec = sortedB2BData[i];
+                                    if (String(nextRec.DoanhNghiepID || "") !== currentCompanyId) break;
+                                    companyRowSpan += getSubRowCount(nextRec.DanhMuc);
+                                }
+                            }
+                            
+                            // --- [MỚI] Tính STT hiển thị cho doanh nghiệp ---
+                            // Offset theo trang (giả sử mỗi trang 50 item dịch vụ, STT này tương đối)
+                            const displayCompanyIndex = companySttCounter + (b2bPage - 1) * 50;
+
+                            const mergedStyle = { backgroundColor: "#fff", verticalAlign: "middle", padding: "4px", fontSize: "12px", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
+                            const danhMucStyle = { backgroundColor: "white", verticalAlign: "middle", padding: "4px 8px", fontSize: "12px", textAlign: "left" };
+
+                            return servicesList.map((svcName, subIdx) => {
+                                const isFirstSubRow = subIdx === 0;
+                                return (
+                                    <tr key={`${rec.ID}_${subIdx}`} className="bg-white hover:bg-gray-50">
+                                        
+                                        {/* --- [MỚI] GỘP CỘT STT VÀO NHÓM DOANH NGHIỆP --- */}
+                                        {isFirstSubRow && shouldRenderCompanyCell && (
+                                            <>
+                                                <td className="border" rowSpan={companyRowSpan} style={{...mergedStyle, verticalAlign: "middle", padding: "2px 4px", position: "relative",zIndex: 1, backgroundClip: "padding-box"}}>
+                                                    {displayCompanyIndex}
+                                                </td>
+                                                <td className="border" rowSpan={companyRowSpan} style={{...mergedStyle, maxWidth: "120px",  verticalAlign: "middle", padding: "2px 4px", position: "relative",zIndex: 1, backgroundClip: "padding-box"}} title={rec.TenDoanhNghiep}>
+                                                    {rec.TenDoanhNghiep || ""}
+                                                </td>
+                                                <td className="border" rowSpan={companyRowSpan} style={{...mergedStyle, verticalAlign: "middle", padding: "2px 4px", position: "relative",zIndex: 1, backgroundClip: "padding-box"}}>
+                                                    {rec.SoDKKD || ""}
+                                                </td>
+                                            </>
+                                        )}
+                                        {/* ----------------------------------------------- */}
+
+                                        {isFirstSubRow && (
+                                            <>
+                                                <td className="border" rowSpan={subRowsCount} style={{...mergedStyle, maxWidth: "100px"}} title={rec.LoaiDichVu}>{rec.LoaiDichVu}</td>
+                                                <td className="border" rowSpan={subRowsCount} style={{...mergedStyle, maxWidth: "140px"}} title={rec.TenDichVu}>{rec.TenDichVu}</td>
+                                            </>
+                                        )}
+                                        <td className="border" style={danhMucStyle}><div className="px-1" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{svcName}</div></td>
+                                        {isFirstSubRow && (
+                                            <>
+                                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}><span className="fw-bold text-dark">{rec.MaDichVu}</span></td>
+                                                <td className="border" rowSpan={subRowsCount} style={{...mergedStyle, maxWidth: "110px"}} title={rec.NguoiPhuTrach?.name}>{rec.NguoiPhuTrach?.name || "-"}</td>
+                                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.NgayThucHien ? rec.NgayThucHien.split("T")[0] : "-"}</td>
+                                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.NgayHoanThanh ? rec.NgayHoanThanh.split("T")[0] : "-"}</td>
+                                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.GoiDichVu}</td>
+
+                                            </>
+                                        )}
+                                    </tr>
+                                );
+                            });
+                        })
+                      ) : ( <tr><td colSpan="13" className="text-center py-4">Chưa có dữ liệu</td></tr> )}
+                   </tbody>
+                </table>
+             </div>
+             
+             {/* Pagination Logic (Giữ nguyên) */}
+             <div className="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-white" style={{ marginTop: "0", borderTop: "1px solid #dee2e6" }}>
+                  <div className="text-muted small">
+                    {currentLanguage === "vi" ? `Hiển thị ${sortedB2BData.length} / ${b2bTotal} hàng` : `Showing ${sortedB2BData.length} / ${b2bTotal} rows`}
+                  </div>
+                  <div className="d-flex justify-content-center align-items-center">
+                    <nav>
+                      <ul className="pagination pagination-sm mb-0 shadow-sm">
+                        <li className={`page-item ${b2bPage === 1 ? "disabled" : ""}`}>
+                          <button className="page-link" onClick={() => { if (b2bPage > 1) setB2bPage((p) => p - 1); }}>&laquo;</button>
+                        </li>
+                         <li className={`page-item active`}><button className="page-link">{b2bPage}</button></li>
+                        <li className={`page-item ${b2bPage === b2bTotalPages ? "disabled" : ""}`}>
+                          <button className="page-link" onClick={() => { if (b2bPage < b2bTotalPages) setB2bPage((p) => p + 1); }}>&raquo;</button>
+                        </li>
+                      </ul>
+                    </nav>
+                  </div>
+            </div>
+        </div>
+    );
+  };
+
   return (
    <div className="mb-4">
       <div className="d-flex border-bottom mb-3" style={{ gap: "1.5rem", fontSize: "15px", fontWeight: 500 }}>
         {[
           { key: "request", labelVi: "Danh sách dịch vụ", labelEn: "Service List" },
+          { key: "b2b", labelVi: "Danh sách B2B", labelEn: "B2B List" },
           { key: "email", labelVi: "Danh sách email", labelEn: "Email List" },
         ].map((tab) => (
           <div key={tab.key} onClick={() => setSubViewMode(tab.key)}
@@ -329,18 +640,16 @@ const DashboardList = ({
           </div>
 
           <div className="d-flex align-items-center gap-3 mb-3 flex-wrap">
-            <div className="position-relative" ref={filterMenuRef}>
+              {/* FILTER BUTTONS (Giữ nguyên như cũ) */}
+             <div className="position-relative" ref={filterMenuRef}>
                 <button className={`btn d-flex align-items-center gap-2 shadow-sm ${hasActiveFilters ? "btn-primary" : "btn-white border"}`}
-                    onClick={() => setShowFilterMenu(!showFilterMenu)}
-                    style={{ height: "40px", borderRadius: "8px", fontWeight: 500 }}
+                    onClick={() => setShowFilterMenu(!showFilterMenu)} style={{ height: "40px", borderRadius: "8px", fontWeight: 500 }}
                 >
                     <Filter size={16} />
                 </button>
-
                 {showFilterMenu && (
                     <div className="dropdown-menu show shadow-lg border-0 p-0 rounded-3 mt-1" 
                          style={{ position: "absolute", zIndex: 1050, minWidth: "220px", overflow: "visible" }}>
-                        
                         <div className="dropdown-group position-relative border-bottom">
                             <div className="dropdown-item d-flex justify-content-between align-items-center py-2 px-3 fw-medium" style={{cursor:"pointer", fontSize:"14px"}}>
                                 <span>{currentLanguage === "vi" ? "Loại dịch vụ" : "Service Type"}</span>
@@ -356,26 +665,8 @@ const DashboardList = ({
                                 ))}
                             </div>
                         </div>
-
-                        {canViewAssignee && (
-                            <div className="dropdown-group position-relative border-bottom">
-                                <div className="dropdown-item d-flex justify-content-between align-items-center py-2 px-3 fw-medium" style={{cursor:"pointer", fontSize:"14px"}}>
-                                    <span>{currentLanguage === "vi" ? "Người phụ trách" : "Assignee"}</span>
-                                    <ChevronRight size={14} className="text-muted"/>
-                                </div>
-                                <div className="submenu shadow-lg rounded-3 border bg-white py-1" style={{maxHeight:"300px", overflowY:"auto"}}>
-                                    {allStaff.map((u) => (
-                                        <div key={u.id} className="submenu-item px-3 py-2 d-flex justify-content-between align-items-center"
-                                             onClick={() => { setFilterAssignee(u.name); setShowFilterMenu(false); }}>
-                                            {u.name}
-                                            {filterAssignee === u.name && <Check size={14} className="text-primary"/>}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="dropdown-group position-relative border-bottom">
+                        {/* Các filter khác tương tự... */}
+                         <div className="dropdown-group position-relative border-bottom">
                             <div className="dropdown-item d-flex justify-content-between align-items-center py-2 px-3 fw-medium" style={{cursor:"pointer", fontSize:"14px"}}>
                                 <span>{currentLanguage === "vi" ? "Trạng thái" : "Status"}</span>
                                 <ChevronRight size={14} className="text-muted"/>
@@ -390,65 +681,26 @@ const DashboardList = ({
                                 ))}
                             </div>
                         </div>
-
-                        <div className="dropdown-group position-relative">
-                            <div className="dropdown-item d-flex justify-content-between align-items-center py-2 px-3 fw-medium" style={{cursor:"pointer", fontSize:"14px"}}>
-                                <span>{currentLanguage === "vi" ? "Gói dịch vụ" : "Package"}</span>
-                                <ChevronRight size={14} className="text-muted"/>
-                            </div>
-                            <div className="submenu shadow-lg rounded-3 border bg-white py-1">
-                                {PACKAGE_OPTIONS.map((opt) => (
-                                    <div key={opt} className="submenu-item px-3 py-2 d-flex justify-content-between align-items-center"
-                                         onClick={() => { setFilterPackage(opt); setShowFilterMenu(false); }}>
-                                        {opt}
-                                        {filterPackage === opt && <Check size={14} className="text-primary"/>}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
                     </div>
                 )}
             </div>
-
-            {filterService && (
-                <div className="badge bg-light text-dark border px-2 py-2 d-flex align-items-center gap-2" style={{fontWeight: 500}}>
-                    <span className="text-muted small">{currentLanguage === "vi" ? "Dịch vụ:" : "Service:"}</span>
-                    {filterService}
-                    <X size={14} className="cursor-pointer text-danger" onClick={() => setFilterService("")}/>
-                </div>
-            )}
-            {filterAssignee && (
-                <div className="badge bg-light text-dark border px-2 py-2 d-flex align-items-center gap-2" style={{fontWeight: 500}}>
-                    <span className="text-muted small">{currentLanguage === "vi" ? "Phụ trách:" : "Assignee:"}</span>
-                    {filterAssignee}
-                    <X size={14} className="cursor-pointer text-danger" onClick={() => setFilterAssignee("")}/>
-                </div>
-            )}
-            {filterStatus && (
-                <div className="badge bg-light text-dark border px-2 py-2 d-flex align-items-center gap-2" style={{fontWeight: 500}}>
-                    <span className="text-muted small">{currentLanguage === "vi" ? "Trạng thái:" : "Status:"}</span>
-                    {filterStatus}
-                    <X size={14} className="cursor-pointer text-danger" onClick={() => setFilterStatus("")}/>
-                </div>
-            )}
-            {filterPackage && (
-                <div className="badge bg-light text-dark border px-2 py-2 d-flex align-items-center gap-2" style={{fontWeight: 500}}>
-                    <span className="text-muted small">{currentLanguage === "vi" ? "Gói:" : "Package:"}</span>
-                    {filterPackage}
-                    <X size={14} className="cursor-pointer text-danger" onClick={() => setFilterPackage("")}/>
-                </div>
-            )}
+            {filterService && <div className="badge bg-light text-dark border px-2 py-2 d-flex align-items-center gap-2"><span className="text-muted small">DV:</span> {filterService} <X size={14} className="cursor-pointer text-danger" onClick={() => setFilterService("")}/></div>}
+            {filterStatus && <div className="badge bg-light text-dark border px-2 py-2 d-flex align-items-center gap-2"><span className="text-muted small">TT:</span> {filterStatus} <X size={14} className="cursor-pointer text-danger" onClick={() => setFilterStatus("")}/></div>}
           </div>
 
           <div className="table-wrapper mt-3">
             <div className="table-responsive" style={{ paddingLeft: "0px", maxHeight: "calc(100vh - 350px)", overflow: "auto" }} ref={tableContainerRef}>
-              <table className="table table-bordered table-hover align-middle mb-0">
+              <table className="table table-bordered align-middle mb-0">
                 <thead>
                   <tr>
                     {tableHeaders.map((header, i) => {
                         const availableKeys = initialColumnKeys.filter(k => {
                             if (k.key === 'nguoiPhuTrach' && !canViewAssignee) return false;
                             if (k.key === 'invoiceUrl' && !canViewFinance) return false;
+                            // Check finance cols
+                            const financeKeys = ['doanhThuTruoc','mucChietKhau','soTienChietKhau','doanhThuSau','tongDoanhThuTichLuy'];
+                            if (financeKeys.includes(k.key) && !canViewFinance) return false;
+
                             return true;
                         });
                         const currentKey = availableKeys[i]?.key;
@@ -476,11 +728,7 @@ const DashboardList = ({
                               {allowedPinKeys.includes(currentKey) && (
                               <button 
                                 className={`btn btn-sm d-flex align-items-center justify-content-center text-white ${isPinned(currentKey) ? "btn-danger" : ""}`} 
-                                style={{ 
-                                    width: 24, height: 24, padding: 0, borderRadius: "3px", 
-                                    position: "absolute", right: "0px", top: "50%", transform: "translateY(-50%)",
-                                    opacity: isPinned(currentKey) ? 1 : 0.5 
-                                }} 
+                                style={{ width: 24, height: 24, padding: 0, borderRadius: "3px", position: "absolute", right: "0px", top: "50%", transform: "translateY(-50%)", opacity: isPinned(currentKey) ? 1 : 0.5 }} 
                                 onClick={() => togglePinColumn(currentKey)}
                               >
                               {isPinned(currentKey) ? (<PinOff size={12} color="#ffffff" />) : (<Pin size={12} color="#ffffff" />)}
@@ -495,7 +743,7 @@ const DashboardList = ({
                 <tbody>
                   {currentTableRows.length > 0 ? (
                     currentTableRows.map((item) => (
-                      <ReadOnlyRow
+                      <B2CRequestRow
                         key={item.YeuCauID}
                         item={item}
                         visibleColumns={visibleColumns}
@@ -514,14 +762,18 @@ const DashboardList = ({
                 </tbody>
               </table>
             </div>
-
+            
+            {/* === PHẦN CHÂN TRANG (PAGINATION) === */}
             <div className="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-white" style={{ marginTop: "0", borderTop: "1px solid #dee2e6" }}>
+              
+              {/* Góc trái - Hiển thị chi tiết */}
               <div className="text-muted small">
-                {currentLanguage === "vi"
-                  ? `Hiển thị ${currentTableRows.length} / ${totalItems} hàng (trang ${currentPage}/${totalPages})`
-                  : `Showing ${currentTableRows.length} / ${totalItems} rows (page ${currentPage}/${totalPages})`}
+                 {currentLanguage === "vi" 
+                    ? `Hiển thị ${currentTableRows.length} / ${itemsPerPage} hàng (trang ${currentPage}/${totalPages})` 
+                    : `Showing ${currentTableRows.length} / ${itemsPerPage} rows (page ${currentPage}/${totalPages})`}
               </div>
 
+              {/* Góc phải - Phân trang + Text trang */}
               <div className="d-flex justify-content-center align-items-center">
                 <nav>
                   <ul className="pagination pagination-sm mb-0 shadow-sm">
@@ -543,6 +795,7 @@ const DashboardList = ({
                     </li>
                   </ul>
                 </nav>
+                
                 <div className="ms-3 text-muted small">
                   {currentLanguage === "vi" ? `Trang ${currentPage}/${totalPages}` : `Page ${currentPage}/${totalPages}`}
                 </div>
@@ -551,6 +804,9 @@ const DashboardList = ({
           </div>
         </>
       )}
+
+      {/* --- TAB B2B (RENDER TABLE GIỐNG B2B Page) --- */}
+      {subViewMode === "b2b" && renderB2BTable()}
 
       {subViewMode === "email" && (
         <EmailList
@@ -568,7 +824,7 @@ const DashboardList = ({
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
         .table-bordered { border: 1px solid #dee2e6 !important; }
         .table-bordered th, .table-bordered td { border: 1px solid #dee2e6 !important; }
-        .table-hover tbody tr:hover { background-color: rgba(0, 0, 0, 0.04); }
+       
         
         td.sticky-col { 
             position: sticky !important; 
@@ -580,7 +836,6 @@ const DashboardList = ({
         
         .table-responsive { scroll-behavior: smooth; }
 
-        /* --- STYLES CHO NESTED DROPDOWN --- */
         .dropdown-group:hover {
             background-color: #f8f9fa;
         }
@@ -604,7 +859,7 @@ const DashboardList = ({
             transition: all 0.2s;
         }
         .submenu-item:hover {
-            background-color: #EFF6FF; /* Màu xanh nhạt */
+            background-color: #EFF6FF;
             color: #2563eb;
         }
       `}</style>

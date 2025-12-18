@@ -2479,9 +2479,9 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
             </div>
 
             <div className="row g-3 px-2">
-              {/* === Custom Style cho Input === */}
+          
               {(() => {
-                  // 1. Style chung cho Input
+        
                   const inputStyle = {
                     width: "100%",
                     padding: "10px 12px",
@@ -2494,20 +2494,20 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                     transition: "border-color 0.2s",
                   };
 
-                  // 2. Định nghĩa hình mũi tên (Chevron Down - màu xám #6B7280)
+               
                   const arrowSvg = `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3e%3c/svg%3e")`;
 
-                  // 3. Style riêng cho Select (Kế thừa inputStyle + Custom mũi tên)
+                 
                   const selectStyle = {
                     ...inputStyle,
-                    appearance: "none",        // Ẩn mũi tên mặc định (CSS chuẩn)
-                    WebkitAppearance: "none",  // Ẩn mũi tên mặc định (Safari/Chrome)
-                    MozAppearance: "none",     // Ẩn mũi tên mặc định (Firefox)
-                    backgroundImage: arrowSvg, // Thêm mũi tên SVG mới
+                    appearance: "none",        
+                    WebkitAppearance: "none", 
+                    MozAppearance: "none",     
+                    backgroundImage: arrowSvg, 
                     backgroundRepeat: "no-repeat",
-                    backgroundPosition: "right 12px center", // Căn phải
-                    backgroundSize: "16px",    // Kích thước mũi tên
-                    paddingRight: "35px",      // Tạo khoảng trống bên phải để chữ không đè lên mũi tên
+                    backgroundPosition: "right 12px center", 
+                    backgroundSize: "16px",    
+                    paddingRight: "35px",      
                     cursor: "pointer"
                   };
 
@@ -2526,7 +2526,7 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                     fontStyle: "normal",
                   };
 
-                  // Component ToggleButton (Giữ nguyên)
+                  
                   const ToggleButton = ({ name, value, onChange }) => (
                     <div className="d-flex gap-4 w-100">
                       {["Yes", "No"].map((option) => (

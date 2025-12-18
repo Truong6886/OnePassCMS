@@ -183,7 +183,7 @@ export default function DoanhThu() {
   const [companyTotalPages, setCompanyTotalPages] = useState(1);
   const [companyLineChartData, setCompanyLineChartData] = useState([]);
   const [companyPieChartData, setCompanyPieChartData] = useState([]);
-
+  const apiTotalPagesRef = useRef(1);
   if (!currentUser?.is_director && !currentUser?.is_accountant && !currentUser?.perm_view_revenue) {
     return (
       <div className="d-flex min-vh-100 bg-light align-items-center justify-content-center flex-column text-primary text-center fw-bold fs-5">
@@ -260,7 +260,12 @@ export default function DoanhThu() {
         setRecords(result.data);
         setFilteredRecords(result.data);
         prepareChartData(result.data, viewMode, "personal");
-        setTotalPages(result.totalPages || 1);
+        
+    
+        const total = result.totalPages || 1;
+        setTotalPages(total);
+        apiTotalPagesRef.current = total; 
+        
       } else {
         toast.error("Không thể tải danh sách cá nhân!");
       }
@@ -269,7 +274,7 @@ export default function DoanhThu() {
     } finally {
       setLoading(false);
     }
-  };
+};
 
   const fetchCompanyData = async () => {
     setLoading(true);
@@ -359,96 +364,123 @@ export default function DoanhThu() {
     setCompanyPieChartData(pieData);
   };
 
-  useEffect(() => {
+useEffect(() => {
     const timeOutId = setTimeout(() => handleFilter(), 300);
     return () => clearTimeout(timeOutId);
-  }, [searchTerm, companySearchTerm, tableSelectedStaff, tableSelectedInvoice, tableSelectedDiscount]);
-
+}, [
+    searchTerm, 
+    companySearchTerm, 
+    tableSelectedStaff, 
+    tableSelectedInvoice, 
+    tableSelectedDiscount, 
+    selectedService, 
+    selectedStaff    // <--- THÊM VÀO ĐÂY
+]);
 
 const handleFilter = () => {
     const isPersonal = activeTab === "personal";
     let filtered = isPersonal ? records : companyRecords;
-    const term = isPersonal ? searchTerm : companySearchTerm;
-
-    // 1. Search (Text)
+    
+    // 1. Lọc theo thời gian (Date Range)
     if (startDate || endDate) {
-      filtered = filtered.filter((r) => {
-        const date = new Date(r.NgayTao);
-        const s = startDate ? new Date(startDate) : null;
-        const e = endDate ? new Date(endDate) : null;
-        if(s) s.setHours(0,0,0,0);
-        if(e) e.setHours(23,59,59,999);
-        return (!s || date >= s) && (!e || date <= e);
-      });
-    }
-
-   
-    if (isPersonal) {
-  
-      if (selectedService !== "tatca") {
-          filtered = filtered.filter(r => {
-              const type = typeof r.LoaiDichVu === 'object' ? r.LoaiDichVu?.name : r.LoaiDichVu;
-              return translateService(type) === selectedService;
-          });
-      }
-      if (selectedStaff !== "tatca") {
-          filtered = filtered.filter(r => {
-              const staffName = typeof r.NguoiPhuTrach === "object" ? r.NguoiPhuTrach?.username : r.NguoiPhuTrach;
-              return staffName === selectedStaff;
-          });
-      }
-    }
-
-    // 3. Dropdown Service & Staff (Top Bar - only for Personal currently)
-    if (isPersonal) {
-      if (selectedService !== "tatca") filtered = filtered.filter(r => translateService(typeof r.TenDichVu === "object" ? r.TenDichVu?.name : r.TenDichVu) === selectedService);
-      if (selectedStaff !== "tatca") {
-          filtered = filtered.filter(r => {
-              const staffName = typeof r.NguoiPhuTrach === "object" ? r.NguoiPhuTrach?.username : r.NguoiPhuTrach;
-              return staffName === selectedStaff;
-          });
-      }
-    }
-
-    // 4. Advanced Filters (From Menu: Staff, Invoice, Discount) - Applies to BOTH Tabs
-   if (tableSelectedStaff !== "tatca") {
-        filtered = filtered.filter(r => {
-             let staffName = "";
-             if (isPersonal) {
-                staffName = typeof r.NguoiPhuTrach === "object" ? r.NguoiPhuTrach?.username : r.NguoiPhuTrach;
-             } else {
-                staffName = r.NguoiPhuTrachName || (typeof r.NguoiPhuTrach === "object" ? r.NguoiPhuTrach?.username : "");
-             }
-             return staffName === tableSelectedStaff;
+        filtered = filtered.filter((r) => {
+            const date = new Date(r.NgayTao || r.NgayThucHien); // Bổ sung fallback NgayThucHien cho chắc chắn
+            const s = startDate ? new Date(startDate) : null;
+            const e = endDate ? new Date(endDate) : null;
+            if(s) s.setHours(0,0,0,0);
+            if(e) e.setHours(23,59,59,999);
+            return (!s || date >= s) && (!e || date <= e);
         });
     }
+
+    // 2. Xử lý lọc riêng cho Tab Cá Nhân
+    if (isPersonal) {
+        // Lọc theo Search Term (Tên, Email...)
+        if (searchTerm) {
+            const lowerTerm = searchTerm.toLowerCase();
+            filtered = filtered.filter(r => 
+                (r.HoTen && r.HoTen.toLowerCase().includes(lowerTerm)) ||
+                (r.Email && r.Email.toLowerCase().includes(lowerTerm))
+            );
+        }
+
+        // Lọc theo Dropdown Loại Dịch Vụ (Top Bar)
+        if (selectedService !== "tatca") {
+            filtered = filtered.filter(r => {
+                const type = typeof r.LoaiDichVu === 'object' ? r.LoaiDichVu?.name : r.LoaiDichVu;
+                return translateService(type) === selectedService;
+            });
+        }
+
+        // Lọc theo Dropdown Nhân viên (Top Bar)
+        if (selectedStaff !== "tatca") {
+            filtered = filtered.filter(r => {
+                const staffName = typeof r.NguoiPhuTrach === "object" ? r.NguoiPhuTrach?.username : r.NguoiPhuTrach;
+                return staffName === selectedStaff;
+            });
+        }
+    } else {
+        // Xử lý lọc cho Tab Doanh Nghiệp (Search Term)
+        if (companySearchTerm) {
+            const lowerTerm = companySearchTerm.toLowerCase();
+            filtered = filtered.filter(r => 
+                (r.TenDoanhNghiep && r.TenDoanhNghiep.toLowerCase().includes(lowerTerm))
+            );
+        }
+    }
+
+    // 3. Các bộ lọc nâng cao từ Menu (Áp dụng cho cả 2 tab)
+    // Lọc theo Nhân viên (Menu)
+    if (tableSelectedStaff !== "tatca") {
+        filtered = filtered.filter(r => {
+            let staffName = "";
+            if (isPersonal) {
+                staffName = typeof r.NguoiPhuTrach === "object" ? r.NguoiPhuTrach?.username : r.NguoiPhuTrach;
+            } else {
+                staffName = r.NguoiPhuTrachName || (typeof r.NguoiPhuTrach === "object" ? r.NguoiPhuTrach?.username : "");
+            }
+            return staffName === tableSelectedStaff;
+        });
+    }
+
     if (tableSelectedInvoice !== "tatca") {
         filtered = filtered.filter(r => {
-           const invVal = isPersonal ? r.Invoice : (r.YeuCauHoaDon || r.Invoice);
-           const hasInvoice = ["Yes", "yes", "true", "1", "có", "y"].includes(String(invVal).toLowerCase());
-           return tableSelectedInvoice === "yes" ? hasInvoice : !hasInvoice;
+            const invVal = isPersonal ? r.Invoice : (r.YeuCauHoaDon || r.Invoice);
+            const hasInvoice = ["Yes", "yes", "true", "1", "có", "y"].includes(String(invVal).toLowerCase());
+            return tableSelectedInvoice === "yes" ? hasInvoice : !hasInvoice;
         });
     }
+
+
     if (tableSelectedDiscount !== "tatca") {
-         filtered = filtered.filter(r => String(r.MucChietKhau || 0) === String(tableSelectedDiscount));
+        filtered = filtered.filter(r => String(r.MucChietKhau || 0) === String(tableSelectedDiscount));
     }
+
 
     if (isPersonal) {
-      setFilteredRecords(filtered);
-      prepareChartData(filtered, viewMode, "personal");
-      setCurrentPage(1);
-    } else {
-      setFilteredCompanyRecords(filtered); 
-      prepareChartData(filtered, viewMode, "company");
-      const aggregated = aggregateCompanyData(filtered, approvedCompanies);
-      setAggregatedCompanyData(aggregated);
-      preparePieChartData(aggregated);
-      setCompanyCurrentPage(1);
-      setCompanyTotalPages(Math.ceil(filtered.length / 20));
-    }
-  };
+        setFilteredRecords(filtered);
+        prepareChartData(filtered, viewMode, "personal");
+        
+   
+        if (filtered.length < records.length) {
+            setTotalPages(1);
+        } else {
+            
+            setTotalPages(apiTotalPagesRef.current);
+        }
+        // -------------------------------------
 
-  // --- SAVE & DELETE for PERSONAL ---
+    } else {
+        setFilteredCompanyRecords(filtered); 
+        prepareChartData(filtered, viewMode, "company");
+        const aggregated = aggregateCompanyData(filtered, approvedCompanies);
+        setAggregatedCompanyData(aggregated);
+        preparePieChartData(aggregated);
+        setCompanyCurrentPage(1);
+        setCompanyTotalPages(Math.ceil(filtered.length / 20));
+    }
+};
+
   const handleSavePersonalRow = async (id, updatedData) => {
     setSavingRow(id);
     try {
@@ -1208,239 +1240,280 @@ const PersonalTable = ({ loading, data, handleSaveRow, handleDeleteRow, savingRo
      <PaginationControls currentPage={currentPage} totalPages={totalPages} setCurrentPage={setCurrentPage} totalItems={data.length} currentLanguage={currentLanguage} />
   </div>
 );
-
-const CompanyRow = ({ item, index, isFirstRow, rowCount, globalIndex, onSave, onDelete, savingRow, visibleColumns }) => {
+const DISCOUNT_OPTIONS = [0, 5, 10, 12, 15, 17, 30];
+const getItemRowCount = (item) => {
+    const parsed = typeof item.ChiTietDichVu === 'string' 
+        ? JSON.parse(item.ChiTietDichVu) 
+        : (item.ChiTietDichVu || { main: {}, sub: [] });
+    
+    // 1 dòng Main + số lượng dòng Sub
+    const subCount = Array.isArray(parsed.sub) ? parsed.sub.length : 0;
+    return 1 + subCount; 
+};
+const CompanyRow = ({ item, index, visibleColumns, onSave, onDelete, globalIndex, isFirstServiceOfGroup, companyTotalRows }) => {
+    // ... (Giữ nguyên phần khai báo state, useEffect, handleChange, handleSaveClick...)
     const [isEditing, setIsEditing] = useState(false);
-    const [selectedFile, setSelectedFile] = useState(null);
-    const [uploading, setUploading] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-    const [formData, setFormData] = useState({
-        DoanhThuTruocChietKhau: formatCurrency(item.DoanhThuTruocChietKhau || 0),
-        MucChietKhau: item.MucChietKhau || 0,
-        Invoice: ["Yes", "yes", "true", "1"].includes(String(item.YeuCauHoaDon || item.Invoice)) ? "Yes" : "No",
-        InvoiceUrl: item.InvoiceUrl || ""
+    // State lưu dữ liệu khi sửa
+    const [details, setDetails] = useState(() => {
+        const parsed = typeof item.ChiTietDichVu === 'string' 
+            ? JSON.parse(item.ChiTietDichVu) 
+            : (item.ChiTietDichVu || { main: {}, sub: [] });
+        return {
+            main: {
+                revenue: parsed.main?.revenue !== undefined ? parsed.main.revenue : item.DoanhThuTruocChietKhau,
+                discount: parsed.main?.discount !== undefined ? parsed.main.discount : item.MucChietKhau
+            },
+            sub: Array.isArray(parsed.sub) ? parsed.sub : []
+        };
     });
-
+    // ... (Giữ nguyên các hàm xử lý logic ...)
     useEffect(() => {
-        setFormData({
-            DoanhThuTruocChietKhau: formatCurrency(item.DoanhThuTruocChietKhau || 0),
-            MucChietKhau: item.MucChietKhau || 0,
-            Invoice: ["Yes", "yes", "true", "1"].includes(String(item.YeuCauHoaDon || item.Invoice)) ? "Yes" : "No",
-            InvoiceUrl: item.InvoiceUrl || ""
+        const parsed = typeof item.ChiTietDichVu === 'string' 
+            ? JSON.parse(item.ChiTietDichVu) 
+            : (item.ChiTietDichVu || { main: {}, sub: [] });
+        setDetails({
+            main: {
+                revenue: parsed.main?.revenue !== undefined ? parsed.main.revenue : item.DoanhThuTruocChietKhau,
+                discount: parsed.main?.discount !== undefined ? parsed.main.discount : item.MucChietKhau
+            },
+            sub: Array.isArray(parsed.sub) ? parsed.sub : []
         });
-        setSelectedFile(null);
+        setIsEditing(false);
     }, [item]);
 
-    const handleChange = (field, val) => setFormData(prev => ({ ...prev, [field]: val }));
-
-    const handleFileChange = (e) => {
-        if (e.target.files && e.target.files[0]) {
-            setSelectedFile(e.target.files[0]);
-        }
+    const handleChange = (type, idx, field, value) => {
+        setDetails(prev => {
+            const newDetails = { ...prev };
+            const rawValue = field === 'revenue' ? value.replace(/\D/g, "") : value;
+            
+            if (type === 'main') {
+                newDetails.main = { ...newDetails.main, [field]: rawValue };
+            } else if (type === 'sub') {
+                const newSub = [...newDetails.sub];
+                newSub[idx] = { ...newSub[idx], [field]: rawValue };
+                newDetails.sub = newSub;
+            }
+            return newDetails;
+        });
     };
 
     const handleSaveClick = async () => {
-        let finalUrl = formData.InvoiceUrl;
-        if (selectedFile) {
-            setUploading(true);
-            try {
-                const formUpload = new FormData();
-                formUpload.append("file", selectedFile);
-                const res = await fetch("https://onepasscms-backend.onrender.com/api/upload-invoice", {
-                    method: "POST",
-                    body: formUpload
-                });
-                const data = await res.json();
-                if (data.success) {
-                    finalUrl = data.url;
-                    setFormData(prev => ({ ...prev, InvoiceUrl: finalUrl, Invoice: "Yes" }));
-                } else {
-                    toast.error("Lỗi upload: " + data.message);
-                    setUploading(false);
-                    return;
-                }
-            } catch (err) {
-                toast.error("Lỗi kết nối upload");
-                setUploading(false);
-                return;
-            }
-            setUploading(false);
-        }
-        await onSave(item.ID, { ...formData, InvoiceUrl: finalUrl });
-        setIsEditing(false);
-        setSelectedFile(null);
-    };
+        setLoading(true);
+        const mainRev = parseFloat(details.main.revenue) || 0;
+        const mainDisc = parseFloat(details.main.discount) || 0;
+        const mainAmt = mainRev - (mainRev * mainDisc / 100);
 
-    const handleCancelClick = () => {
-        setIsEditing(false);
-        setSelectedFile(null);
-        setFormData({
-            DoanhThuTruocChietKhau: formatCurrency(item.DoanhThuTruocChietKhau || 0),
-            MucChietKhau: item.MucChietKhau || 0,
-            Invoice: ["Yes", "yes", "true", "1"].includes(String(item.YeuCauHoaDon || item.Invoice)) ? "Yes" : "No",
-            InvoiceUrl: item.InvoiceUrl || ""
+        let subAmt = 0;
+        const cleanSub = details.sub.map(s => {
+            const sRev = parseFloat(s.revenue) || 0;
+            const sDisc = parseFloat(s.discount) || 0;
+            subAmt += sRev - (sRev * sDisc / 100);
+            return { name: s.name, revenue: sRev, discount: sDisc };
         });
+
+        const totalRevenue = mainRev + details.sub.reduce((sum, s) => sum + (parseFloat(s.revenue)||0), 0);
+        const totalAfter = mainAmt + subAmt;
+        const totalDiscountAmt = totalRevenue - totalAfter;
+        const avgDisc = totalRevenue > 0 ? (totalDiscountAmt / totalRevenue * 100) : 0;
+
+        const payload = {
+            ChiTietDichVu: { main: details.main, sub: cleanSub },
+            DoanhThuTruocChietKhau: totalRevenue,
+            DoanhThuSauChietKhau: totalAfter,
+            SoTienChietKhau: totalDiscountAmt,
+            MucChietKhau: avgDisc
+        };
+
+        await onSave(item.STT || item.ID, payload);
+        setLoading(false);
+        setIsEditing(false);
     };
 
-    // ... (Giữ nguyên logic tính toán tiền)
-    const dtTruoc = parseCurrency(formData.DoanhThuTruocChietKhau);
-    const ck = parseFloat(formData.MucChietKhau) || 0;
-    const tienCK = (dtTruoc * ck) / 100;
-    const dtSau = dtTruoc - tienCK;
+    let rowsToRender = [];
+    rowsToRender.push({ type: 'main', name: item.DanhMuc ? item.DanhMuc.split(" + ")[0] : item.TenDichVu, revenue: details.main.revenue, discount: details.main.discount, index: -1 });
+    details.sub.forEach((sub, idx) => {
+        rowsToRender.push({ type: 'sub', name: sub.name, revenue: sub.revenue, discount: sub.discount, index: idx });
+    });
+    const rowSpanCount = rowsToRender.length;
+    
+    const totalRevenueOfRequest = rowsToRender.reduce((sum, row) => {
+        const rev = parseFloat(row.revenue) || 0;
+        const disc = parseFloat(row.discount) || 0;
+        return sum + (rev - (rev * disc / 100));
+    }, 0);
 
-    const editBgColor = "#fff9c4";
-    const editBorderColor = "#fff9c4";
-    const rowBackgroundColor = isEditing ? editBgColor : "white";
-
-    const cellStyle = {
-        verticalAlign: "middle",
-        backgroundColor: isEditing ? editBgColor : "transparent",
-        borderBottom: "1px solid #dee2e6"
-    };
-    const inputStyle = {
-        width: "100%", height: "100%", 
-        border: `1px solid ${editBorderColor}`,
-        background: "#fff", 
-        textAlign: "center", outline: "none", fontWeight: "bold", 
-        display: "block", margin: 0, fontSize: "13px",
-        color: "#000", borderRadius: "4px", padding: "4px"
-    };
-    const tdEditPadding = { ...cellStyle, padding: "4px", height: "40px" };
+    // Styles
+    const cellStyle = { verticalAlign: "middle", backgroundColor: "white", borderBottom: "1px solid #dee2e6" };
+    const mergedStyle = { ...cellStyle, backgroundColor: isEditing ? "#fff9c4" : (index % 2 === 0 ? "#f9fafb" : "white") };
+    const inputStyle = { width: "100%", textAlign: "center", border: "1px solid #ced4da", borderRadius: "4px", padding: "4px" };
 
     return (
-        <tr style={{ backgroundColor: rowBackgroundColor }}>
-            {/* STT - Row Span */}
-            {isFirstRow && visibleColumns.stt && (
-                <td rowSpan={rowCount} className="text-center align-middle border bg-white" style={{ verticalAlign: "middle" , padding: "2px 4px", position: "relative", zIndex: 1, backgroundClip: "padding-box"}}>
-                    {globalIndex}
-                </td>
-            )}
+        <>
+            {rowsToRender.map((row, idx) => {
+                const isFirstSubRow = idx === 0; 
+                
+                const rev = parseFloat(row.revenue) || 0;
+                const disc = parseFloat(row.discount) || 0;
+                const discAmt = (rev * disc) / 100;
+                const afterDisc = rev - discAmt;
 
-            {/* Company Name - Row Span */}
-            {isFirstRow && visibleColumns.khachHang && (
-                <td rowSpan={rowCount} className="fw-bold text-center ps-3 align-middle border bg-white"
-                    style={{
-                        color: "#1e40af", verticalAlign: "middle", padding: "2px 4px",
-                        position: "relative", zIndex: 1, backgroundClip: "padding-box"
-                    }}>
-                    {item.TenDoanhNghiep || "—"}
-                </td>
-            )}
+                return (
+                    <tr key={`${item.ID || item.STT}_${idx}`} style={{ backgroundColor: isEditing ? "#fff9c4" : (index % 2 === 0 ? "#f9fafb" : "white") }}>
+                        
+                      
+                     {visibleColumns.stt && isFirstSubRow && isFirstServiceOfGroup && (
+                      <td 
+                          rowSpan={companyTotalRows} 
+                          className="text-center" 
+                          style={{
+                              color: "#1e40af", 
+                              verticalAlign: "middle", 
+                              padding: "2px 4px",
+                              position: "relative", 
+                              zIndex: 1, 
+                              backgroundClip: "padding-box"
+                          }}
+                      >
+                          {globalIndex} 
+                      </td>
+                  )}
 
-            {visibleColumns.loaiDichVu && <td style={{...cellStyle, textAlign:"center"}}>{translateService(item.LoaiDichVu)}</td>}
-            {visibleColumns.tenDichVu && <td style={{...cellStyle, textAlign:"center"}}>{item.TenDichVu}</td>}
-            {visibleColumns.nguoiPhuTrach && <td className="text-center" style={cellStyle}>{item.NguoiPhuTrachName || "-"}</td>}
-
-            {visibleColumns.invoiceYN && (
-                 <td className="text-center" style={isEditing ? tdEditPadding : cellStyle}>
-                    {isEditing ? (
-                        <select
-                            value={formData.Invoice}
-                            onChange={(e) => handleChange("Invoice", e.target.value)}
-                            style={{ ...inputStyle, cursor: "pointer", color: formData.Invoice === "Yes" ? "green" : "gray" }}
+                      
+                      {visibleColumns.khachHang && isFirstServiceOfGroup && isFirstSubRow && (
+                        <td 
+                          rowSpan={companyTotalRows} 
+                          className="text-center fw-semibold align-middle px-2" 
+                          style={{
+                            color: "#1e40af", 
+                            verticalAlign: "middle", 
+                            padding: "2px 4px",
+                            position: "relative", 
+                            zIndex: 1, 
+                            backgroundClip: "padding-box"
+                          }}
                         >
-                            <option value="Yes">Yes</option>
-                            <option value="No">No</option>
-                        </select>
-                    ) : (
-                        <span>{formData.Invoice === "Yes" ? "Yes" : "No"}</span>
-                    )}
-                </td>
-            )}
+                          {item.TenDoanhNghiep}
+                        </td>
+                      )}
 
-            {/* --- CỘT INVOICE ĐƯỢC SỬA ĐỔI CHO DOANH NGHIỆP --- */}
-            {visibleColumns.invoiceFile && (
-                <td className="text-center" style={cellStyle}>
-                     <div className="d-flex align-items-center justify-content-center gap-2">
-                        {/* 1. Luôn hiển thị link cũ nếu có */}
-                        {formData.InvoiceUrl && (
-                            <a 
-                                href={formData.InvoiceUrl} target="_blank" rel="noreferrer" 
-                                className="btn btn-sm btn-outline-primary border p-0 d-flex align-items-center justify-content-center"
-                                style={{ width: 30, height: 30 }}
-                                title="Xem file hiện tại"
-                            >
-                                <FileText size={16} />
-                            </a>
+           
+                        {visibleColumns.loaiDichVu && isFirstSubRow && (
+                            <td rowSpan={rowSpanCount} className="text-center" style={mergedStyle}>
+                                {translateService(item.LoaiDichVu)}
+                            </td>
+                        )}
+                        
+                      
+                        {visibleColumns.tenDichVu && (
+                            <td style={{
+                                ...cellStyle, 
+                                textAlign:'center',
+                                whiteSpace: 'normal',       
+                                overflow: 'visible',     
+                                wordBreak: 'break-word',   
+                                minWidth: '200px'          
+                            }}>
+                                {row.name}
+                            </td>
                         )}
 
-                        {/* 2. Khi đang Edit: Hiện thêm nút Upload */}
-                        {isEditing && (
-                            <div className="position-relative">
-                                <input 
-                                    type="file" id={`file-upload-b2b-${item.ID}`} style={{ display: "none" }} 
-                                    onChange={handleFileChange} accept=".pdf,.jpg,.png,.doc,.docx"
-                                />
-                                <label 
-                                    htmlFor={`file-upload-b2b-${item.ID}`} 
-                                    className={`btn btn-sm ${selectedFile ? 'btn-success' : 'btn-light border'} p-0 d-flex align-items-center justify-content-center`}
-                                    style={{ 
-                                        width: 30, height: 30, cursor: "pointer", 
-                                        color: selectedFile ? "#fff" : "#0d6efd"
-                                    }}
-                                    title={selectedFile ? "Đã chọn file" : "Tải file mới lên"}
-                                >
-                                    {selectedFile ? <Check size={16} /> : <Upload size={16} />}
-                                </label>
-                            </div>
+                      
+                        {visibleColumns.nguoiPhuTrach && isFirstSubRow && (
+                            <td rowSpan={rowSpanCount} className="text-center" style={mergedStyle}>
+                                {item.NguoiPhuTrachName || item.NguoiPhuTrach?.username || item.NguoiPhuTrach}
+                            </td>
                         )}
 
-                         {/* 3. Nếu không có file và không edit */}
-                         {!isEditing && !formData.InvoiceUrl && <span className="text-muted small">-</span>}
-                    </div>
-                </td>
-            )}
-
-            {visibleColumns.dtTruoc && (
-                 <td style={isEditing ? tdEditPadding : { ...cellStyle, textAlign: "center" }}>
-                    {isEditing ? (
-                        <input type="text" value={formData.DoanhThuTruocChietKhau}
-                            onChange={(e) => { const val = e.target.value.replace(/\D/g, ""); handleChange("DoanhThuTruocChietKhau", formatCurrency(val)); }}
-                            style={inputStyle}
-                        />
-                    ) : <span>{formData.DoanhThuTruocChietKhau}</span>}
-                </td>
-            )}
-
-            {visibleColumns.mucCK && (
-                <td className="text-center" style={isEditing ? tdEditPadding : cellStyle}>
-                     {isEditing ? (
-                        <select value={formData.MucChietKhau} onChange={(e) => handleChange("MucChietKhau", e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
-                            <option value="0">0%</option><option value="5">5%</option><option value="10">10%</option><option value="12">12%</option><option value="15">15%</option><option value="17">17%</option><option value="30">30%</option>
-                        </select>
-                    ) : <span>{formData.MucChietKhau}%</span>}
-                </td>
-            )}
-
-            {visibleColumns.tienCK && <td className="text-center align-middle text-muted" style={cellStyle}>{formatCurrency(tienCK)}</td>}
-            {visibleColumns.dtSau && <td className="text-center pe-3 align-middle fw-bold text-primary" style={cellStyle}>{formatCurrency(dtSau)}</td>}
-
-            {visibleColumns.hanhDong && (
-                <td className="text-center align-middle" style={cellStyle}>
-                    <div className="d-flex justify-content-center gap-2">
-                        {isEditing ? (
-                             <>
-                                <button onClick={handleSaveClick} disabled={savingRow === item.ID || uploading} className="btn btn-sm btn-success text-white p-0 d-flex align-items-center justify-content-center" style={{ width: 30, height: 30 }}>
-                                    {(savingRow === item.ID || uploading) ? <span className="spinner-border spinner-border-sm" style={{width: "1rem", height: "1rem"}}></span> : <Save size={16} />}
-                                </button>
-                                <button onClick={handleCancelClick} disabled={uploading} className="btn btn-sm btn-secondary text-white p-0 d-flex align-items-center justify-content-center" style={{ width: 30, height: 30 }}>
-                                    <span style={{ fontWeight: "bold", fontSize: "14px" }}>X</span>
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <button onClick={() => setIsEditing(true)} className="btn btn-sm btn-light border text-primary p-0 d-flex align-items-center justify-content-center" style={{ width: 30, height: 30, background: "white" }}>
-                                    <Edit size={16} />
-                                </button>
-                                <button onClick={() => onDelete(item.ID)} className="btn btn-sm btn-light border text-danger p-0 d-flex align-items-center justify-content-center" style={{ width: 30, height: 30, background: "white" }}>
-                                    <Trash2 size={16} />
-                                </button>
-                            </>
+                       
+                        {visibleColumns.invoiceYN && isFirstSubRow && (
+                             <td rowSpan={rowSpanCount} className="text-center" style={mergedStyle}>
+                                {["Yes", "yes", "true", "1", "có"].includes(String(item.YeuCauHoaDon || item.Invoice).toLowerCase()) ? <span className="text-success fw-bold">Có</span> : "Không"}
+                             </td>
                         )}
-                    </div>
-                </td>
-            )}
-        </tr>
+                        
+              
+                        {visibleColumns.invoiceFile && isFirstSubRow && (
+                             <td rowSpan={rowSpanCount} className="text-center" style={mergedStyle}>
+                                {item.InvoiceUrl ? <a href={item.InvoiceUrl} target="_blank" rel="noreferrer">Link</a> : "-"}
+                             </td>
+                        )}
+
+                       
+                        {visibleColumns.dtTruoc && (
+                            <td className="text-center" style={cellStyle}>
+                                {isEditing ? (
+                                    <input 
+                                        type="text" 
+                                        value={formatCurrency(row.revenue)} 
+                                        onChange={(e) => handleChange(row.type, row.index, 'revenue', e.target.value)}
+                                        style={inputStyle}
+                                    />
+                                ) : formatCurrency(rev)}
+                            </td>
+                        )}
+
+            
+                        {visibleColumns.mucCK && (
+                            <td className="text-center" style={cellStyle}>
+                                {isEditing ? (
+                                    <select 
+                                        className="form-select form-select-sm"
+                                        value={row.discount} 
+                                        onChange={(e) => handleChange(row.type, row.index, 'discount', e.target.value)}
+                                        style={{ ...inputStyle, minWidth: "70px", padding: "2px 5px" }}
+                                    >
+                                        
+                                        {[0, 5, 10, 12, 15, 17, 30].map(opt => (
+                                            <option key={opt} value={opt}>{opt}%</option>
+                                        ))}
+                                    </select>
+                                ) : `${disc}%`}
+                            </td>
+                        )}
+
+                      
+                        {visibleColumns.tienCK && <td className="text-center text-muted" style={cellStyle}>{formatCurrency(discAmt)}</td>}
+                        {visibleColumns.dtSau && <td className="text-center fw-bold text-primary" style={cellStyle}>{formatCurrency(afterDisc)}</td>}
+                        
+                     
+                        {visibleColumns.tongDoanhThu && isFirstSubRow && (
+                            <td rowSpan={rowSpanCount} className="text-center fw-bold text-success" style={mergedStyle}>
+                                {formatCurrency(totalRevenueOfRequest)}
+                            </td>
+                        )}
+
+                  
+                       {visibleColumns.hanhDong && isFirstSubRow && (
+                             <td rowSpan={rowSpanCount} className="text-center" style={mergedStyle}>
+                                <div className="d-flex justify-content-center gap-2">
+                                    {isEditing ? (
+                                        <>
+                                            <button onClick={handleSaveClick} disabled={loading} className="btn btn-sm btn-success text-white p-1">
+                                                {loading ? <span className="spinner-border spinner-border-sm"></span> : <Save size={16} />}
+                                            </button>
+                                            <button onClick={() => setIsEditing(false)} className="btn btn-sm btn-secondary text-white p-1">
+                                                <X size={16} />
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button onClick={() => setIsEditing(true)} className="btn btn-sm btn-light border text-primary p-1">
+                                                <Edit size={16} />
+                                            </button>
+                                            <button onClick={() => onDelete(item.STT || item.ID)} className="btn btn-sm btn-light border text-danger p-1">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            </td>
+                        )}
+                    </tr>
+                );
+            })}
+        </>
     );
 };
 const CompanyTable = ({ 
@@ -1461,8 +1534,10 @@ const CompanyTable = ({
     const indexOfFirstRow = indexOfLastRow - rowsPerPage;
     const currentRows = data.slice(indexOfFirstRow, indexOfLastRow);
 
+    // Lấy danh sách tên công ty để tính STT
     const uniqueCompanies = [...new Set(data.map(item => item.TenDoanhNghiep))];
 
+    // Nhóm các dịch vụ của cùng 1 công ty lại
     const groupedData = [];
     let currentGroup = [];
 
@@ -1497,6 +1572,11 @@ const CompanyTable = ({
                     {visibleColumns.mucCK && <th style={{width: "100px"}}>Mức Chiết khấu</th>}
                     {visibleColumns.tienCK && <th style={{width: "130px"}}>Số Tiền<br/>Chiết khấu</th>}
                     {visibleColumns.dtSau && <th style={{width: "130px"}}>Doanh Thu<br/>Sau Chiết Khấu</th>}
+                    {visibleColumns.tongDoanhThu && (
+                      <th className="text-center align-middle" style={{width: "140px", backgroundColor: "#f8f9fa"}}>
+                          Tổng Doanh Thu<br/>Sau Chiết Khấu
+                      </th>
+                  )}
                     {visibleColumns.hanhDong && <th style={{width: "100px"}}>Hành động</th>}
                 </tr>
                 </thead>
@@ -1505,22 +1585,26 @@ const CompanyTable = ({
                     <tr><td colSpan="12" className="p-3 text-muted text-center">{t.noData}</td></tr>
                 ) : (
                     groupedData.map((group, groupIndex) => {
-                        const rowCount = group.length;
                         const companyName = group[0].TenDoanhNghiep;
                         
-                        // [LOGIC STT MỚI] Lấy số thứ tự dựa trên danh sách công ty duy nhất
-                        // +1 để bắt đầu từ 1 thay vì 0
+                        // Tính STT công ty
                         const companyStt = uniqueCompanies.indexOf(companyName) + 1;
 
+                        // [QUAN TRỌNG] Tính tổng số dòng (rowSpan) của CẢ CÔNG TY (bao gồm tất cả dịch vụ con)
+                        const totalCompanyRows = group.reduce((sum, item) => sum + getItemRowCount(item), 0);
+
                         return group.map((r, itemIndex) => {
-                            const isFirstRow = itemIndex === 0;
+                            const isFirstRowOfGroup = itemIndex === 0; // Là dịch vụ đầu tiên trong nhóm
+                            
                             return (
                                 <CompanyRow
                                     key={r.ID || `${groupIndex}-${itemIndex}`}
                                     item={r}
                                     index={itemIndex}
-                                    isFirstRow={isFirstRow}
-                                    rowCount={rowCount}
+                                    
+                                    // [SỬA LẠI TÊN PROPS CHO KHỚP VỚI CompanyRow]
+                                    isFirstServiceOfGroup={isFirstRowOfGroup} 
+                                    companyTotalRows={totalCompanyRows}
                                     globalIndex={companyStt}
                                     
                                     onSave={handleSaveRow}
