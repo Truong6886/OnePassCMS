@@ -1391,10 +1391,10 @@ const getTotalRecordAfterDiscount = (rec) => {
                                                     {isFirstSubRow && shouldRenderCompanyCell && (
                                                         <>
                                                             <td className="border" rowSpan={companyRowSpan} style={mergedStyle} title={rec.companyName}>
-                                                                {rec.companyName || "--"}
+                                                                {rec.companyName || ""}
                                                             </td>
                                                             <td className="border" rowSpan={companyRowSpan} style={mergedStyle} title={rec.soDKKD}>
-                                                                {rec.soDKKD || "--"}
+                                                                {rec.soDKKD || ""}
                                                             </td>
                                                         </>
                                                     )}
@@ -1446,7 +1446,7 @@ const getTotalRecordAfterDiscount = (rec) => {
                                                                     <a href={rec.invoiceUrl} target="_blank" rel="noreferrer" className="text-primary d-inline-block">
                                                                         <FileText size={16} />
                                                                     </a>
-                                                                ) : "-"}
+                                                                ) : ""}
                                                             </td>
                                                         </>
                                                     )}

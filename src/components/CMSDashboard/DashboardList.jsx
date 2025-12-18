@@ -527,9 +527,9 @@ const DashboardList = ({
                                         {isFirstSubRow && (
                                             <>
                                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle}><span className="fw-bold text-dark">{rec.MaDichVu}</span></td>
-                                                <td className="border" rowSpan={subRowsCount} style={{...mergedStyle, maxWidth: "110px"}} title={rec.NguoiPhuTrach?.name}>{rec.NguoiPhuTrach?.name || "-"}</td>
-                                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.NgayThucHien ? rec.NgayThucHien.split("T")[0] : "-"}</td>
-                                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.NgayHoanThanh ? rec.NgayHoanThanh.split("T")[0] : "-"}</td>
+                                                <td className="border" rowSpan={subRowsCount} style={{...mergedStyle, maxWidth: "110px"}} title={rec.NguoiPhuTrach?.name}>{rec.NguoiPhuTrach?.name || ""}</td>
+                                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.NgayThucHien ? rec.NgayThucHien.split("T")[0] : ""}</td>
+                                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.NgayHoanThanh ? rec.NgayHoanThanh.split("T")[0] : ""}</td>
                                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.GoiDichVu}</td>
 
                                             </>

@@ -709,17 +709,17 @@ const RowItem = ({
 const translateService = (val) => {
       if (!val) return "";
       const map = {
-      "인증 센터": "Chứng thực",
-      "결혼 이민": "Kết hôn",
-      "출생신고 대행": "Khai sinh, khai tử",
-      "국적 대행": "Quốc tịch",
-      "여권 • 호적 대행": "Hộ chiếu, Hộ tịch",
-      "입양 절차 대행": "Nhận nuôi",
-      "비자 대행": "Thị thực",
-      "법률 컨설팅": "Tư vấn pháp lý",
-      "B2B 서비스": "Dịch vụ B2B",
-      "기타": "Khác",
-    };
+        "인증 센터": "Chứng thực",
+        "결혼 이민": "Kết hôn",
+        "출생신고 대행": "Khai sinh, khai tử",
+        "국적 대행": "Quốc tịch",
+        "여권 • 호적 대행": "Hộ chiếu, Hộ tịch",
+        "입양 절차 대행": "Nhận nuôi",
+        "비자 대행": "Thị thực",
+        "법률 컨설팅": "Tư vấn pháp lý",
+        "B2B 서비스": "Dịch vụ B2B",
+        "기타": "Khác",
+      };
       return map[String(val).trim()] || val;
   };
   // --- [ĐÃ SỬA] THÊM HÀM XỬ LÝ XÓA ---
@@ -1447,7 +1447,15 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
   const serviceTypeList = dichvuList?.map(dv => dv.LoaiDichVu) || [];
   const packageOptions = [{ value: "Thông thường", label: "Thông thường" }, { value: "Cấp tốc", label: "Cấp tốc" }];
   const branchOptions = [{ value: "Seoul", label: "Seoul" }, { value: "Busan", label: "Busan" }];
-  const formOptions = ["Trực tiếp", "Online", "Email", "Gọi điện", "Messenger", "Kakao Talk", "Zalo"];
+  const formOptions = [
+  "Messenger",
+  "Kakao Talk",
+  "Zalo",
+  "Naver Talk",
+  "Email",
+  "Gọi điện",
+  "Trực tiếp"
+];
   const areaCodes = [{ value: "+82", label: "+82" }, { value: "+84", label: "+84" }];
   const statusOptions = currentLanguage === "vi" ? ["Tư vấn", "Đang xử lý", "Đang nộp hồ sơ", "Hoàn thành"] : ["Consultation", "Processing", "Submitting Documents", "Completed"];
   const discountOptions = [{ value: 0, label: "0%" }, { value: 5, label: "5%" }, { value: 10, label: "10%" }, { value: 12, label: "12%" }, { value: 15, label: "15%" }, { value: 17, label: "17%" }, { value: 30, label: "30%" }];
