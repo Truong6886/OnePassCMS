@@ -109,7 +109,7 @@ const B2CRequestRow = ({ item, visibleColumns, pinnedColumns, currentUser, curre
              {/* Thông tin liên hệ */}
              {isVisible("maVung") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("maVung")}`} style={mergedStyle}>{item.MaVung}</td>}
              {isVisible("sdt") && isFirst && <td rowSpan={rowSpanCount} style={{ maxWidth: "150px", width: "110px", textAlign: "center", ...mergedStyle }} className={getStickyClass("sdt")}>{item.SoDienThoai}</td>}
-             {isVisible("email") && isFirst && <td rowSpan={rowSpanCount} style={{ maxWidth: "162px", ...mergedStyle }} className={`text-center text-truncate ${getStickyClass("email")}`} title={item.Email}>{item.Email}</td>}
+             {isVisible("email") && isFirst && <td rowSpan={rowSpanCount} style={{ maxWidth: "162px",width: 100, ...mergedStyle }} className={`text-center text-truncate ${getStickyClass("email")}`} title={item.Email}>{item.Email}</td>}
              
              {/* Thông tin dịch vụ */}
              {isVisible("hinhThuc") && isFirst && <td rowSpan={rowSpanCount} className={`text-center border-target ${getStickyClass("hinhThuc")}`} style={mergedStyle}>{item.TenHinhThuc}</td>}
@@ -129,18 +129,18 @@ const B2CRequestRow = ({ item, visibleColumns, pinnedColumns, currentUser, curre
              {isVisible("danhMuc") && (
                 <td className={`text-start ${getStickyClass("danhMuc")}`} style={{ minWidth: "200px", verticalAlign: "middle", borderBottom: "1px solid #dee2e6" }}>
                     <div style={{ 
-                        fontWeight: row.isMain ? "600" : "400", 
-                        color: row.isMain ? "#2563eb" : "#4b5563",
-                        paddingLeft: row.isMain ? "0px" : "15px",
+                        fontWeight: row.isMain ? "400" : "400", 
+                        color: row.isMain ? "#000" : "#000",
+                        paddingLeft: row.isMain ? "4px" : "4px",
                         whiteSpace: "normal"
                     }}>
-                        {row.isMain ? "" : "+ "}{row.name}
+                        {row.isMain ? "" : ""}{row.name}
                     </div>
                 </td>
              )}
 
              {/* Mã hồ sơ */}
-             {isVisible("maDichVu") && isFirst && <td rowSpan={rowSpanCount} style={{ width: "120px", ...mergedStyle }} className={`text-center border-target ${getStickyClass("maDichVu")}`}>{displayMaHoSo}</td>}
+             {isVisible("maDichVu") && isFirst && <td rowSpan={rowSpanCount} style={{ width: "140px", ...mergedStyle }} className={`text-center border-target ${getStickyClass("maDichVu")}`}>{displayMaHoSo}</td>}
 
              {/* Người phụ trách */}
              {canViewAssignee && isVisible("nguoiPhuTrach") && isFirst && (

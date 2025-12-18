@@ -855,15 +855,17 @@ const baseB2BData = selectedCompanyId
           ) : (
             <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
               <div className="table-responsive" style={{ flex: 1, overflow: "auto" }}>
-                <table className="table table-hover table-bordered align-middle table-sm" style={{fontSize: "13px"}}>
+                <table className="table table-bordered align-middle table-sm" style={{fontSize: "13px"}}>
                   <thead>
                     <tr className="text-center">
                       <th style={{width: "40px", ...headerStyle}}>#</th>
                       <th style={{minWidth: "120px", ...headerStyle}}>Khách hàng</th>
                       <th style={{width: "100px", ...headerStyle}}>Loại dịch vụ</th>
                       <th style={{minWidth: "120px", ...headerStyle}}>Tên dịch vụ</th>
+                      <th style={{minWidth: "100px", ...headerStyle}}>Mã dịch vụ</th>
                       <th style={{minWidth: "150px", ...headerStyle}}>Danh mục</th>
                       <th style={{width: "120px", ...headerStyle}}>Người phụ trách</th>
+
                       <th style={{width: "90px", ...headerStyle}}>Ngày hẹn</th>
                       <th style={{width: "100px", ...headerStyle}}>Trạng thái</th>
                       <th style={{width: "90px", ...headerStyle}}>Hình thức</th>
@@ -928,7 +930,11 @@ const baseB2BData = selectedCompanyId
                                               {r.TenDichVu}
                                           </td>
                                       )}
-
+                                      {isFirst && (
+                                          <td rowSpan={rowSpan} style={{verticalAlign: "middle", textAlign: "center"}}>
+                                              {r.MaHoSo || ""}
+                                          </td>
+                                      )}
                                       {/* 5. Danh mục (SPLIT ROWS) */}
                                       <td style={{
                                           color: row.isMain ? "#000" : "#000",
@@ -942,14 +948,14 @@ const baseB2BData = selectedCompanyId
                                       {/* 6. Người phụ trách (Shared) */}
                                       {isFirst && (
                                           <td rowSpan={rowSpan} className="text-center" style={{verticalAlign: "middle"}}>
-                                              {r.NguoiPhuTrach?.name || r.NguoiPhuTrach || "-"}
+                                              {r.NguoiPhuTrach?.name || r.NguoiPhuTrach || ""}
                                           </td>
                                       )}
 
                                       {/* 7. Ngày hẹn (Shared) */}
                                       {isFirst && (
                                           <td rowSpan={rowSpan} className="text-center" style={{verticalAlign: "middle"}}>
-                                              {r.ChonNgay ? new Date(r.ChonNgay).toLocaleDateString("vi-VN") : "-"}
+                                              {r.ChonNgay ? new Date(r.ChonNgay).toLocaleDateString("vi-VN") : ""}
                                           </td>
                                       )}
 
@@ -1433,6 +1439,9 @@ const baseB2BData = selectedCompanyId
                       {currentLanguage === "vi" ? "Tên dịch vụ" : "Service Name"}
                     </th>
                     <th style={{ ...headerStyle, position: "sticky", top: 0, zIndex: 10 }}>
+                      {currentLanguage === "vi" ? "Mã dịch vụ" : "Service Code"}
+                    </th>
+                    <th style={{ ...headerStyle, position: "sticky", top: 0, zIndex: 10 }}>
                       {currentLanguage === "vi" ? "Danh mục" : "Category"}
                     </th>
                     <th style={{ ...headerStyle, position: "sticky", top: 0, zIndex: 10 }}>
@@ -1524,6 +1533,9 @@ const baseB2BData = selectedCompanyId
                                 </td>
                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.TenDichVu}>
                                   {rec.TenDichVu}
+                                </td>
+                                <td className="border" rowSpan={subRowsCount} style={{...mergedStyle}}>
+                                  {rec.MaDichVu || ""}
                                 </td>
                               </>
                             )}
