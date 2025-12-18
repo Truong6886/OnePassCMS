@@ -1531,17 +1531,17 @@ const baseB2BData = selectedCompanyId
                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.LoaiDichVu}>
                                   {rec.LoaiDichVu}
                                 </td>
-                                <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.TenDichVu}>
+                                <td className="border" rowSpan={subRowsCount} style={{...mergedStyle,width:160}} title={rec.TenDichVu}>
                                   {rec.TenDichVu}
                                 </td>
-                                <td className="border" rowSpan={subRowsCount} style={{...mergedStyle}}>
+                                <td className="border" rowSpan={subRowsCount} style={{...mergedStyle,width:160}}>
                                   {rec.MaDichVu || ""}
                                 </td>
                               </>
                             )}
 
                             <td className="border" style={danhMucStyle}>
-                              <div className="px-1" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                              <div className="px-1" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word",width:150 }}>
                                 {svcName}
                               </div>
                             </td>
