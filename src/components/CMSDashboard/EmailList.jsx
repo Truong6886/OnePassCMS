@@ -68,7 +68,7 @@ const EmailList = ({
       </h5>
 
       <div className="table-responsive" ref={tableContainerRef}>
-        <table className="table table-bordered table-hover align-middle mb-0">
+        <table className="table table-bordered align-middle mb-0">
           <thead
             style={{
               backgroundColor: "#1e3a8a",
