@@ -224,8 +224,46 @@ const handleLanguageChange = (lang) => {
               }}
             />
           </button>
+          
         </div>
-
+            <button
+            type="button"
+            onClick={() => handleLanguageChange("vi")}
+            style={{
+              width: "25px",
+              height: "25px",
+              borderRadius: "50%",
+              overflow: "hidden",
+              border: "none",
+              boxShadow:
+                currentLanguage === "vi"
+                  ? "0 0 8px rgba(0,0,0,0.2), 0 0 10px rgba(255,255,255,0.4)"
+                  : "0 2px 6px rgba(0,0,0,0.2)",
+              background: "transparent",
+              cursor: "pointer",
+              padding: 0,
+              transition: "all 0.3s ease",
+              transform: currentLanguage === "vi" ? "scale(1.1)" : "scale(1)",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.15)")}
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.transform =
+                currentLanguage === "vi" ? "scale(1.1)" : "scale(1)")
+            }
+          >
+            <img
+              src="https://flagcdn.com/w80/kr.png"
+              alt="Korea"
+              style={{
+                width: "25px",
+                height: "25px",
+                objectFit: "cover",
+                display: "block",
+                borderRadius: "50%",
+                filter: "drop-shadow(0 0 2px rgba(0,0,0,0.2))",
+              }}
+            />
+          </button>
 
 
 

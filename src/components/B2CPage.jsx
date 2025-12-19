@@ -299,7 +299,6 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           Invoice: "No", InvoiceUrl: "", ConfirmPassword: "",
           DoanhThuTruocChietKhau: "0", // String format
           MucChietKhau: 0,
-          Vi: "0" // String format
         }
       : { 
           ...request,
@@ -312,11 +311,11 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           NguoiPhuTrachId: request.NguoiPhuTrachId || "",
           TrangThai: request.TrangThai || "Tư vấn",
           LoaiDichVu: normalizeServiceType(request.LoaiDichVu), 
-          DanhMuc: (request.DanhMuc || "").split(" + ")[0],
+          DanhMuc: (request.DanhMuc || "").split(",")[0],
           TenDichVu: request.TenDichVu || "",
-          // Format tiền khi load lên
           DoanhThuTruocChietKhau: formatNumber(request.DoanhThuTruocChietKhau),
-          Vi: formatNumber(request.Vi)
+          NgayBatDau: request.NgayBatDau ? new Date(request.NgayBatDau).toISOString().split("T")[0] : "",
+          NgayKetThuc: request.NgayKetThuc ? new Date(request.NgayKetThuc).toISOString().split("T")[0] : "",
         }
   );
 
@@ -435,7 +434,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     MucChietKhau: averageDiscountPercent,
     SoTienChietKhau: totalDiscountAmount,
     DoanhThuSauChietKhau: totalRevenue - totalDiscountAmount, 
-  
+
 
     ChiTietDichVu: chiTietDichVu 
 };
@@ -601,7 +600,26 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
               </>
             );
           })()}
-
+        <div className="col-md-6">
+            <label style={labelStyle}>Ngày Bắt Đầu</label>
+            <input 
+                type="date" 
+                name="NgayBatDau" 
+                style={inputStyle} 
+                value={formData.NgayBatDau} 
+                onChange={handleInputChange} 
+            />
+        </div>
+        <div className="col-md-6">
+            <label style={labelStyle}>Ngày Kết Thúc</label>
+            <input 
+                type="date" 
+                name="NgayKetThuc" 
+                style={inputStyle} 
+                value={formData.NgayKetThuc} 
+                onChange={handleInputChange} 
+            />
+        </div>
           <div className="col-12">
             <label style={labelStyle}>{t.content}</label>
             <textarea rows={2} name="NoiDung" style={inputStyle} value={formData.NoiDung} onChange={handleInputChange} placeholder={t.enterContent} />
@@ -854,6 +872,16 @@ const translateService = (val) => {
             )}
 
             {isVisible("ngayHen") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("ngayHen")}`} style={mergedStyle}>{item.ChonNgay ? new Date(item.ChonNgay).toLocaleDateString("vi-VN") : ""}</td>}
+            {isVisible("ngayBatDau") && isFirst && (
+                <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("ngayBatDau")}`} style={mergedStyle}>
+                    {item.NgayBatDau ? new Date(item.NgayBatDau).toLocaleDateString("vi-VN") : ""}
+                </td>
+            )}
+            {isVisible("ngayKetThuc") && isFirst && (
+                <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("ngayKetThuc")}`} style={mergedStyle}>
+                    {item.NgayKetThuc ? new Date(item.NgayKetThuc).toLocaleDateString("vi-VN") : ""}
+                </td>
+            )}
             {isVisible("trangThai") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("trangThai")}`} style={mergedStyle}>{item.TrangThai}</td>}
             {isVisible("goiDichVu") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("goiDichVu")}`} style={{...mergedStyle,width:102}}>{item.GoiDichVu}</td>}
             {isVisible("invoice") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("invoice")}`} style={mergedStyle}>{["Yes","true","1"].includes(String(item.Invoice)) ? <span className="text-success fw-bold">Có</span> : ""}</td>}
@@ -1027,6 +1055,8 @@ const initialColumnKeys = [
     { key: "maDichVu", label: "Mã Dịch Vụ" },
     ...(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant ? [{ key: "nguoiPhuTrach", label: "Người phụ trách" }] : []),
     { key: "ngayHen", label: "Ngày hẹn" },
+    { key: "ngayBatDau", label: "Ngày bắt đầu" },
+    { key: "ngayKetThuc", label: "Ngày kết thúc" },
     { key: "trangThai", label: "Trạng thái" },
     { key: "goiDichVu", label: "Gói" },
     { key: "invoice", label: "Invoice Y/N" },
@@ -1096,7 +1126,8 @@ const tableHeaders = [
     "STT", "Khách hàng", "Mã vùng", "Số Điện Thoại", "Email", 
     "Kênh Liên Hệ", "Cơ sở", "Loại Dịch Vụ", "Danh Mục","Tên Dịch Vụ", "Mã Dịch Vụ",
     ...((currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) ? ["Người phụ trách"] : []),
-    "Ngày hẹn", "Trạng thái", "Gói", "Invoice Y/N",
+    "Ngày hẹn", "Ngày bắt đầu",
+    "Ngày kết thúc","Trạng thái", "Gói", "Invoice Y/N",
     ...(canViewFinance ? ["Invoice"] : []),
     "Giờ", "Nội dung", "Ghi chú", "Ngày tạo",
 
@@ -1176,19 +1207,36 @@ const fetchData = async () => {
           method = "PUT";
       }
 
+      
+      const payload = { ...formData };
+      delete payload.NguoiPhuTrach; 
+      delete payload.User;         
+      delete payload.ConfirmPassword; 
+
+    
+      if (payload.NguoiPhuTrachId === "") {
+          payload.NguoiPhuTrachId = null;
+      }
+
       const res = await fetch(url, {
         method: method, 
         headers: { "Content-Type": "application/json" }, 
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload), 
       });
+      
       const json = await res.json();
       
       if (json.success) {
         showToast(method === "POST" ? "Đăng ký thành công" : "Cập nhật thành công", "success");
         fetchData();
         setEditingRequest(null);
-      } else { showToast("Lỗi xử lý", "error"); }
-    } catch { showToast("Lỗi máy chủ", "error"); }
+      } else { 
+        showToast(json.message || "Lỗi xử lý", "error"); 
+      }
+    } catch (err) { 
+      console.error(err);
+      showToast("Lỗi máy chủ", "error"); 
+    }
   };
 const handleApprove = async (id) => {
     // Kiểm tra quyền trên giao diện trước khi gọi
@@ -1247,6 +1295,8 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
     DanhMuc: (request.DanhMuc || "").split(" + ")[0], 
     ChonNgay: request.ChonNgay ? new Date(request.ChonNgay).toISOString().split("T")[0] : "",
     Gio: request.Gio ? (request.Gio.includes("T") ? new Date(request.Gio).toTimeString().substring(0,5) : request.Gio.substring(0,5)) : "",
+    NgayBatDau: request.NgayBatDau ? new Date(request.NgayBatDau).toISOString().split("T")[0] : "", 
+    NgayKetThuc: request.NgayKetThuc ? new Date(request.NgayKetThuc).toISOString().split("T")[0] : "", 
     NoiDung: request.NoiDung || "",
     GhiChu: request.GhiChu || "",
     
@@ -1567,7 +1617,26 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                 <label style={labelStyle}>Người Phụ Trách</label>
                 <ModernSelect name="NguoiPhuTrachId" height={inputHeight} value={formData.NguoiPhuTrachId} options={users.map(u => ({ value: String(u.id), label: u.name }))} onChange={handleChange} />
             </div>
-
+            <div className="col-md-6">
+                <label style={labelStyle}>Ngày Bắt Đầu</label>
+                <input 
+                    type="date" 
+                    name="NgayBatDau" 
+                    style={inputStyle} 
+                    value={formData.NgayBatDau} 
+                    onChange={handleChange} 
+                />
+            </div>
+            <div className="col-md-6">
+                <label style={labelStyle}>Ngày Kết Thúc</label>
+                <input 
+                    type="date" 
+                    name="NgayKetThuc" 
+                    style={inputStyle} 
+                    value={formData.NgayKetThuc} 
+                    onChange={handleChange} 
+                />
+            </div>
             <div className="col-12">
                 <label style={labelStyle}>Nội Dung</label>
                 <textarea rows={2} name="NoiDung" style={inputStyle} value={formData.NoiDung} onChange={handleChange} />
@@ -1726,7 +1795,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                 type="text"
                 className="form-control shadow-sm"
                 placeholder={currentLanguage === "vi" ? "Tìm kiếm Họ tên, Email, SĐT..." : "Search Name, Email, Phone..."}
-                style={{ width: 300, marginLeft:60, borderRadius: "30px", paddingLeft: "18px", transition: "all 0.3s ease", fontSize: "14px" }}
+                style={{ width: 300, marginLeft:90, borderRadius: "30px", paddingLeft: "18px", transition: "all 0.3s ease", fontSize: "14px" }}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onFocus={(e) => (e.target.style.boxShadow = "0 0 8px rgba(37,99,235,0.3)")}
@@ -1789,7 +1858,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
               )}
             </div>
 
-           <div className="table-wrapper mt-3" style={{marginLeft:80}}>
+           <div className="table-wrapper mt-3" style={{marginLeft:90}}>
             <div className="table-responsive" style={{ paddingLeft: "0px", position: "relative", maxHeight: "calc(100vh - 340px)", overflow: "auto", borderBottom: "1px solid #dee2e6" }} ref={tableContainerRef}>
               <table className="table table-bordered align-middle mb-0">
                 <thead>
