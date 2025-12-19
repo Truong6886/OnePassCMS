@@ -1007,6 +1007,7 @@ const B2CPage = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
   const [data, setData] = useState([]);
+  const [totalRevenue, setTotalRevenue] = useState(0);
   const [dichvuList, setDichvuList] = useState([]);
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -1160,7 +1161,6 @@ const tableHeaders = [
 
 const fetchData = async () => {
     try {
-      // 1. Tạo URL (Giữ nguyên logic cũ của bạn)
       let url = `https://onepasscms-backend.onrender.com/api/yeucau?page=${currentPage}&limit=${itemsPerPage}`;
       
       if (currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) { 
@@ -1168,10 +1168,8 @@ const fetchData = async () => {
       } else { 
           url += `&userId=${currentUser?.id}`; 
       }
-
  
       const res = await authenticatedFetch(url);
-
       
       if (!res) return;
 
@@ -1180,6 +1178,7 @@ const fetchData = async () => {
       if (json.success) { 
           setData(json.data); 
           setTotalPages(json.totalPages || 1); 
+          setTotalRevenue(json.totalRevenue || 0);
       } else { 
           showToast("Không thể tải dữ liệu", "error"); 
       }
@@ -1937,12 +1936,12 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
               </table>
             </div>
             
-            {/* --- DI CHUYỂN TỔNG DOANH THU RA ĐÂY (NẰM NGOÀI TABLE-RESPONSIVE) --- */}
+       
             {canViewFinance && (
                 <div className="d-flex justify-content-end align-items-center px-3 py-2 bg-light border-start border-end border-bottom">
                   <span className="me-2 text-muted fw-semibold">Tổng doanh thu tích luỹ:</span>
                   <span className="fs-6 fw-bold text-primary">
-                      {data.reduce((sum, i) => sum + (i.DoanhThuSauChietKhau || 0), 0).toLocaleString("vi-VN")} đ
+                      {totalRevenue.toLocaleString("vi-VN")} đ
                   </span>
                 </div>
             )}
