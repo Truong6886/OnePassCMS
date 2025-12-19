@@ -427,21 +427,18 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
         finalDanhMuc = `${formData.DanhMuc} + ${validExtras.map(e => e.name).join(" + ")}`;
     }
 
-    const payload = { 
-        ...formData, 
-        autoApprove: isNew && canApprove,
-        DanhMuc: finalDanhMuc,
-        
-        // Cập nhật các trường tổng hợp
-        DoanhThuTruocChietKhau: totalRevenue,
-        MucChietKhau: averageDiscountPercent,
-        SoTienChietKhau: totalDiscountAmount,
-        DoanhThuSauChietKhau: totalRevenue - totalDiscountAmount - unformatMoney(formData.Vi),
-        Vi: unformatMoney(formData.Vi),
+  const payload = { 
+    ...formData, 
+    autoApprove: isNew && canApprove,
+    DanhMuc: finalDanhMuc,
+    DoanhThuTruocChietKhau: totalRevenue,
+    MucChietKhau: averageDiscountPercent,
+    SoTienChietKhau: totalDiscountAmount,
+    DoanhThuSauChietKhau: totalRevenue - totalDiscountAmount, 
+  
 
-        // Gửi JSON chi tiết
-        ChiTietDichVu: chiTietDichVu 
-    };
+    ChiTietDichVu: chiTietDichVu 
+};
     
     delete payload.ConfirmPassword;
 
@@ -618,7 +615,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           {canApprove && (
             <div className="col-12 mt-3 pt-2 border-top">
                 <div className="row g-3">
-                    <div className="col-md-4">
+                    <div className="col-md-6">
                         <label style={labelStyle}>Doanh Thu<span className="text-danger">*</span></label>
                         <input 
                             type="text" 
@@ -628,7 +625,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                             style={{...inputStyle, textAlign: "center"}} 
                         />
                     </div>
-                    <div className="col-md-4">
+                    <div className="col-md-6">
                         <label style={labelStyle}>Mức Chiết Khấu (%)</label>
                         <ModernSelect 
                             name="MucChietKhau" 
@@ -638,17 +635,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                             onChange={(e) => setFormData(prev => ({...prev, MucChietKhau: e.target.value}))} 
                         />
                     </div>
-                    <div className="col-md-4">
-                        <label style={labelStyle}>Trừ Ví</label>
-                        <input 
-                            type="text" 
-                            name="Vi" 
-                            value={formData.Vi} 
-                            onChange={handleMoneyChange} 
-                            style={{...inputStyle, textAlign: "center"}} 
-                            placeholder="0"
-                        />
-                    </div>
+                  
                 </div>
             </div>
           )}
@@ -1043,13 +1030,13 @@ const initialColumnKeys = [
     { key: "trangThai", label: "Trạng thái" },
     { key: "goiDichVu", label: "Gói" },
     { key: "invoice", label: "Invoice Y/N" },
-    ...(canViewFinance ? [{ key: "invoiceUrl", label: "Invoice" }] : []), // Giữ Invoice Link cạnh Invoice Y/N
+    ...(canViewFinance ? [{ key: "invoiceUrl", label: "Invoice" }] : []), 
     { key: "gio", label: "Giờ" },
     { key: "noiDung", label: "Nội dung" },
     { key: "ghiChu", label: "Ghi chú" },
     { key: "ngayTao", label: "Ngày tạo" },
     
-    // Các cột tài chính (Giữ lại để không bị mất chức năng của kế toán)
+   
     ...(canViewFinance ? [
       { key: "doanhThuTruoc", label: (<span>Doanh Thu<br/>Trước CK</span>) },
       { key: "mucChietKhau", label: (<span>%<br/>CK</span>) },
@@ -1339,16 +1326,16 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
       const newArr = [...extraServices];
       newArr.splice(index, 1);
       if (newArr.length === 0) {
-          setExtraServices([{ name: "", revenue: "", discount: "" }]); // Reset về 1 dòng trống
+          setExtraServices([{ name: "", revenue: "", discount: "" }]); 
           setShowExtras(false);
       } else {
           setExtraServices(newArr);
       }
   };
 
-  // --- HÀM SAVE ---
+
   const handleSave = async () => {
-    // 1. Check Password
+
     if (!formData.ConfirmPassword) {
         showToast("Vui lòng nhập mật khẩu xác nhận!", "warning");
         return;
@@ -1368,13 +1355,12 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
         }
     } catch (err) { setLoading(false); return; }
 
-    // 2. TÍNH TOÁN TÀI CHÍNH (MAIN + SUB)
-    // a. Main Service
+
     const mainRevenue = unformatMoney(formData.DoanhThuTruocChietKhau);
     const mainDiscount = parseFloat(formData.MucChietKhau || 0);
     const mainDiscountAmount = mainRevenue * (mainDiscount / 100);
 
-    // b. Sub Services
+
     const validExtras = extraServices.filter(s => s.name && s.name.trim() !== "");
     let extraRevenue = 0;
     let extraDiscountAmount = 0;
@@ -1391,7 +1377,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
         };
     });
 
-    // c. Tạo JSON Structure
+
     const chiTietDichVu = {
         main: {
             revenue: mainRevenue,
@@ -1400,36 +1386,30 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
         sub: subServicesData
     };
 
-    // d. Tổng hợp
+
     const totalRevenue = mainRevenue + extraRevenue;
     const totalDiscountAmount = mainDiscountAmount + extraDiscountAmount;
     
-    // Tính % chiết khấu trung bình
+  
     let averageDiscountPercent = totalRevenue > 0 ? (totalDiscountAmount / totalRevenue) * 100 : 0;
     averageDiscountPercent = Math.round(averageDiscountPercent * 100) / 100;
 
-    // e. Tạo tên DanhMuc hiển thị
+
     let finalDanhMuc = formData.DanhMuc;
     if (validExtras.length > 0) {
         finalDanhMuc = `${formData.DanhMuc} + ${validExtras.map(e => e.name).join(" + ")}`;
     }
 
-    // f. Tạo payload
-    const payload = { 
-        ...formData, 
-        DanhMuc: finalDanhMuc,
-        
-        // Ghi đè các trường tài chính bằng số tổng đã tính
-        DoanhThuTruocChietKhau: totalRevenue,
-        MucChietKhau: averageDiscountPercent,
-        SoTienChietKhau: totalDiscountAmount,
-        DoanhThuSauChietKhau: totalRevenue - totalDiscountAmount - unformatMoney(formData.Vi),
-        Vi: unformatMoney(formData.Vi),
-
-        // Gửi JSON chi tiết
-        ChiTietDichVu: chiTietDichVu
-    };
     
+    const payload = { 
+      ...formData, 
+      DanhMuc: finalDanhMuc,
+      DoanhThuTruocChietKhau: totalRevenue,
+      MucChietKhau: averageDiscountPercent,
+      SoTienChietKhau: totalDiscountAmount,
+      DoanhThuSauChietKhau: totalRevenue - totalDiscountAmount,
+      ChiTietDichVu: chiTietDichVu
+  };
     delete payload.ConfirmPassword;
     
     await onConfirm(request.YeuCauID, payload);
@@ -1617,10 +1597,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                         />
                     </div>
 
-                    <div className="col-md-4">
-                        <label style={labelStyle}>Trừ Ví / Đã Cọc</label>
-                        <input type="text" name="Vi" value={formData.Vi} onChange={handleChange} style={{...inputStyle, textAlign: "center"}} placeholder="0" />
-                    </div>
+                  
                 </div>
             </div>
 

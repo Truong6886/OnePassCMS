@@ -30,12 +30,11 @@ const DashboardSummary = ({
   serviceColorMap,
   filterDichVu,
   setFilterDichVu,
-  timeRange,
-  setTimeRange,
   filterStatus,
   setFilterStatus,
-  allServices,
+  allServices
 }) => {
+    const [timeRange, setTimeRange] = useState(7);
   const [activeTab, setActiveTab] = useState("individual");
   const [b2bServices, setB2bServices] = useState([]);
   const [allData, setAllData] = useState([]);
