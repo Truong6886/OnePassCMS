@@ -20,7 +20,6 @@ const TableRow = ({
   const textRef = React.useRef();
   const [value, setValue] = React.useState(localData.NoiDung || "");
 
-  // ... (Giữ nguyên các logic handler cũ: onChangeText, useEffect, handleDeleteClick, handleInputChange...)
   const onChangeText = (e) => {
     setValue(e.target.value);
     handleInputChange("NoiDung", e.target.value);
@@ -107,7 +106,7 @@ const TableRow = ({
     { value: "Hoàn thành", label: "Hoàn thành" },
   ];
 
-  // Fallback nếu chưa truyền visibleColumns thì hiện tất cả (để tránh lỗi)
+
   const isVisible = (key) => visibleColumns ? visibleColumns[key] : true;
 
   return (
