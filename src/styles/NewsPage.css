@@ -694,6 +694,11 @@
     color: #64748b;
   }
 
+  /* Remove underline from links */
+  a {
+    text-decoration: none;
+  }
+
 .news-confirm {
   background: #fff;
   border-radius: 16px;
