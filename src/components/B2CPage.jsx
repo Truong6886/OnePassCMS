@@ -1257,7 +1257,7 @@ const handleApprove = async (id) => {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const res = await fetch(`http://localhost:5000/api/yeucau/approve/${id}`, {
+          const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/approve/${id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ userId: currentUser.id }),
