@@ -1350,7 +1350,7 @@ const renderServicesTab = () => {
                                                             <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.serviceType}>{rec.serviceType}</td>
                                                             <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.serviceName}>{rec.serviceName}</td>
                                                             
-                                                            {/* --- [SỬA] HIỂN THỊ FILE DỌC & CĂN TRÁI --- */}
+                                                       
                                                             <td className="border" rowSpan={subRowsCount} style={{...mergedStyle, maxWidth: '240px', textAlign: 'left', padding: '8px'}}>
                                                                 {rec.ChiTietDichVu?.files?.length > 0 ? (
                                                                     <div className="d-flex flex-column gap-1">
