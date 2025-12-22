@@ -104,7 +104,7 @@ const formatDateTimeReject = (isoString) => {
 const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
 const unformatNumber = (value) => (value ? value.toString().replace(/\./g, "") : "");
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "https://onepasscms-backend.onrender.com/api";
 const parseMoney = (str) => {
   if (!str) return 0;
   return parseFloat(str.toString().replace(/\./g, "")) || 0;
