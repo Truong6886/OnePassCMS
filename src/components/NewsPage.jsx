@@ -605,8 +605,7 @@ function NewsPage() {
               Thêm, chỉnh sửa và xuất bản nội dung nhanh chóng
             </p>
             <div className="news-page__tags">
-              <span className="news-pill">Trạng thái tức thời</span>
-              <span className="news-pill">Không rời trang</span>
+              <span className="news-pill">tin tức onepass</span>
             </div>
           </div>
           <div className="news-page__actions">
