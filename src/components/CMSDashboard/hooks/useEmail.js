@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
+import Swal from "sweetalert2"; // <--- Bổ sung import Swal
 import { showToast } from "../../../utils/toast";
 import { authenticatedFetch } from "../../../utils/api";
+
 export default function useEmail(subViewMode) {
   const [emailList, setEmailList] = useState([]);
+  const [loading, setLoading] = useState(false); // <--- Bổ sung khai báo state loading
 
   // Fetch email khi chuyển sang tab Email
   useEffect(() => {
@@ -25,7 +28,7 @@ export default function useEmail(subViewMode) {
     }
   }, [subViewMode]);
 
-const handleEmailUpdate = async (id, newEmail) => {
+  const handleEmailUpdate = async (id, newEmail) => {
     if (!newEmail || !newEmail.includes("@")) {
       showToast("Email không hợp lệ", "warning");
       return;
@@ -37,7 +40,7 @@ const handleEmailUpdate = async (id, newEmail) => {
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: newEmail }),
+          body: JSON.stringify({ email: newEmail }), // Lưu ý: server nhận key là 'email' hay 'Email' cần kiểm tra lại, ở đây giữ nguyên code cũ
         }
       );
 
@@ -57,7 +60,7 @@ const handleEmailUpdate = async (id, newEmail) => {
     }
   };
 
-const handleEmailDelete = async (item) => {
+  const handleEmailDelete = async (item) => {
     // Nếu item truyền vào là id thì xử lý, nếu là object thì lấy id
     const id = typeof item === "object" ? item.id : item;
     const emailName = typeof item === "object" ? item.Email : "email này";
@@ -100,6 +103,7 @@ const handleEmailDelete = async (item) => {
   return {
     emailList,
     setEmailList,
+    loading, // <--- Return loading để bên ngoài sử dụng nếu cần
     handleEmailUpdate,
     handleEmailDelete,
   };

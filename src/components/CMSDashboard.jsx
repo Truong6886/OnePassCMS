@@ -209,6 +209,7 @@ export default function CMSDashboard() {
       {viewMode === "summary" && (
         <DashboardSummary
           data={filteredData}
+          
           currentLanguage={currentLanguage}
           serviceColorMap={serviceColorMap}
           translateService={translateService}
@@ -233,6 +234,7 @@ export default function CMSDashboard() {
 
     {viewMode === "list" && (
      <DashboardList
+     
       subViewMode={subViewMode}
       setSubViewMode={setSubViewMode}
       data={filteredData}

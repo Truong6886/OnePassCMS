@@ -795,7 +795,9 @@ const B2B_SERVICE_MAPPING = {
           discountRate: item.MucChietKhau,
           discountAmount: item.SoTienChietKhau,
           revenueAfter: item.DoanhThuSauChietKhau,
-           ChiTietDichVu: item.ChiTietDichVu || { main: {}, sub: [] },
+           ChiTietDichVu: (typeof item.ChiTietDichVu === "string" 
+          ? JSON.parse(item.ChiTietDichVu) 
+          : item.ChiTietDichVu) || { main: {}, sub: [] },
           totalRevenue: item.TongDoanhThuTichLuy,
           walletUsage: item.Vi,
           status: item.TrangThai,
@@ -1287,36 +1289,37 @@ const getTotalRecordAfterDiscount = (rec) => {
                 <>
                     <div className="table-responsive shadow-sm rounded">
                         <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: "12px", borderCollapse: "collapse", tableLayout: "fixed" }}>
-                            <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a" }}>
-                                <tr>
-                                    <th className="py-2 border" style={{ width: "40px" }}>{t.stt}</th>
-                                    <th className="py-2 border" style={{ width: "120px" }}>{t.chonDN}</th>
-                                    <th className="py-2 border" style={{ width: "90px" }}>Số ĐKKD</th>
-                                    <th className="py-2 border" style={{ width: "100px" }}>{t.loaiDichVu}</th>
-                                    <th className="py-2 border" style={{ width: "140px" }}>{t.tenDichVu}</th>
-                                    <th className="py-2 border" style={{ width: "180px" }}>Danh mục</th>
-                                    <th className="py-2 border" style={{ width: "100px" }}>{t.maDichVu}</th>
-                                    <th className="py-2 border" style={{ width: "110px" }}>Người Phụ Trách</th>
-                                    <th className="py-2 border" style={{ width: "90px" }}>{t.ngayBatDau}</th>
-                                    <th className="py-2 border" style={{ width: "90px" }}>{t.ngayKetThuc}</th>
-                                    <th className="py-2 border" style={{ width: "80px" }}>Gói</th>
-                                    <th className="py-2 border" style={{ width: "70px" }}>Invoice Y/N</th>
-                                    <th className="py-2 border" style={{ width: "60px" }}>Invoice</th>
+                           <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a" }}>
+                            <tr>
+                                {/* Thêm whiteSpace: "pre-wrap" để nhận diện ký tự \n và tự động xuống dòng */}
+                                <th className="py-2 border" style={{ width: "40px", whiteSpace: "pre-wrap" }}>{t.stt}</th>
+                                <th className="py-2 border" style={{ width: "120px", whiteSpace: "pre-wrap" }}>{t.chonDN}</th>
+                                <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>Số ĐKKD</th>
+                                <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.loaiDichVu}</th>
+                                <th className="py-2 border" style={{ width: "140px", whiteSpace: "pre-wrap" }}>{t.tenDichVu}</th>
+                                <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>Danh mục</th>
+                              
+                                <th className="py-2 border" style={{ width: "160px", whiteSpace: "pre-wrap" }}>{t.maDichVu}</th>
+                                <th className="py-2 border" style={{ width: "110px", whiteSpace: "pre-wrap" }}>Người Phụ Trách</th>
+                                <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayBatDau}</th>
+                                <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayKetThuc}</th>
+                                <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>Gói</th>
+                                <th className="py-2 border" style={{ width: "70px", whiteSpace: "pre-wrap" }}>Invoice Y/N</th>
+                                <th className="py-2 border" style={{ width: "60px", whiteSpace: "pre-wrap" }}>Invoice</th>
 
-                                    {canViewRevenue && (
-                                        <>
-                                            <th className="py-2 border" style={{ width: "100px" }}>{t.doanhThuTruoc}</th>
-                                            <th className="py-2 border" style={{ width: "90px" }}>{t.suDungVi}</th>
-                                            <th className="py-2 border" style={{ width: "60px" }}>{t.mucChietKhau}</th>
-                                            <th className="py-2 border" style={{ width: "80px" }}>{t.soTienChietKhau}</th>
-                                            <th className="py-2 border" style={{ width: "100px" }}>{t.doanhThuSau}</th>
-                                            <th className="py-2 border" style={{ width: "100px" }}>{t.tongDoanhThuTichLuy}</th>
-                                        </>
-                                    )}
-                                    <th className="py-2 border" style={{ width: "100px" }}>{t.hanhDong}</th>
-                                </tr>
-                            </thead>
-
+                                {canViewRevenue && (
+                                    <>
+                                        <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.doanhThuTruoc}</th>
+                                        <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.suDungVi}</th>
+                                        <th className="py-2 border" style={{ width: "60px", whiteSpace: "pre-wrap" }}>{t.mucChietKhau}</th>
+                                        <th className="py-2 border" style={{ width: "80px", whiteSpace: "pre-wrap" }}>{t.soTienChietKhau}</th>
+                                        <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.doanhThuSau}</th>
+                                        <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.tongDoanhThuTichLuy}</th>
+                                    </>
+                                )}
+                                <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.hanhDong}</th>
+                            </tr>
+                        </thead>
                             <tbody>
                                 {displayData && displayData.length > 0 ? (
                                     displayData.map((rec, idx) => {
@@ -1388,10 +1391,10 @@ const getTotalRecordAfterDiscount = (rec) => {
                                                     {isFirstSubRow && shouldRenderCompanyCell && (
                                                         <>
                                                             <td className="border" rowSpan={companyRowSpan} style={mergedStyle} title={rec.companyName}>
-                                                                {rec.companyName || "--"}
+                                                                {rec.companyName || ""}
                                                             </td>
                                                             <td className="border" rowSpan={companyRowSpan} style={mergedStyle} title={rec.soDKKD}>
-                                                                {rec.soDKKD || "--"}
+                                                                {rec.soDKKD || ""}
                                                             </td>
                                                         </>
                                                     )}
@@ -1409,16 +1412,16 @@ const getTotalRecordAfterDiscount = (rec) => {
                                                     )}
 
                                                     {/* Danh Mục (KHÔNG GỘP) */}
-                                                    <td className="border" style={danhMucStyle}>
-                                                        <div className="px-1" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "180px" }} title={svcName}>
-                                                            {subIdx === 0 ? "• " + svcName : "+ " + svcName}
-                                                        </div>
-                                                    </td>
+                                                   <td className="border" style={danhMucStyle}>
+                                                      <div className="px-1" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                                                          {svcName}
+                                                      </div>
+                                                  </td>
 
                                                     {/* Thông tin chung (Gộp) */}
                                                     {isFirstSubRow && (
                                                         <>
-                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle}>
+                                                            <td className="border" rowSpan={subRowsCount} style={{...mergedStyle, width:170}}>
                                                                 <span className="fw-bold text-dark">{rec.code}</span>
                                                             </td>
                                                             <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.picName}>
@@ -1443,44 +1446,43 @@ const getTotalRecordAfterDiscount = (rec) => {
                                                                     <a href={rec.invoiceUrl} target="_blank" rel="noreferrer" className="text-primary d-inline-block">
                                                                         <FileText size={16} />
                                                                     </a>
-                                                                ) : "-"}
+                                                                ) : ""}
                                                             </td>
                                                         </>
                                                     )}
 
-                                                    {/* --- CỘT TÀI CHÍNH --- */}
+                                                 
                                                    {canViewRevenue && (
                                                     <>
-                                                        {/* 1. Doanh thu Trước CK (RIÊNG TỪNG DÒNG) */}
-                                                        <td className="border text-end pe-2" style={{ verticalAlign: "middle" }}>
+                                                      
+                                                        <td className="border text-center pe-2" style={{ verticalAlign: "middle" }}>
                                                             {formatNumber(getRowBeforeDiscount(rec, subIdx))}
                                                         </td>
 
-                                                        {/* 2. Ví (GỘP - Chỉ hiện 1 lần) */}
+                                                     
                                                         {isFirstSubRow && (
                                                             <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, color: rec.walletUsage > 0 ? "red" : "inherit" }}>
                                                                 {formatNumber(rec.walletUsage || 0)}
                                                             </td>
                                                         )}
 
-                                                        {/* 3. Mức chiết khấu (RIÊNG TỪNG DÒNG) */}
+                                     
                                                         <td className="border text-center" style={{ verticalAlign: "middle" }}>
                                                             {getRowDiscountRate(rec, subIdx) ? getRowDiscountRate(rec, subIdx) + "%" : "0%"}
                                                         </td>
 
-                                                        {/* 4. Số tiền chiết khấu (RIÊNG TỪNG DÒNG) */}
-                                                        <td className="border text-end pe-2" style={{ verticalAlign: "middle" }}>
+                                                      
+                                                        <td className="border text-center pe-2" style={{ verticalAlign: "middle" }}>
                                                             {formatNumber(getRowDiscountAmount(rec, subIdx))}
                                                         </td>
 
-                                                        {/* 5. Doanh thu sau CK (RIÊNG TỪNG DÒNG - KHÔNG TRỪ VÍ) */}
-                                                        <td className="border text-end pe-2" style={{ verticalAlign: "middle" }}>
+                                                       
+                                                        <td className="border text-center pe-2" style={{ verticalAlign: "middle" }}>
                                                             {formatNumber(getRowRevenue(rec, subIdx))}
                                                         </td>
 
-                                                        {/* 6. Tổng doanh thu tích lũy (GỘP THEO CÔNG TY) */}
                                                         {shouldRenderCompanyCell && isFirstSubRow && (
-                                                            <td className="border fw-bold text-primary text-end pe-2" rowSpan={companyRowSpan} style={mergedStyle}>
+                                                            <td className="border fw-bold text-primary text-center pe-2" rowSpan={companyRowSpan} style={mergedStyle}>
                                                                 {formatNumber(groupTotalRevenue)}
                                                             </td>
                                                         )}
@@ -2477,9 +2479,9 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
             </div>
 
             <div className="row g-3 px-2">
-              {/* === Custom Style cho Input === */}
+          
               {(() => {
-                  // 1. Style chung cho Input
+        
                   const inputStyle = {
                     width: "100%",
                     padding: "10px 12px",
@@ -2492,20 +2494,20 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                     transition: "border-color 0.2s",
                   };
 
-                  // 2. Định nghĩa hình mũi tên (Chevron Down - màu xám #6B7280)
+               
                   const arrowSvg = `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3e%3c/svg%3e")`;
 
-                  // 3. Style riêng cho Select (Kế thừa inputStyle + Custom mũi tên)
+                 
                   const selectStyle = {
                     ...inputStyle,
-                    appearance: "none",        // Ẩn mũi tên mặc định (CSS chuẩn)
-                    WebkitAppearance: "none",  // Ẩn mũi tên mặc định (Safari/Chrome)
-                    MozAppearance: "none",     // Ẩn mũi tên mặc định (Firefox)
-                    backgroundImage: arrowSvg, // Thêm mũi tên SVG mới
+                    appearance: "none",        
+                    WebkitAppearance: "none", 
+                    MozAppearance: "none",     
+                    backgroundImage: arrowSvg, 
                     backgroundRepeat: "no-repeat",
-                    backgroundPosition: "right 12px center", // Căn phải
-                    backgroundSize: "16px",    // Kích thước mũi tên
-                    paddingRight: "35px",      // Tạo khoảng trống bên phải để chữ không đè lên mũi tên
+                    backgroundPosition: "right 12px center", 
+                    backgroundSize: "16px",    
+                    paddingRight: "35px",      
                     cursor: "pointer"
                   };
 
@@ -2524,7 +2526,7 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                     fontStyle: "normal",
                   };
 
-                  // Component ToggleButton (Giữ nguyên)
+                  
                   const ToggleButton = ({ name, value, onChange }) => (
                     <div className="d-flex gap-4 w-100">
                       {["Yes", "No"].map((option) => (
@@ -2784,59 +2786,71 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
         <div className="mt-2 p-3 bg-light rounded border">
           
             <div style={{ fontSize: "11px", color: "#666", marginBottom: "8px", fontStyle: "italic" }}>
-                {/* Đổi câu thông báo tùy theo quyền cho hợp lý */}
-                * {isApprover 
-                    ? "Bổ sung dịch vụ và tính lại doanh thu tổng." 
-                    : "Nhập tên dịch vụ bổ sung (Doanh thu sẽ do bộ phận duyệt nhập)."}
+              
+                {isApprover 
+                    ? "Nhập tên dịch vụ bổ sung" 
+                    : "Nhập tên dịch vụ bổ sung"}
             </div>
             
-            {extraServices.map((service, index) => (
-                <div key={index} className="d-flex mb-2 gap-2 align-items-center">
-                    {/* Tên dịch vụ - AI CŨNG THẤY */}
-                    <input 
-                        className="form-control form-control-sm" 
-                        placeholder="Tên dịch vụ..."
-                        value={service.name} 
-                        onChange={(e) => handleChangeExtra(index, "name", e.target.value)}
-                        // Nếu là Admin (không phải Approver) thì cho ô này giãn hết cỡ
-                        style={{ flex: isApprover ? 2 : 1 }}
-                    />
-                    
-                    {/* KHỐI NÀY CHỈ HIỆN VỚI TÀI KHOẢN DUYỆT (Giám đốc/Kế toán) */}
-                    {isApprover && (
-                        <>
-                            {/* Doanh thu */}
-                            <input 
-                                className="form-control form-control-sm text-center" 
-                                placeholder="Doanh thu"
-                                value={service.revenue} 
-                                onChange={(e) => handleChangeExtra(index, "revenue", e.target.value)}
-                                style={{ flex: 1 }}
-                            />
+                {extraServices.map((service, index) => (
+              <div key={index} className="d-flex mb-2 gap-2 align-items-center">
+                
+                  <input 
+                      className="form-control form-control-sm" 
+                      placeholder="Tên dịch vụ..."
+                      value={service.name} 
+                      onChange={(e) => handleChangeExtra(index, "name", e.target.value)}
+                   
+                      style={{ flex: isApprover ? 2.5 : 1 }} 
+                  />
+                  
+                 
+                  {isApprover && (
+                      <>
+                          
+                          <input 
+                              className="form-control form-control-sm text-center" 
+                              placeholder="Doanh thu"
+                              value={service.revenue} 
+                              onChange={(e) => handleChangeExtra(index, "revenue", e.target.value)}
+                              style={{ flex: 1 }} // <-- Đã giảm kích thước
+                          />
 
-                            {/* Chiết khấu */}
-                            <input 
-                                type="number"
-                                className="form-control form-control-sm text-center" 
-                                placeholder="% CK"
-                                value={service.discount} 
-                                onChange={(e) => handleChangeExtra(index, "discount", e.target.value)}
-                                style={{ flex: 0.6 }}
-                            />
-                        </>
-                    )}
+     
+                          <select
+                              className="form-select form-select-sm"
+                              value={service.discount || ""}
+                              onChange={(e) => handleChangeExtra(index, "discount", e.target.value)}
+                              style={{ 
+                                  flex: 0.5, 
+                                  fontSize: "12px", 
+                                  height: "31px", 
+                                  paddingLeft: "14px", 
+                                  cursor: "pointer"
+                              }}
+                          >
+                              <option value="">%</option>
+                              <option value="5">5%</option>
+                              <option value="10">10%</option>
+                              <option value="12">12%</option>
+                              <option value="15">15%</option>
+                              <option value="17">17%</option>
+                              <option value="20">20%</option>
+                              <option value="30">30%</option>
+                          </select>
+                      </>
+                  )}
 
-                    {/* Nút xóa */}
-                    <button 
-                        className="btn btn-sm btn-danger p-0 d-flex align-items-center justify-content-center" 
-                        style={{ width: "34px", height: "34px" }}
-                        onClick={() => handleRemoveRow(index)}
-                    >
-                        <X size={14}/>
-                    </button>
-                </div>
-            ))}
-            
+                  {/* Nút xóa */}
+                  <button 
+                      className="btn btn-sm btn-danger p-0 d-flex align-items-center justify-content-center" 
+                      style={{ width: "34px", height: "34px" }}
+                      onClick={() => handleRemoveRow(index)}
+                  >
+                      <X size={14}/>
+                  </button>
+              </div>
+          ))}
             {extraServices.length < 5 && (
                 <button className="btn btn-sm btn-success mt-1" onClick={handleAddRow}>
                     <Plus size={14}/> Thêm dòng
