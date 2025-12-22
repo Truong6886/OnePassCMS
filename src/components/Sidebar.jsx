@@ -43,7 +43,7 @@ useEffect(() => {
     b2b: {vi:"Quản lý B2B", en: "B2B Management"},
     b2c: {vi:"Quản lý B2C", en: "B2C Management"},
     vendor: {vi:"Quản lý Vendor", en: "Vendor Management"},
-    news: {vi:"Quản lý tin tức", en: "News"},
+    news: {vi:"Quản lý Tin Tức", en: "News"},
   };
 
   const sidebarStyle = {
