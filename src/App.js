@@ -10,6 +10,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "../src/styles/CMSDashboard.css";
 import DoanhThu from "./components/DoanhThu";
 import Vendor from "./components/Vendor"
+import NewsPage from "./components/NewsPage";
 
 
 const AuthGuard = ({ children, user, roles = [] }) => {
@@ -180,6 +181,15 @@ export default function App() {
             </AuthGuard>
           }
         />
+
+          <Route
+            path="/news"
+            element={
+              <AuthGuard user={currentUser}>
+                <NewsPage />
+              </AuthGuard>
+            }
+          />
          
           {/* Route mặc định */}
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import logo from "../assets/logo.png";
 import { useNavigate, useLocation } from "react-router-dom";
-import { List, Search, DollarSign, UserRound, Handshake, Store } from "lucide-react";
+import { List, Search, DollarSign, UserRound, Handshake, Store, Newspaper } from "lucide-react";
 export default function Sidebar({ collapsed = false, user }) {
   const [hoveredItem, setHoveredItem] = useState(null);
   const navigate = useNavigate();
@@ -43,6 +43,7 @@ useEffect(() => {
     b2b: {vi:"Quản lý B2B", en: "B2B Management"},
     b2c: {vi:"Quản lý B2C", en: "B2C Management"},
     vendor: {vi:"Quản lý Vendor", en: "Vendor Management"},
+    news: {vi:"Quản lý tin tức", en: "News"},
   };
 
   const sidebarStyle = {
@@ -86,7 +87,8 @@ useEffect(() => {
       (key === "B2C" && currentPath.startsWith("/B2C")) ||
       (key === "nhanvien" && currentPath.startsWith("/nhanvien")) ||
       (key === "doanhthu" && currentPath.startsWith("/doanhthu"))||
-      (key === "vendor" && currentPath.startsWith("/vendor"));
+      (key === "vendor" && currentPath.startsWith("/vendor")) ||
+      (key === "news" && currentPath.startsWith("/news"));
 
 
     if (isActive) {
@@ -198,9 +200,17 @@ useEffect(() => {
             {!collapsed && <span>{texts.vendor[currentLanguage]}</span>} 
           </li>
         )}
-          
 
-  
+          <li
+            style={getItemStyle("news")}
+            onMouseEnter={() => setHoveredItem("news")}
+            onMouseLeave={() => setHoveredItem(null)}
+            onClick={() => navigate("/news")}
+          >
+            <Newspaper size={22} />
+            {!collapsed && <span>{texts.news[currentLanguage]}</span>}
+          </li>
+          
           {/* Tra cứu hồ sơ */}
           <li
             style={getItemStyle("hoso")}
@@ -211,10 +221,6 @@ useEffect(() => {
             <Search size={22} />
             {!collapsed && <span>{texts.hoso[currentLanguage]}</span>}
           </li>
-
-        
-         
-
         </ul>
       </div>
     </div>

@@ -205,7 +205,7 @@ export default function DoanhThu() {
 
   const fetchStaffList = async () => {
     try {
-        const res = await fetch("https://onepasscms-backend.onrender.com/api/User");
+        const res = await fetch("http://localhost:5000/api/User");
         const json = await res.json();
         if (json.success) {
             setStaffList(json.data || []);
@@ -251,7 +251,7 @@ export default function DoanhThu() {
   const fetchPersonalData = async (page = 1) => {
     setLoading(true);
     try {
-      const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau?page=${page}&limit=${rowsPerPage}`);
+      const res = await fetch(`http://localhost:5000/api/yeucau?page=${page}&limit=${rowsPerPage}`);
       const result = await res.json();
       if (result.success) {
         setRecords(result.data);
@@ -272,8 +272,8 @@ export default function DoanhThu() {
     setLoading(true);
     try {
       const [resApproved, resServices] = await Promise.all([
-         fetch(`https://onepasscms-backend.onrender.com/api/b2b/approved?limit=1000`),
-         fetch(`https://onepasscms-backend.onrender.com/api/b2b/services?limit=1000`)
+         fetch(`http://localhost:5000/api/b2b/approved?limit=1000`),
+         fetch(`http://localhost:5000/api/b2b/services?limit=1000`)
       ]);
       const jsonApproved = await resApproved.json();
       const jsonServices = await resServices.json();
