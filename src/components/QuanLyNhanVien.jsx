@@ -57,7 +57,7 @@ export default function QuanLyNhanVien() {
 
   const fetchUsers = async () => {
     try {
-      const res = await authenticatedFetch("http://localhost:5000/api/User");
+      const res = await authenticatedFetch("https://onepasscms-backend.onrender.com/api/User");
       if (!res) return;
       const result = await res.json();
       if (result.success && Array.isArray(result.data)) setUsers(result.data);
@@ -131,7 +131,7 @@ export default function QuanLyNhanVien() {
 
     try {
         // 1. Xác thực mật khẩu giám đốc
-        const verifyRes = await fetch("http://localhost:5000/api/login", {
+        const verifyRes = await fetch("https://onepasscms-backend.onrender.com/api/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username: currentUser.username, password: formData.password })
@@ -144,7 +144,7 @@ export default function QuanLyNhanVien() {
         }
 
         // 2. Xóa
-        const res = await fetch(`http://localhost:5000/api/User/${editingUserId}`, { method: "DELETE" });
+        const res = await fetch(`https://onepasscms-backend.onrender.com/api/User/${editingUserId}`, { method: "DELETE" });
         const json = await res.json();
         
         if (json.success) {
@@ -172,7 +172,7 @@ export default function QuanLyNhanVien() {
     formDataUpload.append("file", file);
 
     try {
-      const res = await authenticatedFetch("http://localhost:5000/api/upload-cv", { 
+      const res = await authenticatedFetch("https://onepasscms-backend.onrender.com/api/upload-cv", { 
           method: "POST", body: formDataUpload 
       });
       if (!res) return;
@@ -202,7 +202,7 @@ export default function QuanLyNhanVien() {
         
         // Xác thực mật khẩu giám đốc
         try {
-            const verifyRes = await fetch("http://localhost:5000/api/login", {
+            const verifyRes = await fetch("https://onepasscms-backend.onrender.com/api/login", {
                 method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username: currentUser.username, password: formData.password })
             });
@@ -217,8 +217,8 @@ export default function QuanLyNhanVien() {
 
     const payloadUsername = formData.username || formData.SoDienThoai;
     const url = isEditing
-      ? `http://localhost:5000/api/User/${editingUserId}`
-      : "http://localhost:5000/api/User";
+      ? `https://onepasscms-backend.onrender.com/api/User/${editingUserId}`
+      : "https://onepasscms-backend.onrender.com/api/User";
     const method = isEditing ? "PUT" : "POST";
 
     let roleFlags = {
