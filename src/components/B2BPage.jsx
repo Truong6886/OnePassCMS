@@ -193,42 +193,42 @@ const fetchUsers = async () => {
 };
 
 
-  // Mở modal để chỉnh sửa (Nút Edit - Pencil)
+
 const handleEditService = (rec) => {
-  // Tìm doanh nghiệp
+
   const company = approvedList.find(c => String(c.ID) === String(rec.companyId));
   
-  // --- [SỬA ĐOẠN NÀY] Lấy dữ liệu chi tiết từ JSON ---
+ 
   const details = rec.ChiTietDichVu || { main: {}, sub: [] };
   
   let mainRevenueStr = "";
   let mainDiscountStr = "";
   let currentExtras = [];
 
-  // 1. Xử lý Dịch vụ chính
+  
   if (details.main && details.main.revenue !== undefined) {
-      // Nếu có JSON, lấy doanh thu Main từ JSON
+    
       mainRevenueStr = formatNumber(details.main.revenue);
       mainDiscountStr = details.main.discount || "";
   } else {
-      // Nếu chưa có JSON (dữ liệu cũ), lấy tổng làm chính
+
       mainRevenueStr = rec.revenueBefore ? formatNumber(rec.revenueBefore) : "";
       mainDiscountStr = rec.discountRate || "";
   }
 
-  // 2. Xử lý Dịch vụ phụ (Extras)
+
   if (details.sub && details.sub.length > 0) {
-      // Ưu tiên lấy từ JSON nếu có
+
       currentExtras = details.sub.map(s => ({
           name: s.name,
           revenue: s.revenue ? formatNumber(s.revenue) : "",
           discount: s.discount || ""
       }));
   } else {
-      // Fallback: Nếu không có JSON, cắt chuỗi từ DanhMuc (nhưng revenue sẽ rỗng)
+     
       const fullDanhMuc = rec.DanhMuc || "";
       const parts = fullDanhMuc.split(" + ");
-      // parts[0] là chính, parts[1...] là phụ
+      
       if (parts.length > 1) {
           currentExtras = parts.slice(1).map(name => ({ 
               name: name.trim(), 
@@ -238,16 +238,16 @@ const handleEditService = (rec) => {
       }
   }
 
-  // Cập nhật State
+
   if (currentExtras.length > 0) {
       setExtraServices(currentExtras);
       setShowExtras(true);
   } else {
-      setExtraServices([{ name: "", revenue: "", discount: "" }]); // Dòng trắng mặc định
+      setExtraServices([{ name: "", revenue: "", discount: "" }]); 
       setShowExtras(false);
   }
   
-  // Lấy tên danh mục chính (cắt chuỗi để bỏ phần phụ đi)
+
   const mainCatName = (rec.DanhMuc || "").split(" + ")[0];
 
   setNewServiceForm({ 
@@ -257,14 +257,13 @@ const handleEditService = (rec) => {
     LoaiDichVu: rec.serviceType,
     TenDichVu: rec.serviceName,
     
-    DanhMuc: mainCatName, // Chỉ hiện tên chính ở ô dropdown
-    
+    DanhMuc: mainCatName, 
     NgayBatDau: rec.startDate ? rec.startDate : "",
     NgayHoanThanh: rec.endDate ? rec.endDate : "",
     ThuTucCapToc: (rec.package === "Cấp tốc" || rec.package === "Yes") ? "Yes" : "No",
     YeuCauHoaDon: rec.invoiceYN || "No",
-    
-    DoanhThu: mainRevenueStr, // Hiển thị doanh thu RIÊNG của dịch vụ chính
+    TrangThai: rec.status || rec.TrangThai,
+    DoanhThu: mainRevenueStr, 
     MucChietKhau: mainDiscountStr,
     
     Vi: rec.walletUsage ? formatNumber(rec.walletUsage) : "",
@@ -306,6 +305,7 @@ const handleOpenAddServiceModal = () => {
       Vi: "",
       GhiChu: "",
       MucChietKhau: "",
+      TrangThai:"",
       NguoiPhuTrachId: isStaff ? currentUser.id : "", 
       ConfirmPassword: ""
     });
@@ -392,9 +392,6 @@ const handleModalSubmit = async () => {
       approveAction = "accountant_approve";
     }
 
-    /* =======================
-       1️⃣ DỊCH VỤ CHÍNH
-    ======================= */
     const mainRevenue = newServiceForm.DoanhThu
       ? parseFloat(unformatNumber(newServiceForm.DoanhThu))
       : 0;
@@ -403,10 +400,7 @@ const handleModalSubmit = async () => {
       ? parseFloat(newServiceForm.MucChietKhau)
       : 0;
 
-    /* =======================
-       2️⃣ DỊCH VỤ BỔ SUNG
-       ❌ KHÔNG CỘNG TIỀN
-    ======================= */
+ 
     const validExtras = extraServices.filter(
       s => s.name && s.name.trim() !== ""
     );
@@ -433,9 +427,7 @@ const handleModalSubmit = async () => {
       finalDanhMuc = `${newServiceForm.DanhMuc} + ${extraNames.join(" + ")}`;
     }
 
-    /* =======================
-       3️⃣ CHI TIẾT DỊCH VỤ (JSON)
-    ======================= */
+   
     const chiTietDichVuPayload = {
       main: {
         revenue: mainRevenue,
@@ -444,10 +436,7 @@ const handleModalSubmit = async () => {
       sub: subDetails
     };
 
-    /* =======================
-       4️⃣ PAYLOAD GỬI BACKEND
-       👉 CHỈ DỊCH VỤ CHÍNH
-    ======================= */
+
     const rawVi = newServiceForm.Vi
       ? parseFloat(unformatNumber(newServiceForm.Vi))
       : 0;
@@ -464,14 +453,11 @@ const handleModalSubmit = async () => {
       GhiChu: newServiceForm.GhiChu || "",
       NguoiPhuTrachId: newServiceForm.NguoiPhuTrachId,
 
-      // ✅ CHỈ LẤY DOANH THU DỊCH VỤ CHÍNH
+      TrangThai: newServiceForm.TrangThai,
       DoanhThuTruocChietKhau: mainRevenue,
       MucChietKhau: mainDiscountRate,
       Vi: rawVi,
-
-      // ✅ CHI TIẾT RIÊNG
       ChiTietDichVu: chiTietDichVuPayload,
-
       approveAction,
       userId: currentUser?.id
     };
@@ -957,6 +943,7 @@ const handleApprove = (service) => {
         LoaiDichVu: selectedService.LoaiDichVu || selectedService.serviceType,
         TenDichVu: selectedService.TenDichVu || selectedService.serviceName,
         NgayThucHien: selectedService.NgayBatDau || selectedService.startDate,
+        TrangThai: selectedService.TrangThai,
         NgayHoanThanh: selectedService.NgayHoanThanh || selectedService.endDate,
         GoiDichVu: selectedService.GoiDichVu === "Yes" ? "Cấp tốc" : "Thông thường",
         YeuCauHoaDon: selectedService.YeuCauHoaDon,
@@ -1260,11 +1247,12 @@ const renderServicesTab = () => {
                                 <th className="py-2 border" style={{ width: "40px", whiteSpace: "pre-wrap" }}>{t.stt}</th>
                                 <th className="py-2 border" style={{ width: "120px", whiteSpace: "pre-wrap" }}>{t.chonDN}</th>
                                 <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>Số ĐKKD</th>
+                                <th className="py-2 border" style={{ width: "219px", whiteSpace: "pre-wrap" }}>Hồ sơ</th>
                                 <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.loaiDichVu}</th>
                                 <th className="py-2 border" style={{ width: "140px", whiteSpace: "pre-wrap" }}>{t.tenDichVu}</th>
                                 
                                 {/* --- [SỬA] MỞ RỘNG CỘT HỒ SƠ LÊN 250px --- */}
-                                <th className="py-2 border" style={{ width: "240px", whiteSpace: "pre-wrap" }}>Hồ sơ</th>
+                  
 
                                 <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>Danh mục</th>
                                 <th className="py-2 border" style={{ width: "160px", whiteSpace: "pre-wrap" }}>{t.maDichVu}</th>
@@ -1274,6 +1262,7 @@ const renderServicesTab = () => {
                                 <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>Gói</th>
                                 <th className="py-2 border" style={{ width: "70px", whiteSpace: "pre-wrap" }}>Invoice Y/N</th>
                                 <th className="py-2 border" style={{ width: "60px", whiteSpace: "pre-wrap" }}>Invoice</th>
+                                <th className="py-2 border" style={{ width: "120px", whiteSpace: "pre-wrap" }}>Trạng thái</th>
 
                                 {canViewRevenue && (
                                     <>
@@ -1345,26 +1334,26 @@ const renderServicesTab = () => {
                                                             <td className="border" rowSpan={companyRowSpan} style={mergedStyle} title={rec.soDKKD}>{rec.soDKKD || ""}</td>
                                                         </>
                                                     )}
-                                                    {isFirstSubRow && (
-                                                        <>
-                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.serviceType}>{rec.serviceType}</td>
-                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.serviceName}>{rec.serviceName}</td>
-                                                            
+                                                   {isFirstSubRow && (
+                                                    <>
                                                        
-                                                            <td className="border" rowSpan={subRowsCount} style={{...mergedStyle, maxWidth: '240px', textAlign: 'left', padding: '8px'}}>
-                                                                {rec.ChiTietDichVu?.files?.length > 0 ? (
-                                                                    <div className="d-flex flex-column gap-1">
-                                                                        {rec.ChiTietDichVu.files.map((f, i) => (
-                                                                            <a key={i} href={f.url} target="_blank" rel="noreferrer" className="d-flex align-items-center gap-1 text-decoration-none text-primary" title={f.name}>
-                                                                                <Paperclip size={12} style={{flexShrink:0}}/>
-                                                                                <span style={{maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{f.name}</span>
-                                                                            </a>
-                                                                        ))}
-                                                                    </div>
-                                                                ) : <div className="text-center text-muted">-</div>}
-                                                            </td>
-                                                        </>
-                                                    )}
+                                                        <td className="border" rowSpan={subRowsCount} style={{...mergedStyle, maxWidth: '240px', textAlign: 'left', padding: '8px'}}>
+                                                            {rec.ChiTietDichVu?.files?.length > 0 ? (
+                                                                <div className="d-flex flex-column gap-1">
+                                                                    {rec.ChiTietDichVu.files.map((f, i) => (
+                                                                        <a key={i} href={f.url} target="_blank" rel="noreferrer" className="d-flex align-items-center gap-1 text-decoration-none text-primary" title={f.name}>
+                                                                            <Paperclip size={12} style={{flexShrink:0}}/>
+                                                                            <span style={{maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{f.name}</span>
+                                                                        </a>
+                                                                    ))}
+                                                                </div>
+                                                            ) : <div className="text-center text-muted">-</div>}
+                                                        </td>
+
+                                                        <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.serviceType}>{rec.serviceType}</td>
+                                                        <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.serviceName}>{rec.serviceName}</td>
+                                                    </>
+                                                )}
 
                                                     <td className="border" style={danhMucStyle}>
                                                       <div className="px-1" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{svcName}</div>
@@ -1379,6 +1368,9 @@ const renderServicesTab = () => {
                                                             <td className="border" rowSpan={subRowsCount} style={mergedStyle}><span className={rec.package === "Cấp tốc" ? "text-danger fw-bold" : ""}>{rec.package}</span></td>
                                                             <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.invoiceYN}</td>
                                                             <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.invoiceUrl ? (<a href={rec.invoiceUrl} target="_blank" rel="noreferrer" className="text-primary d-inline-block"><FileText size={16} /></a>) : ""}</td>
+                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle}>
+                                                                {rec.status}
+                                                            </td>
                                                         </>
                                                     )}
 
@@ -2253,7 +2245,18 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                 />
             </div>
           )}
-
+                <div className="col-12">
+                    <label style={labelStyle}>Cập nhật trạng thái</label>
+                    <input 
+                        type="text" 
+                        name="TrangThai" 
+                        value={selectedService.TrangThai || selectedService.status || ""} 
+                        onChange={handleApproveModalChange}
+                        placeholder="Nhập trạng thái (VD: Đã duyệt, Đang chờ bổ sung...)" 
+                        style={inputStyle}
+                    />
+                    <div style={helperTextStyle}>Trạng thái sau khi lưu (Mặc định: Đã duyệt)</div>
+                </div>
               {/* Ghi chú (có thể sửa) */}
               <div className="col-12">
                 <label style={labelStyle}>Ghi chú</label>
@@ -2866,7 +2869,19 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                     </div>
                   </div>
                 )}
-
+                   
+                   {/* [MỚI] Input Trạng thái cho Modal Thêm/Sửa */}
+                    <div className="col-12">
+                        <label style={labelStyle}>Trạng thái <span className="text-danger">*</span></label>
+                        <input 
+                            type="text"
+                            name="TrangThai"
+                            value={newServiceForm.TrangThai || ""} // Map với state
+                            onChange={handleModalChange}
+                            placeholder="Nhập trạng thái (VD: Chờ duyệt, Đang xử lý...)"
+                            style={inputStyle}
+                        />
+                    </div>
                     {/* Ghi chú */}
                     <div className="col-12">
                       <label style={labelStyle}>Ghi chú </label>
