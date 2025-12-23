@@ -23,7 +23,8 @@ export default function QuanLyNhanVien() {
   const [showUserModal, setShowUserModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false); 
-  
+  const [directorPassword, setDirectorPassword] = useState(""); 
+  const [showDirectorPassword, setShowDirectorPassword] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [uploadingCV, setUploadingCV] = useState(false);
@@ -69,11 +70,12 @@ export default function QuanLyNhanVien() {
   useSocketListener({ currentLanguage, setNotifications, setShowNotification, currentUser: currentUser});
   useEffect(() => { fetchUsers(); }, []);
 
-  const handleOpenAdd = () => {
+const handleOpenAdd = () => {
     setIsEditing(false);
     setIsDeleting(false);
+    setDirectorPassword(""); 
     setFormData({
-      username: "", name: "", email: "", password: "", role: "user",
+      username: "", name: "", email: "", password: "", role: "", 
       perm_approve_b2b: false, perm_approve_b2c: false, perm_view_revenue: false, perm_view_staff: false,
       ChucDanh: "", PhongBan: "", MaVung: "+84", SoDienThoai: "", NgayVaoLam: "", LoaiHopDong: "", CV: ""
     });
@@ -122,29 +124,32 @@ export default function QuanLyNhanVien() {
     setShowUserModal(true);
   };
 
-  // Hàm xác nhận xóa (Check pass -> Xóa)
-  const handleConfirmDelete = async () => {
-    if (!formData.password) {
-        showToast("Vui lòng nhập mật khẩu xác nhận", "warning");
+
+const handleConfirmDelete = async () => {
+    if (!directorPassword) { 
+        showToast("Vui lòng nhập mật khẩu giám đốc để xác nhận", "warning");
         return;
     }
 
     try {
-        // 1. Xác thực mật khẩu giám đốc
-        const verifyRes = await fetch("https://onepasscms-backend.onrender.com/api/login", {
+ 
+        const verifyRes = await fetch("https://onepasscms-backend.onrender.com/api/verify-password", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username: currentUser.username, password: formData.password })
+            body: JSON.stringify({ 
+                username: currentUser.username, 
+                password: directorPassword // Mật khẩu giám đốc
+            })
         });
         const verifyData = await verifyRes.json();
 
         if (!verifyData.success) {
-            showToast("Mật khẩu xác nhận không đúng!", "error");
+            showToast("Mật khẩu giám đốc không đúng!", "error");
             return;
         }
 
-        // 2. Xóa
-        const res = await fetch(`https://onepasscms-backend.onrender.com/api/User/${editingUserId}`, { method: "DELETE" });
+        // Nếu đúng mật khẩu thì mới xóa
+        const res = await authenticatedFetch(`https://onepasscms-backend.onrender.com/api/User/${editingUserId}`, { method: "DELETE" });
         const json = await res.json();
         
         if (json.success) {
@@ -159,7 +164,6 @@ export default function QuanLyNhanVien() {
         showToast("Lỗi kết nối server", "error");
     }
   };
-
   const toggleExpandUser = (userId) => {
     setExpandedUserId(prev => prev === userId ? null : userId);
   };
@@ -191,31 +195,34 @@ export default function QuanLyNhanVien() {
     }
   };
 
-  const handleSaveUser = async () => {
+const handleSaveUser = async () => {
     if (!formData.name?.trim()) return showToast("Vui lòng nhập tên nhân viên", "warning");
     if (!formData.SoDienThoai?.trim()) return showToast("Vui lòng nhập số điện thoại", "warning");
-    
-    // [MODIFIED] Logic xác thực mật khẩu
-    if (isEditing) {
-        // Nếu là Sửa: Mật khẩu này là của Giám đốc để xác nhận
-        if (!formData.password) return showToast("Vui lòng nhập mật khẩu giám đốc để xác nhận cập nhật", "warning");
-        
-        // Xác thực mật khẩu giám đốc
-        try {
-            const verifyRes = await fetch("https://onepasscms-backend.onrender.com/api/login", {
-                method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username: currentUser.username, password: formData.password })
-            });
-            const verifyData = await verifyRes.json();
-            if (!verifyData.success) return showToast("Mật khẩu giám đốc không đúng!", "error");
-        } catch (err) { return showToast("Lỗi xác thực", "error"); }
 
-    } else {
-        // Nếu là Thêm mới: Mật khẩu này là cho nhân viên mới
-        if (!formData.password) return showToast("Vui lòng nhập mật khẩu cho nhân viên mới", "warning");
+    
+    if (!isEditing && !formData.password) {
+        return showToast("Vui lòng tạo mật khẩu cho nhân viên mới", "warning");
+    }
+    
+
+    if (!directorPassword) {
+        return showToast("Vui lòng nhập mật khẩu GIÁM ĐỐC để xác thực", "warning");
     }
 
-    const payloadUsername = formData.username || formData.SoDienThoai;
+
+    try {
+        const verifyRes = await fetch("https://onepasscms-backend.onrender.com/api/verify-password", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                username: currentUser.username, 
+                password: directorPassword // Mật khẩu giám đốc
+            })
+        });
+        const verifyData = await verifyRes.json();
+        if (!verifyData.success) return showToast("Mật khẩu Giám đốc không đúng!", "error");
+    } catch (err) { return showToast("Lỗi xác thực", "error"); }
+
+    // 4. Tiến hành Lưu/Sửa
     const url = isEditing
       ? `https://onepasscms-backend.onrender.com/api/User/${editingUserId}`
       : "https://onepasscms-backend.onrender.com/api/User";
@@ -228,11 +235,11 @@ export default function QuanLyNhanVien() {
        is_staff: formData.role === "user"
     };
 
-    const payload = { ...formData, username: payloadUsername, ...roleFlags };
+    const payload = { ...formData, ...roleFlags };
     delete payload.role;
-    
-    // [MODIFIED] Nếu đang sửa, không gửi password lên (vì pass trong form là pass của giám đốc)
-    if (isEditing) {
+
+
+    if (isEditing && !formData.password) {
         delete payload.password;
     }
 
@@ -419,124 +426,175 @@ export default function QuanLyNhanVien() {
                 <button onClick={() => setShowUserModal(false)} style={{ position: "absolute", top: 0, right: 0, background: "none", border: "none", cursor: "pointer" }}><X size={20} color="#9CA3AF" /></button>
               </div>
 
-              <div className="modal-body px-3 pb-2">
-                <div className="row g-3">
-                    <div className="col-md-12">
-                        <label style={labelStyle}>Tên nhân viên <span className="text-danger">*</span></label>
-                        <input type="text" style={inputStyle} placeholder="Nhập tên nhân viên" 
-                            value={formData.name} 
-                            disabled={isDeleting}
-                            onChange={e => setFormData({...formData, name: e.target.value})} 
-                        />
-                    </div>
-                    {/* Ẩn upload CV khi Xóa cho gọn */}
-                    {!isDeleting && (
-                    <div className="col-md-12">
-                        <label style={labelStyle}>Tải lên CV nhân viên <span className="text-danger">*</span></label>
-                        <div style={{ position: "relative" }}>
-                            <input type="text" style={{...inputStyle, paddingRight: "40px", cursor: "pointer"}} placeholder={formData.CV ? "Đã có file CV" : "Tải lên CV"} value={formData.CV} readOnly onClick={() => document.getElementById('fileCV').click()} />
-                            <div style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>{uploadingCV ? <span className="spinner-border spinner-border-sm text-secondary"></span> : <UploadCloud size={20} color="#6B7280" />}</div>
-                            <input id="fileCV" type="file" hidden onChange={handleFileUpload} accept=".pdf,.doc,.docx" />
-                        </div>
-                    </div>
-                    )}
-
-                    <div className="col-md-6">
-                        <label style={labelStyle}>Phòng Ban <span className="text-danger">*</span></label>
-                        <select style={inputStyle} value={formData.PhongBan} disabled={isDeleting} onChange={e => setFormData({...formData, PhongBan: e.target.value})}>
-                            <option value="">Chọn phòng ban</option>
-                            <option value="BOD">Ban Giám Đốc (BOD)</option>
-                            <option value="Planning Dept">Planning Dept</option>
-                            <option value="General Affairs">General Affairs</option>
-                            <option value="Accounting">Accounting</option>
-                            <option value="Sale">Sale Team</option>
-                            <option value="IT">IT & Tech</option>
-                            <option value="Khác">Khác</option>
-                        </select>
-                       
-                    </div>
-                    <div className="col-md-6">
-                        <label style={labelStyle}>Chức danh <span className="text-danger">*</span></label>
-                        <input type="text" style={inputStyle} placeholder="Nhập chức danh" value={formData.ChucDanh} disabled={isDeleting} onChange={e => setFormData({...formData, ChucDanh: e.target.value})} />
-                        
-                    </div>
-
-                    <div className="col-md-6">
-                        <label style={labelStyle}>Email <span className="text-danger">*</span></label>
-                        <input type="email" style={inputStyle} placeholder="Nhập email" value={formData.email} disabled={isDeleting} onChange={e => setFormData({...formData, email: e.target.value})} />
-                
-                    </div>
-                    <div className="col-md-6">
-                        <label style={labelStyle}>Số điện thoại <span className="text-danger">*</span></label>
-                        <div className="d-flex gap-2">
-                            <select style={{...inputStyle, width: "35%"}} value={formData.MaVung} disabled={isDeleting} onChange={e => setFormData({...formData, MaVung: e.target.value})}>
-                                <option value="+84">+84</option>
-                                <option value="+82">+82</option>
-                            </select>
-                            <input type="text" style={{...inputStyle, width: "65%"}} placeholder="number" value={formData.SoDienThoai} disabled={isDeleting} onChange={e => setFormData({...formData, SoDienThoai: e.target.value})} />
-                        </div>
-                    </div>
-
-                    <div className="col-md-6">
-                        <label style={labelStyle}>Ngày bắt đầu làm việc <span className="text-danger">*</span></label>
-                        <input type="date" style={inputStyle} value={formData.NgayVaoLam} disabled={isDeleting} onChange={e => setFormData({...formData, NgayVaoLam: e.target.value})} />
-                    </div>
-                    <div className="col-md-6">
-                        <label style={labelStyle}>Loại hợp đồng <span className="text-danger">*</span></label>
-                        <select style={inputStyle} value={formData.LoaiHopDong} disabled={isDeleting} onChange={e => setFormData({...formData, LoaiHopDong: e.target.value})}>
-                            <option value="">Chọn loại hợp đồng</option>
-                            <option value="Thử việc">Thử việc</option>
-                            <option value="Chính thức 12 tháng">Chính thức 12 tháng</option>
-                            <option value="Chính thức 24 tháng">Chính thức 24 tháng</option>
-                            <option value="Vô thời hạn">Vô thời hạn</option>
-                            <option value="Cộng tác viên">Cộng tác viên</option>
-                        </select>
-                    </div>
-
-                    {/* Phân quyền chỉ hiện khi không phải mode Xóa */}
-                    {!isDeleting && (
-                    <div className="col-12 mt-2">
-                        <div className="card bg-light border-0 p-3">
-                            <label className="form-label small fw-bold text-primary mb-2">Phân quyền nâng cao</label>
-                            <div className="d-flex gap-4">
-                                <div className="form-check"><input className="form-check-input" type="checkbox" id="permB2B" checked={formData.perm_approve_b2b} onChange={e => setFormData({...formData, perm_approve_b2b: e.target.checked})} /><label className="form-check-label small cursor-pointer" htmlFor="permB2B">Duyệt B2B</label></div>
-                                <div className="form-check"><input className="form-check-input" type="checkbox" id="permB2C" checked={formData.perm_approve_b2c} onChange={e => setFormData({...formData, perm_approve_b2c: e.target.checked})} /><label className="form-check-label small cursor-pointer" htmlFor="permB2C">Duyệt B2C</label></div>
-                                <div className="form-check"><input className="form-check-input" type="checkbox" id="permRev" checked={formData.perm_view_revenue} onChange={e => setFormData({...formData, perm_view_revenue: e.target.checked})} /><label className="form-check-label small cursor-pointer" htmlFor="permRev">Xem Doanh thu</label></div>
-                                <div className="form-check"><input className="form-check-input" type="checkbox" id="permStaff" checked={formData.perm_view_staff} onChange={e => setFormData({...formData, perm_view_staff: e.target.checked})} /><label className="form-check-label small cursor-pointer" htmlFor="permStaff">Xem CV</label></div>
-                            </div>
-                        </div>
-                    </div>
-                    )}
-
-                    {/* [MODIFIED] Ô mật khẩu luôn hiển thị */}
-                    <div className="col-12">
-                        <label style={labelStyle}>
-                            {/* Đổi label tùy theo mode */}
-                            {isDeleting ? "Nhập mật khẩu để xác nhận xóa" 
-                             : isEditing ? "Nhập mật khẩu giám đốc để xác nhận cập nhật" 
-                             : "Mật khẩu cho nhân viên mới"} 
-                             <span className="text-danger">*</span>
-                        </label>
-                        <div style={{ position: "relative" }}>
-                            <input 
-                                type={showPassword ? "text" : "password"} 
-                                // Style cho ô password: Nếu là xóa thì nền hơi xám
-                                style={{...inputStyle, paddingRight: "40px", backgroundColor: "#fff", cursor: "text", color: "#374151"}} 
-                                placeholder="Nhập mật khẩu" 
-                                value={formData.password}
-                                onChange={e => setFormData({...formData, password: e.target.value})}
-                            />
-                            <div onClick={() => setShowPassword(!showPassword)} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", cursor: "pointer" }}>
-                                {showPassword ? <EyeOff size={20} color="#6B7280"/> : <Eye size={20} color="#6B7280"/>}
-                            </div>
-                        </div>
-                        <div style={helperTextStyle}>
-                            {/* Đổi helper text */}
-                            {(isDeleting || isEditing) ? "Mật khẩu tài khoản giám đốc." : "Mật khẩu tài khoản giám đốc."}
-                        </div>
-                    </div>
+              <div className="modal-body px-2 pb-2">
+              <div className="row g-2">
+                {/* --- KHỐI 1: THÔNG TIN CƠ BẢN --- */}
+                <div className="col-md-12">
+                  <label style={labelStyle}>Tên đăng nhập (Username) <span className="text-danger">*</span></label>
+                  <input 
+                    type="text" 
+                    style={inputStyle} 
+                    placeholder="Nhập tên đăng nhập hệ thống" 
+                    value={formData.username} 
+                    disabled={isDeleting}
+                    onChange={e => setFormData({...formData, username: e.target.value})} 
+                  />
                 </div>
+
+                <div className="col-md-12">
+                  <label style={labelStyle}>Tên nhân viên <span className="text-danger">*</span></label>
+                  <input 
+                    type="text" 
+                    style={inputStyle} 
+                    placeholder="Nhập tên nhân viên" 
+                    value={formData.name} 
+                    disabled={isDeleting}
+                    onChange={e => setFormData({...formData, name: e.target.value})} 
+                  />
+                </div>
+
+                {/* Ẩn upload CV khi Xóa cho gọn */}
+                {!isDeleting && (
+                  <div className="col-md-12">
+                    <label style={labelStyle}>Tải lên CV nhân viên</label>
+                    <div style={{ position: "relative" }}>
+                      <input 
+                        type="text" 
+                        style={{...inputStyle, paddingRight: "40px", cursor: "pointer"}} 
+                        placeholder={formData.CV ? "Đã có file CV" : "Tải lên CV"} 
+                        value={formData.CV} 
+                        readOnly 
+                        onClick={() => document.getElementById('fileCV').click()} 
+                      />
+                      <div style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                        {uploadingCV ? <span className="spinner-border spinner-border-sm text-secondary"></span> : <UploadCloud size={20} color="#6B7280" />}
+                      </div>
+                      <input id="fileCV" type="file" hidden onChange={handleFileUpload} accept=".pdf,.doc,.docx" />
+                    </div>
+                  </div>
+                )}
+
+                {/* --- KHỐI 2: THÔNG TIN CÔNG VIỆC --- */}
+               <div className="col-md-6">
+                <label style={labelStyle}>Phòng Ban <span className="text-danger">*</span></label>
+                <input 
+                  type="text" 
+                  style={inputStyle} 
+                  placeholder="Nhập tên phòng ban" 
+                  value={formData.PhongBan} 
+                  disabled={isDeleting} 
+                  onChange={e => setFormData({...formData, PhongBan: e.target.value})} 
+                />
               </div>
+                <div className="col-md-6">
+                  <label style={labelStyle}>Chức danh <span className="text-danger">*</span></label>
+                  <input type="text" style={inputStyle} placeholder="Nhập chức danh" value={formData.ChucDanh} disabled={isDeleting} onChange={e => setFormData({...formData, ChucDanh: e.target.value})} />
+                </div>
+
+                <div className="col-md-6">
+                  <label style={labelStyle}>Email <span className="text-danger">*</span></label>
+                  <input type="email" style={inputStyle} placeholder="Nhập email" value={formData.email} disabled={isDeleting} onChange={e => setFormData({...formData, email: e.target.value})} />
+                </div>
+
+                <div className="col-md-6">
+                  <label style={labelStyle}>Số điện thoại <span className="text-danger">*</span></label>
+                  <div className="d-flex gap-2">
+                    <select style={{...inputStyle, width: "35%"}} value={formData.MaVung} disabled={isDeleting} onChange={e => setFormData({...formData, MaVung: e.target.value})}>
+                      <option value="+84">+84</option>
+                      <option value="+82">+82</option>
+                    </select>
+                    <input type="text" style={{...inputStyle, width: "65%"}} placeholder="number" value={formData.SoDienThoai} disabled={isDeleting} onChange={e => setFormData({...formData, SoDienThoai: e.target.value})} />
+                  </div>
+                </div>
+
+                <div className="col-md-6">
+                  <label style={labelStyle}>Ngày bắt đầu làm việc <span className="text-danger">*</span></label>
+                  <input type="date" style={inputStyle} value={formData.NgayVaoLam} disabled={isDeleting} onChange={e => setFormData({...formData, NgayVaoLam: e.target.value})} />
+                </div>
+
+                <div className="col-md-6">
+                  <label style={labelStyle}>Loại hợp đồng <span className="text-danger">*</span></label>
+                  <select style={inputStyle} value={formData.LoaiHopDong} disabled={isDeleting} onChange={e => setFormData({...formData, LoaiHopDong: e.target.value})}>
+                    <option value="">Chọn loại hợp đồng</option>
+                    <option value="Thử việc">Thử việc</option>
+                    <option value="Chính thức 12 tháng">Chính thức 12 tháng</option>
+                    <option value="Chính thức 24 tháng">Chính thức 24 tháng</option>
+                    <option value="Vô thời hạn">Vô thời hạn</option>
+                    <option value="Cộng tác viên">Cộng tác viên</option>
+                  </select>
+                </div>
+
+                {/* --- KHỐI 3: PHÂN QUYỀN (Chỉ hiện khi không Xóa) --- */}
+                {!isDeleting && (
+                  <div className="col-12 mt-2">
+                    <div className="card bg-light border-0 p-3">
+                      <label className="form-label small fw-bold text-primary mb-2">Phân quyền nâng cao</label>
+                      <div className="d-flex gap-4 flex-wrap">
+                        <div className="form-check">
+                          <input className="form-check-input" type="checkbox" id="permB2B" checked={formData.perm_approve_b2b} onChange={e => setFormData({...formData, perm_approve_b2b: e.target.checked})} />
+                          <label className="form-check-label small cursor-pointer" htmlFor="permB2B">Duyệt B2B</label>
+                        </div>
+                        <div className="form-check">
+                          <input className="form-check-input" type="checkbox" id="permB2C" checked={formData.perm_approve_b2c} onChange={e => setFormData({...formData, perm_approve_b2c: e.target.checked})} />
+                          <label className="form-check-label small cursor-pointer" htmlFor="permB2C">Duyệt B2C</label>
+                        </div>
+                        <div className="form-check">
+                          <input className="form-check-input" type="checkbox" id="permRev" checked={formData.perm_view_revenue} onChange={e => setFormData({...formData, perm_view_revenue: e.target.checked})} />
+                          <label className="form-check-label small cursor-pointer" htmlFor="permRev">Xem Doanh thu</label>
+                        </div>
+                        <div className="form-check">
+                          <input className="form-check-input" type="checkbox" id="permStaff" checked={formData.perm_view_staff} onChange={e => setFormData({...formData, perm_view_staff: e.target.checked})} />
+                          <label className="form-check-label small cursor-pointer" htmlFor="permStaff">Xem CV</label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* --- KHỐI 4: MẬT KHẨU NHÂN VIÊN (Đặt dưới phân quyền) --- */}
+                {!isDeleting && (
+                  <div className="col-12 mt-1">
+                    <label style={labelStyle}>
+                      {isEditing ? "Đổi mật khẩu nhân viên (Bỏ trống nếu không đổi)" : "Tạo Mật Khẩu Cho Nhân Viên"}
+                      {!isEditing && <span className="text-danger"> * </span>}
+                    </label>
+                    <div style={{ position: "relative" }}>
+                      <input 
+                        type={showPassword ? "text" : "password"} 
+                        style={{...inputStyle, paddingRight: "40px"}} 
+                        placeholder="Nhập mật khẩu mới cho nhân viên" 
+                        value={formData.password}
+                        onChange={e => setFormData({...formData, password: e.target.value})}
+                      />
+                      <div onClick={() => setShowPassword(!showPassword)} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", cursor: "pointer" }}>
+                        {showPassword ? <EyeOff size={20} color="#6B7280"/> : <Eye size={20} color="#6B7280"/>}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* --- KHỐI 5: MẬT KHẨU GIÁM ĐỐC (Luôn ở dưới cùng) --- */}
+                <div className="col-12 mt-1 pt-1">
+                  <label style={{...labelStyle}}>
+                    Mật khẩu Giám Đốc<span className="text-danger"> * </span>
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <input 
+                      type={showDirectorPassword ? "text" : "password"} 
+                      style={{...inputStyle, paddingRight: "40px"}} 
+                      placeholder="Nhập mật khẩu để xác nhận" 
+                      value={directorPassword}
+                      onChange={e => setDirectorPassword(e.target.value)}
+                    />
+                    <div onClick={() => setShowDirectorPassword(!showDirectorPassword)} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", cursor: "pointer" }}>
+                      {showDirectorPassword ? <EyeOff size={20} color="#6B7280"/> : <Eye size={20} color="#6B7280"/>}
+                    </div>
+                  </div>
+                  <div style={helperTextStyle}>Bắt buộc nhập để thực hiện hành động này.</div>
+                </div>
+
+              </div>
+            </div>
 
               <div className="mt-4 pt-2 text-center pb-2">
                 {isDeleting ? (
