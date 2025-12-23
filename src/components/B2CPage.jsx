@@ -573,10 +573,17 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
             <label style={labelStyle}>{t.branch}</label>
             <ModernSelect name="CoSoTuVan" height="38px" value={formData.CoSoTuVan} placeholder={t.selectBranch} options={branchOptions} onChange={handleInputChange} />
           </div>
-          <div className="col-md-4">
-             <label style={labelStyle}>{t.status}</label>
-             <ModernSelect name="TrangThai" height="38px" value={formData.TrangThai} placeholder={t.selectStatus} options={statusOptions.map(s => ({ value: s, label: s }))} onChange={handleInputChange} />
-          </div>
+         <div className="col-md-4">
+                    <label style={labelStyle}>{t.status}</label>
+                    <input 
+                        type="text" 
+                        name="TrangThai" 
+                        style={inputStyle} 
+                        value={formData.TrangThai} 
+                        onChange={handleInputChange} 
+                        placeholder={currentLanguage === "vi" ? "Nhập trạng thái..." : "Enter status..."} 
+                    />
+                </div>
 
           {(() => {
             const canAssign = currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant;
@@ -1600,8 +1607,15 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                 <ModernSelect name="CoSoTuVan" height={inputHeight} value={formData.CoSoTuVan} options={branchOptions} onChange={handleChange} />
             </div>
             <div className="col-md-4">
-                 <label style={labelStyle}>Trạng thái</label>
-                 <ModernSelect name="TrangThai" height={inputHeight} value={formData.TrangThai} options={statusOptions.map(s => ({ value: s, label: s }))} onChange={handleChange} />
+                <label style={labelStyle}>Trạng thái</label>
+                <input 
+                    type="text" 
+                    name="TrangThai" 
+                    style={inputStyle} 
+                    value={formData.TrangThai} 
+                    onChange={handleChange} 
+                    placeholder="Nhập trạng thái..." 
+                />
             </div>
           
             <div className="col-md-4">
@@ -1648,12 +1662,12 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
             {/* === TÀI CHÍNH === */}
             <div className="col-12 mt-3 pt-2 border-top">
                 <div className="row g-3">
-                    <div className="col-md-4">
+                    <div className="col-md-6">
                         <label style={labelStyle}>Doanh thu (Dịch vụ chính) <span className="text-danger">*</span></label>
                         <input type="text" name="DoanhThuTruocChietKhau" value={formData.DoanhThuTruocChietKhau} onChange={handleChange} style={{...inputStyle, color: "#2563eb", fontWeight: "bold", textAlign: "center"}} placeholder="0" />
                     </div>
 
-                    <div className="col-md-4">
+                    <div className="col-md-6">
                         <label style={labelStyle}>Chiết khấu (%)</label>
                         <ModernSelect 
                             name="MucChietKhau" 
