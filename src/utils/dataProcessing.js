@@ -10,14 +10,13 @@ export const statusColors = {
 export const serviceColorMap = {
   "Chứng thực": "#3b82f6",
   "Kết hôn": "#ec4899",
-  "Dịch vụ B2B": "#06b6d4",
-  "Tư vấn pháp lý": "#84cc16",
   "Khai sinh, khai tử": "#f59e0b",
-  "Xuất nhập cảnh": "#6366f1",
-  "Giấy tờ tùy thân": "#10b981",
+  "Quốc tịch": "#06b6d4",
+  "Hộ chiếu, hộ tịch": "#84cc16",
   "Nhận nuôi": "#8b5cf6",
   "Thị thực": "#f97316",
-  "Khác": "#9ca3af",
+  "Tư vấn pháp lý": "#6366f1",
+  "Giấy tờ tùy thân": "#10b981",
 };
 
 
