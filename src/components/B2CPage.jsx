@@ -1889,17 +1889,17 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                       return (
                         <th key={i} className={isPinned(currentKey) ? "sticky-col" : ""}
                           style={{ 
-                              // --- CẬP NHẬT STICKY HEADER ---
-                              position: "sticky",         // Luôn dính
-                              top: 0,                     // Dính lên đỉnh
+                              
+                              position: "sticky",        
+                              top: 0,                    
                               left: isPinned(currentKey) ? "0" : "auto", 
-                              zIndex: isPinned(currentKey) ? 20 : 10, // Header Pin cao hơn Header thường
+                              zIndex: isPinned(currentKey) ? 20 : 10, 
                               backgroundColor: "#2c4d9e", 
                               color: "#ffffff",           
                               borderRight: "1px solid #4a6fdc", 
                               textAlign: "center",
                               verticalAlign: "middle",
-                              boxShadow: "0 1px 2px rgba(0,0,0,0.2)" // Thêm bóng nhẹ để tách biệt với body
+                              boxShadow: "0 1px 2px rgba(0,0,0,0.2)" 
                           }}
                         >
                           <div className="d-flex justify-content-center align-items-center position-relative w-100" style={{ minHeight: "24px", paddingRight: "28px" }}>
@@ -1960,7 +1960,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                 </div>
             )}
 
-            {/* Pagination giữ nguyên */}
+
             <div className="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-white" style={{ marginTop: "0", borderTop: "1px solid #dee2e6" }}>
               <div className="text-muted small">
                 {currentLanguage === "vi" ? `Hiển thị ${filteredData.length} / ${itemsPerPage} hàng (trang ${currentPage}/${totalPages})` : `Showing ${filteredData.length} / ${itemsPerPage} rows (page ${currentPage}/${totalPages})`}
