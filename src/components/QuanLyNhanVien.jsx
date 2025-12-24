@@ -426,8 +426,8 @@ const handleSaveUser = async () => {
                 <button onClick={() => setShowUserModal(false)} style={{ position: "absolute", top: 0, right: 0, background: "none", border: "none", cursor: "pointer" }}><X size={20} color="#9CA3AF" /></button>
               </div>
 
-              <div className="modal-body px-2 pb-2">
-              <div className="row g-2">
+              <div className="modal-body px-1 pb-0">
+              <div className="row g-1">
                 {/* --- KHỐI 1: THÔNG TIN CƠ BẢN --- */}
                 <div className="col-md-12">
                   <label style={labelStyle}>Tên đăng nhập (Username) <span className="text-danger">*</span></label>
@@ -550,7 +550,20 @@ const handleSaveUser = async () => {
                     </div>
                   </div>
                 )}
-
+            <div className="col-md-12">
+                  <label style={labelStyle}>Vai trò hệ thống <span className="text-danger">*</span></label>
+                  <select 
+                    style={inputStyle} 
+                    value={formData.role} 
+                    disabled={isDeleting} 
+                    onChange={e => setFormData({...formData, role: e.target.value})}
+                  >
+                    <option value="user">Nhân viên (Staff)</option>
+                    <option value="accountant">Kế toán (Accountant)</option>
+                    <option value="director">Giám đốc (Director)</option>
+                    <option value="admin">Quản trị viên (Admin)</option>
+                  </select>
+                </div>
                 {/* --- KHỐI 4: MẬT KHẨU NHÂN VIÊN (Đặt dưới phân quyền) --- */}
                 {!isDeleting && (
                   <div className="col-12 mt-1">
