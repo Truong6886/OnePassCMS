@@ -951,6 +951,7 @@ const handleApprove = (service) => {
     LoaiDichVu: service.serviceType,
     TenDichVu: service.serviceName,
     DanhMuc: mainCat, 
+    DiaChiNhan: service.DiaChiNhan || "",
    
     NgayBatDau: service.startDate,
     NgayHoanThanh: service.endDate,
@@ -1008,6 +1009,7 @@ const handleApprove = (service) => {
         LoaiDichVu: selectedService.LoaiDichVu || selectedService.serviceType,
         TenDichVu: selectedService.TenDichVu || selectedService.serviceName,
         NgayThucHien: selectedService.NgayBatDau || selectedService.startDate,
+        DiaChiNhan: selectedService.DiaChiNhan || service.DiaChiNhan || "",
         TrangThai: selectedService.TrangThai,
         NgayHoanThanh: selectedService.NgayHoanThanh || selectedService.endDate,
         GoiDichVu: selectedService.GoiDichVu === "Yes" ? "Cấp tốc" : "Thông thường",
@@ -1313,6 +1315,7 @@ const renderServicesTab = () => {
                                 <th className="py-2 border" style={{ width: "120px", whiteSpace: "pre-wrap" }}>{t.chonDN}</th>
                                 <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>Số ĐKKD</th>
                                 <th className="py-2 border" style={{ width: "219px", whiteSpace: "pre-wrap" }}>{t.hoSo}</th>
+                                <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>{t.diaChiNhan}</th>
                                 <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.loaiDichVu}</th>
                                 <th className="py-2 border" style={{ width: "140px", whiteSpace: "pre-wrap" }}>{t.tenDichVu}</th>
                                 
@@ -1415,6 +1418,7 @@ const renderServicesTab = () => {
                                                             ) : <div className="text-center text-muted">-</div>}
                                                         </td>
 
+                                                        <td className="border" rowSpan={subRowsCount} style={{...mergedStyle, textAlign: 'left'}} title={rec.DiaChiNhan || "--"}>{rec.DiaChiNhan || "--"}</td>
                                                         <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.serviceType}>{rec.serviceType}</td>
                                                         <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.serviceName}>{rec.serviceName}</td>
                                                     </>
@@ -2716,7 +2720,7 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                     </div>
 
                     {/* Địa chỉ nhận */}
-                    <div className="col-md-6">
+                    <div className="col-12">
                       <label style={labelStyle}>{t.diaChiNhan}</label>
                       <input
                         type="text"
@@ -2728,7 +2732,7 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                       />
                     </div>
 
-            <div className="col-md-12">
+            <div className="col-12">
               <label style={labelStyle}>
                 Danh mục <span className="text-danger">*</span>
               </label>
