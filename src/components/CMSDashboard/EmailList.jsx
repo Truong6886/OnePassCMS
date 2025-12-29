@@ -82,10 +82,10 @@ const EmailList = ({
               <th style={{ width: 60 }}>#</th>
               <th>Email</th>
               <th style={{ width: 220 }}>
-                {currentLanguage === "vi" ? "Ngày tạo" : "Created At"}
+                {currentLanguage === "vi" ? "Ngày tạo" : currentLanguage === "ko" ? "생성 날짜" : "Created At"}
               </th>
               <th style={{ width: 150 }}>
-                {currentLanguage === "vi" ? "Hành động" : "Actions"}
+                {currentLanguage === "vi" ? "Hành động" : currentLanguage === "ko" ? "작업" : "Actions"}
               </th>
             </tr>
           </thead>

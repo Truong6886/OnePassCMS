@@ -48,6 +48,64 @@ export default function QuanLyNhanVien() {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
   };
 
+  // Translations
+  const translations = {
+    vi: {
+      stt: "STT", tenNhanVien: "Tên nhân viên", chucDanh: "Chức danh", phongBan: "Phòng ban", email: "Email",
+      maVung: "Mã vùng", soDienThoai: "Số điện thoại", ngayVaoLam: "Ngày vào làm", loaiHopDong: "Loại hợp đồng",
+      phanQuyen: "Phân quyền", cv: "CV", doanhThu: "Doanh thu", hanhDong: "Hành động",
+      themNhanVien: "Thêm nhân viên", hoTen: "Họ tên", taiKhoan: "Tài khoản", matKhau: "Mật khẩu",
+      vaiTro: "Vai trò", taiCV: "Tải CV", luu: "Lưu", huy: "Hủy", xoa: "Xóa",
+      xemCV: "Xem CV", donViTinh: "đ", duyetB2B: "Duyệt B2B", duyetB2C: "Duyệt B2C",
+      xemDoanhThu: "Xem Doanh thu", phanQuyenNangCao: "Phân quyền nâng cao",
+      chonLoaiHopDong: "Chọn loại hợp đồng", thuViec: "Thử việc", chinhThuc12: "Chính thức 12 tháng",
+      chinhThuc24: "Chính thức 24 tháng", voThoiHan: "Vô thời hạn", congTacVien: "Cộng tác viên",
+      ngayBatDauLam: "Ngày bắt đầu làm việc", tieuDeTrang: "Danh sách nhân viên",
+      moTaTrang: "Danh sách nhân viên, cộng tác viên của OnePass"
+    },
+    en: {
+      stt: "No.", tenNhanVien: "Employee Name", chucDanh: "Position", phongBan: "Department", email: "Email",
+      maVung: "Area Code", soDienThoai: "Phone Number", ngayVaoLam: "Start Date", loaiHopDong: "Contract Type",
+      phanQuyen: "Permissions", cv: "CV", doanhThu: "Revenue", hanhDong: "Actions",
+      themNhanVien: "Add Employee", hoTen: "Full Name", taiKhoan: "Account", matKhau: "Password",
+      vaiTro: "Role", taiCV: "Upload CV", luu: "Save", huy: "Cancel", xoa: "Delete",
+      xemCV: "View CV", donViTinh: "₫", duyetB2B: "Approve B2B", duyetB2C: "Approve B2C",
+      xemDoanhThu: "View Revenue", phanQuyenNangCao: "Advanced Permissions",
+      chonLoaiHopDong: "Select contract type", thuViec: "Probation", chinhThuc12: "Official 12 months",
+      chinhThuc24: "Official 24 months", voThoiHan: "Indefinite", congTacVien: "Collaborator",
+      ngayBatDauLam: "Start Date", tieuDeTrang: "Employee List",
+      moTaTrang: "List of OnePass employees and collaborators"
+    },
+    ko: {
+      stt: "번호", tenNhanVien: "직원명", chucDanh: "직책", phongBan: "부서", email: "이메일",
+      maVung: "지역번호", soDienThoai: "전화번호", ngayVaoLam: "입사일", loaiHopDong: "계약 유형",
+      phanQuyen: "권한", cv: "이력서", doanhThu: "매출", hanhDong: "작업",
+      themNhanVien: "직원 추가", hoTen: "성명", taiKhoan: "계정", matKhau: "비밀번호",
+      vaiTro: "역할", taiCV: "이력서 업로드", luu: "저장", huy: "취소", xoa: "삭제",
+      xemCV: "이력서 보기", donViTinh: "₫", duyetB2B: "B2B 승인", duyetB2C: "B2C 승인",
+      xemDoanhThu: "매출 보기", phanQuyenNangCao: "고급 권한",
+      chonLoaiHopDong: "계약 유형 선택", thuViec: "수습", chinhThuc12: "정규직 12개월",
+      chinhThuc24: "정규직 24개월", voThoiHan: "무기한", congTacVien: "협력자",
+      ngayBatDauLam: "근무 시작일", tieuDeTrang: "직원 목록",
+      moTaTrang: "OnePass 직원 및 협력자 목록"
+    }
+  };
+  const t = translations[currentLanguage === "vi" ? "vi" : currentLanguage === "ko" ? "ko" : "en"];
+
+  // Helper function to translate contract type
+  const translateContractType = (contractType) => {
+    if (!contractType) return "";
+    const contractMap = {
+      "Thử việc": { vi: "Thử việc", en: "Probation", ko: "수습" },
+      "Chính thức 12 tháng": { vi: "Chính thức 12 tháng", en: "Official 12 months", ko: "정규직 12개월" },
+      "Chính thức 24 tháng": { vi: "Chính thức 24 tháng", en: "Official 24 months", ko: "정규직 24개월" },
+      "Vô thời hạn": { vi: "Vô thời hạn", en: "Indefinite", ko: "무기한" },
+      "Cộng tác viên": { vi: "Cộng tác viên", en: "Collaborator", ko: "협력자" }
+    };
+    const lang = currentLanguage === "vi" ? "vi" : currentLanguage === "ko" ? "ko" : "en";
+    return contractMap[contractType] ? contractMap[contractType][lang] : contractType;
+  };
+
   useEffect(() => {
     const saved = localStorage.getItem("language");
     if (saved) setCurrentLanguage(saved);
@@ -253,10 +311,10 @@ export default function QuanLyNhanVien() {
 
   const renderPermissions = (user) => {
     const perms = [];
-    if (user.perm_approve_b2b || user.is_director) perms.push({ label: "Duyệt B2B", color: "bg-primary" });
-    if (user.perm_approve_b2c || user.is_director) perms.push({ label: "Duyệt B2C", color: "bg-success" });
-    if (user.perm_view_revenue || user.is_accountant || user.is_director) perms.push({ label: "Xem Doanh thu", color: "bg-warning text-dark" });
-    if (user.perm_view_staff || user.is_director) perms.push({ label: "Xem CV", color: "bg-info text-dark" }); 
+    if (user.perm_approve_b2b || user.is_director) perms.push({ label: t.duyetB2B, color: "bg-primary" });
+    if (user.perm_approve_b2c || user.is_director) perms.push({ label: t.duyetB2C, color: "bg-success" });
+    if (user.perm_view_revenue || user.is_accountant || user.is_director) perms.push({ label: t.xemDoanhThu, color: "bg-warning text-dark" });
+    if (user.perm_view_staff || user.is_director) perms.push({ label: t.xemCV, color: "bg-info text-dark" }); 
     return (
       <div className="d-flex flex-wrap justify-content-center gap-1">
         {perms.map((p, idx) => (
@@ -300,15 +358,15 @@ export default function QuanLyNhanVien() {
        <div style={{ marginTop: "80px" }}>
           <div className="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h3 className="fw-bold text-dark mb-1">{currentLanguage === "vi" ? "Danh sách nhân viên" : "Employee List"}</h3>
+                <h3 className="fw-bold text-dark mb-1">{t.tieuDeTrang}</h3>
                 <h6 style={{ color: "#9CA3AF", fontSize: "14px", fontWeight: "400", margin: 0 }}>
-                  {currentLanguage === "vi" ? "Danh sách nhân viên, cộng tác viên của OnePass" : "List of OnePass employees and collaborators"}
+                  {t.moTaTrang}
                 </h6>
             </div>
             {canManageStaff && (
               <button className="btn btn-primary shadow-sm" onClick={handleOpenAdd} style={{borderRadius: "8px", padding: "10px 20px"}}>
                 <i className="bi bi-plus-lg me-2"></i>
-                {currentLanguage === "vi" ? "Thêm nhân viên" : "Add Employee"}
+                {t.themNhanVien}
               </button>
             )}
           </div>
@@ -318,19 +376,19 @@ export default function QuanLyNhanVien() {
               <table className="table table-bordered table-hover align-middle mb-0" style={{ fontSize: "14px" }}>
               <thead style={{ backgroundColor: "#2c4d9e", color: "white" }}>
                   <tr>
-                    <th className="py-3 ps-3 text-center">STT</th>
-                    <th className="py-3 text-center">Tên nhân viên</th>
-                    <th className="py-3 text-center">Chức danh</th>
-                    <th className="py-3 text-center">Phòng ban</th>
-                    <th className="py-3 text-center">Email</th>
-                    <th className="py-3 text-center">Mã vùng</th>
-                    <th className="py-3 text-center">Số điện thoại</th>
-                    <th className="py-3 text-center">Ngày vào làm</th>
-                    <th className="py-3 text-center">Loại hợp đồng</th>
-                    {canViewPermissions && <th className="py-3 text-center" style={{ width: "200px" }}>Phân quyền</th>}
-                    {canViewCV && <th className="py-3 text-center" style={{ width: "90px" }}>CV</th>}
-                    {canViewRevenue && <th className="py-3 text-center">Doanh thu</th>}
-                    {canManageStaff && <th className="py-3 text-center">Hành động</th>}
+                    <th className="py-3 ps-3 text-center">{t.stt}</th>
+                    <th className="py-3 text-center">{t.tenNhanVien}</th>
+                    <th className="py-3 text-center">{t.chucDanh}</th>
+                    <th className="py-3 text-center">{t.phongBan}</th>
+                    <th className="py-3 text-center">{t.email}</th>
+                    <th className="py-3 text-center">{t.maVung}</th>
+                    <th className="py-3 text-center">{t.soDienThoai}</th>
+                    <th className="py-3 text-center">{t.ngayVaoLam}</th>
+                    <th className="py-3 text-center">{t.loaiHopDong}</th>
+                    {canViewPermissions && <th className="py-3 text-center" style={{ width: "200px" }}>{t.phanQuyen}</th>}
+                    {canViewCV && <th className="py-3 text-center" style={{ width: "90px" }}>{t.cv}</th>}
+                    {canViewRevenue && <th className="py-3 text-center">{t.doanhThu}</th>}
+                    {canManageStaff && <th className="py-3 text-center">{t.hanhDong}</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -353,7 +411,7 @@ export default function QuanLyNhanVien() {
                           <td className="text-center">{u.MaVung}</td>
                           <td style={{width:70}} className="text-center">{u.SoDienThoai}</td>
                           <td className="text-center">{u.NgayVaoLam ? new Date(u.NgayVaoLam).toLocaleDateString('vi-VN') : "-"}</td>
-                          <td className="text-center">{u.LoaiHopDong || ""}</td>
+                          <td className="text-center">{translateContractType(u.LoaiHopDong) || ""}</td>
                           {canViewPermissions && (<td className="text-center">{renderPermissions(u)}</td>)}
                           {canViewCV && (
                             <td className="text-center">
@@ -478,18 +536,18 @@ export default function QuanLyNhanVien() {
                     </div>
 
                     <div className="col-md-6">
-                        <label style={labelStyle}>Ngày bắt đầu làm việc <span className="text-danger">*</span></label>
+                        <label style={labelStyle}>{t.ngayBatDauLam} <span className="text-danger">*</span></label>
                         <input type="date" style={inputStyle} value={formData.NgayVaoLam} disabled={isDeleting} onChange={e => setFormData({...formData, NgayVaoLam: e.target.value})} />
                     </div>
                     <div className="col-md-6">
-                        <label style={labelStyle}>Loại hợp đồng <span className="text-danger">*</span></label>
+                        <label style={labelStyle}>{t.loaiHopDong} <span className="text-danger">*</span></label>
                         <select style={inputStyle} value={formData.LoaiHopDong} disabled={isDeleting} onChange={e => setFormData({...formData, LoaiHopDong: e.target.value})}>
-                            <option value="">Chọn loại hợp đồng</option>
-                            <option value="Thử việc">Thử việc</option>
-                            <option value="Chính thức 12 tháng">Chính thức 12 tháng</option>
-                            <option value="Chính thức 24 tháng">Chính thức 24 tháng</option>
-                            <option value="Vô thời hạn">Vô thời hạn</option>
-                            <option value="Cộng tác viên">Cộng tác viên</option>
+                            <option value="">{t.chonLoaiHopDong}</option>
+                            <option value="Thử việc">{t.thuViec}</option>
+                            <option value="Chính thức 12 tháng">{t.chinhThuc12}</option>
+                            <option value="Chính thức 24 tháng">{t.chinhThuc24}</option>
+                            <option value="Vô thời hạn">{t.voThoiHan}</option>
+                            <option value="Cộng tác viên">{t.congTacVien}</option>
                         </select>
                     </div>
 
@@ -497,12 +555,12 @@ export default function QuanLyNhanVien() {
                     {!isDeleting && (
                     <div className="col-12 mt-2">
                         <div className="card bg-light border-0 p-3">
-                            <label className="form-label small fw-bold text-primary mb-2">Phân quyền nâng cao</label>
+                            <label className="form-label small fw-bold text-primary mb-2">{t.phanQuyenNangCao}</label>
                             <div className="d-flex gap-4">
-                                <div className="form-check"><input className="form-check-input" type="checkbox" id="permB2B" checked={formData.perm_approve_b2b} onChange={e => setFormData({...formData, perm_approve_b2b: e.target.checked})} /><label className="form-check-label small cursor-pointer" htmlFor="permB2B">Duyệt B2B</label></div>
-                                <div className="form-check"><input className="form-check-input" type="checkbox" id="permB2C" checked={formData.perm_approve_b2c} onChange={e => setFormData({...formData, perm_approve_b2c: e.target.checked})} /><label className="form-check-label small cursor-pointer" htmlFor="permB2C">Duyệt B2C</label></div>
-                                <div className="form-check"><input className="form-check-input" type="checkbox" id="permRev" checked={formData.perm_view_revenue} onChange={e => setFormData({...formData, perm_view_revenue: e.target.checked})} /><label className="form-check-label small cursor-pointer" htmlFor="permRev">Xem Doanh thu</label></div>
-                                <div className="form-check"><input className="form-check-input" type="checkbox" id="permStaff" checked={formData.perm_view_staff} onChange={e => setFormData({...formData, perm_view_staff: e.target.checked})} /><label className="form-check-label small cursor-pointer" htmlFor="permStaff">Xem CV</label></div>
+                                <div className="form-check"><input className="form-check-input" type="checkbox" id="permB2B" checked={formData.perm_approve_b2b} onChange={e => setFormData({...formData, perm_approve_b2b: e.target.checked})} /><label className="form-check-label small cursor-pointer" htmlFor="permB2B">{t.duyetB2B}</label></div>
+                                <div className="form-check"><input className="form-check-input" type="checkbox" id="permB2C" checked={formData.perm_approve_b2c} onChange={e => setFormData({...formData, perm_approve_b2c: e.target.checked})} /><label className="form-check-label small cursor-pointer" htmlFor="permB2C">{t.duyetB2C}</label></div>
+                                <div className="form-check"><input className="form-check-input" type="checkbox" id="permRev" checked={formData.perm_view_revenue} onChange={e => setFormData({...formData, perm_view_revenue: e.target.checked})} /><label className="form-check-label small cursor-pointer" htmlFor="permRev">{t.xemDoanhThu}</label></div>
+                                <div className="form-check"><input className="form-check-input" type="checkbox" id="permStaff" checked={formData.perm_view_staff} onChange={e => setFormData({...formData, perm_view_staff: e.target.checked})} /><label className="form-check-label small cursor-pointer" htmlFor="permStaff">{t.xemCV}</label></div>
                             </div>
                         </div>
                     </div>

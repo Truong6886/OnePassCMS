@@ -3,6 +3,7 @@ import { Save, Trash2 } from "lucide-react";
 import { showToast } from "../utils/toast";
 import "../styles/TableRow.css";
 import Swal from "sweetalert2";
+import translateService from "../utils/translateService";
 
 const TableRow = ({
   item,
@@ -34,16 +35,17 @@ const TableRow = ({
 
   const handleDeleteClick = () => {
     Swal.fire({
-      title: currentLanguage === "vi" ? "Bạn chắc chắn chứ?" : "Are you sure?",
+      title: currentLanguage === "vi" ? "Bạn chắc chắn chứ?" : currentLanguage === "ko" ? "정말 삭제하시겠습니까?" : "Are you sure?",
       text: currentLanguage === "vi"
         ? "Hành động này không thể hoàn tác!"
+        : currentLanguage === "ko" ? "이 작업은 되돌릴 수 없습니다!"
         : "You won't be able to revert this!",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: currentLanguage === "vi" ? "Xoá" : "Delete",
-      cancelButtonText: currentLanguage === "vi" ? "Hủy" : "Cancel",
+      confirmButtonText: currentLanguage === "vi" ? "Xoá" : currentLanguage === "ko" ? "삭제" : "Delete",
+      cancelButtonText: currentLanguage === "vi" ? "Hủy" : currentLanguage === "ko" ? "취소" : "Cancel",
       reverseButtons: false
     }).then((result) => {
       if (result.isConfirmed) {
@@ -79,22 +81,6 @@ const TableRow = ({
     return map[branch] || branch || "";
   };
 
-  const translateService = (serviceName) => {
-    const map = {
-      "인증 센터": "Chứng thực",
-      "결혼 이민": "Kết hôn",
-      "출생신고 대행": "Khai sinh, khai tử",
-      "출입국 행정 대행": "Xuất nhập cảnh",
-      "신분증명 서류 대행": "Giấy tờ tuỳ thân",
-      "입양 절차 대행": "Nhận nuôi",
-      "비자 대행": "Thị thực",
-      "법률 컨설팅": "Tư vấn pháp lý",
-      "B2B 서비스": "Dịch vụ B2B",
-      기타: "Khác",
-    };
-    return map[serviceName] || serviceName;
-  };
-
   const handleSave = () => onSave(localData);
   const displayMaHoSo =
     localData.TrangThai === "Tư vấn" ? "" : localData.MaHoSo || "-";
@@ -124,7 +110,7 @@ const TableRow = ({
           <input
             type="text"
             className="form-control form-control-sm w-130"
-            value={translateService(localData.TenDichVu)}
+            value={translateService(localData.TenDichVu, currentLanguage)}
             onChange={(e) => handleInputChange("TenDichVu", e.target.value)}
           />
         </td>

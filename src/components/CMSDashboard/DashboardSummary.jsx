@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import translateService from "../../utils/translateService";
+import translateService, { getServiceKey } from "../../utils/translateService";
 import {
   ResponsiveContainer,
   PieChart,
@@ -23,6 +23,30 @@ const statusColorMap = {
   "Đang nộp hồ sơ": "#10b981",
   "Hoàn thành": "#8b5cf6",
   "Không xác định": "#9ca3af",
+};
+
+const statusTranslations = {
+  "Tư vấn": { vi: "Tư vấn", en: "Consulting", ko: "상담" },
+  "Đang xử lý": { vi: "Đang xử lý", en: "Processing", ko: "처리 중" },
+  "Đang nộp hồ sơ": { vi: "Đang nộp hồ sơ", en: "Submitting", ko: "서류 제출 중" },
+  "Hoàn thành": { vi: "Hoàn thành", en: "Completed", ko: "완료" },
+  "Không xác định": { vi: "Không xác định", en: "Unknown", ko: "미확인" },
+};
+
+const contactModeTranslations = {
+  "Trực tiếp": { vi: "Trực tiếp", en: "In Person", ko: "방문" },
+  "Gọi điện": { vi: "Gọi điện", en: "Phone", ko: "전화" },
+  "Email": { vi: "Email", en: "Email", ko: "이메일" },
+  "Tin nhắn": { vi: "Tin nhắn", en: "Message", ko: "메시지" },
+};
+
+// Helper function để lấy màu từ translated service name
+const getServiceColor = (translatedName, colorMap) => {
+  // Chuyển đổi translated name về Korean key
+  const koreanKey = getServiceKey(translatedName);
+  // Translate Korean key sang Vietnamese để match với colorMap
+  const vietnameseName = translateService(koreanKey, "vi");
+  return colorMap[vietnameseName] || colorMap[koreanKey] || "#60a5fa";
 };
 
 const DashboardSummary = ({
@@ -51,19 +75,24 @@ const DashboardSummary = ({
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
 
   const getStaffName = (r) => {
-    if (!r.NguoiPhuTrach) return "Chưa phân công";
-    if (typeof r.NguoiPhuTrach === 'object') return r.NguoiPhuTrach.name || r.NguoiPhuTrach.username || "Chưa phân công";
+    if (!r.NguoiPhuTrach) {
+      return currentLanguage === "vi" ? "Chưa phân công" : currentLanguage === "ko" ? "미배정" : "Unassigned";
+    }
+    if (typeof r.NguoiPhuTrach === 'object') return r.NguoiPhuTrach.name || r.NguoiPhuTrach.username || (currentLanguage === "vi" ? "Chưa phân công" : currentLanguage === "ko" ? "미배정" : "Unassigned");
     return r.NguoiPhuTrach;
   };
 
   // --- LOGIC LỌC DỮ LIỆU ---
   const filteredData = allData.filter((r) => {
     const matchService = filterDichVu
-      ? translateService(r.LoaiDichVu) === filterDichVu
+      ? translateService(r.LoaiDichVu, currentLanguage) === filterDichVu
       : true;
 
-    const regionMap = { "+84": "Việt Nam", "+82": "Hàn Quốc" };
-    const region = regionMap[r.MaVung] || r.MaVung || "Không xác định";
+    const regionMapVi = { "+84": "Việt Nam", "+82": "Hàn Quốc" };
+    const regionMapEn = { "+84": "Vietnam", "+82": "South Korea" };
+    const regionMapKo = { "+84": "베트남", "+82": "한국" };
+    const regionMap = currentLanguage === "ko" ? regionMapKo : currentLanguage === "en" ? regionMapEn : regionMapVi;
+    const region = regionMap[r.MaVung] || r.MaVung || (currentLanguage === "vi" ? "Không xác định" : currentLanguage === "ko" ? "미확인" : "Unknown");
     const matchRegion = filterRegion ? region === filterRegion : true;
 
     const matchMode = filterMode ? r.TenHinhThuc === filterMode : true;
@@ -125,7 +154,7 @@ const DashboardSummary = ({
 const b2cServices = Array.from(
   new Set(
     allData
-      .map(r => translateService(r.LoaiDichVu))
+      .map(r => translateService(r.LoaiDichVu, currentLanguage))
       .filter(Boolean)
   )
 );
@@ -137,7 +166,7 @@ const chartDataByTime = allDates.map((dateStr) => {
       if (!r.NgayBatDau) return false;
 
       const rDate = toVNDateString(r.NgayBatDau);
-      const rService = translateService(r.LoaiDichVu)?.trim();
+      const rService = translateService(r.LoaiDichVu, currentLanguage)?.trim();
 
       return rDate === dateStr && rService === service;
     }).length;
@@ -270,8 +299,9 @@ const chartDataByTime = allDates.map((dateStr) => {
     : b2bServices;
 
   const filteredB2BServices = baseB2BData.filter(s => {
-      const matchService = filterB2BServiceType ? (s.LoaiDichVu || "Không xác định") === filterB2BServiceType : true;
-      const matchStaff = filterB2BStaff ? (s.picName || "Chưa phân công") === filterB2BStaff : true;
+      const matchService = filterB2BServiceType ? (s.LoaiDichVu || (currentLanguage === "vi" ? "Không xác định" : currentLanguage === "ko" ? "미확인" : "Unknown")) === filterB2BServiceType : true;
+      const unassignedLabel = currentLanguage === "vi" ? "Chưa phân công" : currentLanguage === "ko" ? "미배정" : "Unassigned";
+      const matchStaff = filterB2BStaff ? (s.picName || unassignedLabel) === filterB2BStaff : true;
       return matchService && matchStaff;
   });
 
@@ -318,8 +348,8 @@ const chartDataByTime = allDates.map((dateStr) => {
         }}
       >
         {[
-          { key: "individual", labelVi: "Khách Hàng Cá Nhân", labelEn: "Individual" },
-          { key: "b2b", labelVi: "Khách Hàng Doanh Nghiệp", labelEn: "B2B" },
+          { key: "individual", labelVi: "Khách Hàng Cá Nhân", labelEn: "Individual", labelKo: "개인 고객" },
+          { key: "b2b", labelVi: "Khách Hàng Doanh Nghiệp", labelEn: "B2B", labelKo: "기업 고객" },
         ].map((tab) => (
           <div
             key={tab.key}
@@ -336,7 +366,7 @@ const chartDataByTime = allDates.map((dateStr) => {
               transition: "all 0.2s ease",
             }}
           >
-            {currentLanguage === "vi" ? tab.labelVi : tab.labelEn}
+            {currentLanguage === "vi" ? tab.labelVi : currentLanguage === "ko" ? tab.labelKo : tab.labelEn}
           </div>
         ))}
       </div>
@@ -365,11 +395,11 @@ const chartDataByTime = allDates.map((dateStr) => {
             }}
             onClick={() => {
               setFilterDichVu(""); 
-              showToast(currentLanguage === "vi" ? "Hiển thị toàn bộ danh sách yêu cầu" : "Showing all requests", "info");
+              showToast(currentLanguage === "vi" ? "Hiển thị toàn bộ danh sách yêu cầu" : currentLanguage === "ko" ? "모든 요청 표시" : "Showing all requests", "info");
             }}
           >
             <h5 className="fw-semibold mb-3 text-primary">
-              {currentLanguage === "vi" ? "Tổng quan số lượng dịch vụ" : "Service Overview"}
+              {currentLanguage === "vi" ? "Tổng quan số lượng dịch vụ" : currentLanguage === "ko" ? "서비스 요약" : "Service Overview"}
             </h5>
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "2rem" }}>
@@ -380,7 +410,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                       dataKey="value"
                       data={Object.entries(
                         filteredData.reduce((acc, cur) => {
-                          const name = translateService(cur.LoaiDichVu || "Không xác định");
+                          const name = translateService(cur.LoaiDichVu || "Không xác định", currentLanguage);
                           acc[name] = (acc[name] || 0) + 1;
                           return acc;
                         }, {})
@@ -393,14 +423,14 @@ const chartDataByTime = allDates.map((dateStr) => {
                     >
                       {Object.entries(
                         filteredData.reduce((acc, cur) => {
-                          const name = translateService(cur.LoaiDichVu || "Không xác định");
+                          const name = translateService(cur.LoaiDichVu || "Không xác định", currentLanguage);
                           acc[name] = (acc[name] || 0) + 1;
                           return acc;
                         }, {})
                       ).map(([name], i) => (
                         <Cell
                           key={i}
-                          fill={serviceColorMap[name] || "#60a5fa"}
+                          fill={getServiceColor(name, serviceColorMap)}
                           cursor="pointer"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -409,7 +439,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                             showToast(
                               currentLanguage === "vi"
                                 ? newFilter ? `Đang lọc danh sách theo dịch vụ: ${name}` : "Hiển thị toàn bộ danh sách yêu cầu"
-                                : newFilter ? `Filtering requests for: ${name}` : "Showing all requests",
+                                : newFilter ? (currentLanguage === "vi" ? `Lọc theo: ${name}` : currentLanguage === "ko" ? `필터링: ${name}` : `Filtering requests for: ${name}`) : (currentLanguage === "vi" ? "Hiển thị tất cả yêu cầu" : currentLanguage === "ko" ? "모든 요청 표시" : "Showing all requests"),
                               "info"
                             );
                           }}
@@ -430,11 +460,11 @@ const chartDataByTime = allDates.map((dateStr) => {
               {/* Legend */}
               <div style={{ flex: "1 1 45%", minWidth: 240 }}>
                 <h6 className="fw-semibold mb-3 text-secondary">
-                  {currentLanguage === "vi" ? "Tổng quan số lượng dịch vụ" : "Service Summary"}
+                  {currentLanguage === "vi" ? "Tổng quan số lượng dịch vụ" : currentLanguage === "ko" ? "서비스 요약" : "Service Summary"}
                 </h6> 
                 {(() => {
                   const grouped = filteredData.reduce((acc, cur) => {
-                    const name = translateService(cur.LoaiDichVu || "Không xác định");
+                    const name = translateService(cur.LoaiDichVu || "Không xác định", currentLanguage);
                     acc[name] = (acc[name] || 0) + 1;
                     return acc;
                   }, {});
@@ -467,9 +497,9 @@ const chartDataByTime = allDates.map((dateStr) => {
                         );
                       })}
                       <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top" style={{ fontWeight: "600", color: "#1f2937" }}>
-                        <span>{currentLanguage === "vi" ? "Tổng cộng" : "Total"}</span>
+                        <span>{currentLanguage === "vi" ? "Tổng cộng" : currentLanguage === "ko" ? "합계" : "Total"}</span>
                         <span>
-                          {total} <span style={{ color: "#6b7280" }}>{currentLanguage === "vi" ? "yêu cầu" : "requests"}</span>
+                          {total} <span style={{ color: "#6b7280" }}>{currentLanguage === "vi" ? "yêu cầu" : currentLanguage === "ko" ? "요청" : "requests"}</span>
                         </span>
                       </div>
                     </>
@@ -481,7 +511,7 @@ const chartDataByTime = allDates.map((dateStr) => {
           
           <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
             <h5 className="fw-semibold mb-3 text-primary">
-              {currentLanguage === "vi" ? "Số lượng dịch vụ theo nhân viên" : "Service Count by Staff"}
+              {currentLanguage === "vi" ? "Số lượng dịch vụ theo nhân viên" : currentLanguage === "ko" ? "직원별 서비스 수" : "Service Count by Staff"}
             </h5>
             
             {(() => {
@@ -527,7 +557,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                             />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value) => [value, currentLanguage === "vi" ? "Yêu cầu" : "Requests"]} />
+                        <Tooltip formatter={(value) => [value, currentLanguage === "vi" ? "Yêu cầu" : currentLanguage === "ko" ? "요청" : "Requests"]} />
                       </PieChart>
                     </ResponsiveContainer>
                     
@@ -583,8 +613,8 @@ const chartDataByTime = allDates.map((dateStr) => {
                     </div>
                     
                     <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top" style={{ fontWeight: "600", color: "#1f2937", fontSize: "0.9rem" }}>
-                      <span>{currentLanguage === "vi" ? "Tổng cộng" : "Total"}</span>
-                      <span>{total} <span style={{ color: "#6b7280" }}>{currentLanguage === "vi" ? "yêu cầu" : "requests"}</span></span>
+                      <span>{currentLanguage === "vi" ? "Tổng cộng" : currentLanguage === "ko" ? "합계" : "Total"}</span>
+                      <span>{total} <span style={{ color: "#6b7280" }}>{currentLanguage === "vi" ? "yêu cầu" : currentLanguage === "ko" ? "요청" : "requests"}</span></span>
                     </div>
                   </div>
 
@@ -597,7 +627,7 @@ const chartDataByTime = allDates.map((dateStr) => {
             <div className="d-flex justify-content-between align-items-center mb-3">
               {/* CẬP NHẬT TITLE */}
               <h5 className="fw-semibold text-primary mb-0">
-                {currentLanguage === "vi" ? "Số lượng dịch vụ theo thời gian bắt đầu" : "Service Count by Start Date"}
+                {currentLanguage === "vi" ? "Số lượng dịch vụ theo thời gian bắt đầu" : currentLanguage === "ko" ? "시작일별 서비스 수" : "Service Count by Start Date"}
               </h5>
               <select
                 className="form-select form-select-sm"
@@ -624,7 +654,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                     key={i}
                     dataKey={service}
                     stackId="a"
-                    fill={serviceColorMap[service] || "#9ca3af"}
+                    fill={getServiceColor(service, serviceColorMap)}
                     opacity={filterDichVu && filterDichVu !== service ? 0.2 : 1}
                     cursor="pointer"
                     onClick={() => {
@@ -636,7 +666,7 @@ const chartDataByTime = allDates.map((dateStr) => {
               </ResponsiveContainer>
             ) : (
                <div className="text-center text-muted py-5">
-                {currentLanguage === "vi" ? "Không có dữ liệu trong khoảng thời gian đã chọn" : "No data available for selected period"}
+                {currentLanguage === "vi" ? "Không có dữ liệu trong khoảng thời gian đã chọn" : currentLanguage === "ko" ? "선택한 기간에 데이터가 없습니다" : "No data available for selected period"}
               </div>
             )}
           </div>
@@ -644,12 +674,16 @@ const chartDataByTime = allDates.map((dateStr) => {
            {/* --- KHU VỰC --- */}
           <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
             <h5 className="fw-semibold mb-3 text-primary">
-              {currentLanguage === "vi" ? "Số lượng dịch vụ theo khu vực" : "Service Count by Region"}
+              {currentLanguage === "vi" ? "Số lượng dịch vụ theo khu vực" : currentLanguage === "ko" ? "지역별 서비스 수" : "Service Count by Region"}
             </h5>
             {(() => {
-              const regionMap = { "+84": "Việt Nam", "+82": "Hàn Quốc" };
+              const regionMapVi = { "+84": "Việt Nam", "+82": "Hàn Quốc" };
+              const regionMapEn = { "+84": "Vietnam", "+82": "South Korea" };
+              const regionMapKo = { "+84": "베트남", "+82": "한국" };
+              const regionMap = currentLanguage === "ko" ? regionMapKo : currentLanguage === "en" ? regionMapEn : regionMapVi;
+              
               const grouped = filteredData.reduce((acc, cur) => {
-                const region = regionMap[cur.MaVung] || cur.MaVung || "Không xác định";
+                const region = regionMap[cur.MaVung] || cur.MaVung || (currentLanguage === "vi" ? "Không xác định" : currentLanguage === "ko" ? "미확인" : "Unknown");
                 acc[region] = (acc[region] || 0) + 1;
                 return acc;
               }, {});
@@ -665,7 +699,8 @@ const chartDataByTime = allDates.map((dateStr) => {
                         key={i}
                         onClick={() => {
                           setFilterRegion(region === filterRegion ? "" : region);
-                          showToast(currentLanguage === "vi" ? (region === filterRegion ? "Hiển thị tất cả khu vực" : `Lọc theo khu vực: ${region}`) : "Info", "info");
+                          const actionText = region === filterRegion ? (currentLanguage === "vi" ? "Hiển thị tất cả khu vực" : currentLanguage === "ko" ? "모든 지역 표시" : "Show all regions") : (currentLanguage === "vi" ? `Lọc theo khu vực: ${region}` : currentLanguage === "ko" ? `지역으로 필터링: ${region}` : `Filter by region: ${region}`);
+                          showToast(actionText, "info");
                         }}
                         style={{
                           display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 12, cursor: "pointer",
@@ -685,8 +720,8 @@ const chartDataByTime = allDates.map((dateStr) => {
                     );
                   })}
                   <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top" style={{ fontWeight: "600", color: "#1f2937" }}>
-                    <span>Tổng cộng</span>
-                    <span>{total} <span style={{ color: "#6b7280" }}>{currentLanguage === "vi" ? "yêu cầu" : "requests"}</span></span>
+                    <span>{currentLanguage === "vi" ? "Tổng cộng" : currentLanguage === "ko" ? "합계" : "Total"}</span>
+                    <span>{total} <span style={{ color: "#6b7280" }}>{currentLanguage === "vi" ? "yêu cầu" : currentLanguage === "ko" ? "요청" : "requests"}</span></span>
                   </div>
                 </>
               );
@@ -696,7 +731,7 @@ const chartDataByTime = allDates.map((dateStr) => {
           {/* --- KÊNH LIÊN HỆ --- */}
           <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
             <h5 className="fw-semibold mb-3 text-primary">
-              {currentLanguage === "vi" ? "Số lượng dịch vụ theo kênh liên hệ" : "Service Count by Contact Channel"}
+              {currentLanguage === "vi" ? "Số lượng dịch vụ theo kênh liên hệ" : currentLanguage === "ko" ? "연락 채널별 서비스 수" : "Service Count by Contact Channel"}
             </h5>
             {(() => {
               const grouped = filteredData.reduce((acc, cur) => {
@@ -707,16 +742,29 @@ const chartDataByTime = allDates.map((dateStr) => {
               const total = Object.values(grouped).reduce((s, v) => s + v, 0);
               const colorMap = { "Trực tiếp": "#3b82f6", "Gọi điện": "#22c55e", "Email": "#f59e0b", "Tin nhắn": "#9ca3af" };
 
+              // Helper để lấy màu cho contact mode
+              const getContactModeColor = (type) => {
+                // Nếu type là translated, reverse lookup về Vietnamese
+                const viKey = Object.keys(contactModeTranslations).find(key => 
+                  contactModeTranslations[key].vi === type ||
+                  contactModeTranslations[key].en === type ||
+                  contactModeTranslations[key].ko === type
+                ) || type;
+                return colorMap[viKey] || "#9ca3af";
+              };
+
               return (
                 <>
                   {Object.entries(grouped).map(([type, count], i) => {
+                    const typeLabel = contactModeTranslations[type]?.[currentLanguage] || type;
                     const percent = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
                     return (
                       <div
                         key={i}
                         onClick={() => {
                           setFilterMode(type === filterMode ? "" : type);
-                          showToast(currentLanguage === "vi" ? (type === filterMode ? "Hiển thị tất cả kênh liên hệ" : `Lọc theo kênh liên hệ: ${type}`) : "Info", "info");
+                          const actionText = type === filterMode ? (currentLanguage === "vi" ? "Hiển thị tất cả kênh liên hệ" : currentLanguage === "ko" ? "모든 연락 채널 표시" : "Show all contact modes") : (currentLanguage === "vi" ? `Lọc theo kênh liên hệ: ${type}` : currentLanguage === "ko" ? `연락 채널로 필터링: ${typeLabel}` : `Filter by: ${typeLabel}`);
+                          showToast(actionText, "info");
                         }}
                         style={{
                           display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 12, cursor: "pointer",
@@ -724,9 +772,9 @@ const chartDataByTime = allDates.map((dateStr) => {
                           borderRadius: 8, padding: "4px 8px", transition: "background 0.2s ease",
                         }}
                       >
-                        <div style={{ width: 160, fontWeight: 500 }}>{type}</div>
+                        <div style={{ width: 160, fontWeight: 500 }}>{typeLabel}</div>
                         <div style={{ flex: 1, background: "#f3f4f6", borderRadius: 8, height: 10 }}>
-                          <div style={{ width: `${percent}%`, background: colorMap[type] || "#9ca3af", height: "100%", borderRadius: 8, transition: "width 0.3s ease" }}></div>
+                          <div style={{ width: `${percent}%`, background: getContactModeColor(type), height: "100%", borderRadius: 8, transition: "width 0.3s ease" }}></div>
                         </div>
                         <div style={{ width: 90, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 6 }}>
                           <strong style={{ color: "#2563eb" }}>{count}</strong>
@@ -736,8 +784,8 @@ const chartDataByTime = allDates.map((dateStr) => {
                     );
                   })}
                   <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top" style={{ fontWeight: "600", color: "#1f2937" }}>
-                    <span>{currentLanguage === "vi" ? "Tổng cộng" : "Total"}</span>
-                    <span>{total} <span style={{ color: "#6b7280" }}>{currentLanguage === "vi" ? "yêu cầu" : "requests"}</span></span>
+                    <span>{currentLanguage === "vi" ? "Tổng cộng" : currentLanguage === "ko" ? "합계" : "Total"}</span>
+                    <span>{total} <span style={{ color: "#6b7280" }}>{currentLanguage === "vi" ? "yêu cầu" : currentLanguage === "ko" ? "요청" : "requests"}</span></span>
                   </div>
                 </>
               );
@@ -751,7 +799,7 @@ const chartDataByTime = allDates.map((dateStr) => {
           <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", marginTop: "0rem" }}>
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h5 className="fw-semibold text-primary mb-0">
-                {currentLanguage === "vi" ? "Số lượng dịch vụ theo trạng thái thực hiện" : "Service Count by Status"}
+                {currentLanguage === "vi" ? "Số lượng dịch vụ theo trạng thái thực hiện" : currentLanguage === "ko" ? "상태별 서비스 수" : "Service Count by Status"}
               </h5>
               <div className="d-flex align-items-center">
                 <select
@@ -760,15 +808,15 @@ const chartDataByTime = allDates.map((dateStr) => {
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
                 >
-                  <option value="">{currentLanguage === "vi" ? "Tất cả trạng thái" : "All statuses"}</option>
-                  <option value="Tư vấn">{currentLanguage === "vi" ? "Tư vấn" : "Consulting"}</option>
-                  <option value="Đang xử lý">{currentLanguage === "vi" ? "Đang xử lý" : "Processing"}</option>
-                  <option value="Đang nộp hồ sơ">{currentLanguage === "vi" ? "Đang nộp hồ sơ" : "Submitting"}</option>
-                  <option value="Hoàn thành">{currentLanguage === "vi" ? "Hoàn thành" : "Completed"}</option>
+                  <option value="">{currentLanguage === "vi" ? "Tất cả trạng thái" : currentLanguage === "ko" ? "모든 상태" : "All statuses"}</option>
+                  <option value="Tư vấn">{currentLanguage === "vi" ? "Tư vấn" : currentLanguage === "ko" ? "상담" : "Consulting"}</option>
+                  <option value="Đang xử lý">{currentLanguage === "vi" ? "Đang xử lý" : currentLanguage === "ko" ? "처리 중" : "Processing"}</option>
+                  <option value="Đang nộp hồ sơ">{currentLanguage === "vi" ? "Đang nộp hồ sơ" : currentLanguage === "ko" ? "서류 제출 중" : "Submitting"}</option>
+                  <option value="Hoàn thành">{currentLanguage === "vi" ? "Hoàn thành" : currentLanguage === "ko" ? "완료" : "Completed"}</option>
                 </select>
                 {filterStatus && (
                   <button className="btn btn-outline-secondary btn-sm ms-2" onClick={() => setFilterStatus("")}>
-                    {currentLanguage === "vi" ? "Xóa lọc" : "Reset"}
+                    {currentLanguage === "vi" ? "Xóa lọc" : currentLanguage === "ko" ? "초기화" : "Reset"}
                   </button>
                 )}
               </div>
@@ -776,12 +824,13 @@ const chartDataByTime = allDates.map((dateStr) => {
 
             <div>
               {Object.entries(groupedByStatus).map(([status, count], i) => {
+                const statusLabel = statusTranslations[status]?.[currentLanguage] || status;
                 const percent = totalStatus > 0 ? ((count / totalStatus) * 100).toFixed(1) : 0;
                 const color = statusColorMap[status] || "#60a5fa";
                 return (
                   <div key={i} className="mb-3">
                     <div className="d-flex justify-content-between align-items-center mb-1">
-                      <strong>{status}</strong>
+                      <strong>{statusLabel}</strong>
                       <span style={{ fontWeight: 500, color: color }}>{count} ({percent}%)</span>
                     </div>
                     <div style={{ height: "8px", borderRadius: "6px", background: "#e5e7eb", overflow: "hidden" }}>
@@ -791,7 +840,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                 );
               })}
               <div className="d-flex justify-content-end align-items-center mt-3 pt-2 border-top" style={{ fontWeight: 600, color: "#374151" }}>
-                <span>{totalStatus} <span style={{ color: "#6b7280" }}>{currentLanguage === "vi" ? "yêu cầu" : "requests"}</span></span>
+                <span>{totalStatus} <span style={{ color: "#6b7280" }}>{currentLanguage === "vi" ? "yêu cầu" : currentLanguage === "ko" ? "요청" : "requests"}</span></span>
               </div>
             </div>
           </div>
@@ -815,13 +864,21 @@ const chartDataByTime = allDates.map((dateStr) => {
           {/* HEADER CỐ ĐỊNH */}
           <div className="d-flex justify-content-between align-items-center mb-3 flex-shrink-0" style={{ gap: "1rem" }}>
             <h5 className="fw-semibold mb-0 text-primary">
-              {currentLanguage === "vi"
-                ? filterRegion
-                  ? `Danh sách yêu cầu (${filterRegion}${filterDichVu ? " - " + filterDichVu : ""})`
-                  : filterDichVu ? `Danh sách yêu cầu (${filterDichVu})` : "Danh sách yêu cầu"
-                : filterRegion
-                  ? `Request List (${filterRegion}${filterDichVu ? " - " + filterDichVu : ""})`
-                  : filterDichVu ? `Request List (${filterDichVu})` : "Request List"}
+              {(() => {
+                if (currentLanguage === "ko") {
+                  if (filterRegion) return `요청 목록 (${filterRegion}${filterDichVu ? " - " + filterDichVu : ""})`;
+                  if (filterDichVu) return `요청 목록 (${filterDichVu})`;
+                  return "요청 목록";
+                } else if (currentLanguage === "vi") {
+                  if (filterRegion) return `Danh sách yêu cầu (${filterRegion}${filterDichVu ? " - " + filterDichVu : ""})`;
+                  if (filterDichVu) return `Danh sách yêu cầu (${filterDichVu})`;
+                  return "Danh sách yêu cầu";
+                } else {
+                  if (filterRegion) return `Request List (${filterRegion}${filterDichVu ? " - " + filterDichVu : ""})`;
+                  if (filterDichVu) return `Request List (${filterDichVu})`;
+                  return "Request List";
+                }
+              })()}
             </h5>
 
              {(filterRegion || filterDichVu || filterMode || filterStatus || filterStaff) && (
@@ -837,11 +894,13 @@ const chartDataByTime = allDates.map((dateStr) => {
                     showToast(
                       currentLanguage === "vi"
                         ? "Đã xóa toàn bộ bộ lọc, hiển thị tất cả yêu cầu"
+                        : currentLanguage === "ko"
+                        ? "모든 필터 삭제, 모든 요청 표시"
                         : "All filters cleared, showing all requests",
                       "info"
                     );
                   }}
-                  title={currentLanguage === "vi" ? "Xóa toàn bộ bộ lọc" : "Clear all filters"}
+                  title={currentLanguage === "vi" ? "Xóa toàn bộ bộ lọc" : currentLanguage === "ko" ? "모든 필터 삭제" : "Clear all filters"}
                   style={{ fontWeight: 500, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "6px" }}
                 >
                   <FilterX size={16} strokeWidth={2} />
@@ -852,7 +911,7 @@ const chartDataByTime = allDates.map((dateStr) => {
           {/* TABLE SCROLLABLE CONTAINER */}
           {loading ? (
             <p className="text-center text-muted py-4">
-              {currentLanguage === "vi" ? "Đang tải dữ liệu..." : "Loading..."}
+              {currentLanguage === "vi" ? "Đang tải dữ liệu..." : currentLanguage === "ko" ? "데이터 로딩 중..." : "Loading..."}
             </p>
           ) : (
             <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -861,19 +920,41 @@ const chartDataByTime = allDates.map((dateStr) => {
                   <thead>
                   <tr className="text-center">
                     <th style={{width: "40px", ...headerStyle}}>#</th>
-                    <th style={{minWidth: "120px", ...headerStyle}}>Khách hàng</th>
-                    <th style={{width: "100px", ...headerStyle}}>Loại dịch vụ</th>
-                    <th style={{minWidth: "120px", ...headerStyle}}>Tên dịch vụ</th>
-                    <th style={{minWidth: "100px", ...headerStyle}}>Mã dịch vụ</th>
-                    <th style={{minWidth: "150px", ...headerStyle}}>Danh mục</th>
-                    <th style={{width: "120px", ...headerStyle}}>Người phụ trách</th>
-                    <th style={{width: "90px", ...headerStyle}}>Ngày hẹn</th>
+                    <th style={{minWidth: "120px", ...headerStyle}}>
+                      {currentLanguage === "vi" ? "Khách hàng" : currentLanguage === "ko" ? "고객" : "Customer"}
+                    </th>
+                    <th style={{width: "100px", ...headerStyle}}>
+                      {currentLanguage === "vi" ? "Loại dịch vụ" : currentLanguage === "ko" ? "서비스 유형" : "Service Type"}
+                    </th>
+                    <th style={{minWidth: "120px", ...headerStyle}}>
+                      {currentLanguage === "vi" ? "Tên dịch vụ" : currentLanguage === "ko" ? "서비스명" : "Service Name"}
+                    </th>
+                    <th style={{minWidth: "100px", ...headerStyle}}>
+                      {currentLanguage === "vi" ? "Mã dịch vụ" : currentLanguage === "ko" ? "서비스 코드" : "Service Code"}
+                    </th>
+                    <th style={{minWidth: "150px", ...headerStyle}}>
+                      {currentLanguage === "vi" ? "Danh mục" : currentLanguage === "ko" ? "카테고리" : "Category"}
+                    </th>
+                    <th style={{width: "120px", ...headerStyle}}>
+                      {currentLanguage === "vi" ? "Người phụ trách" : currentLanguage === "ko" ? "담당자" : "Assignee"}
+                    </th>
+                    <th style={{width: "90px", ...headerStyle}}>
+                      {currentLanguage === "vi" ? "Ngày hẹn" : currentLanguage === "ko" ? "약속일" : "Appointment Date"}
+                    </th>
           
-                    <th style={{width: "100px", ...headerStyle}}>Ngày bắt đầu</th>
-                    <th style={{width: "100px", ...headerStyle}}>Ngày kết thúc</th>
+                    <th style={{width: "100px", ...headerStyle}}>
+                      {currentLanguage === "vi" ? "Ngày bắt đầu" : currentLanguage === "ko" ? "시작 날짜" : "Start Date"}
+                    </th>
+                    <th style={{width: "100px", ...headerStyle}}>
+                      {currentLanguage === "vi" ? "Ngày kết thúc" : currentLanguage === "ko" ? "종료 날짜" : "End Date"}
+                    </th>
 
-                    <th style={{width: "100px", ...headerStyle}}>Trạng thái</th>
-                    <th style={{width: "90px", ...headerStyle}}>Hình thức</th>
+                    <th style={{width: "100px", ...headerStyle}}>
+                      {currentLanguage === "vi" ? "Trạng thái" : currentLanguage === "ko" ? "상태" : "Status"}
+                    </th>
+                    <th style={{width: "90px", ...headerStyle}}>
+                      {currentLanguage === "vi" ? "Hình thức" : currentLanguage === "ko" ? "방법" : "Method"}
+                    </th>
                   </tr>
                 </thead>
                   <tbody>
@@ -924,7 +1005,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                                       {isFirst && (
                                           <td rowSpan={rowSpan} className="text-center" style={{verticalAlign: "middle"}}>
                                               <span className="text-center">
-                                                  {translateService(r.LoaiDichVu)}
+                                                  {translateService(r.LoaiDichVu, currentLanguage)}
                                               </span>
                                           </td>
                                       )}
@@ -996,7 +1077,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                     ) : (
                       <tr>
                         <td colSpan="9" className="text-center text-muted py-3">
-                          {currentLanguage === "vi" ? "Không có yêu cầu nào" : "No requests found"}
+                          {currentLanguage === "vi" ? "Không có yêu cầu nào" : currentLanguage === "ko" ? "요청이 없습니다" : "No requests found"}
                         </td>
                       </tr>
                     )}
@@ -1009,6 +1090,8 @@ const chartDataByTime = allDates.map((dateStr) => {
                 <div className="text-muted small">
                   {currentLanguage === "vi"
                     ? `Hiển thị ${currentTableRows.length} / ${filteredData.length} hàng (trang ${currentPage}/${totalPages})`
+                    : currentLanguage === "ko"
+                    ? `${currentTableRows.length} / ${filteredData.length} 행 표시 (페이지 ${currentPage}/${totalPages})`
                     : `Showing ${currentTableRows.length} / ${filteredData.length} rows (page ${currentPage}/${totalPages})`}
                 </div>
 
@@ -1037,7 +1120,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                   </nav>
                 </div>
                 <div className="ms-3 text-muted small">
-                  {currentLanguage === "vi" ? `Trang ${currentPage}/${totalPages}` : `Page ${currentPage}/${totalPages}`}
+                  {currentLanguage === "vi" ? `Trang ${currentPage}/${totalPages}` : currentLanguage === "ko" ? `페이지 ${currentPage}/${totalPages}` : `Page ${currentPage}/${totalPages}`}
                 </div>
               </div>
             </div>
@@ -1081,7 +1164,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                   disabled={b2bLoading}
                 >
                   <option value="">
-                    {currentLanguage === "vi" ? "Tất cả công ty" : "All Companies"}
+                    {currentLanguage === "vi" ? "Tất cả công ty" : currentLanguage === "ko" ? "모든 기업" : "All Companies"}
                   </option>
                   {uniqueCompanies.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -1093,8 +1176,12 @@ const chartDataByTime = allDates.map((dateStr) => {
 
             {/* --- KHỞI TẠO BẢNG MÀU ĐỒNG NHẤT CHO B2B --- */}
             {(() => {
-                // 1. Lấy danh sách tất cả loại dịch vụ hiện có (để cố định màu)
-                const allB2BTypes = [...new Set(baseB2BData.map(s => s.LoaiDichVu || "Không xác định"))].sort();
+                // 1. Lấy danh sách tất cả loại dịch vụ hiện có - dùng Korean key (để cố định màu)
+                const allB2BTypes = [...new Set(baseB2BData.map(s => {
+                  const serviceName = s.LoaiDichVu || "Không xác định";
+                  // Normalize về Korean key
+                  return getServiceKey(serviceName);
+                }))].sort();
                 
                 // 2. Định nghĩa bảng màu cố định (Palette)
                 const b2bPalette = [
@@ -1110,11 +1197,17 @@ const chartDataByTime = allDates.map((dateStr) => {
                   "#6366f1"  // Indigo
                 ];
 
-                // 3. Map từng dịch vụ với một màu cụ thể
+                // 3. Map từng dịch vụ (Korean key) với một màu cụ thể
                 const b2bColorMap = {};
                 allB2BTypes.forEach((type, index) => {
                     b2bColorMap[type] = b2bPalette[index % b2bPalette.length];
                 });
+                
+                // 4. Helper để lấy màu từ translated name
+                const getB2BColor = (translatedName) => {
+                  const koreanKey = getServiceKey(translatedName);
+                  return b2bColorMap[koreanKey] || "#9ca3af";
+                };
 
                 return (
                   <>
@@ -1128,7 +1221,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                       }}
                     >
                       <h5 className="fw-semibold mb-3 text-primary">
-                        {currentLanguage === "vi" ? "Tổng quan số lượng dịch vụ" : "Service Overview"}
+                        {currentLanguage === "vi" ? "Tổng quan số lượng dịch vụ" : currentLanguage === "ko" ? "서비스 요약" : "Service Overview"}
                       </h5>
                      
                       
@@ -1160,8 +1253,8 @@ const chartDataByTime = allDates.map((dateStr) => {
                                     >
                                       {stats.map((entry, index) => {
                                         const isActive = filterB2BServiceType === entry.name;
-                                        // Màu từ map đã tạo
-                                        const color = b2bColorMap[entry.name] || "#9ca3af";
+                                        // Màu từ map đã tạo - dùng helper để handle translated name
+                                        const color = getB2BColor(entry.name);
 
                                         return (
                                             <Cell 
@@ -1193,7 +1286,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                               <div style={{ flex: "1 1 45%", minWidth: 200, maxHeight: 260, overflowY: "auto" }}>
                                 {stats.map((item, i) => {
                                    const isActive = filterB2BServiceType === item.name;
-                                   const color = b2bColorMap[item.name] || "#9ca3af";
+                                   const color = getB2BColor(item.name);
 
                                    return (
                                      <div 
@@ -1231,14 +1324,15 @@ const chartDataByTime = allDates.map((dateStr) => {
                       }}
                     >
                       <h5 className="fw-semibold mb-3 text-primary">
-                        {currentLanguage === "vi" ? "Số lượng dịch vụ theo nhân viên" : "Service Count by Staff"}
+                        {currentLanguage === "vi" ? "Số lượng dịch vụ theo nhân viên" : currentLanguage === "ko" ? "직원별 서비스 수" : "Service Count by Staff"}
                       </h5>
                       
                       {(() => {
                         // SỬA: Dùng filteredB2BServices để đồng bộ với bộ lọc hiện tại
+                        const unassignedLabel = currentLanguage === "vi" ? "Chưa phân công" : currentLanguage === "ko" ? "미배정" : "Unassigned";
                         const stats = Object.entries(
                           filteredB2BServices.reduce((acc, cur) => {
-                            const name = cur.picName || "Chưa phân công";
+                            const name = cur.picName || unassignedLabel;
                             acc[name] = (acc[name] || 0) + 1;
                             return acc;
                           }, {})
@@ -1331,7 +1425,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                     >
                        <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-semibold text-primary mb-0">
-                          {currentLanguage === "vi" ? "Số lượng theo thời gian bắt đầu" : "Count by Start Date"}
+                          {currentLanguage === "vi" ? "Số lượng theo thời gian bắt đầu" : currentLanguage === "ko" ? "시작 날짜별 수량" : "Count by Start Date"}
                         </h5>
                         <select
                           className="form-select form-select-sm"
@@ -1369,7 +1463,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                                      key={i} 
                                      dataKey={svc} 
                                      stackId="a" 
-                                     fill={b2bColorMap[svc] || "#9ca3af"} 
+                                     fill={getB2BColor(svc)} 
                                      opacity={filterB2BServiceType && filterB2BServiceType !== svc ? 0.2 : 1}
                                      cursor="pointer"
                                      onClick={() => {
@@ -1382,7 +1476,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                             </ResponsiveContainer>
                          ) : (
                             <div className="text-center text-muted py-5 small">
-                               {currentLanguage === "vi" ? "Không có dữ liệu trong khoảng thời gian này" : "No data in this period"}
+                               {currentLanguage === "vi" ? "Không có dữ liệu trong khoảng thời gian này" : currentLanguage === "ko" ? "이 기간에 데이터가 없습니다" : "No data in this period"}
                             </div>
                          );
                       })()}
@@ -1445,31 +1539,31 @@ const chartDataByTime = allDates.map((dateStr) => {
                   <tr className="text-center">
                     <th style={{ width: 40, ...headerStyle, position: "sticky", top: 0, zIndex: 10 }}>#</th>
                     <th style={{ ...headerStyle, position: "sticky", top: 0, zIndex: 10 }}>
-                      {currentLanguage === "vi" ? "Doanh nghiệp" : "Company"}
+                      {currentLanguage === "vi" ? "Doanh nghiệp" : currentLanguage === "ko" ? "기업" : "Company"}
                     </th>
                     <th style={{ ...headerStyle, position: "sticky", top: 0, zIndex: 10 }}>
-                      {currentLanguage === "vi" ? "Loại dịch vụ" : "Service Type"}
+                      {currentLanguage === "vi" ? "Loại dịch vụ" : currentLanguage === "ko" ? "서비스 유형" : "Service Type"}
                     </th>
                     <th style={{ ...headerStyle, position: "sticky", top: 0, zIndex: 10 }}>
-                      {currentLanguage === "vi" ? "Tên dịch vụ" : "Service Name"}
+                      {currentLanguage === "vi" ? "Tên dịch vụ" : currentLanguage === "ko" ? "서비스명" : "Service Name"}
                     </th>
                     <th style={{ ...headerStyle, position: "sticky", top: 0, zIndex: 10 }}>
-                      {currentLanguage === "vi" ? "Mã dịch vụ" : "Service Code"}
+                      {currentLanguage === "vi" ? "Mã dịch vụ" : currentLanguage === "ko" ? "서비스 코드" : "Service Code"}
                     </th>
                     <th style={{ ...headerStyle, position: "sticky", top: 0, zIndex: 10 }}>
-                      {currentLanguage === "vi" ? "Danh mục" : "Category"}
+                      {currentLanguage === "vi" ? "Danh mục" : currentLanguage === "ko" ? "카테고리" : "Category"}
                     </th>
                     <th style={{ ...headerStyle, position: "sticky", top: 0, zIndex: 10 }}>
-                      {currentLanguage === "vi" ? "Người phụ trách" : "PIC"}
+                      {currentLanguage === "vi" ? "Người phụ trách" : currentLanguage === "ko" ? "담당자" : "PIC"}
                     </th>
                     <th style={{ ...headerStyle, position: "sticky", top: 0, zIndex: 10 }}>
-                      {currentLanguage === "vi" ? "Ngày bắt đầu" : "Start Date"}
+                      {currentLanguage === "vi" ? "Ngày bắt đầu" : currentLanguage === "ko" ? "시작 날짜" : "Start Date"}
                     </th>
                     <th style={{ ...headerStyle, position: "sticky", top: 0, zIndex: 10 }}>
-                      {currentLanguage === "vi" ? "Ngày kết thúc" : "End Date"}
+                      {currentLanguage === "vi" ? "Ngày kết thúc" : currentLanguage === "ko" ? "종료 날짜" : "End Date"}
                     </th>
                     <th style={{ ...headerStyle, position: "sticky", top: 0, zIndex: 10 }}>
-                      {currentLanguage === "vi" ? "Gói" : "Package"}
+                      {currentLanguage === "vi" ? "Gói" : currentLanguage === "ko" ? "패키지" : "Package"}
                     </th>
                   </tr>
                 </thead>
@@ -1586,7 +1680,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                   ) : (
                     <tr>
                       <td colSpan="9" className="text-center text-muted py-4 border">
-                        {currentLanguage === "vi" ? "Không tìm thấy dữ liệu phù hợp" : "No matching B2B data found"}
+                        {currentLanguage === "vi" ? "Không tìm thấy dữ liệu phù hợp" : currentLanguage === "ko" ? "일치하는 데이터를 찾을 수 없습니다" : "No matching B2B data found"}
                       </td>
                     </tr>
                   )}

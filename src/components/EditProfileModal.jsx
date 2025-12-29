@@ -34,7 +34,7 @@ const EditProfileModal = ({ currentUser, onUpdate, onClose, currentLanguage }) =
     // ✅ Kiểm tra loại file và dung lượng
     if (!file.type.startsWith("image/")) {
       showToast(
-        currentLanguage === "vi" ? "Vui lòng chọn file ảnh!" : "Please select an image file!",
+        currentLanguage === "vi" ? "Vui lòng chọn file ảnh!" : currentLanguage === "ko" ? "이미지 파일을 선택하세요!" : "Please select an image file!",
         "warning"
       );
       return;
@@ -44,7 +44,7 @@ const EditProfileModal = ({ currentUser, onUpdate, onClose, currentLanguage }) =
       showToast(
         currentLanguage === "vi"
           ? "Kích thước ảnh không được vượt quá 5MB!"
-          : "Image size should not exceed 5MB!",
+          : currentLanguage === "ko" ? "이미지 크기는 5MB를 초과할 수 없습니다!" : "Image size should not exceed 5MB!",
         "error"
       );
       return;
@@ -62,7 +62,7 @@ const EditProfileModal = ({ currentUser, onUpdate, onClose, currentLanguage }) =
       showToast(
         currentLanguage === "vi"
           ? "Vui lòng điền đầy đủ username và email!"
-          : "Please fill in both username and email!",
+          : currentLanguage === "ko" ? "사용자명과 이메일을 모두 입력하세요!" : "Please fill in both username and email!",
         "warning"
       );
       return;
@@ -91,7 +91,7 @@ const EditProfileModal = ({ currentUser, onUpdate, onClose, currentLanguage }) =
         showToast(
           currentLanguage === "vi"
             ? "Cập nhật thông tin thành công!"
-            : "Profile updated successfully!",
+            : currentLanguage === "ko" ? "프로필이 성공적으로 업데이트되었습니다!" : "Profile updated successfully!",
           "success"
         );
         handleClose();
@@ -101,7 +101,7 @@ const EditProfileModal = ({ currentUser, onUpdate, onClose, currentLanguage }) =
       showToast(
         currentLanguage === "vi"
           ? "Có lỗi xảy ra khi cập nhật thông tin!"
-          : "An error occurred while updating profile!",
+          : currentLanguage === "ko" ? "프로필 업데이트 중 오류가 발생했습니다!" : "An error occurred while updating profile!",
         "error"
       );
     } finally {
@@ -261,7 +261,7 @@ const EditProfileModal = ({ currentUser, onUpdate, onClose, currentLanguage }) =
             {/* Form */}
         <div className="mb-3">
             <label className="form-label fw-semibold">
-              {currentLanguage === "vi" ? "Họ và tên" : "Full Name"}
+              {currentLanguage === "vi" ? "Họ và tên" : currentLanguage === "ko" ? "이름" : "Full Name"}
             </label>
             <input
               type="text"
@@ -269,41 +269,41 @@ const EditProfileModal = ({ currentUser, onUpdate, onClose, currentLanguage }) =
               value={formData.name}
               onChange={(e) => handleInputChange("name", e.target.value)}
               placeholder={
-                currentLanguage === "vi" ? "Nhập họ và tên" : "Enter full name"
+                currentLanguage === "vi" ? "Nhập họ và tên" : currentLanguage === "ko" ? "이름을 입력하세요" : "Enter full name"
               }
               disabled={loading}
             />
           </div>
 
         <div className="mb-3">
-          <label className="form-label fw-semibold">Username</label>
+          <label className="form-label fw-semibold">{currentLanguage === "ko" ? "사용자명" : "Username"}</label>
           <input
             type="text"
             className="form-control rounded-pill"
             value={formData.username}
             onChange={(e) => handleInputChange("username", e.target.value)}
             placeholder={
-              currentLanguage === "vi" ? "Nhập username" : "Enter username"
+              currentLanguage === "vi" ? "Nhập username" : currentLanguage === "ko" ? "사용자명을 입력하세요" : "Enter username"
             }
             disabled={loading}
           />
         </div>
 
         <div className="mb-3">
-          <label className="form-label fw-semibold">Email</label>
+          <label className="form-label fw-semibold">{currentLanguage === "ko" ? "이메일" : "Email"}</label>
           <input
             type="email"
             className="form-control rounded-pill"
             value={formData.email}
             onChange={(e) => handleInputChange("email", e.target.value)}
-            placeholder={currentLanguage === "vi" ? "Nhập email" : "Enter email"}
+            placeholder={currentLanguage === "vi" ? "Nhập email" : currentLanguage === "ko" ? "이메일을 입력하세요" : "Enter email"}
             disabled={loading}
           />
         </div>
 
         <div className="mb-4">
           <label className="form-label fw-semibold">
-            {currentLanguage === "vi" ? "Mật khẩu mới" : "New Password"}
+            {currentLanguage === "vi" ? "Mật khẩu mới" : currentLanguage === "ko" ? "새 비밀번호" : "New Password"}
           </label>
           <input
             type="password"
@@ -313,7 +313,7 @@ const EditProfileModal = ({ currentUser, onUpdate, onClose, currentLanguage }) =
             placeholder={
               currentLanguage === "vi"
                 ? "Để trống nếu không đổi"
-                : "Leave blank if not changing"
+                : currentLanguage === "ko" ? "변경하지 않으려면 비워두세요" : "Leave blank if not changing"
             }
             disabled={loading}
           />
@@ -326,7 +326,7 @@ const EditProfileModal = ({ currentUser, onUpdate, onClose, currentLanguage }) =
             onClick={handleClose}
             disabled={loading}
           >
-            {currentLanguage === "vi" ? "Hủy" : "Cancel"}
+            {currentLanguage === "vi" ? "Hủy" : currentLanguage === "ko" ? "취소" : "Cancel"}
           </button>
           <button
             className="btn btn-primary rounded-pill"

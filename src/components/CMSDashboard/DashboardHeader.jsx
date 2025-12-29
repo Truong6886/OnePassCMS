@@ -14,8 +14,8 @@ const DashboardHeader = ({
 
 
   const tabs = [
-    { key: "summary", labelVi: "Tổng quan", labelEn: "Summary" },
-    { key: "list", labelVi: "Danh sách", labelEn: "List" },
+    { key: "summary", labelVi: "Tổng quan", labelEn: "Summary", labelKo: "요약" },
+    { key: "list", labelVi: "Danh sách", labelEn: "List", labelKo: "목록" },
   ];
 
   return (
@@ -52,7 +52,7 @@ const DashboardHeader = ({
             transition: "all 0.2s ease",
           }}
         >
-          {currentLanguage === "vi" ? tab.labelVi : tab.labelEn}
+          {currentLanguage === "vi" ? tab.labelVi : currentLanguage === "ko" ? tab.labelKo : tab.labelEn}
         </div>
       ))}
     </div>

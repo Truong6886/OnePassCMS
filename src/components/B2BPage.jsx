@@ -623,6 +623,7 @@ const B2B_SERVICE_MAPPING = {
       rejectedTab: "Danh sách từ chối",
       servicesTab: "Danh sách dịch vụ",
       addServiceBtn: "+ Thêm dịch vụ",
+      dangKyDichVuMoi: "Đăng ký dịch vụ mới",
       stt: "STT",
       tenDN: "Tên Doanh Nghiệp",
       soDKKD: "Số ĐKKD",
@@ -640,6 +641,11 @@ const B2B_SERVICE_MAPPING = {
       loaiDichVu: "Loại Dịch Vụ",
       tenDichVu: "Tên Dịch Vụ",
       maDichVu: "Mã Dịch Vụ",
+      danhMuc: "Danh mục",
+      nguoiPhuTrach: "Người Phụ Trách",
+      goi: "Gói",
+      invoiceYN: "Invoice Y/N",
+      invoice: "Invoice",
       ngayBatDau: "Ngày Bắt Đầu",
       ngayKetThuc: "Ngày Kết Thúc",
       doanhThuTruoc: "Doanh Thu\nTrước Chiết Khấu",
@@ -657,6 +663,7 @@ const B2B_SERVICE_MAPPING = {
       rejectedTab: "Rejected List",
       servicesTab: "Services List",
       addServiceBtn: "+ Add Service",
+      dangKyDichVuMoi: "Register New Service",
       stt: "No.",
       tenDN: "Company Name",
       soDKKD: "Business Reg. No.",
@@ -674,6 +681,11 @@ const B2B_SERVICE_MAPPING = {
       loaiDichVu: "Service Type",
       tenDichVu: "Service Name",
       maDichVu: "Service ID",
+      danhMuc: "Category",
+      nguoiPhuTrach: "Assignee",
+      goi: "Package",
+      invoiceYN: "Invoice Y/N",
+      invoice: "Invoice",
       ngayBatDau: "Start Date",
       ngayKetThuc: "End Date",
       doanhThuTruoc: "Revenue Before Discount",
@@ -684,10 +696,50 @@ const B2B_SERVICE_MAPPING = {
       suDungVi: "Wallet Usage",
       hanhDong: "Actions",
       msgWalletLimit: "Wallet usage cannot exceed 2,000,000"
+    },
+    ko: {
+      pendingTab: "승인 대기 목록",
+      approvedTab: "승인된 목록",
+      rejectedTab: "거절된 목록",
+      servicesTab: "서비스 목록",
+      addServiceBtn: "+ 서비스 추가",
+      dangKyDichVuMoi: "새 서비스 등록",
+      stt: "번호",
+      tenDN: "기업명",
+      soDKKD: "사업자등록번호",
+      nguoiDaiDien: "법정 대표자",
+      ngayDangKy: "등록일",
+      tongDoanhThu: "총 매출",
+      lyDoTuChoi: "거절 사유",
+      dichVu: "서비스",
+      giayPhep: "사업자 등록증",
+      email: "이메일",
+      soDienThoai: "전화번호",
+      nganhNgheChinh: "주요 업종",
+      diaChi: "주소",
+      chonDN: "기업 선택",
+      loaiDichVu: "서비스 유형",
+      tenDichVu: "서비스 이름",
+      maDichVu: "서비스 코드",
+      danhMuc: "카테고리",
+      nguoiPhuTrach: "담당자",
+      goi: "패키지",
+      invoiceYN: "인보이스 Y/N",
+      invoice: "인보이스",
+      ngayBatDau: "시작일",
+      ngayKetThuc: "종료일",
+      doanhThuTruoc: "할인 전 매출",
+      mucChietKhau: "할인율",
+      soTienChietKhau: "할인 금액",
+      doanhThuSau: "할인 후 매출",
+      suDungVi: "지갑 사용",
+      tongDoanhThuTichLuy: "총 매출",
+      hanhDong: "작업",
+      msgWalletLimit: "지갑 사용 금액은 2,000,000을 초과할 수 없습니다"
     }
   };
 
-  const t = translations[currentLanguage] || translations["vi"];
+  const t = translations[currentLanguage] || translations.en;
 
   useSocketListener({ currentLanguage, setNotifications, setHasNewRequest, setShowNotification , currentUser: currentUser});
 
@@ -1275,7 +1327,7 @@ const getTotalRecordAfterDiscount = (rec) => {
                     style={{ fontSize: "13px", fontWeight: "600" }}
                 >
                     <Plus size={16} />
-                    Đăng ký dịch vụ mới
+                    {t.dangKyDichVuMoi}
                 </button>
             </div>
 
@@ -1294,18 +1346,18 @@ const getTotalRecordAfterDiscount = (rec) => {
                                 {/* Thêm whiteSpace: "pre-wrap" để nhận diện ký tự \n và tự động xuống dòng */}
                                 <th className="py-2 border" style={{ width: "40px", whiteSpace: "pre-wrap" }}>{t.stt}</th>
                                 <th className="py-2 border" style={{ width: "120px", whiteSpace: "pre-wrap" }}>{t.chonDN}</th>
-                                <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>Số ĐKKD</th>
+                                <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.soDKKD}</th>
                                 <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.loaiDichVu}</th>
                                 <th className="py-2 border" style={{ width: "140px", whiteSpace: "pre-wrap" }}>{t.tenDichVu}</th>
-                                <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>Danh mục</th>
+                                <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>{t.danhMuc}</th>
                               
                                 <th className="py-2 border" style={{ width: "160px", whiteSpace: "pre-wrap" }}>{t.maDichVu}</th>
-                                <th className="py-2 border" style={{ width: "110px", whiteSpace: "pre-wrap" }}>Người Phụ Trách</th>
+                                <th className="py-2 border" style={{ width: "110px", whiteSpace: "pre-wrap" }}>{t.nguoiPhuTrach}</th>
                                 <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayBatDau}</th>
                                 <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayKetThuc}</th>
-                                <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>Gói</th>
-                                <th className="py-2 border" style={{ width: "70px", whiteSpace: "pre-wrap" }}>Invoice Y/N</th>
-                                <th className="py-2 border" style={{ width: "60px", whiteSpace: "pre-wrap" }}>Invoice</th>
+                                <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.goi}</th>
+                                <th className="py-2 border" style={{ width: "70px", whiteSpace: "pre-wrap" }}>{t.invoiceYN}</th>
+                                <th className="py-2 border" style={{ width: "60px", whiteSpace: "pre-wrap" }}>{t.invoice}</th>
 
                                 {canViewRevenue && (
                                     <>
@@ -1548,7 +1600,7 @@ const getTotalRecordAfterDiscount = (rec) => {
               <td className="text-center border align-middle">{formatDateTimeReject(item.NgayTao)}</td>
             </tr>
           ))}
-          {rejectedData.length === 0 && (<tr><td colSpan="9" className="text-center py-3 text-muted">{currentLanguage === "vi" ? "Không có dữ liệu" : "No data"}</td></tr>)}
+          {rejectedData.length === 0 && (<tr><td colSpan="9" className="text-center py-3 text-muted">{currentLanguage === "vi" ? "Không có dữ liệu" : currentLanguage === "ko" ? "데이터가 없습니다" : "No data"}</td></tr>)}
         </tbody>
       </table>
       <Pagination currentLanguage={currentLanguage} current={currentPage.rejected} total={rejectedTotal} pageSize={20} onChange={(page) => handlePageChange("rejected", page)} />

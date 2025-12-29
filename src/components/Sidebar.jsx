@@ -36,14 +36,15 @@ useEffect(() => {
     list: {
       vi: "Tổng Quan",
       en: "Summary",
+      ko: "요약",
     },
-    hoso: { vi: "Tra Cứu Hồ Sơ", en: "Record Lookup" },
-    nhanvien: { vi: "Quản Lý Nhân Viên", en: "Employee Management" },
-    doanhthu: { vi: "Quản Lý Doanh Thu", en: "Revenue" },
-    b2b: {vi:"Quản lý B2B", en: "B2B Management"},
-    b2c: {vi:"Quản lý B2C", en: "B2C Management"},
-    vendor: {vi:"Quản lý Vendor", en: "Vendor Management"},
-    news: {vi:"Quản lý Tin Tức", en: "News"},
+    hoso: { vi: "Tra Cứu Hồ Sơ", en: "Record Lookup", ko: "서류 조회" },
+    nhanvien: { vi: "Quản Lý Nhân Viên", en: "Employee Management", ko: "직원 관리" },
+    doanhthu: { vi: "Quản Lý Doanh Thu", en: "Revenue", ko: "매출 관리" },
+    b2b: {vi:"Quản lý B2B", en: "B2B Management", ko: "B2B 관리"},
+    b2c: {vi:"Quản lý B2C", en: "B2C Management", ko: "B2C 관리"},
+    vendor: {vi:"Quản lý Vendor", en: "Vendor Management", ko: "벤더 관리"},
+    news: {vi:"Quản lý Tin Tức", en: "News", ko: "뉴스"},
   };
 
   const sidebarStyle = {

@@ -37,7 +37,7 @@ const NotificationPanel = ({
           justifyContent: "space-between",
         }}
       >
-        <span>🔔 {currentLanguage === "vi" ? "Thông báo mới" : "New Notifications"}</span>
+        <span>🔔 {currentLanguage === "vi" ? "Thông báo mới" : currentLanguage === "ko" ? "새 알림" : "New Notifications"}</span>
         <button
           onClick={() => setShowNotification(false)}
           style={{
@@ -54,7 +54,7 @@ const NotificationPanel = ({
 
       {notifications.length === 0 ? (
         <div style={{ fontSize: "14px", color: "#6b7280" }}>
-          {currentLanguage === "vi" ? "Chưa có thông báo" : "No notifications"}
+          {currentLanguage === "vi" ? "Chưa có thông báo" : currentLanguage === "ko" ? "알림이 없습니다" : "No notifications"}
         </div>
       ) : (
         notifications.map((n, i) => (

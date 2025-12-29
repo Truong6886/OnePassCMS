@@ -9,6 +9,7 @@ import { LayoutGrid, Edit, Trash2, X, Pin, PinOff, PlusCircle, Check, ChevronDow
 import Swal from "sweetalert2";
 import "../styles/DashboardList.css";
 import { authenticatedFetch } from "../utils/api";
+import translateService from "../utils/translateService";
 const B2C_CATEGORY_LIST = {
   "Hộ chiếu, Hộ tịch": [
     "Hộ chiếu cấp mới (Hợp pháp - Trẻ em)",
@@ -282,9 +283,24 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
       enterServiceName: "Enter Service Name", selectPackage: "Select Package",
       selectForm: "Select Channel", selectBranch: "Select Branch", selectNguoiPT: "Select Assignee", selectStatus: "Select Status",
       enterName: "Enter Name", enterPhone: "Enter Phone", enterEmail: "Enter Email", enterContent: "Enter Content", enterNote: "Enter Note",
+    },
+    ko: {
+      title: isNew ? "새 서비스 등록 (B2C)" : `요청 #${request?.YeuCauID || ""} 업데이트`,
+      subtitle: "고객 및 서비스 정보 입력",
+      customer: "고객", areaCode: "코드", phone: "전화번호", email: "이메일",
+      serviceType: "서비스 유형", category: "카테고리", serviceName: "서비스명",
+      package: "패키지", form: "채널", branch: "지점",
+      appointmentDate: "날짜", appointmentTime: "시간", content: "내용",
+      note: "비고", assignee: "담당자", status: "상태",
+      confirmPassword: "비밀번호 확인",
+      save: isNew ? "새 서비스 등록" : "변경 사항 저장",
+      selectServiceType: "유형 선택", selectCategory: "카테고리 선택",
+      enterServiceName: "서비스명 입력", selectPackage: "패키지 선택",
+      selectForm: "채널 선택", selectBranch: "지점 선택", selectNguoiPT: "담당자 선택", selectStatus: "상태 선택",
+      enterName: "고객명 입력", enterPhone: "전화번호 입력", enterEmail: "이메일 입력", enterContent: "내용 입력", enterNote: "비고 입력",
     }
   };
-  const t = translations[currentLanguage === "vi" ? "vi" : "en"];
+  const t = translations[currentLanguage === "vi" ? "vi" : currentLanguage === "ko" ? "ko" : "en"];
 
   // --- STATE FORM DATA ---
   const [formData, setFormData] = useState(
@@ -711,22 +727,7 @@ const RowItem = ({
   const canApprove = currentUser?.is_director || currentUser?.perm_approve_b2c;
   const canViewFinance = currentUser?.is_accountant || currentUser?.is_director;
   const hasServiceCode = item.MaHoSo && item.MaHoSo.length > 5;
-const translateService = (val) => {
-      if (!val) return "";
-      const map = {
-        "인증 센터": "Chứng thực",
-        "결혼 이민": "Kết hôn",
-        "출생신고 대행": "Khai sinh, khai tử",
-        "국적 대행": "Quốc tịch",
-        "여권 • 호적 대행": "Hộ chiếu, Hộ tịch",
-        "입양 절차 대행": "Nhận nuôi",
-        "비자 대행": "Thị thực",
-        "법률 컨설팅": "Tư vấn pháp lý",
-        "B2B 서비스": "Dịch vụ B2B",
-        "기타": "Khác",
-      };
-      return map[String(val).trim()] || val;
-  };
+
   // --- [ĐÃ SỬA] THÊM HÀM XỬ LÝ XÓA ---
   const handleDeleteClick = () => {
     Swal.fire({
@@ -850,7 +851,7 @@ const translateService = (val) => {
             {isVisible("loaiDichVu") && isFirst && (
                 <td rowSpan={rowSpanCount} className={`text-center text-truncate ${getStickyClass("loaiDichVu")}`} style={{...mergedStyle, maxWidth: "150px"}}>
                     {/* Gọi hàm dịch ở đây */}
-                    {translateService(item.LoaiDichVu)} 
+                    {translateService(item.LoaiDichVu, currentLanguage)} 
                 </td>
             )}
 
@@ -1021,6 +1022,41 @@ const B2CPage = () => {
   const [editingRequest, setEditingRequest] = useState(null);
  
   const canViewFinance = currentUser?.is_accountant || currentUser?.is_director;
+
+  // Translations for table headers
+  const tableHeadersTranslations = {
+    vi: {
+      stt: "STT", khachHang: "Khách hàng", maVung: "Mã vùng", soDienThoai: "Số Điện Thoại", email: "Email",
+      kenhLienHe: "Kênh Liên Hệ", coSo: "Cơ sở", loaiDichVu: "Loại Dịch Vụ", danhMuc: "Danh Mục", tenDichVu: "Tên Dịch Vụ",
+      maDichVu: "Mã Dịch Vụ", nguoiPhuTrach: "Người phụ trách", ngayHen: "Ngày hẹn", ngayBatDau: "Ngày bắt đầu",
+      ngayKetThuc: "Ngày kết thúc", trangThai: "Trạng thái", goi: "Gói", invoiceYN: "Invoice Y/N", invoice: "Invoice",
+      gio: "Giờ", noiDung: "Nội dung", ghiChu: "Ghi chú", ngayTao: "Ngày tạo",
+      doanhThuTruoc: "Doanh Thu Trước CK", mucChietKhau: "% CK", soTienChietKhau: "Tiền Chiết Khấu",
+      doanhThuSau: "Doanh Thu Sau CK", tongDoanhThuTichLuy: "Tổng Doanh Thu Sau CK", hanhDong: "Hành động",
+      dangKyDichVuMoi: "Đăng ký dịch vụ mới"
+    },
+    en: {
+      stt: "No.", khachHang: "Customer", maVung: "Area Code", soDienThoai: "Phone", email: "Email",
+      kenhLienHe: "Channel", coSo: "Branch", loaiDichVu: "Service Type", danhMuc: "Category", tenDichVu: "Service Name",
+      maDichVu: "Service Code", nguoiPhuTrach: "Assignee", ngayHen: "Appointment Date", ngayBatDau: "Start Date",
+      ngayKetThuc: "End Date", trangThai: "Status", goi: "Package", invoiceYN: "Invoice Y/N", invoice: "Invoice",
+      gio: "Time", noiDung: "Content", ghiChu: "Note", ngayTao: "Created",
+      doanhThuTruoc: "Revenue Before Discount", mucChietKhau: "Discount %", soTienChietKhau: "Discount Amount",
+      doanhThuSau: "Revenue After Discount", tongDoanhThuTichLuy: "Total Revenue After Discount", hanhDong: "Actions",
+      dangKyDichVuMoi: "Register New Service"
+    },
+    ko: {
+      stt: "번호", khachHang: "고객", maVung: "지역번호", soDienThoai: "전화번호", email: "이메일",
+      kenhLienHe: "채널", coSo: "지점", loaiDichVu: "서비스 유형", danhMuc: "카테고리", tenDichVu: "서비스명",
+      maDichVu: "서비스 코드", nguoiPhuTrach: "담당자", ngayHen: "약속 날짜", ngayBatDau: "시작일",
+      ngayKetThuc: "종료일", trangThai: "상태", goi: "패키지", invoiceYN: "청구서 Y/N", invoice: "청구서",
+      gio: "시간", noiDung: "내용", ghiChu: "비고", ngayTao: "생성일",
+      doanhThuTruoc: "할인 전 매출", mucChietKhau: "할인 %", soTienChietKhau: "할인 금액",
+      doanhThuSau: "할인 후 매출", tongDoanhThuTichLuy: "할인 후 총 매출", hanhDong: "작업",
+      dangKyDichVuMoi: "새 서비스 등록"
+    }
+  };
+  const tHeaders = tableHeadersTranslations[currentLanguage === "vi" ? "vi" : currentLanguage === "ko" ? "ko" : "en"];
 useEffect(() => {
     const fetchDichVu = async () => {
       try {
@@ -1043,40 +1079,40 @@ useEffect(() => {
     fetchDichVu();
   }, []); 
 const initialColumnKeys = [
-    { key: "id", label: "STT" },
-    { key: "hoTen", label: "Khách hàng" },
-    { key: "maVung", label: "Mã vùng" },
-    { key: "sdt", label: "Số Điện Thoại" },
-    { key: "email", label: "Email" },
-    { key: "hinhThuc", label: "Kênh Liên Hệ" },
-    { key: "coSo", label: "Cơ sở" },
-    { key: "loaiDichVu", label: "Loại Dịch Vụ" },
-    { key: "danhMuc", label: "Danh Mục" },
-    { key: "tenDichVu", label: "Tên Dịch Vụ" },
-    { key: "maDichVu", label: "Mã Dịch Vụ" },
-    ...(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant ? [{ key: "nguoiPhuTrach", label: "Người phụ trách" }] : []),
-    { key: "ngayHen", label: "Ngày hẹn" },
-    { key: "ngayBatDau", label: "Ngày bắt đầu" },
-    { key: "ngayKetThuc", label: "Ngày kết thúc" },
-    { key: "trangThai", label: "Trạng thái" },
-    { key: "goiDichVu", label: "Gói" },
-    { key: "invoice", label: "Invoice Y/N" },
-    ...(canViewFinance ? [{ key: "invoiceUrl", label: "Invoice" }] : []), 
-    { key: "gio", label: "Giờ" },
-    { key: "noiDung", label: "Nội dung" },
-    { key: "ghiChu", label: "Ghi chú" },
-    { key: "ngayTao", label: "Ngày tạo" },
+    { key: "id", label: tHeaders.stt },
+    { key: "hoTen", label: tHeaders.khachHang },
+    { key: "maVung", label: tHeaders.maVung },
+    { key: "sdt", label: tHeaders.soDienThoai },
+    { key: "email", label: tHeaders.email },
+    { key: "hinhThuc", label: tHeaders.kenhLienHe },
+    { key: "coSo", label: tHeaders.coSo },
+    { key: "loaiDichVu", label: tHeaders.loaiDichVu },
+    { key: "danhMuc", label: tHeaders.danhMuc },
+    { key: "tenDichVu", label: tHeaders.tenDichVu },
+    { key: "maDichVu", label: tHeaders.maDichVu },
+    ...(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant ? [{ key: "nguoiPhuTrach", label: tHeaders.nguoiPhuTrach }] : []),
+    { key: "ngayHen", label: tHeaders.ngayHen },
+    { key: "ngayBatDau", label: tHeaders.ngayBatDau },
+    { key: "ngayKetThuc", label: tHeaders.ngayKetThuc },
+    { key: "trangThai", label: tHeaders.trangThai },
+    { key: "goiDichVu", label: tHeaders.goi },
+    { key: "invoice", label: tHeaders.invoiceYN },
+    ...(canViewFinance ? [{ key: "invoiceUrl", label: tHeaders.invoice }] : []), 
+    { key: "gio", label: tHeaders.gio },
+    { key: "noiDung", label: tHeaders.noiDung },
+    { key: "ghiChu", label: tHeaders.ghiChu },
+    { key: "ngayTao", label: tHeaders.ngayTao },
     
    
     ...(canViewFinance ? [
-      { key: "doanhThuTruoc", label: (<span>Doanh Thu<br/>Trước CK</span>) },
-      { key: "mucChietKhau", label: (<span>%<br/>CK</span>) },
-      { key: "soTienChietKhau", label: (<span>Tiền<br/>Chiết Khấu</span>) },
-      { key: "doanhThuSau", label: (<span>Doanh Thu<br/>Sau CK</span>) },
-      { key: "tongDoanhThuTichLuy", label: (<span>Tổng Doanh Thu<br/>Sau Chiết Khấu</span>) },
+      { key: "doanhThuTruoc", label: (<span>{tHeaders.doanhThuTruoc}<br/></span>) },
+      { key: "mucChietKhau", label: (<span>{tHeaders.mucChietKhau}<br/></span>) },
+      { key: "soTienChietKhau", label: (<span>{tHeaders.soTienChietKhau}<br/></span>) },
+      { key: "doanhThuSau", label: (<span>{tHeaders.doanhThuSau}<br/></span>) },
+      { key: "tongDoanhThuTichLuy", label: (<span>{tHeaders.tongDoanhThuTichLuy}<br/></span>) },
     ] : []),
     
-    { key: "hanhDong", label: "Hành động" },
+    { key: "hanhDong", label: tHeaders.hanhDong },
   ];
 const handleApproveClick = (item) => {
     
@@ -1124,26 +1160,26 @@ const handleApproveClick = (item) => {
   const columnMenuRef = useRef(null);
 
 const tableHeaders = [
-    "STT", "Khách hàng", "Mã vùng", "Số Điện Thoại", "Email", 
-    "Kênh Liên Hệ", "Cơ sở", "Loại Dịch Vụ", "Danh Mục","Tên Dịch Vụ", "Mã Dịch Vụ",
-    ...((currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) ? ["Người phụ trách"] : []),
-    "Ngày hẹn", "Ngày bắt đầu",
-    "Ngày kết thúc","Trạng thái", "Gói", "Invoice Y/N",
-    ...(canViewFinance ? ["Invoice"] : []),
-    "Giờ", "Nội dung", "Ghi chú", "Ngày tạo",
+    tHeaders.stt, tHeaders.khachHang, tHeaders.maVung, tHeaders.soDienThoai, tHeaders.email, 
+    tHeaders.kenhLienHe, tHeaders.coSo, tHeaders.loaiDichVu, tHeaders.danhMuc, tHeaders.tenDichVu, tHeaders.maDichVu,
+    ...((currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) ? [tHeaders.nguoiPhuTrach] : []),
+    tHeaders.ngayHen, tHeaders.ngayBatDau,
+    tHeaders.ngayKetThuc, tHeaders.trangThai, tHeaders.goi, tHeaders.invoiceYN,
+    ...(canViewFinance ? [tHeaders.invoice] : []),
+    tHeaders.gio, tHeaders.noiDung, tHeaders.ghiChu, tHeaders.ngayTao,
 
     // --- Giữ cột tài chính ---
     ...(canViewFinance ? [
-       <div key="dt" className="d-flex flex-column align-items-center"><span>Doanh Thu</span><span>Trước Chiết Khấu</span></div>,
-       "Mức Chiết khấu",
-       <div key="tck" className="d-flex flex-column align-items-center"><span>Số Tiền</span><span>Chiết Khấu</span></div>,
-       <div key="dts" className="d-flex flex-column align-items-center"><span>Doanh Thu</span><span>Sau Chiết Khấu</span></div>,
-       <div key="tdttl" className="d-flex flex-column align-items-center"><span>Tổng Doanh Thu</span><span>Sau Chiết Khấu</span></div>
+       <div key="dt" className="d-flex flex-column align-items-center"><span>{tHeaders.doanhThuTruoc}</span></div>,
+       <div key="mck" className="d-flex flex-column align-items-center"><span>{tHeaders.mucChietKhau}</span></div>,
+       <div key="tck" className="d-flex flex-column align-items-center"><span>{tHeaders.soTienChietKhau}</span></div>,
+       <div key="dts" className="d-flex flex-column align-items-center"><span>{tHeaders.doanhThuSau}</span></div>,
+       <div key="tdttl" className="d-flex flex-column align-items-center"><span>{tHeaders.tongDoanhThuTichLuy}</span></div>
        
     ] : []),
     // -------------------------
     
-    "Hành động",
+    tHeaders.hanhDong,
   ];
   useEffect(() => {
     const fetchCatalogs = async () => {
@@ -1820,7 +1856,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                       }}
                     >
                       <PlusCircle size={18} />
-                      {currentLanguage === "vi" ? "Đăng ký dịch vụ mới" : "Register New Service"}
+                      {tHeaders.dangKyDichVuMoi}
                     </button>
                   </div>
 

@@ -96,12 +96,45 @@ const translations = {
     toggleColumns: "Toggle Columns",
     clearFilter: "Clear Filter"
   },
+    ko: {
+        title: "총 매출",
+        personalTab: "개인 고객 매출",
+        companyTab: "기업 고객 매출",
+        chartTitle: "총 매출 차트",
+        chartPersonal: "(개인)",
+        chartBusiness: "(기업)",
+        allServices: "전체 서비스",
+        allStaff: "전체 담당자",
+        filter: "필터",
+        noData: "데이터 없음",
+        loadingChart: "차트 불러오는 중...",
+        revenue: "매출",
+        time: "시간",
+        revenueUnit: "VND",
+        companyName: "기업명",
+        transactionCount: "서비스 건수",
+        revenueBefore: "할인 전 총 매출",
+        rank: "순위",
+        excel: "매출 목록 다운로드",
+        discountRate: "할인율",
+        revenueAfter: "할인 후 총 매출",
+        totalRevenue: "총 매출",
+        proportion: "기업 매출 비중",
+        other: "기타",
+        filterStaff: "담당자",
+        filterInvoice: "세금계산서",
+        filterDiscount: "할인율",
+        invoiceYes: "계산서 있음",
+        invoiceNo: "계산서 없음",
+        toggleColumns: "열 숨김/표시",
+        clearFilter: "필터 초기화"
+    },
 };
   const getServiceTypeOptions = (records) => {
   const types = records.map(r => {
       // Xử lý nếu LoaiDichVu là object hoặc string
       const val = typeof r.LoaiDichVu === 'object' ? r.LoaiDichVu?.name : r.LoaiDichVu;
-      return translateService(val);
+      return translateService(val, currentLanguage);
   }).filter(Boolean);
   return ["tatca", ...new Set(types)];
 };  
@@ -125,7 +158,7 @@ export default function DoanhThu() {
   const [endDate, setEndDate] = useState("");
   const [currentLanguage, setCurrentLanguage] = useState(localStorage.getItem("language") || "vi");
 
-  const t = translations[currentLanguage];
+    const t = translations[currentLanguage] || translations.en;
   const savedUser = localStorage.getItem("currentUser");
   const currentUser = savedUser ? JSON.parse(savedUser) : null;
 
@@ -408,7 +441,7 @@ const handleFilter = () => {
         if (selectedService !== "tatca") {
             filtered = filtered.filter(r => {
                 const type = typeof r.LoaiDichVu === 'object' ? r.LoaiDichVu?.name : r.LoaiDichVu;
-                return translateService(type) === selectedService;
+                return translateService(type, currentLanguage) === selectedService;
             });
         }
 
@@ -614,7 +647,7 @@ const handleFilter = () => {
         if (!filteredRecords.length) return toast.warning("Không có dữ liệu!");
         const exportData = filteredRecords.map((r) => ({
             ID: r.YeuCauID, "Họ tên": r.HoTen, "Email": r.Email, "SĐT": r.SoDienThoai,
-            "Dịch vụ": translateService(typeof r.TenDichVu === 'object' ? r.TenDichVu?.name : r.TenDichVu),
+            "Dịch vụ": translateService(typeof r.TenDichVu === 'object' ? r.TenDichVu?.name : r.TenDichVu, currentLanguage),
             "Doanh thu trước CK": r.DoanhThuTruocChietKhau || 0,
             "Chiết khấu": (r.MucChietKhau || 0) + "%",
             "Sau CK": r.DoanhThuSauChietKhau || 0,
@@ -1071,7 +1104,7 @@ const PersonalRow = ({ item, index, onSave, onDelete, savingRow, visibleColumns 
                         {/* 3. Loại Dịch Vụ (Gộp) */}
                         {visibleColumns.loaiDichVu && isFirst && (
                             <td rowSpan={rowSpanCount} className="text-center text-truncate" style={{ maxWidth: 100, ...mergedStyle }}>
-                                {translateService(typeof item.LoaiDichVu === 'object' ? item.LoaiDichVu?.name : item.LoaiDichVu)}
+                                {translateService(typeof item.LoaiDichVu === 'object' ? item.LoaiDichVu?.name : item.LoaiDichVu, currentLanguage)}
                             </td>
                         )}
 
@@ -1401,7 +1434,7 @@ const CompanyRow = ({ item, index, visibleColumns, onSave, onDelete, globalIndex
            
                         {visibleColumns.loaiDichVu && isFirstSubRow && (
                             <td rowSpan={rowSpanCount} className="text-center" style={mergedStyle}>
-                                {translateService(item.LoaiDichVu)}
+                                {translateService(item.LoaiDichVu, currentLanguage)}
                             </td>
                         )}
                         

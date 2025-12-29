@@ -6,6 +6,18 @@ const Header = ({ currentUser, onToggleSidebar, showSidebar, onOpenEditModal, ha
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const languageDropdownRef = useRef(null);
+  const headerTexts = {
+    editProfile: {
+      vi: "Sửa thông tin",
+      en: "Edit Profile",
+      ko: "프로필 수정",
+    },
+    logout: {
+      vi: "Đăng xuất",
+      en: "Logout",
+      ko: "로그아웃",
+    },
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -31,13 +43,11 @@ const Header = ({ currentUser, onToggleSidebar, showSidebar, onOpenEditModal, ha
     else if (action === "logout") handleLogout();
   };
 
-const handleLanguageChange = (lang) => {
-  localStorage.setItem("language", lang);
-
-  window.dispatchEvent(new Event("language-change"));
-
-  onLanguageChange(lang);
-};
+  const handleLanguageChange = (lang) => {
+    localStorage.setItem("language", lang);
+    window.dispatchEvent(new Event("language-change"));
+    onLanguageChange(lang);
+  };
 
   return (
   <header
@@ -224,6 +234,46 @@ const handleLanguageChange = (lang) => {
               }}
             />
           </button>
+
+            {/* 🇰🇷 Korean */}
+            <button
+              type="button"
+              onClick={() => handleLanguageChange("ko")}
+              style={{
+                width: "25px",
+                height: "25px",
+                borderRadius: "50%",
+                overflow: "hidden",
+                border: "none",
+                boxShadow:
+                  currentLanguage === "ko"
+                    ? "0 0 8px rgba(0,0,0,0.2), 0 0 10px rgba(255,255,255,0.4)"
+                    : "0 2px 6px rgba(0,0,0,0.2)",
+                background: "transparent",
+                cursor: "pointer",
+                padding: 0,
+                transition: "all 0.3s ease",
+                transform: currentLanguage === "ko" ? "scale(1.1)" : "scale(1)",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.15)")}
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.transform =
+                  currentLanguage === "ko" ? "scale(1.1)" : "scale(1)")
+              }
+            >
+              <img
+                src="https://flagcdn.com/w80/kr.png"
+                alt="Korean"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: "block",
+                  borderRadius: "50%",
+                  filter: "drop-shadow(0 0 2px rgba(0,0,0,0.2))",
+                }}
+              />
+            </button>
         </div>
 
 
@@ -338,7 +388,7 @@ const handleLanguageChange = (lang) => {
                   }}
                 >
                   <i className="bi bi-person-gear me-2 text-primary"></i>
-                  <span>{currentLanguage === 'vi' ? 'Sửa thông tin' : 'Edit Profile'}</span>
+                  <span>{headerTexts.editProfile[currentLanguage] || headerTexts.editProfile.en}</span>
                 </button>
 
                 <div className="border-top my-1"></div>
@@ -357,7 +407,7 @@ const handleLanguageChange = (lang) => {
                   }}
                 >
                   <i className="bi bi-box-arrow-right me-2"></i>
-                  <span>{currentLanguage === 'vi' ? 'Đăng xuất' : 'Logout'}</span>
+                  <span>{headerTexts.logout[currentLanguage] || headerTexts.logout.en}</span>
                 </button>
               </div>
             </div>

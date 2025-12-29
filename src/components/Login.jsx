@@ -167,16 +167,56 @@ const Login = ({ setCurrentUser }) => {
                 }}
               />
             </button>
+
+            {/* 🇰🇷 Korean */}
+            <button
+              type="button"
+              onClick={() => onLanguageChange('ko')}
+              style={{
+                width: '25px',
+                height: '25px',
+                borderRadius: '50%',
+                overflow: 'hidden',
+                border: 'none',
+                boxShadow:
+                  currentLanguage === 'ko'
+                    ? '0 0 8px rgba(0,0,0,0.2), 0 0 10px rgba(255,255,255,0.4)'
+                    : '0 2px 6px rgba(0,0,0,0.2)',
+                background: 'transparent',
+                cursor: 'pointer',
+                padding: 0,
+                transition: 'all 0.3s ease',
+                transform: currentLanguage === 'ko' ? 'scale(1.1)' : 'scale(1)',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.15)')}
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.transform =
+                  currentLanguage === 'ko' ? 'scale(1.1)' : 'scale(1)')
+              }
+            >
+              <img
+                src="https://flagcdn.com/w80/kr.png"
+                alt="Korean"
+                style={{
+                  width: '25px',
+                  height: '25px',
+                  objectFit: 'cover',
+                  display: 'block',
+                  borderRadius: '50%',
+                  filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.2))',
+                }}
+              />
+            </button>
           </div>
         </div>
 
         <div className="card-body p-5">
           <div className="text-center mb-5">
             <h3 className="text-primary fw-bold mb-3">
-              {currentLanguage === 'vi' ? 'Đăng nhập hệ thống' : 'System Login'}
+              {currentLanguage === 'vi' ? 'Đăng nhập hệ thống' : currentLanguage === 'ko' ? '시스템 로그인' : 'System Login'}
             </h3>
             <p className="text-muted mb-0 fs-5">
-              {currentLanguage === 'vi' ? 'Quản lý yêu cầu khách hàng' : 'Customer Request Management'}
+              {currentLanguage === 'vi' ? 'Quản lý yêu cầu khách hàng' : currentLanguage === 'ko' ? '고객 요청 관리' : 'Customer Request Management'}
             </p>
           </div>
 
@@ -189,7 +229,7 @@ const Login = ({ setCurrentUser }) => {
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
               <label htmlFor="username" className="form-label fw-semibold text-secondary fs-6">
-                {currentLanguage === 'vi' ? 'Tên đăng nhập' : 'Username'}
+                {currentLanguage === 'vi' ? 'Tên đăng nhập' : currentLanguage === 'ko' ? '사용자명' : 'Username'}
               </label>
               <input
                 type="text"
@@ -200,13 +240,13 @@ const Login = ({ setCurrentUser }) => {
                 onChange={handleInputChange}
                 required
                 disabled={loading}
-                placeholder={currentLanguage === 'vi' ? 'Nhập tên đăng nhập' : 'Enter username'}
+                placeholder={currentLanguage === 'vi' ? 'Nhập tên đăng nhập' : currentLanguage === 'ko' ? '사용자명 입력' : 'Enter username'}
               />
             </div>
 
             <div className="mb-5">
               <label htmlFor="password" className="form-label fw-semibold text-secondary fs-6">
-                {currentLanguage === 'vi' ? 'Mật khẩu' : 'Password'}
+                {currentLanguage === 'vi' ? 'Mật khẩu' : currentLanguage === 'ko' ? '비밀번호' : 'Password'}
               </label>
               <input
                 type="password"
@@ -217,7 +257,7 @@ const Login = ({ setCurrentUser }) => {
                 onChange={handleInputChange}
                 required
                 disabled={loading}
-                placeholder={currentLanguage === 'vi' ? 'Nhập mật khẩu' : 'Enter password'}
+                placeholder={currentLanguage === 'vi' ? 'Nhập mật khẩu' : currentLanguage === 'ko' ? '비밀번호 입력' : 'Enter password'}
               />
             </div>
 
@@ -230,9 +270,13 @@ const Login = ({ setCurrentUser }) => {
               {loading
                 ? currentLanguage === 'vi'
                   ? 'Đang đăng nhập...'
-                  : 'Signing in...'
+                  : currentLanguage === 'ko'
+                  ? '로그인 중...'
+                  : 'Logging in...'
                 : currentLanguage === 'vi'
                 ? 'Đăng nhập'
+                : currentLanguage === 'ko'
+                ? '로그인'
                 : 'Login'}
             </button>
           </form>

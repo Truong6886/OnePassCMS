@@ -30,34 +30,34 @@ const AddRequestModal = ({ users, data = [], onClose, onSave, currentLanguage })
   const handleSubmit = async () => {
     // ✅ Validate dữ liệu
     if (!formData.TenDichVu.trim()) {
-      showToast(currentLanguage === "vi" ? "Vui lòng chọn dịch vụ!" : "Please select a service!", "warning");
+      showToast(currentLanguage === "vi" ? "Vui lòng chọn dịch vụ!" : currentLanguage === "ko" ? "서비스를 선택하세요!" : "Please select a service!", "warning");
       return;
     }
 
     if (!formData.TenHinhThuc.trim()) {
-      showToast(currentLanguage === "vi" ? "Vui lòng chọn hình thức!" : "Please select a format!", "warning");
+      showToast(currentLanguage === "vi" ? "Vui lòng chọn hình thức!" : currentLanguage === "ko" ? "형식을 선택하세요!" : "Please select a format!", "warning");
       return;
     }
 
     if (!formData.HoTen.trim()) {
-      showToast(currentLanguage === "vi" ? "Vui lòng nhập họ tên!" : "Please enter full name!", "warning");
+      showToast(currentLanguage === "vi" ? "Vui lòng nhập họ tên!" : currentLanguage === "ko" ? "이름을 입력하세요!" : "Please enter full name!", "warning");
       return;
     }
 
     if (!formData.Email.trim()) {
-      showToast(currentLanguage === "vi" ? "Vui lòng nhập email!" : "Please enter email!", "warning");
+      showToast(currentLanguage === "vi" ? "Vui lòng nhập email!" : currentLanguage === "ko" ? "이메일을 입력하세요!" : "Please enter email!", "warning");
       return;
     }
 
     if (!formData.SoDienThoai.trim()) {
-      showToast(currentLanguage === "vi" ? "Vui lòng nhập số điện thoại!" : "Please enter phone number!", "warning");
+      showToast(currentLanguage === "vi" ? "Vui lòng nhập số điện thoại!" : currentLanguage === "ko" ? "전화번호를 입력하세요!" : "Please enter phone number!", "warning");
       return;
     }
 
     // ✅ Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.Email)) {
-      showToast(currentLanguage === "vi" ? "Email không hợp lệ!" : "Invalid email!", "error");
+      showToast(currentLanguage === "vi" ? "Email không hợp lệ!" : currentLanguage === "ko" ? "유효하지 않은 이메일!" : "Invalid email!", "error");
       return;
     }
 
@@ -88,20 +88,20 @@ const AddRequestModal = ({ users, data = [], onClose, onSave, currentLanguage })
         showToast(
           currentLanguage === "vi"
             ? "Thêm yêu cầu mới thành công!"
-            : "New request added successfully!",
+            : currentLanguage === "ko" ? "새 요청이 성공적으로 추가되었습니다!" : "New request added successfully!",
           "success"
         );
         handleClose();
       } else {
         showToast(
-          `${currentLanguage === "vi" ? "Lỗi khi thêm yêu cầu:" : "Error adding request:"} ${result.message || "Unknown error"}`,
+          `${currentLanguage === "vi" ? "Lỗi khi thêm yêu cầu:" : currentLanguage === "ko" ? "요청 추가 중 오류:" : "Error adding request:"} ${result.message || "Unknown error"}`,
           "error"
         );
       }
     } catch (err) {
       console.error("❌ Lỗi thêm yêu cầu:", err);
       showToast(
-        currentLanguage === "vi" ? "Lỗi kết nối máy chủ!" : "Server connection error!",
+        currentLanguage === "vi" ? "Lỗi kết nối máy chủ!" : currentLanguage === "ko" ? "서버 연결 오류!" : "Server connection error!",
         "error"
       );
     } finally {
@@ -237,63 +237,63 @@ const AddRequestModal = ({ users, data = [], onClose, onSave, currentLanguage })
         >
           {/* Dịch vụ */}
           <SelectField
-            label={currentLanguage === "vi" ? "Dịch vụ *" : "Service *"}
+            label={currentLanguage === "vi" ? "Dịch vụ *" : currentLanguage === "ko" ? "서비스 *" : "Service *"}
             value={formData.TenDichVu}
             options={serviceOptions}
             onChange={(v) => handleInputChange("TenDichVu", v)}
-            placeholder={currentLanguage === "vi" ? "--Chọn dịch vụ--" : "--Select service--"}
+            placeholder={currentLanguage === "vi" ? "--Chọn dịch vụ--" : currentLanguage === "ko" ? "--서비스 선택--" : "--Select service--"}
           />
 
           {/* Hình thức */}
           <SelectField
-            label={currentLanguage === "vi" ? "Hình thức *" : "Format *"}
+            label={currentLanguage === "vi" ? "Hình thức *" : currentLanguage === "ko" ? "형식 *" : "Format *"}
             value={formData.TenHinhThuc}
             options={formatOptions}
             onChange={(v) => handleInputChange("TenHinhThuc", v)}
-            placeholder={currentLanguage === "vi" ? "--Chọn hình thức--" : "--Select format--"}
+            placeholder={currentLanguage === "vi" ? "--Chọn hình thức--" : currentLanguage === "ko" ? "--형식 선택--" : "--Select format--"}
           />
 
           {/* Họ tên */}
           <InputField
-            label={currentLanguage === "vi" ? "Họ tên *" : "Full Name *"}
+            label={currentLanguage === "vi" ? "Họ tên *" : currentLanguage === "ko" ? "이름 *" : "Full Name *"}
             value={formData.HoTen}
             onChange={(v) => handleInputChange("HoTen", v)}
-            placeholder={currentLanguage === "vi" ? "Nhập họ tên" : "Enter full name"}
+            placeholder={currentLanguage === "vi" ? "Nhập họ tên" : currentLanguage === "ko" ? "이름 입력" : "Enter full name"}
           />
 
           {/* Email */}
           <InputField
-            label="Email *"
+            label={currentLanguage === "ko" ? "이메일 *" : "Email *"}
             value={formData.Email}
             onChange={(v) => handleInputChange("Email", v)}
-            placeholder={currentLanguage === "vi" ? "Nhập email" : "Enter email"}
+            placeholder={currentLanguage === "vi" ? "Nhập email" : currentLanguage === "ko" ? "이메일 입력" : "Enter email"}
           />
 
           {/* SĐT */}
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <SelectField
-              label={currentLanguage === "vi" ? "Mã vùng" : "Area Code"}
+              label={currentLanguage === "vi" ? "Mã vùng" : currentLanguage === "ko" ? "지역 코드" : "Area Code"}
               value={formData.MaVung}
               options={["+84", "+82"]} // Giữ nguyên array string cho các trường hợp đơn giản
               onChange={(v) => handleInputChange("MaVung", v)}
             />
             <InputField
-              label={currentLanguage === "vi" ? "SĐT *" : "Phone *"}
+              label={currentLanguage === "vi" ? "SĐT *" : currentLanguage === "ko" ? "전화번호 *" : "Phone *"}
               value={formData.SoDienThoai}
               onChange={(v) => handleInputChange("SoDienThoai", v)}
-              placeholder={currentLanguage === "vi" ? "Nhập số điện thoại" : "Enter phone number"}
+              placeholder={currentLanguage === "vi" ? "Nhập số điện thoại" : currentLanguage === "ko" ? "전화번호 입력" : "Enter phone number"}
             />
           </div>
 
           <InputField
-            label={currentLanguage === "vi" ? "Tiêu đề" : "Title"}
+            label={currentLanguage === "vi" ? "Tiêu đề" : currentLanguage === "ko" ? "제목" : "Title"}
             value={formData.TieuDe}
             onChange={(v) => handleInputChange("TieuDe", v)}
           />
 
           <InputField
             type="date"
-            label={currentLanguage === "vi" ? "Ngày" : "Date"}
+            label={currentLanguage === "vi" ? "Ngày" : currentLanguage === "ko" ? "날짜" : "Date"}
             value={formData.ChonNgay}
             onChange={(v) => handleInputChange("ChonNgay", v)}
           />

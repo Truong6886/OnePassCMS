@@ -5,6 +5,7 @@ import EmailList from "./EmailList";
 import { LayoutGrid, Pin, PinOff, Filter, ChevronRight, Check, X, FileText } from "lucide-react"; 
 import { exportRequestsToExcel } from "../../utils/exportExcel";
 import { authenticatedFetch } from "../../utils/api";
+import translateService from "../../utils/translateService";
 
 // --- 1. B2C Request Row (Đã cập nhật đầy đủ logic tài chính) ---
 const B2CRequestRow = ({ item, visibleColumns, pinnedColumns, currentUser, currentLanguage }) => {
@@ -14,17 +15,6 @@ const B2CRequestRow = ({ item, visibleColumns, pinnedColumns, currentUser, curre
 
   const canViewFinance = currentUser?.is_accountant || currentUser?.is_director;
   const canViewAssignee = currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant;
-
-  const translateService = (serviceName) => {
-    const map = {
-      "인증 센터": "Chứng thực", "결혼 이민": "Kết hôn",
-      "출생신고 대행": "Khai sinh, khai tử", "출입국 행정 대행": "Xuất nhập cảnh",
-      "신분증명 서류 대행": "Giấy tờ tuỳ thân", "입양 절차 대행": "Nhận nuôi",
-      "비자 대행": "Thị thực", "법률 컨설팅": "Tư vấn pháp lý",
-      "B2B 서비스": "Dịch vụ B2B", "기타": "Khác",
-    };
-    return map[serviceName] || serviceName;
-  };
 
   const translateBranch = (branch) => {
     const map = { "서울": "Seoul", "부산": "Busan" };
@@ -117,8 +107,8 @@ const B2CRequestRow = ({ item, visibleColumns, pinnedColumns, currentUser, curre
              
              {/* Loại dịch vụ (Gộp) */}
              {isVisible("loaiDichVu") && isFirst && (
-                <td rowSpan={rowSpanCount} style={{ maxWidth: "150px", ...mergedStyle }} className={`text-center text-truncate ${getStickyClass("loaiDichVu")}`} title={translateService(item.LoaiDichVu)}>
-                    {translateService(item.LoaiDichVu)}
+                <td rowSpan={rowSpanCount} style={{ maxWidth: "150px", ...mergedStyle }} className={`text-center text-truncate ${getStickyClass("loaiDichVu")}`} title={translateService(item.LoaiDichVu, currentLanguage)}>
+                    {translateService(item.LoaiDichVu, currentLanguage)}
                 </td>
              )}
 
@@ -257,53 +247,99 @@ const DashboardList = ({
   const canViewAssignee = currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant;
 
   const initialColumnKeys = [
-    { key: "id", label: "STT" },
-    { key: "hoTen", label: "Khách hàng" },
-    { key: "maVung", label: "Mã vùng" },
-    { key: "sdt", label: "Số Điện Thoại" },
-    { key: "email", label: "Email" },
-    { key: "hinhThuc", label: "Hình thức" },
-    { key: "coSo", label: "Cơ sở" },
-    { key: "loaiDichVu", label: "Loại Dịch Vụ" },
-    { key: "tenDichVu", label: "Tên Dịch Vụ" },
-    { key: "danhMuc", label: "Danh Mục" },
-    { key: "maDichVu", label: "Mã Dịch Vụ" },
-    ...(canViewAssignee ? [{ key: "nguoiPhuTrach", label: "Người phụ trách" }] : []),
-    { key: "ngayHen", label: "Ngày hẹn" },
-    { key: "trangThai", label: "Trạng thái" },
-    { key: "goiDichVu", label: "Gói Dịch Vụ" },
-    { key: "invoice", label: "Invoice Y/N" },
-    ...(canViewFinance ? [{ key: "invoiceUrl", label: "Invoice" }] : []),
-    { key: "gio", label: "Giờ" },
-    { key: "noiDung", label: "Nội dung" },
-    { key: "ghiChu", label: "Ghi chú" },
-    { key: "ngayTao", label: "Ngày tạo" },
-    
-    ...(canViewFinance ? [
-      { key: "doanhThuTruoc", label: "Doanh Thu Trước CK" },
-      { key: "mucChietKhau", label: "% CK" },
-      { key: "soTienChietKhau", label: "Tiền Chiết Khấu" },
-      { key: "doanhThuSau", label: "Doanh Thu Sau CK" },
-      { key: "tongDoanhThuTichLuy", label: "Tổng Doanh Thu Sau CK" },
-    ] : []),
+    "id", "hoTen", "maVung", "sdt", "email", "hinhThuc", "coSo", "loaiDichVu", "tenDichVu", "danhMuc", "maDichVu",
+    ...(canViewAssignee ? ["nguoiPhuTrach"] : []),
+    "ngayHen", "trangThai", "goiDichVu", "invoice",
+    ...(canViewFinance ? ["invoiceUrl"] : []),
+    "gio", "noiDung", "ghiChu", "ngayTao",
+    ...(canViewFinance ? ["doanhThuTruoc", "mucChietKhau", "soTienChietKhau", "doanhThuSau", "tongDoanhThuTichLuy"] : [])
   ];
 
-  const tableHeaders = [
-    "STT", "Khách hàng", "Mã vùng", "Số Điện Thoại", "Email", 
-    "Hình thức", "Cơ sở", "Loại Dịch Vụ", "Tên Dịch Vụ", "Danh Mục", "Mã Dịch Vụ",
-    ...(canViewAssignee ? ["Người phụ trách"] : []),
-    "Ngày hẹn", "Trạng thái", "Gói Dịch Vụ", "Invoice Y/N",
-    ...(canViewFinance ? ["Invoice"] : []),
-    "Giờ", "Nội dung", "Ghi chú", "Ngày tạo",
+  const columnLabels = {
+    vi: {
+      id: "STT", hoTen: "Khách hàng", maVung: "Mã vùng", sdt: "Số Điện Thoại", 
+      email: "Email", hinhThuc: "Hình thức", coSo: "Cơ sở", loaiDichVu: "Loại Dịch Vụ",
+      tenDichVu: "Tên Dịch Vụ", danhMuc: "Danh Mục", maDichVu: "Mã Dịch Vụ",
+      nguoiPhuTrach: "Người phụ trách", ngayHen: "Ngày hẹn", trangThai: "Trạng thái",
+      goiDichVu: "Gói Dịch Vụ", invoice: "Invoice Y/N", invoiceUrl: "Invoice",
+      gio: "Giờ", noiDung: "Nội dung", ghiChu: "Ghi chú", ngayTao: "Ngày tạo",
+      doanhThuTruoc: "Doanh Thu Trước CK", mucChietKhau: "% CK", soTienChietKhau: "Tiền Chiết Khấu",
+      doanhThuSau: "Doanh Thu Sau CK", tongDoanhThuTichLuy: "Tổng Doanh Thu Sau CK"
+    },
+    en: {
+      id: "No.", hoTen: "Customer", maVung: "Region Code", sdt: "Phone", 
+      email: "Email", hinhThuc: "Method", coSo: "Branch", loaiDichVu: "Service Type",
+      tenDichVu: "Service Name", danhMuc: "Category", maDichVu: "Service Code",
+      nguoiPhuTrach: "Assignee", ngayHen: "Appointment Date", trangThai: "Status",
+      goiDichVu: "Package", invoice: "Invoice Y/N", invoiceUrl: "Invoice",
+      gio: "Time", noiDung: "Content", ghiChu: "Notes", ngayTao: "Created Date",
+      doanhThuTruoc: "Revenue Before Discount", mucChietKhau: "Discount %", soTienChietKhau: "Discount Amount",
+      doanhThuSau: "Revenue After Discount", tongDoanhThuTichLuy: "Total Revenue After Discount"
+    },
+    ko: {
+      id: "번호", hoTen: "고객", maVung: "지역코드", sdt: "전화", 
+      email: "이메일", hinhThuc: "방법", coSo: "지점", loaiDichVu: "서비스 유형",
+      tenDichVu: "서비스명", danhMuc: "카테고리", maDichVu: "서비스 코드",
+      nguoiPhuTrach: "담당자", ngayHen: "약속일", trangThai: "상태",
+      goiDichVu: "패키지", invoice: "송장 Y/N", invoiceUrl: "송장",
+      gio: "시간", noiDung: "내용", ghiChu: "메모", ngayTao: "생성일",
+      doanhThuTruoc: "할인 전 매출", mucChietKhau: "할인 %", soTienChietKhau: "할인액",
+      doanhThuSau: "할인 후 매출", tongDoanhThuTichLuy: "누적 할인 후 매출"
+    }
+  };
+
+  const getColumnLabel = (key) => {
+    return columnLabels[currentLanguage]?.[key] || columnLabels.vi[key] || key;
+  };
+
+  const visibleColumnLabels = columnLabels[currentLanguage] || columnLabels.vi;
+  const columnOptions = [
+    { key: "id", label: getColumnLabel("id") },
+    { key: "hoTen", label: getColumnLabel("hoTen") },
+    { key: "maVung", label: getColumnLabel("maVung") },
+    { key: "sdt", label: getColumnLabel("sdt") },
+    { key: "email", label: getColumnLabel("email") },
+    { key: "hinhThuc", label: getColumnLabel("hinhThuc") },
+    { key: "coSo", label: getColumnLabel("coSo") },
+    { key: "loaiDichVu", label: getColumnLabel("loaiDichVu") },
+    { key: "tenDichVu", label: getColumnLabel("tenDichVu") },
+    { key: "danhMuc", label: getColumnLabel("danhMuc") },
+    { key: "maDichVu", label: getColumnLabel("maDichVu") },
+    ...(canViewAssignee ? [{ key: "nguoiPhuTrach", label: getColumnLabel("nguoiPhuTrach") }] : []),
+    { key: "ngayHen", label: getColumnLabel("ngayHen") },
+    { key: "trangThai", label: getColumnLabel("trangThai") },
+    { key: "goiDichVu", label: getColumnLabel("goiDichVu") },
+    { key: "invoice", label: getColumnLabel("invoice") },
+    ...(canViewFinance ? [{ key: "invoiceUrl", label: getColumnLabel("invoiceUrl") }] : []),
+    { key: "gio", label: getColumnLabel("gio") },
+    { key: "noiDung", label: getColumnLabel("noiDung") },
+    { key: "ghiChu", label: getColumnLabel("ghiChu") },
+    { key: "ngayTao", label: getColumnLabel("ngayTao") },
+    ...(canViewFinance ? [
+      { key: "doanhThuTruoc", label: getColumnLabel("doanhThuTruoc") },
+      { key: "mucChietKhau", label: getColumnLabel("mucChietKhau") },
+      { key: "soTienChietKhau", label: getColumnLabel("soTienChietKhau") },
+      { key: "doanhThuSau", label: getColumnLabel("doanhThuSau") },
+      { key: "tongDoanhThuTichLuy", label: getColumnLabel("tongDoanhThuTichLuy") },
+    ] : [])
+  ];
+
+  const tableHeaders = useMemo(() => [
+    getColumnLabel("id"), getColumnLabel("hoTen"), getColumnLabel("maVung"), getColumnLabel("sdt"), getColumnLabel("email"), 
+    getColumnLabel("hinhThuc"), getColumnLabel("coSo"), getColumnLabel("loaiDichVu"), getColumnLabel("tenDichVu"), getColumnLabel("danhMuc"), getColumnLabel("maDichVu"),
+    ...(canViewAssignee ? [getColumnLabel("nguoiPhuTrach")] : []),
+    getColumnLabel("ngayHen"), getColumnLabel("trangThai"), getColumnLabel("goiDichVu"), getColumnLabel("invoice"),
+    ...(canViewFinance ? [getColumnLabel("invoiceUrl")] : []),
+    getColumnLabel("gio"), getColumnLabel("noiDung"), getColumnLabel("ghiChu"), getColumnLabel("ngayTao"),
 
     ...(canViewFinance ? [
-       <div key="dt" className="d-flex flex-column align-items-center"><span>Doanh Thu</span><span>Trước Chiết Khấu</span></div>,
-       "Mức Chiết khấu",
-       <div key="tck" className="d-flex flex-column align-items-center"><span>Số Tiền</span><span>Chiết Khấu</span></div>,
-       <div key="dts" className="d-flex flex-column align-items-center"><span>Doanh Thu</span><span>Sau Chiết Khấu</span></div>,
-       <div key="tdttl" className="d-flex flex-column align-items-center"><span>Tổng Doanh Thu</span><span>Sau Chiết Khấu</span></div>
+       <div key="dt" className="d-flex flex-column align-items-center"><span>{getColumnLabel("doanhThuTruoc")}</span></div>,
+       getColumnLabel("mucChietKhau"),
+       <div key="tck" className="d-flex flex-column align-items-center"><span>{getColumnLabel("soTienChietKhau")}</span></div>,
+       <div key="dts" className="d-flex flex-column align-items-center"><span>{getColumnLabel("doanhThuSau")}</span></div>,
+       <div key="tdttl" className="d-flex flex-column align-items-center"><span>{getColumnLabel("tongDoanhThuTichLuy")}</span></div>
     ] : []),
-  ];
+  ], [currentLanguage, canViewAssignee, canViewFinance]);
 
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const initial = {};
@@ -377,17 +413,6 @@ const DashboardList = ({
     });
   };
 
-  const translateService = (serviceName) => {
-    const map = {
-      "인증 센터": "Chứng thực", "결혼 이민": "Kết hôn",
-      "출생신고 대행": "Khai sinh, khai tử", "출입국 행정 대행": "Xuất nhập cảnh",
-      "신분증명 서류 대행": "Giấy tờ tuỳ thân", "입양 절차 대행": "Nhận nuôi",
-      "비자 대행": "Thị thực", "법률 컨설팅": "Tư vấn pháp lý",
-      "B2B 서비스": "Dịch vụ B2B", "기타": "Khác",
-    };
-    return map[serviceName] || serviceName;
-  };
-
   const SERVICE_OPTIONS = ["Chứng thực", "Kết hôn", "Khai sinh, khai tử", "Xuất nhập cảnh", "Giấy tờ tuỳ thân", "Nhận nuôi", "Thị thực", "Tư vấn pháp lý", "Dịch vụ B2B", "Khác"];
   const STATUS_OPTIONS = ["Tư vấn", "Đang xử lý", "Đang nộp hồ sơ", "Hoàn thành"];
   const PACKAGE_OPTIONS = ["Thông thường", "Cấp tốc"];
@@ -402,7 +427,7 @@ const DashboardList = ({
         (item.MaHoSo || "").toLowerCase().includes(searchLower);
 
       if (!matchSearch) return false;
-      if (filterService && translateService(item.LoaiDichVu) !== filterService) return false;
+      if (filterService && translateService(item.LoaiDichVu, currentLanguage) !== filterService) return false;
       if (filterAssignee && item.NguoiPhuTrach?.name !== filterAssignee) return false;
       if (filterStatus && item.TrangThai !== filterStatus) return false;
       if (filterPackage && item.GoiDichVu !== filterPackage) return false;
@@ -449,23 +474,47 @@ const DashboardList = ({
                 <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: "12px", borderCollapse: "collapse", tableLayout: "fixed" }}>
                    <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a" }}>
                     <tr>
-                        <th className="py-2 border" style={{ width: "40px", ...b2bHeaderStyle }}>STT</th>
-                        <th className="py-2 border" style={{ width: "120px", ...b2bHeaderStyle }}>Doanh Nghiệp</th>
-                        <th className="py-2 border" style={{ width: "90px", ...b2bHeaderStyle }}>Số ĐKKD</th>
-                        <th className="py-2 border" style={{ width: "100px", ...b2bHeaderStyle }}>Loại dịch vụ</th>
-                        <th className="py-2 border" style={{ width: "140px", ...b2bHeaderStyle }}>Tên dịch vụ</th>
-                        <th className="py-2 border" style={{ width: "180px", ...b2bHeaderStyle }}>Danh mục</th>
-                        <th className="py-2 border" style={{ width: "160px", ...b2bHeaderStyle }}>Mã Dịch Vụ</th>
-                        <th className="py-2 border" style={{ width: "110px", ...b2bHeaderStyle }}>Người Phụ Trách</th>
-                        <th className="py-2 border" style={{ width: "90px", ...b2bHeaderStyle }}>Ngày Bắt Đầu</th>
-                        <th className="py-2 border" style={{ width: "90px", ...b2bHeaderStyle }}>Ngày Kết Thúc</th>
-                        <th className="py-2 border" style={{ width: "100px", ...b2bHeaderStyle }}>Gói</th>
+                        <th className="py-2 border" style={{ width: "40px", ...b2bHeaderStyle }}>
+                          {currentLanguage === "vi" ? "STT" : currentLanguage === "ko" ? "번호" : "No."}
+                        </th>
+                        <th className="py-2 border" style={{ width: "120px", ...b2bHeaderStyle }}>
+                          {currentLanguage === "vi" ? "Doanh Nghiệp" : currentLanguage === "ko" ? "기업" : "Company"}
+                        </th>
+                        <th className="py-2 border" style={{ width: "90px", ...b2bHeaderStyle }}>
+                          {currentLanguage === "vi" ? "Số ĐKKD" : currentLanguage === "ko" ? "사업자등록번호" : "Business No."}
+                        </th>
+                        <th className="py-2 border" style={{ width: "100px", ...b2bHeaderStyle }}>
+                          {currentLanguage === "vi" ? "Loại dịch vụ" : currentLanguage === "ko" ? "서비스 유형" : "Service Type"}
+                        </th>
+                        <th className="py-2 border" style={{ width: "140px", ...b2bHeaderStyle }}>
+                          {currentLanguage === "vi" ? "Tên dịch vụ" : currentLanguage === "ko" ? "서비스명" : "Service Name"}
+                        </th>
+                        <th className="py-2 border" style={{ width: "180px", ...b2bHeaderStyle }}>
+                          {currentLanguage === "vi" ? "Danh mục" : currentLanguage === "ko" ? "카테고리" : "Category"}
+                        </th>
+                        <th className="py-2 border" style={{ width: "160px", ...b2bHeaderStyle }}>
+                          {currentLanguage === "vi" ? "Mã Dịch Vụ" : currentLanguage === "ko" ? "서비스 코드" : "Service Code"}
+                        </th>
+                        <th className="py-2 border" style={{ width: "110px", ...b2bHeaderStyle }}>
+                          {currentLanguage === "vi" ? "Người Phụ Trách" : currentLanguage === "ko" ? "담당자" : "Assignee"}
+                        </th>
+                        <th className="py-2 border" style={{ width: "90px", ...b2bHeaderStyle }}>
+                          {currentLanguage === "vi" ? "Ngày Bắt Đầu" : currentLanguage === "ko" ? "시작 날짜" : "Start Date"}
+                        </th>
+                        <th className="py-2 border" style={{ width: "90px", ...b2bHeaderStyle }}>
+                          {currentLanguage === "vi" ? "Ngày Kết Thúc" : currentLanguage === "ko" ? "종료 날짜" : "End Date"}
+                        </th>
+                        <th className="py-2 border" style={{ width: "100px", ...b2bHeaderStyle }}>
+                          {currentLanguage === "vi" ? "Gói" : currentLanguage === "ko" ? "패키지" : "Package"}
+                        </th>
                        
                     </tr>
                    </thead>
                    <tbody>
                       {b2bLoading ? (
-                           <tr><td colSpan="13" className="text-center py-4">Đang tải dữ liệu...</td></tr>
+                           <tr><td colSpan="13" className="text-center py-4">
+                             {currentLanguage === "vi" ? "Đang tải dữ liệu..." : currentLanguage === "ko" ? "데이터 로드 중..." : "Loading data..."}
+                           </td></tr>
                       ) : sortedB2BData.length > 0 ? (
                         sortedB2BData.map((rec, idx) => {
                             const servicesList = (rec.DanhMuc || "").split(" + ");
@@ -546,7 +595,7 @@ const DashboardList = ({
              {/* Pagination Logic (Giữ nguyên) */}
              <div className="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-white" style={{ marginTop: "0", borderTop: "1px solid #dee2e6" }}>
                   <div className="text-muted small">
-                    {currentLanguage === "vi" ? `Hiển thị ${sortedB2BData.length} / ${b2bTotal} hàng` : `Showing ${sortedB2BData.length} / ${b2bTotal} rows`}
+                    {currentLanguage === "vi" ? `Hiển thị ${sortedB2BData.length} / ${b2bTotal} hàng` : currentLanguage === "ko" ? `${sortedB2BData.length} / ${b2bTotal}행 표시` : `Showing ${sortedB2BData.length} / ${b2bTotal} rows`}
                   </div>
                   <div className="d-flex justify-content-center align-items-center">
                     <nav>
@@ -570,9 +619,9 @@ const DashboardList = ({
    <div className="mb-4">
       <div className="d-flex border-bottom mb-3" style={{ gap: "1.5rem", fontSize: "15px", fontWeight: 500 }}>
         {[
-          { key: "request", labelVi: "Danh sách dịch vụ", labelEn: "Service List" },
-          { key: "b2b", labelVi: "Danh sách B2B", labelEn: "B2B List" },
-          { key: "email", labelVi: "Danh sách email", labelEn: "Email List" },
+          { key: "request", labelVi: "Danh sách dịch vụ", labelEn: "Service List", labelKo: "서비스 목록" },
+          { key: "b2b", labelVi: "Danh sách B2B", labelEn: "B2B List", labelKo: "B2B 목록" },
+          { key: "email", labelVi: "Danh sách email", labelEn: "Email List", labelKo: "이메일 목록" },
         ].map((tab) => (
           <div key={tab.key} onClick={() => setSubViewMode(tab.key)}
             style={{
@@ -582,7 +631,7 @@ const DashboardList = ({
               fontWeight: subViewMode === tab.key ? "600" : "500", transition: "all 0.2s ease",
             }}
           >
-            {currentLanguage === "vi" ? tab.labelVi : tab.labelEn}
+            {currentLanguage === "vi" ? tab.labelVi : currentLanguage === "ko" ? tab.labelKo : tab.labelEn}
           </div>
         ))}
       </div>
@@ -592,7 +641,7 @@ const DashboardList = ({
           <div className="d-flex justify-content-between align-items-center mt-3 mb-3">
              <div className="d-flex align-items-center gap-3">
                 <input type="text" className="form-control shadow-sm"
-                    placeholder={currentLanguage === "vi" ? "Tìm kiếm..." : "Search..."}
+                    placeholder={currentLanguage === "vi" ? "Tìm kiếm..." : currentLanguage === "ko" ? "검색..." : "Search..."}
                     style={{ width: 250, borderRadius: "20px", fontSize: "14px" }}
                     value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -607,13 +656,13 @@ const DashboardList = ({
                     }}
                 >
                     <i className="bi bi-file-earmark-excel"></i>
-                    {currentLanguage === "vi" ? "Tải danh sách dịch vụ" : "Download Service List"}
+                    {currentLanguage === "vi" ? "Tải danh sách dịch vụ" : currentLanguage === "ko" ? "서비스 목록 다운로드" : "Download Service List"}
                 </button>
 
                 <div className="position-relative" ref={columnMenuRef}>
                     <button className="btn btn-light border shadow-sm d-flex align-items-center justify-content-center"
                         style={{ width: 40, height: 40, borderRadius: "8px", backgroundColor: "#fff" }}
-                        onClick={() => setShowColumnMenu(!showColumnMenu)} title={currentLanguage === "vi" ? "Ẩn/Hiện cột" : "Toggle Columns"}
+                        onClick={() => setShowColumnMenu(!showColumnMenu)} title={currentLanguage === "vi" ? "Ẩn/Hiện cột" : currentLanguage === "ko" ? "열 숨기기/표시" : "Toggle Columns"}
                     >
                         <LayoutGrid size={20} color="#4b5563" />
                     </button>
@@ -621,7 +670,7 @@ const DashboardList = ({
                         <div className="position-absolute bg-white shadow rounded border p-2"
                             style={{ top: "100%", right: 0, zIndex: 1000, width: "280px", maxHeight: "400px", overflowY: "auto" }}
                         >
-                            <div className="fw-bold mb-2 px-1" style={{fontSize: '14px'}}>{currentLanguage === "vi" ? "Cấu hình cột:" : "Column Config:"}</div>
+                            <div className="fw-bold mb-2 px-1" style={{fontSize: '14px'}}>{currentLanguage === "vi" ? "Cấu hình cột:" : currentLanguage === "ko" ? "열 설정:" : "Column Config:"}</div>
                             {initialColumnKeys.map((col) => {
                                 if (col.key === "nguoiPhuTrach" && !canViewAssignee) return null;
                                 return (
@@ -652,7 +701,7 @@ const DashboardList = ({
                          style={{ position: "absolute", zIndex: 1050, minWidth: "220px", overflow: "visible" }}>
                         <div className="dropdown-group position-relative border-bottom">
                             <div className="dropdown-item d-flex justify-content-between align-items-center py-2 px-3 fw-medium" style={{cursor:"pointer", fontSize:"14px"}}>
-                                <span>{currentLanguage === "vi" ? "Loại dịch vụ" : "Service Type"}</span>
+                                <span>{currentLanguage === "vi" ? "Loại dịch vụ" : currentLanguage === "ko" ? "서비스 유형" : "Service Type"}</span>
                                 <ChevronRight size={14} className="text-muted"/>
                             </div>
                             <div className="submenu shadow-lg rounded-3 border bg-white py-1">
@@ -668,7 +717,7 @@ const DashboardList = ({
                         {/* Các filter khác tương tự... */}
                          <div className="dropdown-group position-relative border-bottom">
                             <div className="dropdown-item d-flex justify-content-between align-items-center py-2 px-3 fw-medium" style={{cursor:"pointer", fontSize:"14px"}}>
-                                <span>{currentLanguage === "vi" ? "Trạng thái" : "Status"}</span>
+                                <span>{currentLanguage === "vi" ? "Trạng thái" : currentLanguage === "ko" ? "상태" : "Status"}</span>
                                 <ChevronRight size={14} className="text-muted"/>
                             </div>
                             <div className="submenu shadow-lg rounded-3 border bg-white py-1">
@@ -755,7 +804,7 @@ const DashboardList = ({
                   ) : (
                     <tr>
                       <td colSpan={tableHeaders.length} className="text-center py-4 text-muted">
-                        {currentLanguage === "vi" ? "Không có dữ liệu phù hợp" : "No matching data found"}
+                        {currentLanguage === "vi" ? "Không có dữ liệu phù hợp" : currentLanguage === "ko" ? "일치하는 데이터가 없습니다" : "No matching data found"}
                       </td>
                     </tr>
                   )}
@@ -770,6 +819,8 @@ const DashboardList = ({
               <div className="text-muted small">
                  {currentLanguage === "vi" 
                     ? `Hiển thị ${currentTableRows.length} / ${itemsPerPage} hàng (trang ${currentPage}/${totalPages})` 
+                    : currentLanguage === "ko"
+                    ? `${currentTableRows.length} / ${itemsPerPage} 행 표시 (페이지 ${currentPage}/${totalPages})`
                     : `Showing ${currentTableRows.length} / ${itemsPerPage} rows (page ${currentPage}/${totalPages})`}
               </div>
 
@@ -797,7 +848,7 @@ const DashboardList = ({
                 </nav>
                 
                 <div className="ms-3 text-muted small">
-                  {currentLanguage === "vi" ? `Trang ${currentPage}/${totalPages}` : `Page ${currentPage}/${totalPages}`}
+                  {currentLanguage === "vi" ? `Trang ${currentPage}/${totalPages}` : currentLanguage === "ko" ? `페이지 ${currentPage}/${totalPages}` : `Page ${currentPage}/${totalPages}`}
                 </div>
               </div>
             </div>

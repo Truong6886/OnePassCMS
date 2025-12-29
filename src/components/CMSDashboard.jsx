@@ -77,14 +77,19 @@ export default function CMSDashboard() {
     setTimeRange, 
     setCurrentUser,
   } = useDashboardData();
-  const statusFilteredData = filterByStatus(data, filterStatus);
-  const { grouped, chartData: statusChartData, total } = groupByService(statusFilteredData, translateService);
-  const chartFilteredData = filterByTimeRange(data, timeRange);
-  const chartData = groupChartData(chartFilteredData, translateService);
-  const allServices = getAllServices(chartFilteredData, translateService);
+  
   const [currentLanguage, setCurrentLanguage] = useState(
     localStorage.getItem("language") || "vi"
   );
+
+  // Create language-aware translate function
+  const translateWithLanguage = (serviceName) => translateService(serviceName, currentLanguage);
+  
+  const statusFilteredData = filterByStatus(data, filterStatus);
+  const { grouped, chartData: statusChartData, total } = groupByService(statusFilteredData, translateWithLanguage);
+  const chartFilteredData = filterByTimeRange(data, timeRange);
+  const chartData = groupChartData(chartFilteredData, translateWithLanguage);
+  const allServices = getAllServices(chartFilteredData, translateWithLanguage);
 
   useEffect(() => {
     const saved = localStorage.getItem("language");
