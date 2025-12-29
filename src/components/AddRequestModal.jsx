@@ -74,7 +74,7 @@ const AddRequestModal = ({ users, data = [], onClose, onSave, currentLanguage })
 
       console.log("Đang gửi yêu cầu mới...", newItem);
 
-      const res = await fetch("https://onepasscms-backend.onrender.com/api/yeucau", {
+      const res = await fetch("https://onepasscms-backend-tvdy.onrender.com/api/yeucau", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newItem),

@@ -13,7 +13,7 @@ export default function useSocketListener({
 
   useEffect(() => {
     if (!socketRef.current) {
-      socketRef.current = io("https://onepasscms-backend.onrender.com", {
+      socketRef.current = io("https://onepasscms-backend-tvdy.onrender.com", {
         transports: ["websocket", "polling"],
         reconnection: true,
         reconnectionAttempts: Infinity,

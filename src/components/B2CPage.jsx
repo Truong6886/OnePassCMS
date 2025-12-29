@@ -382,7 +382,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
       }
       try {
         setLoading(true);
-        const verifyRes = await fetch(`https://onepasscms-backend.onrender.com/api/verify-password`, {
+        const verifyRes = await fetch(`https://onepasscms-backend-tvdy.onrender.com/api/verify-password`, {
           method: "POST", 
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username: currentUser.username, password: formData.ConfirmPassword })
@@ -1068,7 +1068,7 @@ useEffect(() => {
     const fetchDichVu = async () => {
       try {
        
-        const res = await fetch("https://onepasscms-backend.onrender.com/api/dichvu");
+        const res = await fetch("https://onepasscms-backend-tvdy.onrender.com/api/dichvu");
         
         if (!res.ok) throw new Error("Kết nối thất bại");
 
@@ -1133,7 +1133,7 @@ const handleApproveClick = (item) => {
 
  const handleConfirmApprove = async (id, fullFormData) => {
     try {
-        const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/approve/${id}`, {
+        const res = await fetch(`https://onepasscms-backend-tvdy.onrender.com/api/yeucau/approve/${id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
@@ -1191,10 +1191,10 @@ const tableHeaders = [
   useEffect(() => {
     const fetchCatalogs = async () => {
       try {
-        const resDV = await fetch("https://onepasscms-backend.onrender.com/api/dichvu");
+        const resDV = await fetch("https://onepasscms-backend-tvdy.onrender.com/api/dichvu");
         const dv = await resDV.json();
         if (dv.success) setDichvuList(dv.data);
-        const resUser = await fetch("https://onepasscms-backend.onrender.com/api/User");
+        const resUser = await fetch("https://onepasscms-backend-tvdy.onrender.com/api/User");
         const u = await resUser.json();
         if (u.success) setUsers(u.data);
       } catch (err) { console.error("Lỗi tải danh mục:", err); }
@@ -1204,7 +1204,7 @@ const tableHeaders = [
 
 const fetchData = async () => {
     try {
-      let url = `https://onepasscms-backend.onrender.com/api/yeucau?page=${currentPage}&limit=${itemsPerPage}`;
+      let url = `https://onepasscms-backend-tvdy.onrender.com/api/yeucau?page=${currentPage}&limit=${itemsPerPage}`;
       
       if (currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) { 
           url += `&is_admin=true`; 
@@ -1241,11 +1241,11 @@ const fetchData = async () => {
 
   const handleModalSave = async (formData) => {
     try {
-      let url = "https://onepasscms-backend.onrender.com/api/yeucau";
+      let url = "https://onepasscms-backend-tvdy.onrender.com/api/yeucau";
       let method = "POST";
 
       if (formData.YeuCauID) {
-          url = `https://onepasscms-backend.onrender.com/api/yeucau/${formData.YeuCauID}`;
+          url = `https://onepasscms-backend-tvdy.onrender.com/api/yeucau/${formData.YeuCauID}`;
           method = "PUT";
       }
 
@@ -1300,7 +1300,7 @@ const handleApprove = async (id) => {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/approve/${id}`, {
+          const res = await fetch(`https://onepasscms-backend-tvdy.onrender.com/api/yeucau/approve/${id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ userId: currentUser.id }),
@@ -1434,7 +1434,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
     }
     try {
         setLoading(true);
-        const verifyRes = await fetch(`https://onepasscms-backend.onrender.com/api/verify-password`, {
+        const verifyRes = await fetch(`https://onepasscms-backend-tvdy.onrender.com/api/verify-password`, {
           method: "POST", 
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username: currentUser.username, password: formData.ConfirmPassword })
@@ -1743,7 +1743,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
 };
   const handleDelete = async (id) => {
     try {
-      const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${id}`, { method: "DELETE" });
+      const res = await fetch(`https://onepasscms-backend-tvdy.onrender.com/api/yeucau/${id}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) { showToast("Đã xoá", "success"); fetchData(); } 
       else { showToast("Không thể xoá", "error"); }

@@ -78,7 +78,7 @@ export default function Vendor() {
   const fetchVendors = async () => {
     setLoading(true);
     try {
-      const res = await authenticatedFetch("https://onepasscms-backend.onrender.com/api/vendors");
+      const res = await authenticatedFetch("https://onepasscms-backend-tvdy.onrender.com/api/vendors");
       const json = await res.json();
       if (json.success) {
         setVendors(json.data);
@@ -129,8 +129,8 @@ export default function Vendor() {
 
     try {
       const url = isEditing 
-        ? `https://onepasscms-backend.onrender.com/api/vendors/${formData.id}`
-        : "https://onepasscms-backend.onrender.com/api/vendors";
+        ? `https://onepasscms-backend-tvdy.onrender.com/api/vendors/${formData.id}`
+        : "https://onepasscms-backend-tvdy.onrender.com/api/vendors";
       
       const method = isEditing ? "PUT" : "POST";
       const payload = { ...formData };
@@ -168,7 +168,7 @@ export default function Vendor() {
 
     if (result.isConfirmed) {
       try {
-        const res = await authenticatedFetch(`https://onepasscms-backend.onrender.com/api/vendors/${id}`, {
+        const res = await authenticatedFetch(`https://onepasscms-backend-tvdy.onrender.com/api/vendors/${id}`, {
           method: "DELETE"
         });
         const json = await res.json();

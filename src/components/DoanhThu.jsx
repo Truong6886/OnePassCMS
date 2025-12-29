@@ -241,7 +241,7 @@ export default function DoanhThu() {
 
   const fetchStaffList = async () => {
     try {
-        const res = await fetch("https://onepasscms-backend.onrender.com/api/User");
+        const res = await fetch("https://onepasscms-backend-tvdy.onrender.com/api/User");
         const json = await res.json();
         if (json.success) {
             setStaffList(json.data || []);
@@ -287,7 +287,7 @@ export default function DoanhThu() {
   const fetchPersonalData = async (page = 1) => {
     setLoading(true);
     try {
-      const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau?page=${page}&limit=${rowsPerPage}`);
+      const res = await fetch(`https://onepasscms-backend-tvdy.onrender.com/api/yeucau?page=${page}&limit=${rowsPerPage}`);
       const result = await res.json();
       if (result.success) {
         setRecords(result.data);
@@ -313,8 +313,8 @@ export default function DoanhThu() {
     setLoading(true);
     try {
       const [resApproved, resServices] = await Promise.all([
-         fetch(`https://onepasscms-backend.onrender.com/api/b2b/approved?limit=1000`),
-         fetch(`https://onepasscms-backend.onrender.com/api/b2b/services?limit=1000`)
+         fetch(`https://onepasscms-backend-tvdy.onrender.com/api/b2b/approved?limit=1000`),
+         fetch(`https://onepasscms-backend-tvdy.onrender.com/api/b2b/services?limit=1000`)
       ]);
       const jsonApproved = await resApproved.json();
       const jsonServices = await resServices.json();
@@ -531,7 +531,7 @@ const handleFilter = () => {
           InvoiceUrl: updatedData.InvoiceUrl
       };
 
-      const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${id}`, {
+      const res = await fetch(`https://onepasscms-backend-tvdy.onrender.com/api/yeucau/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -563,7 +563,7 @@ const handleFilter = () => {
     }).then(async (result) => {
         if (result.isConfirmed) {
             try {
-                const res = await fetch(`https://onepasscms-backend.onrender.com/api/yeucau/${id}`, { method: "DELETE" });
+                const res = await fetch(`https://onepasscms-backend-tvdy.onrender.com/api/yeucau/${id}`, { method: "DELETE" });
                 const json = await res.json();
                 if (json.success) { 
                     toast.success("Đã xoá thành công"); 
@@ -595,7 +595,7 @@ const handleFilter = () => {
           InvoiceUrl: updatedData.InvoiceUrl
       };
 
-      const res = await fetch(`https://onepasscms-backend.onrender.com/api/b2b/services/update/${id}`, {
+      const res = await fetch(`https://onepasscms-backend-tvdy.onrender.com/api/b2b/services/update/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -628,7 +628,7 @@ const handleFilter = () => {
     }).then(async (result) => {
         if (result.isConfirmed) {
             try {
-                const res = await fetch(`https://onepasscms-backend.onrender.com/api/b2b/services/${id}`, { method: "DELETE" });
+                const res = await fetch(`https://onepasscms-backend-tvdy.onrender.com/api/b2b/services/${id}`, { method: "DELETE" });
                 const json = await res.json();
                 if (json.success) { 
                     toast.success("Đã xoá thành công"); 
@@ -1045,7 +1045,7 @@ const PersonalRow = ({ item, index, onSave, onDelete, savingRow, visibleColumns 
             try {
                 const formUpload = new FormData();
                 formUpload.append("file", selectedFile);
-                const res = await fetch("https://onepasscms-backend.onrender.com/api/upload-invoice", { method: "POST", body: formUpload });
+                const res = await fetch("https://onepasscms-backend-tvdy.onrender.com/api/upload-invoice", { method: "POST", body: formUpload });
                 const data = await res.json();
                 if (data.success) {
                     finalUrl = data.url;

@@ -31,7 +31,7 @@ const EmailList = ({
 
     try {
       const res = await authenticatedFetch(
-        `https://onepasscms-backend.onrender.com/api/email/${item.id}`,
+        `https://onepasscms-backend-tvdy.onrender.com/api/email/${item.id}`,
         { method: "DELETE" }
       );
       const deleteResult = await res.json();
@@ -148,7 +148,7 @@ const EmailList = ({
                         onClick={async () => {
                           try {
                             const res = await fetch(
-                              `https://onepasscms-backend.onrender.com/api/email/${item.id}`,
+                              `https://onepasscms-backend-tvdy.onrender.com/api/email/${item.id}`,
                               {
                                 method: "PUT",
                                 headers: {

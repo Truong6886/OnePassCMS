@@ -68,7 +68,7 @@ export default function TraCuuHoSo() {
     setRecord(null);
 
     try {
-      const res = await fetch("https://onepasscms-backend.onrender.com/api/yeucau");
+      const res = await fetch("https://onepasscms-backend-tvdy.onrender.com/api/yeucau");
       const result = await res.json();
 
       if (result.success) {
@@ -80,7 +80,7 @@ export default function TraCuuHoSo() {
 
         if (found) {
           const pdfRes = await fetch(
-            `https://onepasscms-backend.onrender.com/api/pdf-chuaky/${found.MaHoSo}`
+            `https://onepasscms-backend-tvdy.onrender.com/api/pdf-chuaky/${found.MaHoSo}`
           );
           const pdfResult = await pdfRes.json();
 
@@ -121,7 +121,7 @@ export default function TraCuuHoSo() {
   try {
     showToast("Đang tải lên PDF...", "info");
 
-    const res = await fetch("https://onepasscms-backend.onrender.com/api/upload-pdf", {
+    const res = await fetch("https://onepasscms-backend-tvdy.onrender.com/api/upload-pdf", {
       method: "POST",
       body: formData,
     });

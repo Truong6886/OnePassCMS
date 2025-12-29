@@ -57,7 +57,7 @@ function NewsPage() {
     try {
       setLoading(true);
       const response = await authenticatedFetch(
-        "https://onepasscms-backend.onrender.com/api/tintuc",
+        "https://onepasscms-backend-tvdy.onrender.com/api/tintuc",
         { method: "GET" }
       );
       if (!response) {
@@ -267,7 +267,7 @@ function NewsPage() {
   const translateText = async (text) => {
     if (!text || !text.trim()) return "";
     try {
-      const response = await authenticatedFetch("https://onepasscms-backend.onrender.com/api/translate", {
+      const response = await authenticatedFetch("https://onepasscms-backend-tvdy.onrender.com/api/translate", {
         method: "POST",
         body: JSON.stringify({ text, sourceLang: "vi", targetLang: "ko" })
       });
@@ -306,7 +306,7 @@ function NewsPage() {
         setUploadingImage(true);
       }
 
-      const response = await fetch("https://onepasscms-backend.onrender.com/api/upload-news-image", {
+      const response = await fetch("https://onepasscms-backend-tvdy.onrender.com/api/upload-news-image", {
         method: "POST",
         headers,
         body: formData,
@@ -467,8 +467,8 @@ function NewsPage() {
     try {
       setLoading(true);
       const url = isEdit
-        ? `https://onepasscms-backend.onrender.com/api/tintuc/${form.id}`
-        : "https://onepasscms-backend.onrender.com/api/tintuc";
+        ? `https://onepasscms-backend-tvdy.onrender.com/api/tintuc/${form.id}`
+        : "https://onepasscms-backend-tvdy.onrender.com/api/tintuc";
       const method = isEdit ? "PUT" : "POST";
 
       console.log("📝 Gửi request:", { method, url, payload, formId: form.id, isEdit });
@@ -518,7 +518,7 @@ function NewsPage() {
     try {
       setLoading(true);
       const response = await authenticatedFetch(
-        `https://onepasscms-backend.onrender.com/api/tintuc/${confirmDeleteId}`,
+        `https://onepasscms-backend-tvdy.onrender.com/api/tintuc/${confirmDeleteId}`,
         { method: "DELETE" }
       );
 

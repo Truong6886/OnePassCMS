@@ -206,7 +206,7 @@ const chartDataByTime = allDates.map((dateStr) => {
     setLoading(true);
     try {
       const user = JSON.parse(localStorage.getItem("currentUser"));
-      let url = `https://onepasscms-backend.onrender.com/api/yeucau?limit=1000`;
+      let url = `https://onepasscms-backend-tvdy.onrender.com/api/yeucau?limit=1000`;
       if (user?.id) {
         url += `&userId=${user.id}`;
         url += `&is_admin=${user.is_admin || false}`;
@@ -240,13 +240,13 @@ const chartDataByTime = allDates.map((dateStr) => {
     setB2bLoading(true);
     try {
       const serviceRes = await authenticatedFetch(
-        "https://onepasscms-backend.onrender.com/api/b2b/services?limit=1000"
+        "https://onepasscms-backend-tvdy.onrender.com/api/b2b/services?limit=1000"
       );
       const serviceJson = await serviceRes.json();
       const rawServices = serviceJson.success ? serviceJson.data : [];
 
       const companyRes = await authenticatedFetch(
-        "https://onepasscms-backend.onrender.com/api/b2b/approved"
+        "https://onepasscms-backend-tvdy.onrender.com/api/b2b/approved"
       );
       const companyJson = await companyRes.json();
       const rawCompanies = companyJson.success ? companyJson.data : [];

@@ -104,7 +104,7 @@ const formatDateTimeReject = (isoString) => {
 const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
 const unformatNumber = (value) => (value ? value.toString().replace(/\./g, "") : "");
 
-const API_BASE = "https://onepasscms-backend.onrender.com/api";
+const API_BASE = "https://onepasscms-backend-tvdy.onrender.com/api";
 const parseMoney = (str) => {
   if (!str) return 0;
   return parseFloat(str.toString().replace(/\./g, "")) || 0;
@@ -1298,13 +1298,6 @@ const renderServicesTab = () => {
                             <tr>
                                 <th className="py-2 border" style={{ width: "40px", whiteSpace: "pre-wrap" }}>{t.stt}</th>
                                 <th className="py-2 border" style={{ width: "120px", whiteSpace: "pre-wrap" }}>{t.chonDN}</th>
-<<<<<<< HEAD
-                                <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.soDKKD}</th>
-                                <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.loaiDichVu}</th>
-                                <th className="py-2 border" style={{ width: "140px", whiteSpace: "pre-wrap" }}>{t.tenDichVu}</th>
-                                <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>{t.danhMuc}</th>
-                              
-=======
                                 <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>Số ĐKKD</th>
                                 <th className="py-2 border" style={{ width: "219px", whiteSpace: "pre-wrap" }}>Hồ sơ</th>
                                 <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.loaiDichVu}</th>
@@ -1314,21 +1307,14 @@ const renderServicesTab = () => {
                   
 
                                 <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>Danh mục</th>
->>>>>>> 6259297caa854ba654597cf9079d5d47f3f2fe95
                                 <th className="py-2 border" style={{ width: "160px", whiteSpace: "pre-wrap" }}>{t.maDichVu}</th>
                                 <th className="py-2 border" style={{ width: "110px", whiteSpace: "pre-wrap" }}>{t.nguoiPhuTrach}</th>
                                 <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayBatDau}</th>
                                 <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayKetThuc}</th>
-<<<<<<< HEAD
-                                <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.goi}</th>
-                                <th className="py-2 border" style={{ width: "70px", whiteSpace: "pre-wrap" }}>{t.invoiceYN}</th>
-                                <th className="py-2 border" style={{ width: "60px", whiteSpace: "pre-wrap" }}>{t.invoice}</th>
-=======
                                 <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>Gói</th>
                                 <th className="py-2 border" style={{ width: "70px", whiteSpace: "pre-wrap" }}>Invoice Y/N</th>
                                 <th className="py-2 border" style={{ width: "60px", whiteSpace: "pre-wrap" }}>Invoice</th>
                                 <th className="py-2 border" style={{ width: "120px", whiteSpace: "pre-wrap" }}>Trạng thái</th>
->>>>>>> 6259297caa854ba654597cf9079d5d47f3f2fe95
 
                                 {canViewRevenue && (
                                     <>

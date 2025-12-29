@@ -11,7 +11,7 @@ export default function useEmail(subViewMode) {
   useEffect(() => {
     if (subViewMode === "email") {
       setLoading(true);
-      authenticatedFetch("https://onepasscms-backend.onrender.com/api/email")
+      authenticatedFetch("https://onepasscms-backend-tvdy.onrender.com/api/email")
         .then(async (res) => {
           const data = await res.json();
           if (data.success) {
@@ -36,7 +36,7 @@ export default function useEmail(subViewMode) {
 
     try {
       const res = await authenticatedFetch(
-        `https://onepasscms-backend.onrender.com/api/email/${id}`,
+        `https://onepasscms-backend-tvdy.onrender.com/api/email/${id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -80,7 +80,7 @@ export default function useEmail(subViewMode) {
 
     try {
       const res = await authenticatedFetch(
-        `https://onepasscms-backend.onrender.com/api/email/${id}`,
+        `https://onepasscms-backend-tvdy.onrender.com/api/email/${id}`,
         {
           method: "DELETE",
         }

@@ -10,7 +10,7 @@ export default function useProfile(currentUser, setCurrentUser, currentLanguage)
       
       // 2. Thay fetch bằng authenticatedFetch
       const res = await authenticatedFetch(
-        `https://onepasscms-backend.onrender.com/api/User/${userId}`, 
+        `https://onepasscms-backend-tvdy.onrender.com/api/User/${userId}`, 
         { 
           method: "PUT", 
           body: formData,

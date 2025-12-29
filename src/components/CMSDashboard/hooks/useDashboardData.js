@@ -66,7 +66,7 @@ export default function useDashboardData() {
 
       // 1. Gọi API lấy danh sách yêu cầu
       const res1 = await authenticatedFetch(
-        `https://onepasscms-backend.onrender.com/api/yeucau?${queryParams.toString()}`
+        `https://onepasscms-backend-tvdy.onrender.com/api/yeucau?${queryParams.toString()}`
       );
       const result1 = await res1.json();
 
@@ -80,7 +80,7 @@ export default function useDashboardData() {
 
       // 2. Gọi API lấy danh sách User (để lọc)
       const res2 = await authenticatedFetch(
-        "https://onepasscms-backend.onrender.com/api/User"
+        "https://onepasscms-backend-tvdy.onrender.com/api/User"
       );
       const result2 = await res2.json();
       if (result2.success) setUsers(result2.data);
@@ -102,7 +102,7 @@ export default function useDashboardData() {
   const handleSave = async (updatedItem) => {
     try {
       const res = await authenticatedFetch(
-        `https://onepasscms-backend.onrender.com/api/yeucau/${updatedItem.YeuCauID}`,
+        `https://onepasscms-backend-tvdy.onrender.com/api/yeucau/${updatedItem.YeuCauID}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -137,7 +137,7 @@ export default function useDashboardData() {
   const handleDelete = async (id) => {
     try {
       const res = await authenticatedFetch(
-        `https://onepasscms-backend.onrender.com/api/yeucau/${id}`,
+        `https://onepasscms-backend-tvdy.onrender.com/api/yeucau/${id}`,
         { method: "DELETE" }
       );
       const result = await res.json();
