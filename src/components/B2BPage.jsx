@@ -174,7 +174,8 @@ const handleRemoveRow = (index) => {
     MucChietKhau: "",
     GhiChu: "",
     NguoiPhuTrachId: "",
-    ConfirmPassword: ""
+      ConfirmPassword: "",
+      DiaChiNhan: ""
   });
 
   useEffect(() => {
@@ -256,6 +257,7 @@ const handleEditService = (rec) => {
     SoDKKD: company ? company.SoDKKD : (rec.soDKKD || ""),
     LoaiDichVu: rec.serviceType,
     TenDichVu: rec.serviceName,
+    DiaChiNhan: rec.DiaChiNhan || "",
     
     DanhMuc: mainCatName, 
     NgayBatDau: rec.startDate ? rec.startDate : "",
@@ -297,6 +299,7 @@ const handleOpenAddServiceModal = () => {
       LoaiDichVu: "",
       DanhMuc: "",
       TenDichVu: "",
+        DiaChiNhan: "",
       NgayBatDau: new Date().toISOString().split('T')[0],
       NgayHoanThanh: "",
       ThuTucCapToc: "No",
@@ -446,6 +449,7 @@ const handleModalSubmit = async () => {
       LoaiDichVu: newServiceForm.LoaiDichVu,
       DanhMuc: finalDanhMuc,
       TenDichVu: newServiceForm.TenDichVu || "",
+      DiaChiNhan: newServiceForm.DiaChiNhan || "",
       NgayThucHien: newServiceForm.NgayBatDau,
       NgayHoanThanh: newServiceForm.NgayHoanThanh || null,
       ThuTucCapToc: newServiceForm.ThuTucCapToc,
@@ -824,6 +828,7 @@ const B2B_SERVICE_MAPPING = {
           soDKKD: item.SoDKKD,
           serviceType: item.LoaiDichVu,
           serviceName: item.TenDichVu,
+          DiaChiNhan: item.DiaChiNhan || "",
           package: item.GoiDichVu, 
           invoiceYN: item.YeuCauHoaDon, 
           invoiceUrl: item.InvoiceUrl, 
@@ -850,19 +855,18 @@ const B2B_SERVICE_MAPPING = {
         setServiceData([]);
       }
     } catch (error) {
-      console.error("Lỗi load services:", error);
+      console.error("Load services failed", error);
       setServiceData([]);
     } finally {
       setLoading(false);
     }
   };
-
+          
   const calculateCompanyTotalRevenue = (companyId) => {
     if (!serviceData || serviceData.length === 0) return 0; 
     return serviceData
       .filter(r => String(r.companyId) === String(companyId)) 
       .reduce((sum, r) => {
-        const val = r.revenueAfter; 
         if (!val) return sum;
         try {
           const cleanStr = String(val).replace(/\./g, '');
