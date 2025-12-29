@@ -343,7 +343,7 @@ const DashboardList = ({
 
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const initial = {};
-    initialColumnKeys.forEach(col => initial[col.key] = true);
+      initialColumnKeys.forEach(col => initial[col] = true);
     return initial;
   });
 
@@ -418,6 +418,14 @@ const DashboardList = ({
   const PACKAGE_OPTIONS = ["Thông thường", "Cấp tốc"];
 
   const filteredData = useMemo(() => {
+    console.log("🔍 DashboardList - Raw data:", data);
+    console.log("🔍 DashboardList - Data length:", data?.length);
+    
+    if (!data || !Array.isArray(data)) {
+      console.warn("⚠️ DashboardList - Data is not an array or is undefined");
+      return [];
+    }
+    
     return data.filter(item => {
       const searchLower = searchTerm.toLowerCase();
       const matchSearch = 
@@ -434,9 +442,12 @@ const DashboardList = ({
 
       return true;
     });
-  }, [data, searchTerm, filterService, filterAssignee, filterStatus, filterPackage]);
+  }, [data, searchTerm, filterService, filterAssignee, filterStatus, filterPackage, currentLanguage]);
 
   const currentTableRows = filteredData; 
+
+  console.log("📊 DashboardList - currentTableRows:", currentTableRows);
+  console.log("📊 DashboardList - currentTableRows length:", currentTableRows?.length);
 
   const handleExportExcel = () => {
     const ok = exportRequestsToExcel(filteredData, currentLanguage);

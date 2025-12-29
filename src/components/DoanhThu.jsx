@@ -130,14 +130,15 @@ const translations = {
         clearFilter: "필터 초기화"
     },
 };
-  const getServiceTypeOptions = (records) => {
-  const types = records.map(r => {
-      // Xử lý nếu LoaiDichVu là object hoặc string
-      const val = typeof r.LoaiDichVu === 'object' ? r.LoaiDichVu?.name : r.LoaiDichVu;
-      return translateService(val, currentLanguage);
-  }).filter(Boolean);
-  return ["tatca", ...new Set(types)];
-};  
+const getServiceTypeOptions = (records, lang) => {
+    const types = records
+        .map((r) => {
+            const val = typeof r.LoaiDichVu === "object" ? r.LoaiDichVu?.name : r.LoaiDichVu;
+            return translateService(val, lang);
+        })
+        .filter(Boolean);
+    return ["tatca", ...new Set(types)];
+};
 export default function DoanhThu() {
 
   const [records, setRecords] = useState([])
@@ -176,8 +177,8 @@ export default function DoanhThu() {
   
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const filterMenuRef = useRef(null);
-  const [staffList, setStaffList] = useState([]); 
-  const serviceOptions = getServiceTypeOptions(records);
+    const [staffList, setStaffList] = useState([]); 
+    const serviceOptions = getServiceTypeOptions(records, currentLanguage);
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
   const columnMenuRef = useRef(null);
 
@@ -975,7 +976,7 @@ const handleFilter = () => {
   );
 }
 
-const PersonalRow = ({ item, index, onSave, onDelete, savingRow, visibleColumns }) => {
+const PersonalRow = ({ item, index, onSave, onDelete, savingRow, visibleColumns, currentLanguage }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
     const [uploading, setUploading] = useState(false);
@@ -1254,17 +1255,18 @@ const PersonalTable = ({ loading, data, handleSaveRow, handleDeleteRow, savingRo
             {data.length === 0 ? (
               <tr><td colSpan="12" className="p-4 text-center text-muted">Không có dữ liệu</td></tr>
             ) : (
-              data.map((r, i) => (
-                <PersonalRow 
-                    key={r.YeuCauID} 
-                    item={r} 
-                    index={i} 
-                    onSave={handleSaveRow} 
-                    onDelete={handleDeleteRow}
-                    savingRow={savingRow} 
-                    visibleColumns={visibleColumns}
-                />
-              ))
+                            data.map((r, i) => (
+                                <PersonalRow 
+                                        key={r.YeuCauID} 
+                                        item={r} 
+                                        index={i} 
+                                        onSave={handleSaveRow} 
+                                        onDelete={handleDeleteRow}
+                                        savingRow={savingRow} 
+                                        visibleColumns={visibleColumns}
+                                        currentLanguage={currentLanguage}
+                                />
+                            ))
             )}
           </tbody>
         </table>
@@ -1283,7 +1285,7 @@ const getItemRowCount = (item) => {
     const subCount = Array.isArray(parsed.sub) ? parsed.sub.length : 0;
     return 1 + subCount; 
 };
-const CompanyRow = ({ item, index, visibleColumns, onSave, onDelete, globalIndex, isFirstServiceOfGroup, companyTotalRows }) => {
+const CompanyRow = ({ item, index, visibleColumns, onSave, onDelete, globalIndex, isFirstServiceOfGroup, companyTotalRows, currentLanguage }) => {
     // ... (Giữ nguyên phần khai báo state, useEffect, handleChange, handleSaveClick...)
     const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -1639,6 +1641,7 @@ const CompanyTable = ({
                                     isFirstServiceOfGroup={isFirstRowOfGroup} 
                                     companyTotalRows={totalCompanyRows}
                                     globalIndex={companyStt}
+                                    currentLanguage={currentLanguage}
                                     
                                     onSave={handleSaveRow}
                                     onDelete={handleDeleteRow}

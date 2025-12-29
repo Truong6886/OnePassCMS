@@ -620,6 +620,7 @@ const B2B_SERVICE_MAPPING = {
       dichVu: "Dịch Vụ",
       giayPhep: "Giấy Phép ĐKKD",
       email: "Email",
+      hoSo: "Hồ Sơ",
       soDienThoai: "Số Điện Thoai",
       nganhNgheChinh: "Ngành Nghề Chính",
       diaChi: "Địa Chỉ",
@@ -627,7 +628,7 @@ const B2B_SERVICE_MAPPING = {
       loaiDichVu: "Loại Dịch Vụ",
       tenDichVu: "Tên Dịch Vụ",
       maDichVu: "Mã Dịch Vụ",
-      danhMuc: "Danh mục",
+      danhMuc: "Danh Mục",
       nguoiPhuTrach: "Người Phụ Trách",
       goi: "Gói",
       invoiceYN: "Invoice Y/N",
@@ -651,6 +652,7 @@ const B2B_SERVICE_MAPPING = {
       addServiceBtn: "+ Add Service",
       dangKyDichVuMoi: "Register New Service",
       stt: "No.",
+      hoSo: "File",
       tenDN: "Company Name",
       soDKKD: "Business Reg. No.",
       nguoiDaiDien: "Legal Representative",
@@ -719,6 +721,7 @@ const B2B_SERVICE_MAPPING = {
       soTienChietKhau: "할인 금액",
       doanhThuSau: "할인 후 매출",
       suDungVi: "지갑 사용",
+      hoSo:"서류",
       tongDoanhThuTichLuy: "총 매출",
       hanhDong: "작업",
       msgWalletLimit: "지갑 사용 금액은 2,000,000을 초과할 수 없습니다"
@@ -1299,14 +1302,14 @@ const renderServicesTab = () => {
                                 <th className="py-2 border" style={{ width: "40px", whiteSpace: "pre-wrap" }}>{t.stt}</th>
                                 <th className="py-2 border" style={{ width: "120px", whiteSpace: "pre-wrap" }}>{t.chonDN}</th>
                                 <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>Số ĐKKD</th>
-                                <th className="py-2 border" style={{ width: "219px", whiteSpace: "pre-wrap" }}>Hồ sơ</th>
+                                <th className="py-2 border" style={{ width: "219px", whiteSpace: "pre-wrap" }}>{t.hoSo}</th>
                                 <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.loaiDichVu}</th>
                                 <th className="py-2 border" style={{ width: "140px", whiteSpace: "pre-wrap" }}>{t.tenDichVu}</th>
                                 
                                 {/* --- [SỬA] MỞ RỘNG CỘT HỒ SƠ LÊN 250px --- */}
                   
 
-                                <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>Danh mục</th>
+                                <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>{t.danhMuc}</th>
                                 <th className="py-2 border" style={{ width: "160px", whiteSpace: "pre-wrap" }}>{t.maDichVu}</th>
                                 <th className="py-2 border" style={{ width: "110px", whiteSpace: "pre-wrap" }}>{t.nguoiPhuTrach}</th>
                                 <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayBatDau}</th>
