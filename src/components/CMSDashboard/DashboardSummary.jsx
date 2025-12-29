@@ -105,9 +105,9 @@ const DashboardSummary = ({
     return matchService && matchRegion && matchStatus && matchMode && matchStaff;
   });
 
-  // --- LOGIC DỮ LIỆU CHO BIỂU ĐỒ (BỎ QUA LỌC DỊCH VỤ ĐỂ HIỂN THỊ TỔNG QUAN) ---
+
   const dataForChart = allData.filter((r) => {
-    // Note: We skip matchService here to allow the chart to show all services context
+
     const regionMap = { "+84": "Việt Nam", "+82": "Hàn Quốc" };
     const region = regionMap[r.MaVung] || r.MaVung || "Không xác định";
     const matchRegion = filterRegion ? region === filterRegion : true;

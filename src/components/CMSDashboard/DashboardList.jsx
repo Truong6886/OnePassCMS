@@ -16,6 +16,25 @@ const B2CRequestRow = ({ item, visibleColumns, pinnedColumns, currentUser, curre
   const canViewFinance = currentUser?.is_accountant || currentUser?.is_director;
   const canViewAssignee = currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant;
 
+<<<<<<< HEAD
+=======
+  const translateService = (serviceName) => {
+     const map = {
+      "인증 센터": "Chứng thực",
+      "결혼 이민": "Kết hôn",
+      "출생신고 대행": "Khai sinh, khai tử",
+      "국적 대행": "Quốc tịch",
+      "여권 • 호적 대행": "Hộ chiếu, Hộ tịch",
+      "입양 절차 대행": "Nhận nuôi",
+      "비자 대행": "Thị thực",
+      "법률 컨설팅": "Tư vấn pháp lý",
+      "B2B 서비스": "Dịch vụ B2B",
+      "기타": "Khác",
+    };
+    return map[serviceName] || serviceName;
+  };
+
+>>>>>>> 6259297caa854ba654597cf9079d5d47f3f2fe95
   const translateBranch = (branch) => {
     const map = { "서울": "Seoul", "부산": "Busan" };
     return map[branch] || branch || "";

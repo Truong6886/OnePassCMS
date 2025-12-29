@@ -5,7 +5,7 @@ import useSocketListener from "./CMSDashboard/hooks/useSocketListener";
 import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import EditProfileModal from "./EditProfileModal";
 import { showToast } from "../utils/toast";
-import { Save, Trash2, XCircle, Check, FileText, Edit, Eye, EyeOff, Plus, X, ChevronDown } from "lucide-react";
+import { Save, Trash2, XCircle, Check, FileText, Edit, Eye, EyeOff, Plus, X, ChevronDown,Paperclip } from "lucide-react";
 import Swal from "sweetalert2";
 import { authenticatedFetch } from "../utils/api";
 import withReactContent from "sweetalert2-react-content";
@@ -193,42 +193,42 @@ const fetchUsers = async () => {
 };
 
 
-  // Mở modal để chỉnh sửa (Nút Edit - Pencil)
+
 const handleEditService = (rec) => {
-  // Tìm doanh nghiệp
+
   const company = approvedList.find(c => String(c.ID) === String(rec.companyId));
   
-  // --- [SỬA ĐOẠN NÀY] Lấy dữ liệu chi tiết từ JSON ---
+ 
   const details = rec.ChiTietDichVu || { main: {}, sub: [] };
   
   let mainRevenueStr = "";
   let mainDiscountStr = "";
   let currentExtras = [];
 
-  // 1. Xử lý Dịch vụ chính
+  
   if (details.main && details.main.revenue !== undefined) {
-      // Nếu có JSON, lấy doanh thu Main từ JSON
+    
       mainRevenueStr = formatNumber(details.main.revenue);
       mainDiscountStr = details.main.discount || "";
   } else {
-      // Nếu chưa có JSON (dữ liệu cũ), lấy tổng làm chính
+
       mainRevenueStr = rec.revenueBefore ? formatNumber(rec.revenueBefore) : "";
       mainDiscountStr = rec.discountRate || "";
   }
 
-  // 2. Xử lý Dịch vụ phụ (Extras)
+
   if (details.sub && details.sub.length > 0) {
-      // Ưu tiên lấy từ JSON nếu có
+
       currentExtras = details.sub.map(s => ({
           name: s.name,
           revenue: s.revenue ? formatNumber(s.revenue) : "",
           discount: s.discount || ""
       }));
   } else {
-      // Fallback: Nếu không có JSON, cắt chuỗi từ DanhMuc (nhưng revenue sẽ rỗng)
+     
       const fullDanhMuc = rec.DanhMuc || "";
       const parts = fullDanhMuc.split(" + ");
-      // parts[0] là chính, parts[1...] là phụ
+      
       if (parts.length > 1) {
           currentExtras = parts.slice(1).map(name => ({ 
               name: name.trim(), 
@@ -238,16 +238,16 @@ const handleEditService = (rec) => {
       }
   }
 
-  // Cập nhật State
+
   if (currentExtras.length > 0) {
       setExtraServices(currentExtras);
       setShowExtras(true);
   } else {
-      setExtraServices([{ name: "", revenue: "", discount: "" }]); // Dòng trắng mặc định
+      setExtraServices([{ name: "", revenue: "", discount: "" }]); 
       setShowExtras(false);
   }
   
-  // Lấy tên danh mục chính (cắt chuỗi để bỏ phần phụ đi)
+
   const mainCatName = (rec.DanhMuc || "").split(" + ")[0];
 
   setNewServiceForm({ 
@@ -257,14 +257,13 @@ const handleEditService = (rec) => {
     LoaiDichVu: rec.serviceType,
     TenDichVu: rec.serviceName,
     
-    DanhMuc: mainCatName, // Chỉ hiện tên chính ở ô dropdown
-    
+    DanhMuc: mainCatName, 
     NgayBatDau: rec.startDate ? rec.startDate : "",
     NgayHoanThanh: rec.endDate ? rec.endDate : "",
     ThuTucCapToc: (rec.package === "Cấp tốc" || rec.package === "Yes") ? "Yes" : "No",
     YeuCauHoaDon: rec.invoiceYN || "No",
-    
-    DoanhThu: mainRevenueStr, // Hiển thị doanh thu RIÊNG của dịch vụ chính
+    TrangThai: rec.status || rec.TrangThai,
+    DoanhThu: mainRevenueStr, 
     MucChietKhau: mainDiscountStr,
     
     Vi: rec.walletUsage ? formatNumber(rec.walletUsage) : "",
@@ -306,6 +305,7 @@ const handleOpenAddServiceModal = () => {
       Vi: "",
       GhiChu: "",
       MucChietKhau: "",
+      TrangThai:"",
       NguoiPhuTrachId: isStaff ? currentUser.id : "", 
       ConfirmPassword: ""
     });
@@ -392,9 +392,6 @@ const handleModalSubmit = async () => {
       approveAction = "accountant_approve";
     }
 
-    /* =======================
-       1️⃣ DỊCH VỤ CHÍNH
-    ======================= */
     const mainRevenue = newServiceForm.DoanhThu
       ? parseFloat(unformatNumber(newServiceForm.DoanhThu))
       : 0;
@@ -403,10 +400,7 @@ const handleModalSubmit = async () => {
       ? parseFloat(newServiceForm.MucChietKhau)
       : 0;
 
-    /* =======================
-       2️⃣ DỊCH VỤ BỔ SUNG
-       ❌ KHÔNG CỘNG TIỀN
-    ======================= */
+ 
     const validExtras = extraServices.filter(
       s => s.name && s.name.trim() !== ""
     );
@@ -433,9 +427,7 @@ const handleModalSubmit = async () => {
       finalDanhMuc = `${newServiceForm.DanhMuc} + ${extraNames.join(" + ")}`;
     }
 
-    /* =======================
-       3️⃣ CHI TIẾT DỊCH VỤ (JSON)
-    ======================= */
+   
     const chiTietDichVuPayload = {
       main: {
         revenue: mainRevenue,
@@ -444,10 +436,7 @@ const handleModalSubmit = async () => {
       sub: subDetails
     };
 
-    /* =======================
-       4️⃣ PAYLOAD GỬI BACKEND
-       👉 CHỈ DỊCH VỤ CHÍNH
-    ======================= */
+
     const rawVi = newServiceForm.Vi
       ? parseFloat(unformatNumber(newServiceForm.Vi))
       : 0;
@@ -464,14 +453,11 @@ const handleModalSubmit = async () => {
       GhiChu: newServiceForm.GhiChu || "",
       NguoiPhuTrachId: newServiceForm.NguoiPhuTrachId,
 
-      // ✅ CHỈ LẤY DOANH THU DỊCH VỤ CHÍNH
+      TrangThai: newServiceForm.TrangThai,
       DoanhThuTruocChietKhau: mainRevenue,
       MucChietKhau: mainDiscountRate,
       Vi: rawVi,
-
-      // ✅ CHI TIẾT RIÊNG
       ChiTietDichVu: chiTietDichVuPayload,
-
       approveAction,
       userId: currentUser?.id
     };
@@ -1009,6 +995,7 @@ const handleApprove = (service) => {
         LoaiDichVu: selectedService.LoaiDichVu || selectedService.serviceType,
         TenDichVu: selectedService.TenDichVu || selectedService.serviceName,
         NgayThucHien: selectedService.NgayBatDau || selectedService.startDate,
+        TrangThai: selectedService.TrangThai,
         NgayHoanThanh: selectedService.NgayHoanThanh || selectedService.endDate,
         GoiDichVu: selectedService.GoiDichVu === "Yes" ? "Cấp tốc" : "Thông thường",
         YeuCauHoaDon: selectedService.YeuCauHoaDon,
@@ -1200,97 +1187,66 @@ const renderServicesTab = () => {
         return danhMucStr.split(" + ").length;
     };
 
-// Sửa hàm getRowBeforeDiscount
-const getRowBeforeDiscount = (rec, subIdx) => {
-    const details = rec.ChiTietDichVu || { main: {}, sub: [] };
-    
-    if (details.main && details.main.revenue !== undefined) {
-        if (subIdx === 0) {
-            return Number(details.main.revenue) || 0;
-        } else {
-            // SỬA: subIdx bắt đầu từ 1, cần lấy details.sub[subIdx - 1]
+    const getRowBeforeDiscount = (rec, subIdx) => {
+        const details = rec.ChiTietDichVu || { main: {}, sub: [] };
+        if (details.main && details.main.revenue !== undefined) {
+            if (subIdx === 0) return Number(details.main.revenue) || 0;
             const subItem = details.sub && details.sub[subIdx - 1];
             return subItem ? (Number(subItem.revenue) || 0) : 0;
         }
-    }
-    
-    // Fallback
-    if (subIdx === 0) {
-        return rec.revenueBefore ? parseFloat(String(rec.revenueBefore).replace(/\./g, "")) : 0;
-    }
-    return 0;
-};
+        if (subIdx === 0) return rec.revenueBefore ? parseFloat(String(rec.revenueBefore).replace(/\./g, "")) : 0;
+        return 0;
+    };
 
-// Sửa hàm getRowDiscountRate
-const getRowDiscountRate = (rec, subIdx) => {
-    const details = rec.ChiTietDichVu || { main: {}, sub: [] };
-    
-    if (details.main && details.main.revenue !== undefined) {
-        if (subIdx === 0) {
-            return Number(details.main.discount) || 0;
-        } else {
-            // SỬA: subIdx bắt đầu từ 1, cần lấy details.sub[subIdx - 1]
+    const getRowDiscountRate = (rec, subIdx) => {
+        const details = rec.ChiTietDichVu || { main: {}, sub: [] };
+        if (details.main && details.main.revenue !== undefined) {
+            if (subIdx === 0) return Number(details.main.discount) || 0;
             const subItem = details.sub && details.sub[subIdx - 1];
             return subItem ? (Number(subItem.discount) || 0) : 0;
         }
-    }
-    
-    // Fallback
-    if (subIdx === 0) {
-        return rec.discountRate ? parseFloat(rec.discountRate) : 0;
-    }
-    return 0;
-};
+        if (subIdx === 0) return rec.discountRate ? parseFloat(rec.discountRate) : 0;
+        return 0;
+    };
 
-// Sửa hàm getRowRevenue
-const getRowRevenue = (rec, subIdx) => {
-    const details = rec.ChiTietDichVu || { main: {}, sub: [] };
-    
-    // Nếu có JSON chi tiết
-    if (details.main && details.main.revenue !== undefined) {
-        if (subIdx === 0) {
-            // Dòng chính
-            const mainRev = Number(details.main.revenue) || 0;
-            const mainDisc = Number(details.main.discount) || 0;
-            return mainRev - (mainRev * mainDisc / 100);
-        } else {
-            // Dòng phụ - SỬA: Lấy từ mảng sub đúng index
-            const subItem = details.sub && details.sub[subIdx - 1];
-            if (subItem) {
-                const subRev = Number(subItem.revenue) || 0;
-                const subDisc = Number(subItem.discount) || 0;
-                return subRev - (subRev * subDisc / 100);
+    const getRowRevenue = (rec, subIdx) => {
+        const details = rec.ChiTietDichVu || { main: {}, sub: [] };
+        if (details.main && details.main.revenue !== undefined) {
+            if (subIdx === 0) {
+                const mainRev = Number(details.main.revenue) || 0;
+                const mainDisc = Number(details.main.discount) || 0;
+                return mainRev - (mainRev * mainDisc / 100);
+            } else {
+                const subItem = details.sub && details.sub[subIdx - 1];
+                if (subItem) {
+                    const subRev = Number(subItem.revenue) || 0;
+                    const subDisc = Number(subItem.discount) || 0;
+                    return subRev - (subRev * subDisc / 100);
+                }
+                return 0;
             }
-            return 0;
         }
-    }
-    
-    // Fallback: Dữ liệu cũ
-    if (subIdx === 0) {
-        const rev = rec.revenueBefore ? parseFloat(String(rec.revenueBefore).replace(/\./g, "")) : 0;
-        const discRate = rec.discountRate ? parseFloat(rec.discountRate) : 0;
-        return rev - (rev * discRate / 100);
-    }
-    return 0;
-};
+        if (subIdx === 0) {
+            const rev = rec.revenueBefore ? parseFloat(String(rec.revenueBefore).replace(/\./g, "")) : 0;
+            const discRate = rec.discountRate ? parseFloat(rec.discountRate) : 0;
+            return rev - (rev * discRate / 100);
+        }
+        return 0;
+    };
 
-// Hàm getRowDiscountAmount đã đúng
-const getRowDiscountAmount = (rec, subIdx) => {
-    const before = getRowBeforeDiscount(rec, subIdx);
-    const rate = getRowDiscountRate(rec, subIdx);
-    return before * (rate / 100);
-};
-const getTotalRecordAfterDiscount = (rec) => {
+    const getRowDiscountAmount = (rec, subIdx) => {
+        const before = getRowBeforeDiscount(rec, subIdx);
+        const rate = getRowDiscountRate(rec, subIdx);
+        return before * (rate / 100);
+    };
+
+    const getTotalRecordAfterDiscount = (rec) => {
         const details = rec.ChiTietDichVu || { main: {}, sub: [] };
         const wallet = rec.walletUsage ? parseFloat(String(rec.walletUsage).replace(/\./g, "")) : 0;
-        
         if (details.main && (details.main.revenue !== undefined)) {
-            // Tính doanh thu chính sau CK
             const mainRev = Number(details.main.revenue) || 0;
             const mainDisc = Number(details.main.discount) || 0;
             let total = mainRev - (mainRev * mainDisc / 100);
-            
-            // Cộng doanh thu phụ sau CK
             if (Array.isArray(details.sub)) {
                 details.sub.forEach(s => {
                     const sRev = Number(s.revenue) || 0;
@@ -1298,11 +1254,8 @@ const getTotalRecordAfterDiscount = (rec) => {
                     total += (sRev - (sRev * sDisc / 100));
                 });
             }
-            
             return Math.max(0, total - wallet);
         }
-        
-        // Fallback
         const rev = rec.revenueBefore ? parseFloat(String(rec.revenueBefore).replace(/\./g, "")) : 0;
         const discRate = rec.discountRate ? parseFloat(rec.discountRate) : 0;
         const discAmount = rev * (discRate / 100);
@@ -1343,21 +1296,39 @@ const getTotalRecordAfterDiscount = (rec) => {
                         <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: "12px", borderCollapse: "collapse", tableLayout: "fixed" }}>
                            <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a" }}>
                             <tr>
-                                {/* Thêm whiteSpace: "pre-wrap" để nhận diện ký tự \n và tự động xuống dòng */}
                                 <th className="py-2 border" style={{ width: "40px", whiteSpace: "pre-wrap" }}>{t.stt}</th>
                                 <th className="py-2 border" style={{ width: "120px", whiteSpace: "pre-wrap" }}>{t.chonDN}</th>
+<<<<<<< HEAD
                                 <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.soDKKD}</th>
                                 <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.loaiDichVu}</th>
                                 <th className="py-2 border" style={{ width: "140px", whiteSpace: "pre-wrap" }}>{t.tenDichVu}</th>
                                 <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>{t.danhMuc}</th>
                               
+=======
+                                <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>Số ĐKKD</th>
+                                <th className="py-2 border" style={{ width: "219px", whiteSpace: "pre-wrap" }}>Hồ sơ</th>
+                                <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.loaiDichVu}</th>
+                                <th className="py-2 border" style={{ width: "140px", whiteSpace: "pre-wrap" }}>{t.tenDichVu}</th>
+                                
+                                {/* --- [SỬA] MỞ RỘNG CỘT HỒ SƠ LÊN 250px --- */}
+                  
+
+                                <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>Danh mục</th>
+>>>>>>> 6259297caa854ba654597cf9079d5d47f3f2fe95
                                 <th className="py-2 border" style={{ width: "160px", whiteSpace: "pre-wrap" }}>{t.maDichVu}</th>
                                 <th className="py-2 border" style={{ width: "110px", whiteSpace: "pre-wrap" }}>{t.nguoiPhuTrach}</th>
                                 <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayBatDau}</th>
                                 <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayKetThuc}</th>
+<<<<<<< HEAD
                                 <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.goi}</th>
                                 <th className="py-2 border" style={{ width: "70px", whiteSpace: "pre-wrap" }}>{t.invoiceYN}</th>
                                 <th className="py-2 border" style={{ width: "60px", whiteSpace: "pre-wrap" }}>{t.invoice}</th>
+=======
+                                <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>Gói</th>
+                                <th className="py-2 border" style={{ width: "70px", whiteSpace: "pre-wrap" }}>Invoice Y/N</th>
+                                <th className="py-2 border" style={{ width: "60px", whiteSpace: "pre-wrap" }}>Invoice</th>
+                                <th className="py-2 border" style={{ width: "120px", whiteSpace: "pre-wrap" }}>Trạng thái</th>
+>>>>>>> 6259297caa854ba654597cf9079d5d47f3f2fe95
 
                                 {canViewRevenue && (
                                     <>
@@ -1378,8 +1349,6 @@ const getTotalRecordAfterDiscount = (rec) => {
                                         const globalIndex = idx + 1 + (currentPage.services - 1) * 20;
                                         const servicesList = (rec.DanhMuc || "").split(" + ");
                                         const subRowsCount = servicesList.length;
-
-                                        // Logic Grouping Company
                                         const currentCompanyId = String(rec.companyId || rec.DoanhNghiepID || "");
                                         const prevCompanyId = idx > 0 ? String(displayData[idx - 1].companyId || displayData[idx - 1].DoanhNghiepID || "") : null;
 
@@ -1397,7 +1366,6 @@ const getTotalRecordAfterDiscount = (rec) => {
                                             }
                                         }
 
-                                        // Style
                                         const mergedStyle = {
                                             backgroundColor: rec.isNew ? "#dcfce7" : "#fff",
                                             verticalAlign: "middle",
@@ -1423,126 +1391,66 @@ const getTotalRecordAfterDiscount = (rec) => {
                                         return servicesList.map((svcName, subIdx) => {
                                             const isFirstSubRow = subIdx === 0;
 
-                                            // Lấy dữ liệu tài chính cho từng dòng
-                                            const rowBeforeDiscount = getRowBeforeDiscount(rec, subIdx);
-                                            const rowDiscountRate = getRowDiscountRate(rec, subIdx);
-                                            const rowDiscountAmount = getRowDiscountAmount(rec, subIdx);
-                                            const rowAfterDiscount = rowBeforeDiscount - rowDiscountAmount;
-
                                             return (
                                                 <tr key={`${rec.uiId}_${subIdx}`} className={rec.isNew ? "" : "bg-white hover:bg-gray-50"}>
-
-                                                    {/* STT (Gộp) */}
-                                                    {isFirstSubRow && (
-                                                        <td className="border" rowSpan={subRowsCount} style={mergedStyle}>
-                                                            {globalIndex}
-                                                        </td>
-                                                    )}
-
-                                                    {/* Company Info (Gộp) */}
+                                                    {isFirstSubRow && <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{globalIndex}</td>}
                                                     {isFirstSubRow && shouldRenderCompanyCell && (
                                                         <>
-                                                            <td className="border" rowSpan={companyRowSpan} style={mergedStyle} title={rec.companyName}>
-                                                                {rec.companyName || ""}
-                                                            </td>
-                                                            <td className="border" rowSpan={companyRowSpan} style={mergedStyle} title={rec.soDKKD}>
-                                                                {rec.soDKKD || ""}
-                                                            </td>
+                                                            <td className="border" rowSpan={companyRowSpan} style={mergedStyle} title={rec.companyName}>{rec.companyName || ""}</td>
+                                                            <td className="border" rowSpan={companyRowSpan} style={mergedStyle} title={rec.soDKKD}>{rec.soDKKD || ""}</td>
                                                         </>
                                                     )}
-
-                                                    {/* Service Type & Name (Gộp) */}
-                                                    {isFirstSubRow && (
-                                                        <>
-                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.serviceType}>
-                                                                {rec.serviceType}
-                                                            </td>
-                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.serviceName}>
-                                                                {rec.serviceName}
-                                                            </td>
-                                                        </>
-                                                    )}
-
-                                                    {/* Danh Mục (KHÔNG GỘP) */}
-                                                   <td className="border" style={danhMucStyle}>
-                                                      <div className="px-1" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                                                          {svcName}
-                                                      </div>
-                                                  </td>
-
-                                                    {/* Thông tin chung (Gộp) */}
-                                                    {isFirstSubRow && (
-                                                        <>
-                                                            <td className="border" rowSpan={subRowsCount} style={{...mergedStyle, width:170}}>
-                                                                <span className="fw-bold text-dark">{rec.code}</span>
-                                                            </td>
-                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.picName}>
-                                                                {rec.picName}
-                                                            </td>
-                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle}>
-                                                                {rec.startDate}
-                                                            </td>
-                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle}>
-                                                                {rec.endDate}
-                                                            </td>
-                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle}>
-                                                                <span className={rec.package === "Cấp tốc" ? "text-danger fw-bold" : ""}>
-                                                                    {rec.package}
-                                                                </span>
-                                                            </td>
-                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle}>
-                                                                {rec.invoiceYN}
-                                                            </td>
-                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle}>
-                                                                {rec.invoiceUrl ? (
-                                                                    <a href={rec.invoiceUrl} target="_blank" rel="noreferrer" className="text-primary d-inline-block">
-                                                                        <FileText size={16} />
-                                                                    </a>
-                                                                ) : ""}
-                                                            </td>
-                                                        </>
-                                                    )}
-
-                                                 
-                                                   {canViewRevenue && (
+                                                   {isFirstSubRow && (
                                                     <>
-                                                      
-                                                        <td className="border text-center pe-2" style={{ verticalAlign: "middle" }}>
-                                                            {formatNumber(getRowBeforeDiscount(rec, subIdx))}
-                                                        </td>
-
-                                                     
-                                                        {isFirstSubRow && (
-                                                            <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, color: rec.walletUsage > 0 ? "red" : "inherit" }}>
-                                                                {formatNumber(rec.walletUsage || 0)}
-                                                            </td>
-                                                        )}
-
-                                     
-                                                        <td className="border text-center" style={{ verticalAlign: "middle" }}>
-                                                            {getRowDiscountRate(rec, subIdx) ? getRowDiscountRate(rec, subIdx) + "%" : "0%"}
-                                                        </td>
-
-                                                      
-                                                        <td className="border text-center pe-2" style={{ verticalAlign: "middle" }}>
-                                                            {formatNumber(getRowDiscountAmount(rec, subIdx))}
-                                                        </td>
-
                                                        
-                                                        <td className="border text-center pe-2" style={{ verticalAlign: "middle" }}>
-                                                            {formatNumber(getRowRevenue(rec, subIdx))}
+                                                        <td className="border" rowSpan={subRowsCount} style={{...mergedStyle, maxWidth: '240px', textAlign: 'left', padding: '8px'}}>
+                                                            {rec.ChiTietDichVu?.files?.length > 0 ? (
+                                                                <div className="d-flex flex-column gap-1">
+                                                                    {rec.ChiTietDichVu.files.map((f, i) => (
+                                                                        <a key={i} href={f.url} target="_blank" rel="noreferrer" className="d-flex align-items-center gap-1 text-decoration-none text-primary" title={f.name}>
+                                                                            <Paperclip size={12} style={{flexShrink:0}}/>
+                                                                            <span style={{maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{f.name}</span>
+                                                                        </a>
+                                                                    ))}
+                                                                </div>
+                                                            ) : <div className="text-center text-muted">-</div>}
                                                         </td>
 
-                                                        {shouldRenderCompanyCell && isFirstSubRow && (
-                                                            <td className="border fw-bold text-primary text-center pe-2" rowSpan={companyRowSpan} style={mergedStyle}>
-                                                                {formatNumber(groupTotalRevenue)}
-                                                            </td>
-                                                        )}
+                                                        <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.serviceType}>{rec.serviceType}</td>
+                                                        <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.serviceName}>{rec.serviceName}</td>
                                                     </>
                                                 )}
 
+                                                    <td className="border" style={danhMucStyle}>
+                                                      <div className="px-1" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{svcName}</div>
+                                                    </td>
 
-                                                    {/* Hành Động (Gộp) */}
+                                                    {isFirstSubRow && (
+                                                        <>
+                                                            <td className="border" rowSpan={subRowsCount} style={{...mergedStyle, width:170}}><span className="fw-bold text-dark">{rec.code}</span></td>
+                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.picName}>{rec.picName}</td>
+                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.startDate}</td>
+                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.endDate}</td>
+                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle}><span className={rec.package === "Cấp tốc" ? "text-danger fw-bold" : ""}>{rec.package}</span></td>
+                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.invoiceYN}</td>
+                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.invoiceUrl ? (<a href={rec.invoiceUrl} target="_blank" rel="noreferrer" className="text-primary d-inline-block"><FileText size={16} /></a>) : ""}</td>
+                                                            <td className="border" rowSpan={subRowsCount} style={mergedStyle}>
+                                                                {rec.status}
+                                                            </td>
+                                                        </>
+                                                    )}
+
+                                                   {canViewRevenue && (
+                                                    <>
+                                                        <td className="border text-center pe-2" style={{ verticalAlign: "middle" }}>{formatNumber(getRowBeforeDiscount(rec, subIdx))}</td>
+                                                        {isFirstSubRow && (<td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, color: rec.walletUsage > 0 ? "red" : "inherit" }}>{formatNumber(rec.walletUsage || 0)}</td>)}
+                                                        <td className="border text-center" style={{ verticalAlign: "middle" }}>{getRowDiscountRate(rec, subIdx) ? getRowDiscountRate(rec, subIdx) + "%" : "0%"}</td>
+                                                        <td className="border text-center pe-2" style={{ verticalAlign: "middle" }}>{formatNumber(getRowDiscountAmount(rec, subIdx))}</td>
+                                                        <td className="border text-center pe-2" style={{ verticalAlign: "middle" }}>{formatNumber(getRowRevenue(rec, subIdx))}</td>
+                                                        {shouldRenderCompanyCell && isFirstSubRow && (<td className="border fw-bold text-primary text-center pe-2" rowSpan={companyRowSpan} style={mergedStyle}>{formatNumber(groupTotalRevenue)}</td>)}
+                                                    </>
+                                                )}
+
                                                     {isFirstSubRow && (
                                                         <td className="border" rowSpan={subRowsCount} style={mergedStyle}>
                                                             <div className="d-flex justify-content-center gap-1">
@@ -1559,19 +1467,11 @@ const getTotalRecordAfterDiscount = (rec) => {
                                             );
                                         });
                                     })
-                                ) : (
-                                    <tr><td colSpan="100%" className="text-center text-muted py-4">Chưa có dữ liệu</td></tr>
-                                )}
+                                ) : (<tr><td colSpan="100%" className="text-center text-muted py-4">Chưa có dữ liệu</td></tr>)}
                             </tbody>
                         </table>
                     </div>
-                    <Pagination
-                        current={currentPage.services}
-                        total={serviceTotal}
-                        pageSize={20}
-                        currentLanguage={currentLanguage}
-                        onChange={(page) => handlePageChange("services", page)}
-                    />
+                    <Pagination current={currentPage.services} total={serviceTotal} pageSize={20} currentLanguage={currentLanguage} onChange={(page) => handlePageChange("services", page)} />
                 </>
             )}
         </div>
@@ -2411,7 +2311,18 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                 />
             </div>
           )}
-
+                <div className="col-12">
+                    <label style={labelStyle}>Cập nhật trạng thái</label>
+                    <input 
+                        type="text" 
+                        name="TrangThai" 
+                        value={selectedService.TrangThai || selectedService.status || ""} 
+                        onChange={handleApproveModalChange}
+                        placeholder="Nhập trạng thái (VD: Đã duyệt, Đang chờ bổ sung...)" 
+                        style={inputStyle}
+                    />
+                    <div style={helperTextStyle}>Trạng thái sau khi lưu (Mặc định: Đã duyệt)</div>
+                </div>
               {/* Ghi chú (có thể sửa) */}
               <div className="col-12">
                 <label style={labelStyle}>Ghi chú</label>
@@ -3024,7 +2935,19 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                     </div>
                   </div>
                 )}
-
+                   
+                   {/* [MỚI] Input Trạng thái cho Modal Thêm/Sửa */}
+                    <div className="col-12">
+                        <label style={labelStyle}>Trạng thái <span className="text-danger">*</span></label>
+                        <input 
+                            type="text"
+                            name="TrangThai"
+                            value={newServiceForm.TrangThai || ""} // Map với state
+                            onChange={handleModalChange}
+                            placeholder="Nhập trạng thái (VD: Chờ duyệt, Đang xử lý...)"
+                            style={inputStyle}
+                        />
+                    </div>
                     {/* Ghi chú */}
                     <div className="col-12">
                       <label style={labelStyle}>Ghi chú </label>

@@ -1,5 +1,5 @@
 import React from "react";
-import Swal from "sweetalert2"; // 👈 IMPORT SweetAlert2
+import Swal from "sweetalert2"; 
 import { showToast } from "../../utils/toast";
 import { authenticatedFetch } from "../../utils/api"
 const EmailList = ({

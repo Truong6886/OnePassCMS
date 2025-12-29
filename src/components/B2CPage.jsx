@@ -589,10 +589,17 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
             <label style={labelStyle}>{t.branch}</label>
             <ModernSelect name="CoSoTuVan" height="38px" value={formData.CoSoTuVan} placeholder={t.selectBranch} options={branchOptions} onChange={handleInputChange} />
           </div>
-          <div className="col-md-4">
-             <label style={labelStyle}>{t.status}</label>
-             <ModernSelect name="TrangThai" height="38px" value={formData.TrangThai} placeholder={t.selectStatus} options={statusOptions.map(s => ({ value: s, label: s }))} onChange={handleInputChange} />
-          </div>
+         <div className="col-md-4">
+                    <label style={labelStyle}>{t.status}</label>
+                    <input 
+                        type="text" 
+                        name="TrangThai" 
+                        style={inputStyle} 
+                        value={formData.TrangThai} 
+                        onChange={handleInputChange} 
+                        placeholder={currentLanguage === "vi" ? "Nhập trạng thái..." : "Enter status..."} 
+                    />
+                </div>
 
           {(() => {
             const canAssign = currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant;
@@ -1636,8 +1643,15 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                 <ModernSelect name="CoSoTuVan" height={inputHeight} value={formData.CoSoTuVan} options={branchOptions} onChange={handleChange} />
             </div>
             <div className="col-md-4">
-                 <label style={labelStyle}>Trạng thái</label>
-                 <ModernSelect name="TrangThai" height={inputHeight} value={formData.TrangThai} options={statusOptions.map(s => ({ value: s, label: s }))} onChange={handleChange} />
+                <label style={labelStyle}>Trạng thái</label>
+                <input 
+                    type="text" 
+                    name="TrangThai" 
+                    style={inputStyle} 
+                    value={formData.TrangThai} 
+                    onChange={handleChange} 
+                    placeholder="Nhập trạng thái..." 
+                />
             </div>
           
             <div className="col-md-4">
@@ -1684,12 +1698,12 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
             {/* === TÀI CHÍNH === */}
             <div className="col-12 mt-3 pt-2 border-top">
                 <div className="row g-3">
-                    <div className="col-md-4">
+                    <div className="col-md-6">
                         <label style={labelStyle}>Doanh thu (Dịch vụ chính) <span className="text-danger">*</span></label>
                         <input type="text" name="DoanhThuTruocChietKhau" value={formData.DoanhThuTruocChietKhau} onChange={handleChange} style={{...inputStyle, color: "#2563eb", fontWeight: "bold", textAlign: "center"}} placeholder="0" />
                     </div>
 
-                    <div className="col-md-4">
+                    <div className="col-md-6">
                         <label style={labelStyle}>Chiết khấu (%)</label>
                         <ModernSelect 
                             name="MucChietKhau" 
@@ -1911,17 +1925,17 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                       return (
                         <th key={i} className={isPinned(currentKey) ? "sticky-col" : ""}
                           style={{ 
-                              // --- CẬP NHẬT STICKY HEADER ---
-                              position: "sticky",         // Luôn dính
-                              top: 0,                     // Dính lên đỉnh
+                              
+                              position: "sticky",        
+                              top: 0,                    
                               left: isPinned(currentKey) ? "0" : "auto", 
-                              zIndex: isPinned(currentKey) ? 20 : 10, // Header Pin cao hơn Header thường
+                              zIndex: isPinned(currentKey) ? 20 : 10, 
                               backgroundColor: "#2c4d9e", 
                               color: "#ffffff",           
                               borderRight: "1px solid #4a6fdc", 
                               textAlign: "center",
                               verticalAlign: "middle",
-                              boxShadow: "0 1px 2px rgba(0,0,0,0.2)" // Thêm bóng nhẹ để tách biệt với body
+                              boxShadow: "0 1px 2px rgba(0,0,0,0.2)" 
                           }}
                         >
                           <div className="d-flex justify-content-center align-items-center position-relative w-100" style={{ minHeight: "24px", paddingRight: "28px" }}>
@@ -1982,7 +1996,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                 </div>
             )}
 
-            {/* Pagination giữ nguyên */}
+
             <div className="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-white" style={{ marginTop: "0", borderTop: "1px solid #dee2e6" }}>
               <div className="text-muted small">
                 {currentLanguage === "vi" ? `Hiển thị ${filteredData.length} / ${itemsPerPage} hàng (trang ${currentPage}/${totalPages})` : `Showing ${filteredData.length} / ${itemsPerPage} rows (page ${currentPage}/${totalPages})`}
