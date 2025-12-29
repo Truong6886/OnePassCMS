@@ -646,7 +646,9 @@ const B2B_SERVICE_MAPPING = {
       suDungVi: "Sử dụng\nví",
       tongDoanhThuTichLuy: "Tổng Doanh Thu",
       hanhDong: "Hành động",
-      msgWalletLimit: "Số tiền ví không được quá 2.000.000"
+      msgWalletLimit: "Số tiền ví không được quá 2.000.000",
+      diaChiNhan: "Địa chỉ nhận",
+      diaChiNhanPlaceholder: "Nhập địa chỉ nhận hồ sơ"
     },
     en: {
       pendingTab: "Pending List",
@@ -687,7 +689,9 @@ const B2B_SERVICE_MAPPING = {
       tongDoanhThuTichLuy: "Total Revenue",
       suDungVi: "Wallet Usage",
       hanhDong: "Actions",
-      msgWalletLimit: "Wallet usage cannot exceed 2,000,000"
+      msgWalletLimit: "Wallet usage cannot exceed 2,000,000",
+      diaChiNhan: "Receiving Address",
+      diaChiNhanPlaceholder: "Enter receiving address"
     },
     ko: {
       pendingTab: "승인 대기 목록",
@@ -728,7 +732,9 @@ const B2B_SERVICE_MAPPING = {
       hoSo:"서류",
       tongDoanhThuTichLuy: "총 매출",
       hanhDong: "작업",
-      msgWalletLimit: "지갑 사용 금액은 2,000,000을 초과할 수 없습니다"
+      msgWalletLimit: "지갑 사용 금액은 2,000,000을 초과할 수 없습니다",
+      diaChiNhan: "수령 주소",
+      diaChiNhanPlaceholder: "수령 주소를 입력하세요"
     }
   };
 
@@ -2705,6 +2711,19 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
                         placeholder="Cấp lại hộ chiếu..." 
                         value={newServiceForm.TenDichVu} 
                         onChange={handleModalChange} 
+                        style={inputStyle}
+                      />
+                    </div>
+
+                    {/* Địa chỉ nhận */}
+                    <div className="col-md-6">
+                      <label style={labelStyle}>{t.diaChiNhan}</label>
+                      <input
+                        type="text"
+                        name="DiaChiNhan"
+                        placeholder={t.diaChiNhanPlaceholder}
+                        value={newServiceForm.DiaChiNhan || ""}
+                        onChange={handleModalChange}
                         style={inputStyle}
                       />
                     </div>
