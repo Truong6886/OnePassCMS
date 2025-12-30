@@ -229,27 +229,55 @@ const handleConfirmDelete = async () => {
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      showToast("File quá lớn. Vui lòng chọn file nhỏ hơn 5MB", "error");
+      e.target.value = "";
+      return;
+    }
+    
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type)) {
+      showToast("Chỉ hỗ trợ file PDF hoặc Word (.pdf, .doc, .docx)", "error");
+      e.target.value = "";
+      return;
+    }
+    
     setUploadingCV(true);
     const formDataUpload = new FormData();
     formDataUpload.append("file", file);
 
     try {
-      const res = await authenticatedFetch("https://onepasscms-backend-tvdy.onrender.com/api/upload-cv", { 
-          method: "POST", body: formDataUpload 
+      const token = localStorage.getItem("sessionToken");
+      const headers = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      
+      const res = await fetch("https://onepasscms-backend-tvdy.onrender.com/api/upload-cv", { 
+          method: "POST", 
+          body: formDataUpload,
+          headers: headers
       });
-      if (!res) return;
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
       const data = await res.json();
       if (data.success) {
-         
-          setFormData(prev => ({ ...prev, CV: data.url })); 
-          
+          setFormData(prev => ({ ...prev, CV: data.url }));
+          showToast("Upload CV thành công", "success");
       } else {
-          showToast("Upload thất bại: " + data.message, "error");
+          showToast("Upload thất bại: " + (data.message || "Lỗi không xác định"), "error");
       }
     } catch (err) {
-        showToast("Lỗi kết nối server khi upload", "error");
+        console.error("Upload error:", err);
+        showToast("Lỗi kết nối server khi upload: " + err.message, "error");
     } finally {
         setUploadingCV(false);
+        e.target.value = "";
     }
   };
 
