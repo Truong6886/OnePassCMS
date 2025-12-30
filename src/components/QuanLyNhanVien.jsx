@@ -285,6 +285,16 @@ const handleSaveUser = async () => {
     if (!formData.name?.trim()) return showToast("Vui lòng nhập tên nhân viên", "warning");
     if (!formData.SoDienThoai?.trim()) return showToast("Vui lòng nhập số điện thoại", "warning");
 
+    // Validate username + password cho mode Thêm mới
+    if (!isEditing && !isDeleting) {
+      if (!formData.username || formData.username.trim() === "") {
+        return showToast("Vui lòng nhập Tài khoản (Username)", "error");
+      }
+      if (!formData.password || formData.password.trim() === "") {
+        return showToast("Vui lòng nhập Mật khẩu", "error");
+      }
+    }
+
     
     if (!isEditing && !formData.password) {
         return showToast("Vui lòng tạo mật khẩu cho nhân viên mới", "warning");
@@ -598,6 +608,20 @@ const handleSaveUser = async () => {
                                 <div className="form-check"><input className="form-check-input" type="checkbox" id="permStaff" checked={formData.perm_view_staff} onChange={e => setFormData({...formData, perm_view_staff: e.target.checked})} /><label className="form-check-label small cursor-pointer" htmlFor="permStaff">{t.xemCV}</label></div>
                             </div>
                         </div>
+                    </div>
+                    )}
+
+                    {/* Tài khoản (Username) - Chỉ nhập khi Thêm mới */}
+                    {!isEditing && !isDeleting && (
+                    <div className="col-md-12">
+                        <label style={labelStyle}>Tài khoản (Username) <span className="text-danger">*</span></label>
+                        <input 
+                            type="text" 
+                            style={inputStyle} 
+                            placeholder="Nhập tên đăng nhập (không chứa khoảng trắng)" 
+                            value={formData.username}
+                            onChange={e => setFormData({...formData, username: e.target.value.trim()})}
+                        />
                     </div>
                     )}
 
