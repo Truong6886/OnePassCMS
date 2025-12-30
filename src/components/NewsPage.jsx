@@ -84,9 +84,10 @@ function NewsPage() {
         .join(" ")
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
-      return matchSearch;
+      const matchCategory = statusFilter === "all" || item.DanhMuc === statusFilter;
+      return matchSearch && matchCategory;
     });
-  }, [news, searchTerm]);
+  }, [news, searchTerm, statusFilter]);
 
   const handleToggleSidebar = () => setShowSidebar((prev) => !prev);
 
@@ -632,6 +633,10 @@ function NewsPage() {
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="all">Tất cả ({news.length})</option>
+              <option value="대사관•총영사관 소식">Tin Đại sứ quán / Lãnh sự quán</option>
+              <option value="공지사항">Thông báo</option>
+              <option value="행사">Sự kiện</option>
+              <option value="기타">Bài viết</option>
             </select>
           </div>
         </div>
@@ -752,7 +757,7 @@ function NewsPage() {
                     <option value="대사관•총영사관 소식">Tin Đại sứ quán / Lãnh sự quán</option>
                     <option value="공지사항">Thông báo</option>
                     <option value="행사">Sự kiện</option>
-                    <option value="기타">Ngoài dùng (Tiếng Việt)</option>
+                    <option value="기타">Bài viết</option>
                   </select>
                 </div>
                 <div className="news-field">
