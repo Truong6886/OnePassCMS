@@ -1108,15 +1108,24 @@ export default function B2BPage() {
         if (!value || value.trim() === "") {
           return "Bạn bắt buộc phải nhập lý do!";
         }
+        if (value.trim().length > 20) {
+          return "Lý do tối đa 20 ký tự";
+        }
       }
     });
 
     if (!reason) return;
 
+    const trimmedReason = reason.trim();
+    if (trimmedReason.length > 20) {
+      showToast("Lý do tối đa 20 ký tự", "error");
+      return;
+    }
+
     try {
       const res = await authenticatedFetch(`${API_BASE}/b2b/pending/${item.ID}/reject`, {
         method: "POST",
-        body: JSON.stringify({ reason: reason })
+        body: JSON.stringify({ reason: trimmedReason })
       });
       if (!res) return;
 
