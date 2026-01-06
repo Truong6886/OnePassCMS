@@ -307,7 +307,7 @@ function NewsPage() {
         setUploadingImage(true);
       }
 
-      const response = await fetch("http://localhost:5000/api/upload-news-image", {
+      const response = await fetch("https://onepasscms-backend-tvdy.onrender.com/api/upload-news-image", {
         method: "POST",
         headers,
         body: formData,
