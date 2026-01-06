@@ -1539,19 +1539,28 @@ export default function B2BPage() {
 
 
     const totalColumns = activeTab === "pending" ? 8 : 9;
+    
+    // Check permission to approve B2B
+    const canApproveB2B = currentUser?.is_director || currentUser?.perm_approve_b2b;
 
     return (
       <>
         {activeTab === "approved" && (
           <div className="d-flex justify-content-end mb-2 gap-2" style={{ height: 40, marginRight: 10 }}>
-            <button
-              className="btn btn-primary btn-sm d-flex align-items-center gap-2 shadow-sm"
-              onClick={() => setShowRegisterB2BModal(true)}
-              style={{ fontSize: "13px", fontWeight: "600" }}
-            >
-              <Plus size={16} />
-              Đăng ký doanh nghiệp
-            </button>
+            {!canApproveB2B ? (
+              <div className="alert alert-warning alert-sm mb-0 d-flex align-items-center gap-2" style={{ fontSize: "12px", padding: "8px 12px" }}>
+                <span>⚠️ Bạn không có quyền đăng ký doanh nghiệp</span>
+              </div>
+            ) : (
+              <button
+                className="btn btn-primary btn-sm d-flex align-items-center gap-2 shadow-sm"
+                onClick={() => setShowRegisterB2BModal(true)}
+                style={{ fontSize: "13px", fontWeight: "600" }}
+              >
+                <Plus size={16} />
+                Đăng ký doanh nghiệp
+              </button>
+            )}
           </div>
         )}
         <div className="table-responsive shadow-sm rounded overflow-hidden">

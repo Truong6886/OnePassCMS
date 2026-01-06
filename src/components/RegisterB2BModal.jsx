@@ -84,7 +84,12 @@ export default function RegisterB2BModal({ isOpen, onClose, onSuccess, currentUs
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    // Check permission
+    const canApproveB2B = currentUser?.is_director || currentUser?.perm_approve_b2b;
+    if (!canApproveB2B) {
+      showToast("Bạn không có quyền đăng ký doanh nghiệp", "error");
+      return;
+    }
     // Validation
     if (!formData.tenDoanhNghiep.trim()) {
       return showToast("Vui lòng nhập tên doanh nghiệp", "warning");
