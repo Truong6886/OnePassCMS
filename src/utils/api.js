@@ -6,13 +6,13 @@ export const authenticatedFetch = async (url, options = {}) => {
   const userStr = localStorage.getItem("currentUser");
   const user = userStr ? JSON.parse(userStr) : null;
 
-  // 2. Thiết lập Header mặc định (bao gồm Auth)
+  // Thiết lập Header mặc định (bao gồm Auth)
+  // Lưu ý: Nếu body là FormData, không đặt Content-Type - để browser tự set multipart/form-data
   const defaultHeaders = {
-    "Content-Type": "application/json",
+    ...(!(options.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
     ...(token ? { "Authorization": `Bearer ${token}` } : {}),
     ...(user?.id ? { "x-user-id": user.id } : {})
   };
-
 
   const config = {
     ...options,

@@ -4,6 +4,7 @@ import Header from "./Header";
 import useSocketListener from "./CMSDashboard/hooks/useSocketListener";
 import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import EditProfileModal from "./EditProfileModal";
+import RegisterB2BModal from "./RegisterB2BModal";
 import { showToast } from "../utils/toast";
 import { Save, Trash2, XCircle, Check, FileText, Edit, Eye, EyeOff, Plus, X, ChevronDown, Paperclip } from "lucide-react";
 import Swal from "sweetalert2";
@@ -111,6 +112,7 @@ const parseMoney = (str) => {
 };
 export default function B2BPage() {
   const [expandedRowId, setExpandedRowId] = useState(null);
+  const [showRegisterB2BModal, setShowRegisterB2BModal] = useState(false);
 
   const toggleExpand = (id) => {
     setExpandedRowId(prev => prev === id ? null : id);
@@ -1299,7 +1301,7 @@ export default function B2BPage() {
 
     return (
       <div>
-        <div className="d-flex justify-content-end mb-2" style={{ height: 40, marginRight: 10 }}>
+        <div className="d-flex justify-content-end mb-2 gap-2" style={{ height: 40, marginRight: 10 }}>
           <button
             className="btn btn-success btn-sm d-flex align-items-center gap-2 shadow-sm"
             onClick={handleOpenAddServiceModal}
@@ -1539,7 +1541,20 @@ export default function B2BPage() {
     const totalColumns = activeTab === "pending" ? 8 : 9;
 
     return (
-      <div className="table-responsive shadow-sm rounded overflow-hidden">
+      <>
+        {activeTab === "approved" && (
+          <div className="d-flex justify-content-end mb-2 gap-2" style={{ height: 40, marginRight: 10 }}>
+            <button
+              className="btn btn-primary btn-sm d-flex align-items-center gap-2 shadow-sm"
+              onClick={() => setShowRegisterB2BModal(true)}
+              style={{ fontSize: "13px", fontWeight: "600" }}
+            >
+              <Plus size={16} />
+              Đăng ký doanh nghiệp
+            </button>
+          </div>
+        )}
+        <div className="table-responsive shadow-sm rounded overflow-hidden">
         <table
           className="table table-bordered table-sm mb-0 align-middle"
           style={{ fontSize: "12px", tableLayout: "fixed", width: "100%" }}
@@ -1737,7 +1752,8 @@ export default function B2BPage() {
           currentLanguage={currentLanguage}
           onChange={(page) => handlePageChange(activeTab, page)}
         />
-      </div>
+        </div>
+      </>
     );
   };
 
@@ -3048,6 +3064,16 @@ export default function B2BPage() {
           </div>
         </div>
       )}
+      
+      {/* Modal Đăng ký doanh nghiệp */}
+      <RegisterB2BModal 
+        isOpen={showRegisterB2BModal}
+        onClose={() => setShowRegisterB2BModal(false)}
+        onSuccess={() => {
+          loadData();
+        }}
+        currentUser={currentUser}
+      />
     </div>
 
   );
