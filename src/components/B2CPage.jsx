@@ -63,7 +63,7 @@ const B2C_CATEGORY_LIST = {
   ]
 };
 
-const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false, height = "38px", footerAction }) => {
+const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false, height = "38px", footerAction, width = "100%" }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
   const selectedOption = options.find(opt => String(opt.value) === String(value));
@@ -86,7 +86,7 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
   };
 
   return (
-    <div className="position-relative" ref={containerRef} style={{ width: "100%" }}>
+    <div className="position-relative" ref={containerRef} style={{ width }}>
       <div 
         onClick={() => !disabled && setIsOpen(!isOpen)}
         style={{
@@ -312,7 +312,9 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           LoaiDichVu: "", DanhMuc: "", TenDichVu: "",
           MaHoSo: "", NguoiPhuTrachId: currentUser?.id || "",
           TrangThai: "Tư vấn", GoiDichVu: "",
+          DonViTienTe: "VND",
           Invoice: "No", InvoiceUrl: "", ConfirmPassword: "",
+          YeuCauXuatHoaDon: "No",
           DoanhThuTruocChietKhau: "0", // String format
           MucChietKhau: 0,
         }
@@ -323,12 +325,16 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           CoSoTuVan: request.CoSoTuVan || "Seoul",
           GoiDichVu: request.GoiDichVu || "Thông thường",
           Invoice: request.Invoice || "No",
+          YeuCauXuatHoaDon: request.Invoice || "No",
           MaHoSo: request.MaHoSo || "",
           NguoiPhuTrachId: request.NguoiPhuTrachId || "",
           TrangThai: request.TrangThai || "Tư vấn",
+          DonViTienTe: request.DonViTienTe ?? 0,
           LoaiDichVu: normalizeServiceType(request.LoaiDichVu), 
           DanhMuc: (request.DanhMuc || "").split(",")[0],
           TenDichVu: request.TenDichVu || "",
+          NoiDung: request.NoiDung || "",
+          GhiChu: request.GhiChu || "",
           DoanhThuTruocChietKhau: formatNumber(request.DoanhThuTruocChietKhau),
           NgayBatDau: request.NgayBatDau ? new Date(request.NgayBatDau).toISOString().split("T")[0] : "",
           NgayKetThuc: request.NgayKetThuc ? new Date(request.NgayKetThuc).toISOString().split("T")[0] : "",
@@ -472,7 +478,8 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   const areaCodes = [{ value: "+82", label: "+82" }, { value: "+84", label: "+84" }];
   const formOptions = currentLanguage === "vi" ? ["Messenger","Kakao Talk", "Zalo","Naver Talk", "Email", "Gọi điện","Trực tiếp"] : ["Messenger","Kakao Talk", "Zalo","Naver Talk", "Email", "Phone", "Direct"];
   const branchOptions = [{ value: "Seoul", label: "Seoul" }, { value: "Busan", label: "Busan" }];
-  const statusOptions = currentLanguage === "vi" ? ["Tư vấn", "Đang xử lý", "Đang nộp hồ sơ", "Hoàn thành"] : ["Consultation", "Processing", "Submitting Documents", "Completed"];
+  const statusOptions = currentLanguage === "vi" ? ["Tư vấn", "Tiến hành", "Hoàn thành"] : ["Consultation", "Processing", "Completed"];
+  const currencyOptions = [{ value: 0, label: "VND" }, { value: 1, label: "KRW" }];
   const packageOptions = [{ value: "Thông thường", label: "Thông thường" }, { value: "Cấp tốc", label: "Cấp tốc" }];
   const discountOptions = [{ value: 0, label: "0%" }, { value: 5, label: "5%" }, { value: 10, label: "10%" }, { value: 12, label: "12%" }, { value: 15, label: "15%" }, { value: 17, label: "17%" }, { value: 30, label: "30%" }];
 
@@ -591,14 +598,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           </div>
          <div className="col-md-4">
                     <label style={labelStyle}>{t.status}</label>
-                    <input 
-                        type="text" 
-                        name="TrangThai" 
-                        style={inputStyle} 
-                        value={formData.TrangThai} 
-                        onChange={handleInputChange} 
-                        placeholder={currentLanguage === "vi" ? "Nhập trạng thái..." : "Enter status..."} 
-                    />
+                    <ModernSelect name="TrangThai" height="38px" value={formData.TrangThai} placeholder={t.selectStatus} options={statusOptions.map(s => ({ value: s, label: s }))} onChange={handleInputChange} />
                 </div>
 
           {(() => {
@@ -633,16 +633,67 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                 onChange={handleInputChange} 
             />
         </div>
-        <div className="col-md-6">
-            <label style={labelStyle}>Ngày Kết Thúc</label>
-            <input 
-                type="date" 
-                name="NgayKetThuc" 
-                style={inputStyle} 
-                value={formData.NgayKetThuc} 
-                onChange={handleInputChange} 
-            />
+        <div className="col-12">
+            <label style={labelStyle}>Yêu cầu xuất hóa đơn</label>
+            <div className="d-flex gap-3" style={{ marginTop: "8px" }}>
+              <button 
+                type="button" 
+                onClick={() => setFormData(prev => ({...prev, YeuCauXuatHoaDon: "Yes"}))}
+                style={{
+                  flex: 1,
+                  padding: "10px 20px",
+                  borderRadius: "8px",
+                  border: `2px solid ${formData.YeuCauXuatHoaDon === "Yes" ? "#2563eb" : "#d1d5db"}`,
+                  backgroundColor: formData.YeuCauXuatHoaDon === "Yes" ? "#dbeafe" : "#ffffff",
+                  color: formData.YeuCauXuatHoaDon === "Yes" ? "#2563eb" : "#6b7280",
+                  fontSize: "13px",
+                  fontWeight: formData.YeuCauXuatHoaDon === "Yes" ? "600" : "500",
+                  cursor: "pointer",
+                  transition: "all 0.2s"
+                }}
+              >
+                Yes
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setFormData(prev => ({...prev, YeuCauXuatHoaDon: "No"}))}
+                style={{
+                  flex: 1,
+                  padding: "10px 20px",
+                  borderRadius: "8px",
+                  border: `2px solid ${formData.YeuCauXuatHoaDon === "No" ? "#2563eb" : "#d1d5db"}`,
+                  backgroundColor: formData.YeuCauXuatHoaDon === "No" ? "#dbeafe" : "#ffffff",
+                  color: formData.YeuCauXuatHoaDon === "No" ? "#2563eb" : "#6b7280",
+                  fontSize: "13px",
+                  fontWeight: formData.YeuCauXuatHoaDon === "No" ? "600" : "500",
+                  cursor: "pointer",
+                  transition: "all 0.2s"
+                }}
+              >
+                No
+              </button>
+            </div>
         </div>
+
+        {/* --- UPLOAD HÓA ĐƠN (NẾU KHÔNG PHẢI TẠO MỚI VÀ CHỌN YES) --- */}
+        {!isNew && formData.YeuCauXuatHoaDon === "Yes" && (
+          <div className="col-12 mt-3 pt-2 border-top">
+            <label style={labelStyle}>Upload Hóa Đơn</label>
+            <input 
+              type="file" 
+              className="form-control" 
+              style={{...inputStyle, padding: "8px 10px"}}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setFormData(prev => ({...prev, InvoiceFile: file}));
+                }
+              }}
+              accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls"
+            />
+          </div>
+        )}
+
           <div className="col-12">
             <label style={labelStyle}>{t.content}</label>
             <textarea rows={2} name="NoiDung" style={inputStyle} value={formData.NoiDung} onChange={handleInputChange} placeholder={t.enterContent} />
@@ -652,19 +703,49 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
             <textarea rows={2} name="GhiChu" style={inputStyle} value={formData.GhiChu} onChange={handleInputChange} placeholder={t.enterNote} />
           </div>
 
+          {/* --- UPLOAD HÓA ĐƠN (NẾU KHÔNG PHẢI TẠO MỚI VÀ CHỌN YES) --- */}
+          {!isNew && formData.YeuCauXuatHoaDon === "Yes" && (
+            <div className="col-12 mt-3 pt-2 border-top">
+              <label style={labelStyle}>Upload Hóa Đơn</label>
+              <input 
+                type="file" 
+                className="form-control" 
+                style={{...inputStyle, padding: "8px 10px"}}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setFormData(prev => ({...prev, InvoiceFile: file}));
+                  }
+                }}
+                accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls"
+              />
+            </div>
+          )}
+
           {/* --- TÀI CHÍNH (3 CỘT: Doanh Thu, Chiết Khấu, Ví) --- */}
           {canApprove && (
             <div className="col-12 mt-3 pt-2 border-top">
                 <div className="row g-3">
                     <div className="col-md-6">
-                        <label style={labelStyle}>Doanh Thu<span className="text-danger">*</span></label>
+                      <label style={labelStyle}>Doanh Thu<span className="text-danger">*</span></label>
+                      <div className="d-flex gap-2">
                         <input 
-                            type="text" 
-                            name="DoanhThuTruocChietKhau" 
-                            value={formData.DoanhThuTruocChietKhau} 
-                            onChange={handleMoneyChange} 
-                            style={{...inputStyle, textAlign: "center"}} 
+                          type="text" 
+                          name="DoanhThuTruocChietKhau" 
+                          value={formData.DoanhThuTruocChietKhau} 
+                          onChange={handleMoneyChange} 
+                          style={{...inputStyle, textAlign: "center", flex: 1}} 
                         />
+                        <ModernSelect 
+                          name="DonViTienTe" 
+                          height="38px" 
+                          value={formData.DonViTienTe} 
+                          options={currencyOptions} 
+                          onChange={handleInputChange} 
+                          placeholder="VND" 
+                          width="110px"
+                        />
+                      </div>
                     </div>
                     <div className="col-md-6">
                         <label style={labelStyle}>Mức Chiết Khấu (%)</label>
@@ -814,6 +895,7 @@ const RowItem = ({
 
   const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
   const translateBranch = (branch) => { const map = { 서울: "Seoul", 부산: "Busan" }; return map[branch] || branch || ""; };
+  const currencySymbol = Number(item.DonViTienTe) === 1 ? " ₩" : " ₫";
 
   const isVisible = (key) => (visibleColumns ? visibleColumns[key] : true);
   const isPinned = (key) => pinnedColumns.includes(key);
@@ -892,7 +974,7 @@ const RowItem = ({
             )}
             {isVisible("trangThai") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("trangThai")}`} style={mergedStyle}>{item.TrangThai}</td>}
             {isVisible("goiDichVu") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("goiDichVu")}`} style={{...mergedStyle,width:102}}>{item.GoiDichVu}</td>}
-            {isVisible("invoice") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("invoice")}`} style={mergedStyle}>{["Yes","true","1"].includes(String(item.Invoice)) ? <span className="text-success fw-bold">Có</span> : ""}</td>}
+            {isVisible("invoice") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("invoice")}`} style={mergedStyle}>{item.Invoice === "Yes" ? <span className="text-success fw-bold">Yes</span> : <span className="text-muted">No</span>}</td>}
             {canViewFinance && isVisible("invoiceUrl") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("invoiceUrl")}`} style={mergedStyle}>{item.InvoiceUrl ? <a href={item.InvoiceUrl} target="_blank" rel="noreferrer">Link</a> : "-"}</td>}
             
             {isVisible("gio") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("gio")}`} style={mergedStyle}>{item.Gio ? item.Gio.substring(0,5) : ""}</td>}
@@ -915,7 +997,7 @@ const RowItem = ({
             )}
             {/* === CỘT TÀI CHÍNH (RIÊNG TỪNG DÒNG) === */}
             {canViewFinance && isVisible("doanhThuTruoc") && (
-                <td className="text-center">{formatNumber(stats.rev)}</td>
+                <td className="text-center">{`${formatNumber(stats.rev)}${currencySymbol}`}</td>
             )}
             {canViewFinance && isVisible("mucChietKhau") && (
                 <td className="text-center">{stats.disc}%</td>
@@ -924,7 +1006,7 @@ const RowItem = ({
                 <td className="text-center">{formatNumber(stats.discAmount)}</td>
             )}
             {canViewFinance && isVisible("doanhThuSau") && (
-                <td className="text-center fw-bold text-primary">{formatNumber(stats.after)}</td>
+              <td className="text-center fw-bold text-primary">{`${formatNumber(stats.after)}${currencySymbol}`}</td>
             )}
 
           
@@ -935,7 +1017,7 @@ const RowItem = ({
                     style={mergedStyle}    
                 >
                     {/* Thay item.TongDoanhThuTichLuy bằng biến mới tính */}
-                    {formatNumber(totalRevenueAfterDiscount)}
+                    {`${formatNumber(totalRevenueAfterDiscount)}${currencySymbol}`}
                 </td>
             )}
             {/* Hành động (Gộp) */}
@@ -1254,6 +1336,37 @@ const fetchData = async () => {
       delete payload.NguoiPhuTrach; 
       delete payload.User;         
       delete payload.ConfirmPassword; 
+      delete payload.InvoiceFile; // Xoá file object khỏi payload (sẽ upload sau)
+
+      // Rename YeuCauXuatHoaDon to Invoice
+      if (payload.YeuCauXuatHoaDon) {
+        payload.Invoice = payload.YeuCauXuatHoaDon;
+        delete payload.YeuCauXuatHoaDon;
+      }
+
+      let invoiceUrl = payload.InvoiceUrl || "";
+
+      // Nếu có file upload mới, upload lên
+      if (formData.InvoiceFile && formData.InvoiceFile instanceof File) {
+        try {
+          const formDataUpload = new FormData();
+          formDataUpload.append("file", formData.InvoiceFile);
+          
+          const uploadRes = await fetch("https://onepasscms-backend-tvdy.onrender.com/api/upload-invoice", {
+            method: "POST",
+            body: formDataUpload
+          });
+
+          if (uploadRes.ok) {
+            const uploadJson = await uploadRes.json();
+            invoiceUrl = uploadJson.url || uploadJson.invoiceUrl || "";
+          }
+        } catch (uploadErr) {
+          console.warn("Lỗi upload file, tiếp tục mà không URL:", uploadErr);
+        }
+      }
+
+      payload.InvoiceUrl = invoiceUrl;
 
     
       if (payload.NguoiPhuTrachId === "") {
@@ -1265,6 +1378,13 @@ const fetchData = async () => {
         headers: { "Content-Type": "application/json" }, 
         body: JSON.stringify(payload), 
       });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("API /yeucau error", res.status, errText, payload);
+        showToast(errText || `Lỗi server (${res.status})`, "error");
+        return;
+      }
       
       const json = await res.json();
       
@@ -1273,6 +1393,7 @@ const fetchData = async () => {
         fetchData();
         setEditingRequest(null);
       } else { 
+        console.error("API /yeucau returned error", json, payload);
         showToast(json.message || "Lỗi xử lý", "error"); 
       }
     } catch (err) { 
@@ -1341,9 +1462,12 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
     NgayKetThuc: request.NgayKetThuc ? new Date(request.NgayKetThuc).toISOString().split("T")[0] : "", 
     NoiDung: request.NoiDung || "",
     GhiChu: request.GhiChu || "",
+    DonViTienTe: request.DonViTienTe ?? 0,
+    YeuCauXuatHoaDon: request.Invoice || "No",
+    InvoiceUrl: request.InvoiceUrl || "",
     
-    // Trạng thái
-    TrangThai: request.TrangThai || "Đang xử lý",
+    // Trạng thái (mặc định: Tư vấn)
+    TrangThai: request.TrangThai || "Tư vấn",
 
     // Tài chính (Chỉ là hiển thị ban đầu, sẽ tính lại khi save)
     DoanhThuTruocChietKhau: formatNumber(request.DoanhThuTruocChietKhau),
@@ -1502,7 +1626,47 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
       DoanhThuSauChietKhau: totalRevenue - totalDiscountAmount,
       ChiTietDichVu: chiTietDichVu
   };
+
+      // Chuẩn hóa các trường rỗng về null để backend không lỗi
+      ["ChonNgay","Gio","NgayBatDau","NgayKetThuc","Email","NoiDung","GhiChu","TenDichVu","MaHoSo"].forEach((key) => {
+        if (payload[key] === "") payload[key] = null;
+      });
+      // Convert currency to integer for backend
+      if (payload.DonViTienTe !== null && payload.DonViTienTe !== undefined && payload.DonViTienTe !== "") {
+        const parsedCurrency = parseInt(payload.DonViTienTe, 10);
+        payload.DonViTienTe = isNaN(parsedCurrency) ? null : parsedCurrency;
+      } else {
+        payload.DonViTienTe = null;
+      }
     delete payload.ConfirmPassword;
+
+    // Rename YeuCauXuatHoaDon to Invoice
+    if (payload.YeuCauXuatHoaDon) {
+      payload.Invoice = payload.YeuCauXuatHoaDon;
+      delete payload.YeuCauXuatHoaDon;
+    }
+
+    // Xử lý file upload nếu có
+    if (formData.InvoiceFile && formData.InvoiceFile instanceof File) {
+      try {
+        const formDataUpload = new FormData();
+        formDataUpload.append("file", formData.InvoiceFile);
+        
+        const uploadRes = await fetch("https://onepasscms-backend-tvdy.onrender.com/api/upload-invoice", {
+          method: "POST",
+          body: formDataUpload
+        });
+
+        if (uploadRes.ok) {
+          const uploadJson = await uploadRes.json();
+          payload.InvoiceUrl = uploadJson.url || uploadJson.invoiceUrl || "";
+        }
+      } catch (uploadErr) {
+        console.warn("Lỗi upload file, tiếp tục mà không URL:", uploadErr);
+      }
+    }
+
+    delete payload.InvoiceFile; // Xoá file object khỏi payload
     
     await onConfirm(request.YeuCauID, payload);
     setLoading(false);
@@ -1529,7 +1693,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
   "Trực tiếp"
 ];
   const areaCodes = [{ value: "+82", label: "+82" }, { value: "+84", label: "+84" }];
-  const statusOptions = currentLanguage === "vi" ? ["Tư vấn", "Đang xử lý", "Đang nộp hồ sơ", "Hoàn thành"] : ["Consultation", "Processing", "Submitting Documents", "Completed"];
+  const statusOptions = currentLanguage === "vi" ? ["Tư vấn", "Tiến hành", "Hoàn thành"] : ["Consultation", "Processing", "Completed"];
   const discountOptions = [{ value: 0, label: "0%" }, { value: 5, label: "5%" }, { value: 10, label: "10%" }, { value: 12, label: "12%" }, { value: 15, label: "15%" }, { value: 17, label: "17%" }, { value: 30, label: "30%" }];
 
   return (
@@ -1644,14 +1808,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
             </div>
             <div className="col-md-4">
                 <label style={labelStyle}>Trạng thái</label>
-                <input 
-                    type="text" 
-                    name="TrangThai" 
-                    style={inputStyle} 
-                    value={formData.TrangThai} 
-                    onChange={handleChange} 
-                    placeholder="Nhập trạng thái..." 
-                />
+                <ModernSelect name="TrangThai" height={inputHeight} value={formData.TrangThai} options={statusOptions.map(s => ({ value: s, label: s }))} onChange={handleChange} />
             </div>
           
             <div className="col-md-4">
@@ -1695,12 +1852,42 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                 <textarea rows={2} name="GhiChu" style={inputStyle} value={formData.GhiChu} onChange={handleChange} />
             </div>
 
+            {/* === UPLOAD HÓA ĐƠN (NẾU YÊU CẦU XUẤT HÓA ĐƠN) === */}
+            {formData.YeuCauXuatHoaDon === "Yes" && (
+              <div className="col-12 mt-3 pt-2 border-top">
+                <label style={labelStyle}>Upload Hóa Đơn</label>
+                <input 
+                  type="file" 
+                  className="form-control" 
+                  style={{...inputStyle, padding: "8px 10px"}}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setFormData(prev => ({...prev, InvoiceFile: file}));
+                    }
+                  }}
+                  accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls"
+                />
+              </div>
+            )}
+
             {/* === TÀI CHÍNH === */}
             <div className="col-12 mt-3 pt-2 border-top">
                 <div className="row g-3">
                     <div className="col-md-6">
-                        <label style={labelStyle}>Doanh thu (Dịch vụ chính) <span className="text-danger">*</span></label>
-                        <input type="text" name="DoanhThuTruocChietKhau" value={formData.DoanhThuTruocChietKhau} onChange={handleChange} style={{...inputStyle, color: "#2563eb", fontWeight: "bold", textAlign: "center"}} placeholder="0" />
+                      <label style={labelStyle}>Doanh thu (Dịch vụ chính) <span className="text-danger">*</span></label>
+                      <div className="d-flex gap-2">
+                        <input type="text" name="DoanhThuTruocChietKhau" value={formData.DoanhThuTruocChietKhau} onChange={handleChange} style={{...inputStyle, color: "#2563eb", fontWeight: "bold", textAlign: "center", flex: 1}} placeholder="0" />
+                        <ModernSelect 
+                          name="DonViTienTe" 
+                          height={inputHeight} 
+                          value={formData.DonViTienTe} 
+                          options={currencyOptions} 
+                          onChange={handleChange} 
+                          placeholder="VND" 
+                          width="110px"
+                        />
+                      </div>
                     </div>
 
                     <div className="col-md-6">
