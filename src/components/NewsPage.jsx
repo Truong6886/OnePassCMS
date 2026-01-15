@@ -93,12 +93,13 @@ function NewsPage() {
 
   const handleOpenModal = (record) => {
     if (record) {
-      // Parse blocks from NoiDungVN/NoiDungKR if exists, otherwise create default text block
+      // Parse blocks từ NoiDungVN nếu có, nếu không thì tạo block text từ nội dung cũ
       let blocks = [];
+      let urlHinhAnh = record.UrlHinhAnh || "";
       try {
         blocks = JSON.parse(record.NoiDungVN || '[]');
         if (!Array.isArray(blocks) || blocks.length === 0) {
-          // Fallback: tạo block text từ nội dung cũ
+          // Nếu không có blocks, tạo block text từ nội dung cũ
           blocks = [{
             id: Date.now(),
             type: 'text',
@@ -110,20 +111,8 @@ function NewsPage() {
             codeLanguage: 'javascript',
             codeContent: ''
           }];
-          if (record.UrlHinhAnh) {
-            blocks.push({
-              id: Date.now() + 1,
-              type: 'image',
-              contentVN: '',
-              contentKR: '',
-              imageUrl: record.UrlHinhAnh,
-              quoteAuthor: '',
-              videoUrl: '',
-              codeLanguage: 'javascript',
-              codeContent: ''
-            });
-          }
         } else {
+          // Đã có blocks hợp lệ, KHÔNG tự động thêm block image từ UrlHinhAnh
           blocks = blocks.map((b, idx) => ({
             id: b.id || Date.now() + idx,
             type: b.type || 'text',
@@ -135,6 +124,10 @@ function NewsPage() {
             codeLanguage: b.codeLanguage || 'javascript',
             codeContent: b.codeContent || ''
           }));
+        }
+        // Nếu có block image trùng với UrlHinhAnh thì loại bỏ khỏi blocks
+        if (urlHinhAnh) {
+          blocks = blocks.filter(b => !(b.type === 'image' && b.imageUrl === urlHinhAnh));
         }
       } catch (e) {
         // Nếu parse lỗi, tạo block mặc định
@@ -158,7 +151,7 @@ function NewsPage() {
         DanhMuc: record.DanhMuc || "",
         TacGia: record.TacGia || "",
         NgayXuatBan: record.NgayXuatBan ? record.NgayXuatBan.split("T")[0] : "",
-        UrlHinhAnh: record.UrlHinhAnh || "",
+        UrlHinhAnh: urlHinhAnh,
         NoiDungVN: record.NoiDungVN || "",
         NoiDungKR: record.NoiDungKR || "",
         blocks
@@ -429,7 +422,7 @@ function NewsPage() {
     
     // Serialize blocks to JSON for NoiDungVN/NoiDungKR
     const blocksJSON = JSON.stringify(form.blocks);
-    
+
     // For backward compatibility, also create a text summary
     const textLike = ['text', 'quote', 'video'];
     const textSummaryVN = form.blocks
@@ -440,10 +433,10 @@ function NewsPage() {
       .filter(b => textLike.includes(b.type))
       .map(b => b.contentKR)
       .join('\n\n');
-    
-    // Get first image for UrlHinhAnh field
-    const firstImage = form.blocks.find(b => b.type === 'image' && b.imageUrl);
-    
+
+    // Không tự động lấy ảnh đầu tiên trong blocks làm ảnh đại diện
+    // Chỉ lấy UrlHinhAnh từ input riêng
+
     if (!textSummaryVN.trim()) {
       setToastMessage("Vui lòng nhập nội dung Việt trong ít nhất 1 text block");
       return;
@@ -460,7 +453,7 @@ function NewsPage() {
       DanhMuc: form.DanhMuc,
       TacGia: form.TacGia || currentUser?.name || "One Pass",
       NgayXuatBan: form.NgayXuatBan,
-      UrlHinhAnh: firstImage ? firstImage.imageUrl : form.UrlHinhAnh || '',
+      UrlHinhAnh: form.UrlHinhAnh || '',
       NoiDungVN: blocksJSON,
       NoiDungKR: textSummaryKR, // Lưu text summary cho compatibility
     };
@@ -642,75 +635,101 @@ function NewsPage() {
         </div>
 
         <div className="news-grid">
-          {filteredNews.length > 0 ? (
-            filteredNews.map((item) => (
-              <div key={item.ID} className="news-card">
-                <div className="news-card__thumb">
-                  {item.UrlHinhAnh ? (
-                    <img src={item.UrlHinhAnh} alt={item.TieuDeVN} />
-                  ) : (
-                    <div className="news-card__thumb--placeholder">
-                      <ImageIcon size={28} />
+            {filteredNews.length > 0 ? (
+              filteredNews.map((item) => {
+                let blocks = [];
+                try {
+                  blocks = JSON.parse(item.NoiDungVN || '[]');
+                } catch {
+                  blocks = [];
+                }
+                // Loại bỏ các block image trùng với UrlHinhAnh (ảnh đại diện)
+                const imageBlocks = Array.isArray(blocks)
+                  ? blocks.filter(b => b.type === 'image' && b.imageUrl && b.imageUrl !== item.UrlHinhAnh)
+                  : [];
+                return (
+                  <div key={item.ID} className="news-card">
+                    <div className="news-card__thumb">
+                      {item.UrlHinhAnh ? (
+                        <img src={item.UrlHinhAnh} alt={item.TieuDeVN} />
+                      ) : (
+                        <div className="news-card__thumb--placeholder">
+                          <ImageIcon size={28} />
+                        </div>
+                      )}
+                      <span className="news-badge badge-success">
+                        Tin tức
+                      </span>
                     </div>
-                  )}
-                  <span className="news-badge badge-success">
-                    Tin tức
-                  </span>
-                </div>
 
-                <div className="news-card__body">
-                  <p className="news-card__meta">
-                    <CalendarClock size={16} /> {item.NgayXuatBan || "Chưa đặt"}
-                  </p>
-                  <h3 className="news-card__title">{item.TieuDeVN}</h3>
-                    <p className="news-card__summary">
-                      {(() => {
-                        try {
-                          const blocks = JSON.parse(item.NoiDungVN || '[]');
-                          if (Array.isArray(blocks) && blocks.length > 0) {
-                          const textBlocks = blocks.filter(b => ['text','quote','video'].includes(b.type) && b.contentVN);
-                            const preview = textBlocks.map(b => b.contentVN).join(' ');
-                            return preview.substring(0, 100) + (preview.length > 100 ? '...' : '');
+                    {/* Hiển thị các ảnh trong blocks, loại trừ ảnh đại diện */}
+                    {imageBlocks.length > 0 && (
+                      <div className="news-card__images">
+                        {imageBlocks.map((imgBlock, idx) => (
+                          <img
+                            key={idx}
+                            src={imgBlock.imageUrl}
+                            alt={`Ảnh ${idx + 1}`}
+                            style={{ maxWidth: '100px', maxHeight: '80px', marginRight: 8, marginBottom: 4, borderRadius: 4 }}
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="news-card__body">
+                      <p className="news-card__meta">
+                        <CalendarClock size={16} /> {item.NgayXuatBan || "Chưa đặt"}
+                      </p>
+                      <h3 className="news-card__title">{item.TieuDeVN}</h3>
+                      <p className="news-card__summary">
+                        {(() => {
+                          try {
+                            const blocks = JSON.parse(item.NoiDungVN || '[]');
+                            if (Array.isArray(blocks) && blocks.length > 0) {
+                              const textBlocks = blocks.filter(b => ['text','quote','video'].includes(b.type) && b.contentVN);
+                              const preview = textBlocks.map(b => b.contentVN).join(' ');
+                              return preview.substring(0, 100) + (preview.length > 100 ? '...' : '');
+                            }
+                            return item.NoiDungVN?.substring(0, 100) + '...';
+                          } catch {
+                            return item.NoiDungVN?.substring(0, 100) + '...';
                           }
-                          return item.NoiDungVN?.substring(0, 100) + '...';
-                        } catch {
-                          return item.NoiDungVN?.substring(0, 100) + '...';
-                        }
-                      })()}
-                    </p>
+                        })()}
+                      </p>
 
-                  <div className="news-card__chips">
-                    {item.DanhMuc && <span className="news-chip">{item.DanhMuc}</span>}
-                    <span className="news-chip news-chip--soft">Hàn: {item.TieuDeKR?.substring(0, 20)}</span>
-                  </div>
+                      <div className="news-card__chips">
+                        {item.DanhMuc && <span className="news-chip">{item.DanhMuc}</span>}
+                        <span className="news-chip news-chip--soft">Hàn: {item.TieuDeKR?.substring(0, 20)}</span>
+                      </div>
 
-                  <div className="news-card__footer">
-                    <div className="news-author">{item.TacGia || "One Pass"}</div>
-                    <div className="news-actions">
-                      <button
-                        className="icon-btn"
-                        onClick={() => handleOpenModal(item)}
-                        title="Chỉnh sửa"
-                      >
-                        <Edit3 size={16} />
-                      </button>
-                      <button
-                        className="icon-btn icon-btn--danger"
-                        onClick={() => setConfirmDeleteId(item.ID)}
-                        title="Xóa"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      <div className="news-card__footer">
+                        <div className="news-author">{item.TacGia || "One Pass"}</div>
+                        <div className="news-actions">
+                          <button
+                            className="icon-btn"
+                            onClick={() => handleOpenModal(item)}
+                            title="Chỉnh sửa"
+                          >
+                            <Edit3 size={16} />
+                          </button>
+                          <button
+                            className="icon-btn icon-btn--danger"
+                            onClick={() => setConfirmDeleteId(item.ID)}
+                            title="Xóa"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                );
+              })
+            ) : (
+              <div className="news-empty">
+                <p>Chưa có tin phù hợp. Thêm mới để bắt đầu.</p>
               </div>
-            ))
-          ) : (
-            <div className="news-empty">
-              <p>Chưa có tin phù hợp. Thêm mới để bắt đầu.</p>
-            </div>
-          )}
+            )}
         </div>
       </div>
 
