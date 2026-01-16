@@ -643,9 +643,9 @@ function NewsPage() {
                 } catch {
                   blocks = [];
                 }
-                // Loại bỏ các block image trùng với UrlHinhAnh (ảnh đại diện)
+                // Lấy tất cả các block image (bao gồm cả trùng với UrlHinhAnh)
                 const imageBlocks = Array.isArray(blocks)
-                  ? blocks.filter(b => b.type === 'image' && b.imageUrl && b.imageUrl !== item.UrlHinhAnh)
+                  ? blocks.filter(b => b.type === 'image' && b.imageUrl)
                   : [];
                 return (
                   <div key={item.ID} className="news-card">
@@ -662,7 +662,7 @@ function NewsPage() {
                       </span>
                     </div>
 
-                    {/* Hiển thị các ảnh trong blocks, loại trừ ảnh đại diện */}
+                    {/* Hiển thị tất cả các ảnh trong blocks (bao gồm cả ảnh đại diện nếu có) */}
                     {imageBlocks.length > 0 && (
                       <div className="news-card__images">
                         {imageBlocks.map((imgBlock, idx) => (
