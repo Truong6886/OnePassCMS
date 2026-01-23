@@ -56,8 +56,9 @@ function NewsPage() {
   const fetchNews = async () => {
     try {
       setLoading(true);
+      // Lấy tất cả tin tức, bỏ giới hạn 20 tin mặc định
       const response = await authenticatedFetch(
-        "https://onepasscms-backend-tvdy.onrender.com/api/tintuc",
+        "https://onepasscms-backend-tvdy.onrender.com/api/tintuc?limit=1000",
         { method: "GET" }
       );
       if (!response) {
