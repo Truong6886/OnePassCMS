@@ -1,4 +1,22 @@
 import React, { useEffect, useMemo, useState } from "react";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
+
+// Toolbar cấu hình cho ReactQuill (KHÔNG có nút image)
+const quillToolbarOptions = [
+  [{ 'header': [1, 2, 3, false] }],
+  ['bold', 'italic', 'underline', 'strike'],
+  [{ 'color': [] }, { 'background': [] }],
+  [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+  [{ 'align': [] }],
+  ['blockquote'],
+  ['link'],
+  ['clean']
+];
+
+const quillModules = {
+  toolbar: quillToolbarOptions
+};
 import { Plus, Edit3, Trash2, Search, X, Image as ImageIcon, CalendarClock, ChevronUp, ChevronDown, Type, Quote, Video, GripVertical, Languages, Bold, Italic, Link as LinkIcon, List, Heading1, Heading2 } from "lucide-react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
@@ -943,42 +961,24 @@ function NewsPage() {
                           <div className="news-block-content">
                             <div className="news-field">
                               <label>Text (Tiếng Việt)</label>
-                              <div className="text-toolbar">
-                                <span>VI:</span>
-                                <button type="button" title="Đậm" onClick={() => applyBold(block.id, 'VN')}><Bold size={16} /></button>
-                                <button type="button" title="Nghiêng" onClick={() => applyItalic(block.id, 'VN')}><Italic size={16} /></button>
-                                <button type="button" title="Tiêu đề 1" onClick={() => applyHeading(block.id, 'VN', 1)}><Heading1 size={16} /></button>
-                                <button type="button" title="Tiêu đề 2" onClick={() => applyHeading(block.id, 'VN', 2)}><Heading2 size={16} /></button>
-                                <button type="button" title="Danh sách" onClick={() => applyList(block.id, 'VN')}><List size={16} /></button>
-                                <button type="button" title="Liên kết" onClick={() => applyLink(block.id, 'VN')}><LinkIcon size={16} /></button>
-                              </div>
-                              <textarea
-                                rows={3}
+                              <ReactQuill
+                                theme="snow"
                                 value={block.contentVN}
-                                onChange={(e) => updateBlock(block.id, 'contentVN', e.target.value)}
+                                onChange={val => updateBlock(block.id, 'contentVN', val)}
                                 placeholder="Nhập nội dung tiếng Việt"
-                                ref={el => { textRefs.current[`${block.id}-VN`] = el; }}
-                                onFocus={() => setActiveTextTarget({ blockId: block.id, lang: 'VN' })}
+                                style={{ background: '#fff', minHeight: 100 }}
+                                modules={quillModules}
                               />
                             </div>
                             <div className="news-field">
                               <label>Text (Hàn quốc)</label>
-                              <div className="text-toolbar">
-                                <span>KO:</span>
-                                <button type="button" title="굵게" onClick={() => applyBold(block.id, 'KR')}><Bold size={16} /></button>
-                                <button type="button" title="기울임" onClick={() => applyItalic(block.id, 'KR')}><Italic size={16} /></button>
-                                <button type="button" title="제목 1" onClick={() => applyHeading(block.id, 'KR', 1)}><Heading1 size={16} /></button>
-                                <button type="button" title="제목 2" onClick={() => applyHeading(block.id, 'KR', 2)}><Heading2 size={16} /></button>
-                                <button type="button" title="목록" onClick={() => applyList(block.id, 'KR')}><List size={16} /></button>
-                                <button type="button" title="링크" onClick={() => applyLink(block.id, 'KR')}><LinkIcon size={16} /></button>
-                              </div>
-                              <textarea
-                                rows={3}
+                              <ReactQuill
+                                theme="snow"
                                 value={block.contentKR}
-                                onChange={(e) => updateBlock(block.id, 'contentKR', e.target.value)}
+                                onChange={val => updateBlock(block.id, 'contentKR', val)}
                                 placeholder="한국어 내용을 입력하세요"
-                                ref={el => { textRefs.current[`${block.id}-KR`] = el; }}
-                                onFocus={() => setActiveTextTarget({ blockId: block.id, lang: 'KR' })}
+                                style={{ background: '#fff', minHeight: 100 }}
+                                modules={quillModules}
                               />
                             </div>
                           </div>
