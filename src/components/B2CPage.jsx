@@ -46,7 +46,7 @@ const B2C_CATEGORY_LIST = {
     "Giấy xác nhận tình trạng hôn nhân",
     "Giấy chứng nhận đủ điều kiện kết hôn Việt - Hàn"
   ],
-  "Chứng thực": [
+  "Hợp pháp hóa, công chứng": [
     "Hợp pháp hoá lãnh sự/Chứng nhận lãnh sự",
     "Công chứng, chứng thực hợp đồng giao dịch",
     "Hợp đồng ủy quyền",
@@ -60,6 +60,10 @@ const B2C_CATEGORY_LIST = {
     "Dịch Việt - Hàn",
     "Dịch Hàn - Việt",
     "Dịch BLX"
+  ],
+  "Dịch thuật": [
+    "Công chứng bản dịch",
+    "Xin cấp hộ hồ sơ"
   ]
 };
 
@@ -246,11 +250,18 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
       if (!val) return "";
       const cleanVal = String(val).trim();
       const krMap = {
-        "인증 센터": "Chứng thực", "결혼 이민": "Kết hôn", "출생신고 대행": "Khai sinh, khai tử", "국적 대행": "Quốc tịch",
+        "인증 센터": "Hợp pháp hóa, công chứng", "결혼 이민": "Kết hôn", "출생신고 대행": "Khai sinh, khai tử", "국적 대행": "Quốc tịch",
         "여권 • 호적 대행": "Hộ chiếu, Hộ tịch", "입양 절차 대행": "Nhận nuôi", "비자 대행": "Thị thực", "법률 컨설팅": "Tư vấn pháp lý",
-        "B2B 서비스": "Dịch vụ B2B", "기타": "Khác",
+        "B2B 서비스": "Dịch vụ B2B", "기타": "Khác", "번역 공증": "Dịch thuật",
       };
       return krMap[cleanVal] || cleanVal;
+  };
+
+  const getDanhMucOptions = (serviceType) => {
+    if (!serviceType) return [];
+    const normalized = normalizeServiceType(serviceType).trim().toLowerCase();
+    const match = Object.entries(B2C_CATEGORY_LIST).find(([key]) => key.trim().toLowerCase() === normalized);
+    return match ? match[1] : [];
   };
 
   const translations = {
@@ -543,7 +554,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                 height="38px" 
                 value={formData.DanhMuc} 
                 placeholder={t.selectCategory} 
-                options={(B2C_CATEGORY_LIST[formData.LoaiDichVu] || []).map(dm => ({ value: dm, label: dm }))} 
+               options={getDanhMucOptions(formData.LoaiDichVu).map(dm => ({ value: dm, label: dm }))} 
                 onChange={handleInputChange}
                 disabled={!formData.LoaiDichVu}
                 footerAction={{
@@ -1758,7 +1769,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                     name="DanhMuc" 
                     height={inputHeight} 
                     value={formData.DanhMuc} 
-                    options={(B2C_CATEGORY_LIST[formData.LoaiDichVu] || []).map(dm => ({ value: dm, label: dm }))} 
+                  options={getDanhMucOptions(formData.LoaiDichVu).map(dm => ({ value: dm, label: dm }))} 
                     onChange={handleChange}
                     footerAction={{
                         label: showExtras ? "Ẩn dịch vụ bổ sung" : "Thêm dịch vụ bổ sung (+5)",

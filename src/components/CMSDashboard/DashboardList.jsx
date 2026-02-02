@@ -413,7 +413,7 @@ const DashboardList = ({
     });
   };
 
-  const SERVICE_OPTIONS = ["Chứng thực", "Kết hôn", "Khai sinh, khai tử", "Xuất nhập cảnh", "Giấy tờ tuỳ thân", "Nhận nuôi", "Thị thực", "Tư vấn pháp lý", "Dịch vụ B2B", "Khác"];
+  const SERVICE_OPTIONS = ["Hợp pháp hóa, công chứng", "Kết hôn", "Khai sinh, khai tử", "Xuất nhập cảnh", "Giấy tờ tuỳ thân", "Nhận nuôi", "Thị thực", "Tư vấn pháp lý", "Dịch vụ B2B", "Khác"];
   const STATUS_OPTIONS = ["Tư vấn", "Đang xử lý", "Đang nộp hồ sơ", "Hoàn thành"];
   const PACKAGE_OPTIONS = ["Thông thường", "Cấp tốc"];
 

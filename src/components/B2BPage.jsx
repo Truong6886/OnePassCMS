@@ -569,7 +569,7 @@ export default function B2BPage() {
       "Giấy xác nhận tình trạng hôn nhân",
       "Giấy chứng nhận đủ điều kiện kết hôn Việt - Hàn"
     ],
-    "Chứng thực": [
+    "Hợp pháp hóa, công chứng": [
       "Hợp pháp hoá lãnh sự/Chứng nhận lãnh sự",
       "Công chứng, chứng thực hợp đồng giao dịch",
       "Hợp đồng ủy quyền",
@@ -583,7 +583,17 @@ export default function B2BPage() {
       "Dịch Việt - Hàn",
       "Dịch Hàn - Việt",
       "Dịch BLX"
+    ],
+    "Dịch thuật": [
+      "Công chứng bản dịch",
+      "Xin cấp hộ hồ sơ"
     ]
+  };
+  const getDanhMucOptions = (serviceType) => {
+    if (!serviceType) return [];
+    const normalized = serviceType.trim().toLowerCase();
+    const match = Object.entries(B2B_SERVICE_MAPPING).find(([key]) => key.trim().toLowerCase() === normalized);
+    return match ? match[1] : [];
   };
   const [currentPage, setCurrentPage] = useState({
     pending: 1, approved: 1, rejected: 1, services: 1
@@ -1301,15 +1311,86 @@ export default function B2BPage() {
 
     return (
       <div>
-        <div className="d-flex justify-content-end mb-2 gap-2" style={{ height: 40, marginRight: 10 }}>
-          <button
-            className="btn btn-success btn-sm d-flex align-items-center gap-2 shadow-sm"
-            onClick={handleOpenAddServiceModal}
-            style={{ fontSize: "13px", fontWeight: "600" }}
-          >
-            <Plus size={16} />
-            {t.dangKyDichVuMoi}
-          </button>
+        <div
+          className="d-flex justify-content-between align-items-end mb-4"
+          style={{ paddingTop: 8, paddingBottom: 8 }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 22, color: '#222', lineHeight: 1.2 }}>
+              Danh Sách Dịch Vụ B2B
+            </div>
+            <div style={{ color: '#6b7280', fontSize: 13, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              Thông tin đăng ký dịch vụ trên hệ thống của ONE PASS
+            </div>
+          </div>
+          <div className="d-flex align-items-center" style={{ gap: 12, minWidth: 0 }}>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Tìm theo tên, email, tên dịch vụ, người..."
+              style={{
+                width: 270,
+                fontSize: 15,
+                borderRadius: 12,
+                height: 42,
+                marginRight: 8,
+                background: '#fff',
+                border: '1px solid #d1d5db',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                outline: 'none',
+                paddingLeft: 16,
+                paddingRight: 16
+              }}
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+            <button
+              className="btn btn-light border"
+              style={{
+                fontSize: 15,
+                borderRadius: 12,
+                height: 42,
+                fontWeight: 500,
+                color: '#444',
+                background: '#f3f4f6',
+                borderColor: '#e5e7eb',
+                marginRight: 8,
+                padding: '0 22px',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+              }}
+              onClick={() => loadData()}
+            >Bộ lọc</button>
+            <button
+              className="d-flex align-items-center gap-2 shadow-sm"
+              onClick={handleOpenAddServiceModal}
+              style={{
+                background: '#19924a',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 12,
+                fontSize: 15,
+                fontWeight: 700,
+                padding: '0 22px',
+                height: 42,
+                boxShadow: '0 2px 8px rgba(25,146,74,0.08)',
+                transition: 'background 0.2s, box-shadow 0.2s',
+                cursor: 'pointer',
+                outline: 'none',
+                whiteSpace: 'nowrap'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = '#15703a';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(25,146,74,0.16)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = '#19924a';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(25,146,74,0.08)';
+              }}
+            >
+              <Plus size={18} />
+              {t.dangKyDichVuMoi}
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -1331,9 +1412,6 @@ export default function B2BPage() {
                     <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>{t.diaChiNhan}</th>
                     <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.loaiDichVu}</th>
                     <th className="py-2 border" style={{ width: "140px", whiteSpace: "pre-wrap" }}>{t.tenDichVu}</th>
-
-                    {/* --- [SỬA] MỞ RỘNG CỘT HỒ SƠ LÊN 250px --- */}
-
 
                     <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>{t.danhMuc}</th>
                     <th className="py-2 border" style={{ width: "160px", whiteSpace: "pre-wrap" }}>{t.maDichVu}</th>
@@ -2136,7 +2214,7 @@ export default function B2BPage() {
                         value={selectedService.DanhMuc}
                         onChange={(e) => setSelectedService(prev => ({ ...prev, DanhMuc: e.target.value }))}
                         placeholder="Chọn danh mục chính"
-                        options={(B2B_SERVICE_MAPPING[selectedService.serviceType] || []).map(dm => ({ value: dm, label: dm }))}
+                        options={getDanhMucOptions(selectedService.serviceType).map(dm => ({ value: dm, label: dm }))}
                         footerAction={{
                           label: showExtras ? "Ẩn dịch vụ bổ sung" : "Thêm dịch vụ bổ sung (+5)",
                           icon: showExtras ? <EyeOff size={14} /> : <Plus size={14} />,
@@ -2779,12 +2857,10 @@ export default function B2BPage() {
                         onChange={handleModalChange}
                         placeholder={newServiceForm.LoaiDichVu ? "Chọn danh mục chính" : "Vui lòng chọn Loại dịch vụ trước"}
                         disabled={!newServiceForm.LoaiDichVu}
-                        options={
-                          (B2B_SERVICE_MAPPING[newServiceForm.LoaiDichVu] || []).map(dm => ({
-                            value: dm,
-                            label: dm
-                          }))
-                        }
+                        options={getDanhMucOptions(newServiceForm.LoaiDichVu).map(dm => ({
+                          value: dm,
+                          label: dm
+                        }))}
 
                         footerAction={{
                           label: showExtras ? "Ẩn dịch vụ bổ sung" : "Thêm dịch vụ bổ sung (+5)",

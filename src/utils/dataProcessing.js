@@ -8,7 +8,7 @@ export const statusColors = {
 };
 
 export const serviceColorMap = {
-  "Chứng thực": "#3b82f6",
+  "Hợp pháp hóa, công chứng": "#3b82f6",
   "Kết hôn": "#ec4899",
   "Khai sinh, khai tử": "#f59e0b",
   "Quốc tịch": "#06b6d4",

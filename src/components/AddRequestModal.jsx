@@ -117,7 +117,7 @@ const AddRequestModal = ({ users, data = [], onClose, onSave, currentLanguage })
 
   
   const rawServices = [
-    { vi: "Chứng thực", en: "Authentication" },
+    { vi: "Hợp pháp hóa, công chứng", en: "Legalization, Notarization" },
     { vi: "Kết hôn", en: "Marriage" },
     { vi: "Khai sinh, khai tử", en: "Birth/Death Certificate" },
     { vi: "Xuất nhập cảnh", en: "Immigration" },
@@ -125,6 +125,7 @@ const AddRequestModal = ({ users, data = [], onClose, onSave, currentLanguage })
     { vi: "Nhận nuôi", en: "Adoption" },
     { vi: "Thị thực", en: "Visa" },
     { vi: "Tư vấn pháp lý", en: "Legal Consultation" },
+    { vi: "Dịch thuật", en: "Translation" },
     { vi: "Dịch vụ B2B", en: "B2B Services" },
     { vi: "Khác", en: "Other" },
   ];

@@ -5,8 +5,8 @@
 const serviceTranslations = {
   // Korean (원본 - Backend key)
   "인증 센터": {
-    vi: "Chứng thực",
-    en: "Authentication",
+    vi: "Hợp pháp hóa, công chứng",
+    en: "Legalization, Notarization",
     ko: "인증 센터"
   },
   "결혼 이민": {
@@ -48,6 +48,11 @@ const serviceTranslations = {
     vi: "Tư vấn pháp lý",
     en: "Legal Consulting",
     ko: "법률 컨설팅"
+  },
+  "번역 공증": {
+    vi: "Dịch thuật",
+    en: "Translation & Notarization",
+    ko: "번역 공증"
   },
   "B2B 서비스": {
     vi: "Dịch vụ B2B",

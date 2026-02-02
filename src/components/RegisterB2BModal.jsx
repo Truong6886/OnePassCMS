@@ -26,7 +26,7 @@ export default function RegisterB2BModal({ isOpen, onClose, onSuccess, currentUs
   const [showServiceDropdown, setShowServiceDropdown] = useState(false);
 
   const serviceOptions = [
-    "Chứng thực",
+    "Hợp pháp hóa, công chứng",
     "Kết hôn",
     "Khai sinh, khai tử",
     "Quốc tịch",
@@ -34,6 +34,7 @@ export default function RegisterB2BModal({ isOpen, onClose, onSuccess, currentUs
     "Nhận nuôi",
     "Thị thực",
     "Tư vấn pháp lý",
+    "Dịch thuật",
     "Khác"
   ];
 
