@@ -82,6 +82,49 @@ const DashboardSummary = ({
     return r.NguoiPhuTrach;
   };
 
+  const parseServiceDetails = (details) => {
+    if (!details) return { main: {}, sub: [] };
+    if (typeof details === "string") {
+      try {
+        return JSON.parse(details);
+      } catch (e) {
+        return { main: {}, sub: [] };
+      }
+    }
+    return details || { main: {}, sub: [] };
+  };
+
+  const getRevenueAfterDiscount = (record) => {
+    const details = parseServiceDetails(record.ChiTietDichVu);
+    const rows = [];
+
+    const mainRevenue = details.main && details.main.revenue !== undefined
+      ? details.main.revenue
+      : record.DoanhThuTruocChietKhau;
+    const mainDiscount = details.main && details.main.discount !== undefined
+      ? details.main.discount
+      : record.MucChietKhau;
+    rows.push({ revenue: mainRevenue, discount: mainDiscount });
+
+    if (details.sub && details.sub.length > 0) {
+      details.sub.forEach((sub) => {
+        rows.push({ revenue: sub.revenue, discount: sub.discount });
+      });
+    }
+
+    return rows.reduce((sum, row) => {
+      const rev = Number(row.revenue) || 0;
+      const disc = Number(row.discount) || 0;
+      const discAmount = rev * (disc / 100);
+      return sum + (rev - discAmount);
+    }, 0);
+  };
+
+  const formatCurrency = (value) => {
+    const num = Number(value) || 0;
+    return num.toLocaleString("vi-VN");
+  };
+
   // --- LOGIC LỌC DỮ LIỆU ---
   const filteredData = allData.filter((r) => {
     const matchService = filterDichVu
@@ -104,6 +147,40 @@ const DashboardSummary = ({
 
     return matchService && matchRegion && matchStatus && matchMode && matchStaff;
   });
+
+  const b2bGrouped = b2bServices.reduce((acc, svc) => {
+    const name = svc.TenDoanhNghiep || svc.companyName || svc.CompanyName || (currentLanguage === "vi" ? "Không xác định" : currentLanguage === "ko" ? "미확인" : "Unknown");
+    if (!acc[name]) {
+      acc[name] = { name, count: 0, revenue: 0 };
+    }
+    acc[name].count += 1;
+    acc[name].revenue += getRevenueAfterDiscount(svc);
+    return acc;
+  }, {});
+
+  const b2bStats = Object.values(b2bGrouped).sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return b.revenue - a.revenue;
+  });
+
+  const b2bTotalRevenue = b2bStats.reduce((sum, item) => sum + (Number(item.revenue) || 0), 0);
+
+  const b2cGrouped = filteredData.reduce((acc, rec) => {
+    const name = rec.HoTen || rec.TenKhachHang || rec.CustomerName || (currentLanguage === "vi" ? "Không xác định" : currentLanguage === "ko" ? "미확인" : "Unknown");
+    if (!acc[name]) {
+      acc[name] = { name, count: 0, revenue: 0 };
+    }
+    acc[name].count += 1;
+    acc[name].revenue += getRevenueAfterDiscount(rec);
+    return acc;
+  }, {});
+
+  const b2cStats = Object.values(b2cGrouped).sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return b.revenue - a.revenue;
+  });
+
+  const b2cTotalRevenue = b2cStats.reduce((sum, item) => sum + (Number(item.revenue) || 0), 0);
 
 
   const dataForChart = allData.filter((r) => {
@@ -622,232 +699,9 @@ const chartDataByTime = allDates.map((dateStr) => {
               );
             })()}
           </div>
-          {/* --- BAR CHART (ĐÃ SỬA: GIỐNG B2B) --- */}
-          <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              {/* CẬP NHẬT TITLE */}
-              <h5 className="fw-semibold text-primary mb-0">
-                {currentLanguage === "vi" ? "Số lượng dịch vụ theo thời gian bắt đầu" : currentLanguage === "ko" ? "시작일별 서비스 수" : "Service Count by Start Date"}
-              </h5>
-              <select
-                className="form-select form-select-sm"
-                style={{ width: 160 }}
-                value={timeRange}
-                onChange={(e) => setTimeRange(Number(e.target.value))}
-              >
-                <option value={7}>7 ngày gần nhất</option>
-                <option value={30}>30 ngày gần nhất</option>
-                <option value={90}>90 ngày gần nhất</option>
-                <option value={180}>6 tháng gần nhất</option>
-              </select>
-            </div>
-
-            {hasChartData ? (
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={chartDataByTime}>
-                  <XAxis dataKey="date" tick={{ fontSize: 12 }} angle={-30} textAnchor="end" height={60} />
-                  <YAxis allowDecimals={false} />
-                  <Tooltip />
-                  <Legend />
-                  {b2cServices.map((service, i) => (
-                    <Bar
-                    key={i}
-                    dataKey={service}
-                    stackId="a"
-                    fill={getServiceColor(service, serviceColorMap)}
-                    opacity={filterDichVu && filterDichVu !== service ? 0.2 : 1}
-                    cursor="pointer"
-                    onClick={() => {
-                      setFilterDichVu(prev => (prev === service ? "" : service));
-                    }}
-                  />
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-               <div className="text-center text-muted py-5">
-                {currentLanguage === "vi" ? "Không có dữ liệu trong khoảng thời gian đã chọn" : currentLanguage === "ko" ? "선택한 기간에 데이터가 없습니다" : "No data available for selected period"}
-              </div>
-            )}
-          </div>
           
-           {/* --- KHU VỰC --- */}
-          <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
-            <h5 className="fw-semibold mb-3 text-primary">
-              {currentLanguage === "vi" ? "Số lượng dịch vụ theo khu vực" : currentLanguage === "ko" ? "지역별 서비스 수" : "Service Count by Region"}
-            </h5>
-            {(() => {
-              const regionMapVi = { "+84": "Việt Nam", "+82": "Hàn Quốc" };
-              const regionMapEn = { "+84": "Vietnam", "+82": "South Korea" };
-              const regionMapKo = { "+84": "베트남", "+82": "한국" };
-              const regionMap = currentLanguage === "ko" ? regionMapKo : currentLanguage === "en" ? regionMapEn : regionMapVi;
-              
-              const grouped = filteredData.reduce((acc, cur) => {
-                const region = regionMap[cur.MaVung] || cur.MaVung || (currentLanguage === "vi" ? "Không xác định" : currentLanguage === "ko" ? "미확인" : "Unknown");
-                acc[region] = (acc[region] || 0) + 1;
-                return acc;
-              }, {});
-              const total = Object.values(grouped).reduce((s, v) => s + v, 0);
-              const colors = ["#3b82f6", "#f59e0b", "#10b981", "#8b5cf6", "#ec4899", "#f97316"];
-
-              return (
-                <>
-                  {Object.entries(grouped).map(([region, count], i) => {
-                    const percent = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
-                    return (
-                      <div
-                        key={i}
-                        onClick={() => {
-                          setFilterRegion(region === filterRegion ? "" : region);
-                          const actionText = region === filterRegion ? (currentLanguage === "vi" ? "Hiển thị tất cả khu vực" : currentLanguage === "ko" ? "모든 지역 표시" : "Show all regions") : (currentLanguage === "vi" ? `Lọc theo khu vực: ${region}` : currentLanguage === "ko" ? `지역으로 필터링: ${region}` : `Filter by region: ${region}`);
-                          showToast(actionText, "info");
-                        }}
-                        style={{
-                          display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 12, cursor: "pointer",
-                          background: filterRegion === region ? "rgba(37,99,235,0.08)" : "transparent",
-                          borderRadius: 8, padding: "4px 8px", transition: "background 0.2s ease",
-                        }}
-                      >
-                        <div style={{ width: 100, fontWeight: 500 }}>{region}</div>
-                        <div style={{ flex: 1, background: "#f3f4f6", borderRadius: 8, height: 10, overflow: "hidden" }}>
-                          <div style={{ width: `${percent}%`, background: colors[i % colors.length], height: "100%", borderRadius: 8, transition: "width 0.3s ease" }}></div>
-                        </div>
-                        <div style={{ width: 90, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 6 }}>
-                          <strong style={{ color: "#2563eb" }}>{count}</strong>
-                          <span style={{ color: "#6b7280" }}>{percent}%</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top" style={{ fontWeight: "600", color: "#1f2937" }}>
-                    <span>{currentLanguage === "vi" ? "Tổng cộng" : currentLanguage === "ko" ? "합계" : "Total"}</span>
-                    <span>{total} <span style={{ color: "#6b7280" }}>{currentLanguage === "vi" ? "yêu cầu" : currentLanguage === "ko" ? "요청" : "requests"}</span></span>
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-
-          {/* --- KÊNH LIÊN HỆ --- */}
-          <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
-            <h5 className="fw-semibold mb-3 text-primary">
-              {currentLanguage === "vi" ? "Số lượng dịch vụ theo kênh liên hệ" : currentLanguage === "ko" ? "연락 채널별 서비스 수" : "Service Count by Contact Channel"}
-            </h5>
-            {(() => {
-              const grouped = filteredData.reduce((acc, cur) => {
-                const type = cur.TenHinhThuc || "Không xác định";
-                acc[type] = (acc[type] || 0) + 1;
-                return acc;
-              }, {});
-              const total = Object.values(grouped).reduce((s, v) => s + v, 0);
-              const colorMap = { "Trực tiếp": "#3b82f6", "Gọi điện": "#22c55e", "Email": "#f59e0b", "Tin nhắn": "#9ca3af" };
-
-              // Helper để lấy màu cho contact mode
-              const getContactModeColor = (type) => {
-                // Nếu type là translated, reverse lookup về Vietnamese
-                const viKey = Object.keys(contactModeTranslations).find(key => 
-                  contactModeTranslations[key].vi === type ||
-                  contactModeTranslations[key].en === type ||
-                  contactModeTranslations[key].ko === type
-                ) || type;
-                return colorMap[viKey] || "#9ca3af";
-              };
-
-              return (
-                <>
-                  {Object.entries(grouped).map(([type, count], i) => {
-                    const typeLabel = contactModeTranslations[type]?.[currentLanguage] || type;
-                    const percent = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
-                    return (
-                      <div
-                        key={i}
-                        onClick={() => {
-                          setFilterMode(type === filterMode ? "" : type);
-                          const actionText = type === filterMode ? (currentLanguage === "vi" ? "Hiển thị tất cả kênh liên hệ" : currentLanguage === "ko" ? "모든 연락 채널 표시" : "Show all contact modes") : (currentLanguage === "vi" ? `Lọc theo kênh liên hệ: ${type}` : currentLanguage === "ko" ? `연락 채널로 필터링: ${typeLabel}` : `Filter by: ${typeLabel}`);
-                          showToast(actionText, "info");
-                        }}
-                        style={{
-                          display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 12, cursor: "pointer",
-                          background: filterMode === type ? "rgba(37,99,235,0.08)" : "transparent",
-                          borderRadius: 8, padding: "4px 8px", transition: "background 0.2s ease",
-                        }}
-                      >
-                        <div style={{ width: 160, fontWeight: 500 }}>{typeLabel}</div>
-                        <div style={{ flex: 1, background: "#f3f4f6", borderRadius: 8, height: 10 }}>
-                          <div style={{ width: `${percent}%`, background: getContactModeColor(type), height: "100%", borderRadius: 8, transition: "width 0.3s ease" }}></div>
-                        </div>
-                        <div style={{ width: 90, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 6 }}>
-                          <strong style={{ color: "#2563eb" }}>{count}</strong>
-                          <span style={{ color: "#6b7280" }}>{percent}%</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top" style={{ fontWeight: "600", color: "#1f2937" }}>
-                    <span>{currentLanguage === "vi" ? "Tổng cộng" : currentLanguage === "ko" ? "합계" : "Total"}</span>
-                    <span>{total} <span style={{ color: "#6b7280" }}>{currentLanguage === "vi" ? "yêu cầu" : currentLanguage === "ko" ? "요청" : "requests"}</span></span>
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-
-       
-       
-          
-           {/* --- TRẠNG THÁI --- */}
-          <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", marginTop: "0rem" }}>
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h5 className="fw-semibold text-primary mb-0">
-                {currentLanguage === "vi" ? "Số lượng dịch vụ theo trạng thái thực hiện" : currentLanguage === "ko" ? "상태별 서비스 수" : "Service Count by Status"}
-              </h5>
-              <div className="d-flex align-items-center">
-                <select
-                  className="form-select form-select-sm"
-                  style={{ width: 200 }}
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                >
-                  <option value="">{currentLanguage === "vi" ? "Tất cả trạng thái" : currentLanguage === "ko" ? "모든 상태" : "All statuses"}</option>
-                  <option value="Tư vấn">{currentLanguage === "vi" ? "Tư vấn" : currentLanguage === "ko" ? "상담" : "Consulting"}</option>
-                  <option value="Đang xử lý">{currentLanguage === "vi" ? "Đang xử lý" : currentLanguage === "ko" ? "처리 중" : "Processing"}</option>
-                  <option value="Đang nộp hồ sơ">{currentLanguage === "vi" ? "Đang nộp hồ sơ" : currentLanguage === "ko" ? "서류 제출 중" : "Submitting"}</option>
-                  <option value="Hoàn thành">{currentLanguage === "vi" ? "Hoàn thành" : currentLanguage === "ko" ? "완료" : "Completed"}</option>
-                </select>
-                {filterStatus && (
-                  <button className="btn btn-outline-secondary btn-sm ms-2" onClick={() => setFilterStatus("")}>
-                    {currentLanguage === "vi" ? "Xóa lọc" : currentLanguage === "ko" ? "초기화" : "Reset"}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div>
-              {Object.entries(groupedByStatus).map(([status, count], i) => {
-                const statusLabel = statusTranslations[status]?.[currentLanguage] || status;
-                const percent = totalStatus > 0 ? ((count / totalStatus) * 100).toFixed(1) : 0;
-                const color = statusColorMap[status] || "#60a5fa";
-                return (
-                  <div key={i} className="mb-3">
-                    <div className="d-flex justify-content-between align-items-center mb-1">
-                      <strong>{statusLabel}</strong>
-                      <span style={{ fontWeight: 500, color: color }}>{count} ({percent}%)</span>
-                    </div>
-                    <div style={{ height: "8px", borderRadius: "6px", background: "#e5e7eb", overflow: "hidden" }}>
-                      <div style={{ width: `${percent}%`, background: color, height: "100%", borderRadius: "6px", transition: "width 0.5s ease" }}></div>
-                    </div>
-                  </div>
-                );
-              })}
-              <div className="d-flex justify-content-end align-items-center mt-3 pt-2 border-top" style={{ fontWeight: 600, color: "#374151" }}>
-                <span>{totalStatus} <span style={{ color: "#6b7280" }}>{currentLanguage === "vi" ? "yêu cầu" : currentLanguage === "ko" ? "요청" : "requests"}</span></span>
-              </div>
-            </div>
-          </div>
-
-
         </div>
-
+        
         {/* --- BẢNG DANH SÁCH YÊU CẦU (BÊN PHẢI) --- */}
         <div style={{ 
             flex: "1 1 48%", 
@@ -1125,6 +979,646 @@ const chartDataByTime = allDates.map((dateStr) => {
               </div>
             </div>
           )}
+        </div>
+      </div>
+      
+      <div style={{ display: "flex", flexDirection: "column", gap: "2rem", marginTop: "2rem" }}>
+        {/* --- DỮ LIỆU LỢC --- */}
+        <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
+          <h5 className="fw-semibold text-primary mb-4" style={{ lineHeight: 1.4, paddingTop: 2 }}>
+            {currentLanguage === "vi" ? "Dữ liệu lọc" : currentLanguage === "ko" ? "데이터 요약" : "Data Overview"}
+          </h5>
+
+          <div style={{ display: "grid", gridTemplateColumns: "180px 1fr 1fr", gap: "1rem", alignItems: "start" }}>
+            {/* Donut Chart - Left Side */}
+            <div style={{ height: 220, position: "relative" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={Object.entries(
+                      filteredData.reduce((acc, cur) => {
+                        const key = cur.LoaiDichVu || (currentLanguage === "vi" ? "Không xác định" : "Unknown");
+                        acc[key] = (acc[key] || 0) + 1;
+                        return acc;
+                      }, {})
+                    ).map(([name, count]) => ({ name, value: count }))}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={45}
+                    outerRadius={75}
+                    labelLine={false}
+                  >
+                    {Object.entries(
+                      filteredData.reduce((acc, cur) => {
+                        const key = cur.LoaiDichVu || (currentLanguage === "vi" ? "Không xác định" : "Unknown");
+                        acc[key] = (acc[key] || 0) + 1;
+                        return acc;
+                      }, {})
+                    ).map(([name], i) => (
+                      <Cell key={i} fill={getServiceColor(name, serviceColorMap)} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
+                <h4 style={{ fontSize: "1.6rem", fontWeight: "700", color: "#2563eb", marginBottom: "0" }}>
+                  {filteredData.length}
+                </h4>
+              </div>
+            </div>
+
+            {/* B2B Table */}
+            <div>
+              <div style={{ backgroundColor: "#3b82f6", color: "#fff", padding: "8px 12px", borderRadius: "6px 6px 0 0", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>B2B</span>
+                <span style={{ fontWeight: 700, fontSize: "12px" }}>{formatCurrency(b2bTotalRevenue)}</span>
+              </div>
+              <table style={{ width: "100%", fontSize: "11px", borderCollapse: "collapse", backgroundColor: "#f9fafb" }}>
+                <thead style={{ backgroundColor: "#1e3a8a", color: "#fff" }}>
+                  <tr>
+                    <th style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600, borderRight: "1px solid #d1d5db" }}>STT</th>
+                    <th style={{ padding: "6px 4px", textAlign: "left", fontWeight: 600, borderRight: "1px solid #d1d5db" }}>{currentLanguage === "vi" ? "Khách hàng B2B" : "Customer"}</th>
+                    <th style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600, borderRight: "1px solid #d1d5db" }}>{currentLanguage === "vi" ? "Số lượng dịch vụ" : "Count"}</th>
+                    <th style={{ padding: "6px 4px", textAlign: "right", fontWeight: 600 }}>{currentLanguage === "vi" ? "Doanh thu" : "Revenue"}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {b2bStats.slice(0, 5).map((company, idx) => {
+                    const revenue = formatCurrency(company.revenue);
+                    return (
+                      <tr key={idx} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                        <td style={{ padding: "5px 4px", textAlign: "center", fontSize: "11px" }}>{idx + 1}</td>
+                        <td style={{ padding: "5px 4px", textAlign: "left", fontSize: "11px", maxWidth: "80px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{company.name ? company.name.substring(0, 12) : "N/A"}</td>
+                        <td style={{ padding: "5px 4px", textAlign: "center", fontSize: "11px" }}>{String(company.count).padStart(2, "0")}</td>
+                        <td style={{ padding: "5px 4px", textAlign: "right", fontSize: "10px" }}>{revenue}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* B2C Table */}
+            <div>
+              <div style={{ backgroundColor: "#d4a574", color: "#fff", padding: "8px 12px", borderRadius: "6px 6px 0 0", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>B2C</span>
+                <span style={{ fontWeight: 700, fontSize: "12px" }}>{formatCurrency(b2cTotalRevenue)}</span>
+              </div>
+              <table style={{ width: "100%", fontSize: "11px", borderCollapse: "collapse", backgroundColor: "#f9fafb" }}>
+                <thead style={{ backgroundColor: "#78350f", color: "#fff" }}>
+                  <tr>
+                    <th style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600, borderRight: "1px solid #d1d5db" }}>STT</th>
+                    <th style={{ padding: "6px 4px", textAlign: "left", fontWeight: 600, borderRight: "1px solid #d1d5db" }}>{currentLanguage === "vi" ? "Khách hàng B2C" : "Customer"}</th>
+                    <th style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600, borderRight: "1px solid #d1d5db" }}>{currentLanguage === "vi" ? "Số lượng dịch vụ" : "Count"}</th>
+                    <th style={{ padding: "6px 4px", textAlign: "right", fontWeight: 600 }}>{currentLanguage === "vi" ? "Doanh thu" : "Revenue"}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {b2cStats.slice(0, 5).map((customer, idx) => {
+                    const revenue = formatCurrency(customer.revenue);
+                    return (
+                      <tr key={idx} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                        <td style={{ padding: "5px 4px", textAlign: "center", fontSize: "11px" }}>{idx + 1}</td>
+                        <td style={{ padding: "5px 4px", textAlign: "left", fontSize: "11px", maxWidth: "80px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{customer.name ? customer.name.substring(0, 12) : "N/A"}</td>
+                        <td style={{ padding: "5px 4px", textAlign: "center", fontSize: "11px" }}>{String(customer.count).padStart(2, "0")}</td>
+                        <td style={{ padding: "5px 4px", textAlign: "right", fontSize: "10px" }}>{revenue}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        {/* --- KHU VỰC - THEO KHÁCH HÀNG DOANH NGHIỆP --- */}
+        <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
+          <div style={{ display: "flex", gap: "2rem", alignItems: "stretch" }}>
+            {/* Left Section - Chart */}
+            <div style={{ flex: "0 0 500px", paddingRight: "1rem", borderRight: "1px solid #e5e7eb" }}>
+              <h5 className="fw-semibold mb-4 text-dark">
+                {currentLanguage === "vi" ? "Theo khách hàng doanh nghiệp" : currentLanguage === "ko" ? "기업 고객별" : "By Business Customer"}
+              </h5>
+              
+              <select 
+                className="form-select form-select-sm mb-4"
+                style={{ maxWidth: "100%" }}
+                value={filterRegion}
+                onChange={(e) => setFilterRegion(e.target.value)}
+              >
+                <option value="">{currentLanguage === "vi" ? "Tất cả công ty" : currentLanguage === "ko" ? "모든 회사" : "All Companies"}</option>
+                {(() => {
+                  const companies = [...new Set(filteredData.map(d => d.CompanyName || d.HoTen).filter(Boolean))];
+                  return companies.map((company, idx) => (
+                    <option key={idx} value={company}>{company}</option>
+                  ));
+                })()}
+              </select>
+
+              <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start" }}>
+                {/* Pie Chart */}
+                <div style={{ flex: "0 0 150px", height: 150, position: "relative" }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={(() => {
+                          const companyData = filteredData.reduce((acc, cur) => {
+                            const company = cur.CompanyName || cur.HoTen || (currentLanguage === "vi" ? "Khác" : currentLanguage === "ko" ? "기타" : "Other");
+                            acc[company] = (acc[company] || 0) + 1;
+                            return acc;
+                          }, {});
+                          return Object.entries(companyData).slice(0, 7).map(([name, value]) => ({ name, value }));
+                        })()}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={35}
+                        outerRadius={60}
+                        labelLine={false}
+                      >
+                        {(() => {
+                          const colors = ["#ef4444", "#f87171", "#14b8a6", "#2dd4bf", "#fbbf24", "#fcd34d", "#60a5fa"];
+                          return colors.map((color, i) => <Cell key={i} fill={color} />);
+                        })()}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center" }}>
+                    <h4 style={{ fontSize: "1.4rem", fontWeight: "700", color: "#1f2937", marginBottom: "0px" }}>
+                      {filteredData.length}
+                    </h4>
+                    <small style={{ color: "#6b7280", fontSize: "0.65rem" }}>
+                      {currentLanguage === "vi" ? "Dịch vụ" : currentLanguage === "ko" ? "서비스" : "Services"}
+                    </small>
+                  </div>
+                </div>
+
+                {/* Legend */}
+                <div style={{ flex: 1 }}>
+                  <h6 className="fw-semibold mb-3 text-secondary" style={{ fontSize: "0.85rem" }}>
+                    {currentLanguage === "vi" ? "Tổng quan theo công ty" : "Overview"}
+                  </h6>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    {(() => {
+                      const companyData = filteredData.reduce((acc, cur) => {
+                        const company = cur.CompanyName || cur.HoTen || (currentLanguage === "vi" ? "Khác" : "Other");
+                        acc[company] = (acc[company] || 0) + 1;
+                        return acc;
+                      }, {});
+                      
+                      const sortedCompanies = Object.entries(companyData)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 5);
+                      
+                      const total = Object.values(companyData).reduce((s, v) => s + v, 0);
+                      const colors = ["#ef4444", "#14b8a6", "#fbbf24"];
+
+                      return sortedCompanies.map(([company, count], idx) => {
+                        const percent = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+                        const displayCompany = company.length > 18 ? company.substring(0, 15) + "..." : company;
+                        return (
+                          <div key={idx} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.75rem" }}>
+                            <div style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: colors[idx % colors.length], flexShrink: 0 }}></div>
+                            <span style={{ color: "#4b5563", flex: 1 }}>{displayCompany}</span>
+                            <span style={{ fontWeight: "600", color: "#1f2937" }}>{count}</span>
+                            <span style={{ color: "#9ca3af", minWidth: "30px", textAlign: "right" }}>({percent}%)</span>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+
+                  <div className="mt-2 pt-2 border-top" style={{ borderColor: "#e5e7eb", paddingTop: "6px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.8rem", fontWeight: "600" }}>
+                      <span>{currentLanguage === "vi" ? "Tổng cộng" : "Total"}</span>
+                      <span style={{ color: "#2563eb" }}>{filteredData.length} {currentLanguage === "vi" ? "dịch vụ" : "services"}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Section - Data Tables */}
+            <div style={{ flex: 1, paddingLeft: "1rem" }}>
+              <h5 className="fw-semibold mb-4 text-dark">
+                {currentLanguage === "vi" ? "Dữ liệu lọc" : currentLanguage === "ko" ? "필터링된 데이터" : "Filtered Data"}
+              </h5>
+              
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem" }}>
+                {(() => {
+                  // Group data by company and calculate totals
+                  const companyGroups = filteredData.reduce((acc, cur) => {
+                    const company = cur.CompanyName || cur.HoTen || (currentLanguage === "vi" ? "Không xác định" : "Unknown");
+                    if (!acc[company]) {
+                      acc[company] = { services: [], totalRevenue: 0 };
+                    }
+                    acc[company].services.push(cur);
+                    const revenue = parseFloat(cur.DoanhThu) || parseFloat(cur.PhiDichVu) || 0;
+                    acc[company].totalRevenue += revenue;
+                    return acc;
+                  }, {});
+
+                  // Get top 3 companies by service count
+                  const topCompanies = Object.entries(companyGroups)
+                    .sort((a, b) => b[1].services.length - a[1].services.length)
+                    .slice(0, 3);
+
+                  const companyColors = ["#6b7280", "#06b6d4", "#d4a574"];
+                  const companyLabels = ["Công ty A", "Công ty B", "Công ty C"];
+
+                  return topCompanies.map(([companyName, data], idx) => (
+                    <div key={idx}>
+                      <div style={{ 
+                        backgroundColor: companyColors[idx], 
+                        color: "#fff", 
+                        padding: "6px 12px", 
+                        borderRadius: "6px 6px 0 0", 
+                        fontWeight: 600,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        fontSize: "0.85rem"
+                      }}>
+                        <span>{companyLabels[idx]}</span>
+                        <span style={{ fontWeight: 700, fontSize: "0.8rem" }}>
+                          {data.services.length}
+                        </span>
+                      </div>
+                      
+                      <table style={{ 
+                        width: "100%", 
+                        fontSize: "0.75rem", 
+                        borderCollapse: "collapse", 
+                        backgroundColor: "#f9fafb"
+                      }}>
+                        <thead style={{ backgroundColor: companyColors[idx], color: "#fff", opacity: 0.85 }}>
+                          <tr>
+                            <th style={{ padding: "4px 6px", textAlign: "center", fontWeight: 600, borderRight: "1px solid #d1d5db" }}>
+                              STT
+                            </th>
+                            <th style={{ padding: "4px 6px", textAlign: "left", fontWeight: 600, borderRight: "1px solid #d1d5db" }}>
+                              {currentLanguage === "vi" ? "Tên dịch vụ" : "Service"}
+                            </th>
+                            <th style={{ padding: "4px 6px", textAlign: "right", fontWeight: 600 }}>
+                              {currentLanguage === "vi" ? "Doanh thu" : "Revenue"}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {data.services.slice(0, 5).map((service, sIdx) => {
+                            const revenue = parseFloat(service.DoanhThu) || parseFloat(service.PhiDichVu) || 0;
+                            const serviceName = service.TenDichVu || service.LoaiDichVu || (currentLanguage === "vi" ? "Giấy đủ điều kiện" : "Service");
+                            return (
+                              <tr key={sIdx} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                                <td style={{ padding: "4px 6px", textAlign: "center", borderRight: "1px solid #e5e7eb", fontWeight: 500, color: "#374151" }}>
+                                  {sIdx + 1}
+                                </td>
+                                <td style={{ padding: "4px 6px", textAlign: "left", borderRight: "1px solid #e5e7eb", color: "#4b5563", maxWidth: "0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {serviceName.length > 15 ? serviceName.substring(0, 15) + "..." : serviceName}
+                                </td>
+                                <td style={{ padding: "4px 6px", textAlign: "right", fontWeight: 600, color: "#1f2937" }}>
+                                  {revenue === 0 ? "0" : formatCurrency(revenue)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* --- TRẠNG THÁI THỰC HIỆN --- */}
+        <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
+          <h5 className="fw-semibold mb-4 text-dark">
+            {currentLanguage === "vi" ? "Theo trạng thái thực hiện" : currentLanguage === "ko" ? "실행 상태별" : "By Implementation Status"}
+          </h5>
+          
+          {(() => {
+            // Group theo TrangThaiThucHien (trạng thái thực hiện)
+            const grouped = filteredData.reduce((acc, cur) => {
+              const status = cur.TrangThaiThucHien || "Không xác định";
+              acc[status] = (acc[status] || 0) + 1;
+              return acc;
+            }, {});
+            const total = Object.values(grouped).reduce((s, v) => s + v, 0);
+            
+            // Màu sắc cho từng trạng thái
+            const statusColorMap = { 
+              "Tư vấn": "#60a5fa",           // Blue
+              "Đang xử lý": "#34d399",       // Green
+              "Đang nộp hồ sơ": "#fbbf24",   // Yellow
+              "Hoàn thành": "#10b981",        // Green darker
+              "Không xác định": "#9ca3af"    // Gray
+            };
+
+            // Helper để lấy màu cho status
+            const getStatusColor = (status) => {
+              return statusColorMap[status] || "#9ca3af";
+            };
+
+            // Tạo dữ liệu cho pie chart
+            const pieData = Object.entries(grouped).map(([status, value]) => ({
+              name: statusTranslations[status]?.[currentLanguage] || status,
+              value,
+              originalStatus: status
+            }));
+
+            return (
+              <div style={{ display: "flex", gap: "2rem", alignItems: "stretch" }}>
+                {/* Cột trái: Pie chart */}
+                <div style={{ flex: "0 0 250px" }}>
+                  <div style={{ height: 250, position: "relative" }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={90}
+                          paddingAngle={2}
+                          dataKey="value"
+                          labelLine={false}
+                        >
+                          {pieData.map((entry, index) => (
+                            <Cell 
+                              key={`cell-${index}`} 
+                              fill={getStatusColor(entry.originalStatus)}
+                              cursor="pointer"
+                              onClick={() => {
+                                setFilterStatus(entry.originalStatus === filterStatus ? "" : entry.originalStatus);
+                                const actionText = entry.originalStatus === filterStatus 
+                                  ? (currentLanguage === "vi" ? "Hiển thị tất cả trạng thái" : currentLanguage === "ko" ? "모든 상태 표시" : "Show all statuses") 
+                                  : (currentLanguage === "vi" ? `Lọc theo trạng thái: ${entry.name}` : currentLanguage === "ko" ? `상태로 필터링: ${entry.name}` : `Filter by: ${entry.name}`);
+                                showToast(actionText, "info");
+                              }}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
+                      <h4 style={{ fontSize: "2rem", fontWeight: "700", color: "#2563eb", marginBottom: "0" }}>
+                        {total}
+                      </h4>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cột phải: Hai bảng */}
+                <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                  {/* Bảng 1: Đang tư vấn */}
+                  <div>
+                    <div style={{ backgroundColor: "#60a5fa", color: "#fff", padding: "8px 12px", borderRadius: "6px 6px 0 0", fontWeight: 600, textAlign: "center" }}>
+                      {currentLanguage === "vi" ? "Đang tư vấn" : currentLanguage === "ko" ? "상담 중" : "Consulting"}
+                    </div>
+                    <table style={{ width: "100%", fontSize: "11px", borderCollapse: "collapse", backgroundColor: "#f9fafb" }}>
+                      <thead style={{ backgroundColor: "#1e40af", color: "#fff" }}>
+                        <tr>
+                          <th style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600, borderRight: "1px solid #d1d5db" }}>STT</th>
+                          <th style={{ padding: "6px 4px", textAlign: "left", fontWeight: 600, borderRight: "1px solid #d1d5db" }}>
+                            {currentLanguage === "vi" ? "Khách hàng" : currentLanguage === "ko" ? "고객" : "Customer"}
+                          </th>
+                          <th style={{ padding: "6px 4px", textAlign: "left", fontWeight: 600, borderRight: "1px solid #d1d5db" }}>
+                            {currentLanguage === "vi" ? "Tên dịch vụ" : currentLanguage === "ko" ? "서비스명" : "Service"}
+                          </th>
+                          <th style={{ padding: "6px 4px", textAlign: "right", fontWeight: 600 }}>
+                            {currentLanguage === "vi" ? "Doanh thu" : currentLanguage === "ko" ? "매출" : "Revenue"}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredData.filter(r => r.TrangThaiThucHien === "Tư vấn").slice(0, 5).map((row, idx) => (
+                          <tr key={idx} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                            <td style={{ padding: "6px 4px", textAlign: "center", borderRight: "1px solid #e5e7eb" }}>{idx + 1}</td>
+                            <td style={{ padding: "6px 4px", borderRight: "1px solid #e5e7eb" }}>{row.TenKhachHang || row.CompanyName || "-"}</td>
+                            <td style={{ padding: "6px 4px", borderRight: "1px solid #e5e7eb" }}>{row.TenDichVu || "-"}</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right", fontWeight: 600, color: "#2563eb" }}>
+                              {formatCurrency(row.DoanhThu || row.PhiDichVu || 0)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Bảng 2: Đã tạo đơn */}
+                  <div>
+                    <div style={{ backgroundColor: "#34d399", color: "#fff", padding: "8px 12px", borderRadius: "6px 6px 0 0", fontWeight: 600, textAlign: "center" }}>
+                      {currentLanguage === "vi" ? "Đã tạo đơn" : currentLanguage === "ko" ? "주문 생성됨" : "Orders Created"}
+                    </div>
+                    <table style={{ width: "100%", fontSize: "11px", borderCollapse: "collapse", backgroundColor: "#f9fafb" }}>
+                      <thead style={{ backgroundColor: "#047857", color: "#fff" }}>
+                        <tr>
+                          <th style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600, borderRight: "1px solid #d1d5db" }}>STT</th>
+                          <th style={{ padding: "6px 4px", textAlign: "left", fontWeight: 600, borderRight: "1px solid #d1d5db" }}>
+                            {currentLanguage === "vi" ? "Khách hàng" : currentLanguage === "ko" ? "고객" : "Customer"}
+                          </th>
+                          <th style={{ padding: "6px 4px", textAlign: "left", fontWeight: 600, borderRight: "1px solid #d1d5db" }}>
+                            {currentLanguage === "vi" ? "Tên dịch vụ" : currentLanguage === "ko" ? "서비스명" : "Service"}
+                          </th>
+                          <th style={{ padding: "6px 4px", textAlign: "right", fontWeight: 600 }}>
+                            {currentLanguage === "vi" ? "Doanh thu" : currentLanguage === "ko" ? "매출" : "Revenue"}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredData.filter(r => r.TrangThaiThucHien === "Đang xử lý" || r.TrangThaiThucHien === "Đang nộp hồ sơ").slice(0, 5).map((row, idx) => (
+                          <tr key={idx} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                            <td style={{ padding: "6px 4px", textAlign: "center", borderRight: "1px solid #e5e7eb" }}>{idx + 1}</td>
+                            <td style={{ padding: "6px 4px", borderRight: "1px solid #e5e7eb" }}>{row.TenKhachHang || row.CompanyName || "-"}</td>
+                            <td style={{ padding: "6px 4px", borderRight: "1px solid #e5e7eb" }}>{row.TenDichVu || "-"}</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right", fontWeight: 600, color: "#2563eb" }}>
+                              {formatCurrency(row.DoanhThu || row.PhiDichVu || 0)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* --- TRẠNG THÁI --- */}
+        <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", marginTop: "0rem" }}>
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h5 className="fw-semibold text-primary mb-0">
+              {currentLanguage === "vi" ? "Dữ liệu lọc" : currentLanguage === "ko" ? "데이터 필터" : "Filtered Data"}
+            </h5>
+          </div>
+
+          <h6 className="fw-semibold mb-3" style={{ color: "#374151" }}>
+            {currentLanguage === "vi" ? "Theo nhân viên phụ trách" : currentLanguage === "ko" ? "담당 직원별" : "By Staff in Charge"}
+          </h6>
+
+          <div style={{ display: "flex", gap: "2rem", alignItems: "flex-start" }}>
+            {/* Donut Chart on the left */}
+            <div style={{ flex: "0 0 200px" }}>
+              <div style={{ height: 200, position: "relative" }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={Object.entries(
+                        filteredData.reduce((acc, cur) => {
+                          const staff = cur.NguoiPhuTrach || cur.nguoiPhuTrach || "Chưa phân công";
+                          acc[staff] = (acc[staff] || 0) + 1;
+                          return acc;
+                        }, {})
+                      ).map(([name, count]) => ({ name, value: count }))}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      labelLine={false}
+                    >
+                      {Object.entries(
+                        filteredData.reduce((acc, cur) => {
+                          const staff = cur.NguoiPhuTrach || cur.nguoiPhuTrach || "Chưa phân công";
+                          acc[staff] = (acc[staff] || 0) + 1;
+                          return acc;
+                        }, {})
+                      ).map((entry, index) => (
+                        <Cell key={index} fill={["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"][index % 6]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center" }}>
+                  <h4 style={{ fontSize: "2rem", fontWeight: "700", color: "#2563eb", marginBottom: "0" }}>
+                    {filteredData.length}
+                  </h4>
+                </div>
+              </div>
+            </div>
+
+            {/* Staff columns on the right */}
+            <div style={{ flex: 1, display: "flex", gap: "1rem", overflowX: "auto" }}>
+              {(() => {
+                const staffWithOrders = Object.entries(
+                  filteredData.reduce((acc, cur) => {
+                    const staff = cur.NguoiPhuTrach || cur.nguoiPhuTrach || "Chưa phân công";
+                    if (!acc[staff]) acc[staff] = [];
+                    acc[staff].push(cur);
+                    return acc;
+                  }, {})
+                )
+                .filter(([staffName, records]) => records.length > 0 && staffName !== "Chưa phân công")
+                .sort((a, b) => b[1].length - a[1].length)
+                .slice(0, 3);
+
+                if (staffWithOrders.length === 0) {
+                  return (
+                    <div style={{ 
+                      flex: 1, 
+                      display: "flex", 
+                      alignItems: "center", 
+                      justifyContent: "center", 
+                      padding: "40px 20px",
+                      backgroundColor: "#f9fafb",
+                      borderRadius: "8px",
+                      border: "1px dashed #d1d5db"
+                    }}>
+                      <div style={{ textAlign: "center", color: "#6b7280" }}>
+                        <div style={{ fontSize: "48px", marginBottom: "12px" }}>📋</div>
+                        <div style={{ fontSize: "14px", fontWeight: 500 }}>
+                          {currentLanguage === "vi" 
+                            ? "Chưa có nhân viên nào được phân công đơn hàng" 
+                            : currentLanguage === "ko" 
+                            ? "아직 배정된 주문이 없습니다"
+                            : "No staff assigned to orders yet"}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return staffWithOrders.map(([staffName, records], idx) => {
+                  const totalRevenue = records.reduce((sum, r) => {
+                    const revenue = parseFloat(r.DoanhThu || r.doanhThu || r.PhiDichVu || 0);
+                    return sum + revenue;
+                  }, 0);
+                  const colors = ["#6b7280", "#06b6d4", "#d4a574"];
+                  const headerColors = ["#374151", "#0e7490", "#92400e"];
+                  
+                  return (
+                    <div key={idx} style={{ flex: "1 1 300px", minWidth: "280px", maxWidth: "350px" }}>
+                      <div style={{ 
+                        backgroundColor: colors[idx % 3], 
+                        color: "#fff", 
+                        padding: "10px 16px", 
+                        borderRadius: "8px 8px 0 0", 
+                        fontWeight: 600,
+                        textAlign: "center",
+                        fontSize: "14px"
+                      }}>
+                        {String(staffName)}
+                        <div style={{ fontSize: "13px", fontWeight: 700, marginTop: "4px" }}>
+                          {formatCurrency(totalRevenue)}
+                        </div>
+                      </div>
+                      
+                      <table style={{ 
+                        width: "100%", 
+                        fontSize: "12px", 
+                        borderCollapse: "collapse",
+                        backgroundColor: "#f9fafb",
+                        border: "1px solid #e5e7eb"
+                      }}>
+                        <thead style={{ backgroundColor: headerColors[idx % 3], color: "#fff" }}>
+                          <tr>
+                            <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600, borderRight: "1px solid rgba(255,255,255,0.2)", width: "40px" }}>
+                              STT
+                            </th>
+                            <th style={{ padding: "8px 6px", textAlign: "left", fontWeight: 600, borderRight: "1px solid rgba(255,255,255,0.2)" }}>
+                              {currentLanguage === "vi" ? "Tên dịch vụ" : currentLanguage === "ko" ? "서비스명" : "Service"}
+                            </th>
+                            <th style={{ padding: "8px 6px", textAlign: "right", fontWeight: 600, width: "100px" }}>
+                              {currentLanguage === "vi" ? "Doanh thu" : currentLanguage === "ko" ? "수익" : "Revenue"}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {records.slice(0, 5).map((rec, i) => {
+                            const revenue = parseFloat(rec.DoanhThu || rec.doanhThu || rec.PhiDichVu || 0);
+                            return (
+                              <tr key={i} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                                <td style={{ padding: "8px 6px", textAlign: "center", borderRight: "1px solid #e5e7eb", backgroundColor: "#fff" }}>
+                                  {i + 1}
+                                </td>
+                                <td style={{ padding: "8px 6px", textAlign: "left", borderRight: "1px solid #e5e7eb", backgroundColor: "#fff" }}>
+                                  {rec.TenDichVu || rec.tenDichVu || rec.ServiceName || "N/A"}
+                                </td>
+                                <td style={{ padding: "8px 6px", textAlign: "right", backgroundColor: "#fff", fontWeight: 500 }}>
+                                  {formatCurrency(revenue)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {records.length > 5 && (
+                            <tr style={{ backgroundColor: "#f3f4f6" }}>
+                              <td colSpan="3" style={{ padding: "6px", textAlign: "center", fontSize: "11px", color: "#6b7280", fontStyle: "italic" }}>
+                                +{records.length - 5} {currentLanguage === "vi" ? "dịch vụ khác" : currentLanguage === "ko" ? "기타 서비스" : "more services"}
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
         </div>
       </div>
         </div>

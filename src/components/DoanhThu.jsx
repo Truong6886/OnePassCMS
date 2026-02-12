@@ -34,9 +34,11 @@ const translations = {
     title: "Tổng Doanh Thu",
     personalTab: "Doanh Thu Khách Hàng Cá Nhân",
     companyTab: "Doanh Thu Khách Hàng Doanh nghiệp",
+    combinedTab: "Tổng Doanh Thu",
     chartTitle: "Biểu đồ Tổng Doanh Thu",
     chartPersonal: "(Cá nhân)",
     chartBusiness: "(Doanh nghiệp)",
+    chartCombined: "(Tổng hợp)",
     allServices: "Tất cả dịch vụ",
     allStaff: "Tất cả nhân viên",
     filter: "Lọc",
@@ -61,15 +63,25 @@ const translations = {
     invoiceYes: "Có hóa đơn",
     invoiceNo: "Không hóa đơn",
     toggleColumns: "Ẩn/Hiện cột",
-    clearFilter: "Xóa bộ lọc"
+    clearFilter: "Xóa bộ lọc",
+    b2bVsB2c: "Theo B2B và B2C",
+    b2bRevenue: "Doanh nghiệp (B2B)",
+    b2cRevenue: "Cá nhân (B2C)",
+    serviceOverview: "Tổng quan số lượng dịch vụ",
+    serviceCount: "Số lượng",
+    service: "Dịch vụ",
+    orderCount: "Số lượng đơn",
+    orders: "Đơn dịch vụ"
   },
   en: {
     title: "Total Revenue",
     personalTab: "Individual Customer Revenue",
     companyTab: "Business Customer Revenue",
+    combinedTab: "Total Revenue",
     chartTitle: "Total Revenue Chart",
     chartPersonal: "(Individual)",
     chartBusiness: "(Business)",
+    chartCombined: "(Combined)",
     allServices: "All Services",
     allStaff: "All Staff",
     filter: "Filter",
@@ -94,15 +106,25 @@ const translations = {
     invoiceYes: "With Invoice",
     invoiceNo: "No Invoice",
     toggleColumns: "Toggle Columns",
-    clearFilter: "Clear Filter"
+    clearFilter: "Clear Filter",
+    b2bVsB2c: "B2B vs B2C",
+    b2bRevenue: "Business (B2B)",
+    b2cRevenue: "Individual (B2C)",
+    serviceOverview: "Service Quantity Overview",
+    serviceCount: "Quantity",
+    service: "Service",
+    orderCount: "Order Count",
+    orders: "Service Orders"
   },
     ko: {
         title: "총 매출",
         personalTab: "개인 고객 매출",
         companyTab: "기업 고객 매출",
+        combinedTab: "총 매출",
         chartTitle: "총 매출 차트",
         chartPersonal: "(개인)",
         chartBusiness: "(기업)",
+        chartCombined: "(통합)",
         allServices: "전체 서비스",
         allStaff: "전체 담당자",
         filter: "필터",
@@ -127,7 +149,15 @@ const translations = {
         invoiceYes: "계산서 있음",
         invoiceNo: "계산서 없음",
         toggleColumns: "열 숨김/표시",
-        clearFilter: "필터 초기화"
+        clearFilter: "필터 초기화",
+        b2bVsB2c: "B2B vs B2C",
+        b2bRevenue: "기업 (B2B)",
+        b2cRevenue: "개인 (B2C)",
+        serviceOverview: "서비스 수량 개요",
+        serviceCount: "수량",
+        service: "서비스",
+        orderCount: "주문 수",
+        orders: "서비스 주문"
     },
 };
 const getServiceTypeOptions = (records, lang) => {
@@ -217,6 +247,15 @@ export default function DoanhThu() {
   const [companyTotalPages, setCompanyTotalPages] = useState(1);
   const [companyLineChartData, setCompanyLineChartData] = useState([]);
   const [companyPieChartData, setCompanyPieChartData] = useState([]);
+  const [b2bVsB2cData, setB2bVsB2cData] = useState([]);
+  const [b2CServicePieData, setB2CServicePieData] = useState([]);
+  
+  const [combinedRecords, setCombinedRecords] = useState([]);
+  const [filteredCombinedRecords, setFilteredCombinedRecords] = useState([]);
+  const [combinedChartData, setCombinedChartData] = useState([]);
+  const [combinedCurrentPage, setCombinedCurrentPage] = useState(1);
+  const [combinedTotalPages, setCombinedTotalPages] = useState(1);
+  
   const apiTotalPagesRef = useRef(1);
   if (!currentUser?.is_director && !currentUser?.is_accountant && !currentUser?.perm_view_revenue) {
     return (
@@ -260,6 +299,21 @@ export default function DoanhThu() {
       setVisibleColumns(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const prepareB2CServicePieData = (data) => {
+    if (!data || data.length === 0) { setB2CServicePieData([]); return; }
+    const grouped = {};
+    data.forEach((r) => {
+      const rawServiceType = typeof r.LoaiDichVu === 'object' ? r.LoaiDichVu?.name : r.LoaiDichVu;
+      const serviceType = translateService(rawServiceType, currentLanguage) || "Không xác định";
+      if (!grouped[serviceType]) grouped[serviceType] = 0;
+      grouped[serviceType] += 1;
+    });
+    const pieData = Object.entries(grouped)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+    setB2CServicePieData(pieData);
+  };
+
   const aggregateCompanyData = (services, companies) => {
     if (!companies || companies.length === 0) return [];
     
@@ -294,6 +348,7 @@ export default function DoanhThu() {
         setRecords(result.data);
         setFilteredRecords(result.data);
         prepareChartData(result.data, viewMode, "personal");
+        prepareB2CServicePieData(result.data);
         
     
         const total = result.totalPages || 1;
@@ -361,10 +416,18 @@ export default function DoanhThu() {
 
   useEffect(() => {
     if (activeTab === "personal") fetchPersonalData(currentPage);
-    else fetchCompanyData();
+    else if (activeTab === "company") fetchCompanyData();
+    else if (activeTab === "combined") {
+      fetchPersonalData(1);
+      fetchCompanyData();
+    }
   }, [activeTab, currentPage, rowsPerPage]);
 
   const prepareChartData = (data, mode, type) => {
+    if (type === "combined") { 
+      prepareCombinedChartData(data, mode); 
+      return; 
+    }
     if (!data || data.length === 0) {
       type === "personal" ? setChartData([]) : setCompanyLineChartData([]);
       return;
@@ -398,6 +461,24 @@ export default function DoanhThu() {
     setCompanyPieChartData(pieData);
   };
 
+  const prepareCombinedChartData = (data, mode) => {
+    if (!data || data.length === 0) { setCombinedChartData([]); return; }
+    const grouped = {};
+    data.forEach((r) => {
+      const date = new Date(r.NgayTao || r.NgayThucHien);
+      let key = "";
+      if (mode === "ngay") key = date.toLocaleDateString("vi-VN");
+      else if (mode === "tuan") { const weekNum = Math.ceil((date.getDate()) / 7); key = `Tuần ${weekNum}/${date.getMonth() + 1}`; }
+      else if (mode === "thang") key = `${date.getMonth() + 1}/${date.getFullYear()}`;
+      else if (mode === "nam") key = `${date.getFullYear()}`;
+      // Đếm số lượng đơn thay vì tính doanh thu
+      if (!grouped[key]) grouped[key] = 0;
+      grouped[key] += 1;
+    });
+    const chartData = Object.keys(grouped).map(k => ({ name: k, doanhthu: grouped[k] }));
+    setCombinedChartData(chartData);
+  };
+
 useEffect(() => {
     const timeOutId = setTimeout(() => handleFilter(), 300);
     return () => clearTimeout(timeOutId);
@@ -411,9 +492,57 @@ useEffect(() => {
     selectedStaff    // <--- THÊM VÀO ĐÂY
 ]);
 
+// Tính toán dữ liệu B2B vs B2C
+useEffect(() => {
+    let b2cCount = 0;
+    let b2bCount = 0;
+    
+    if (activeTab === "combined") {
+        // Đếm số lượng đơn từ filteredCombinedRecords khi ở tab tổng hợp
+        b2cCount = filteredCombinedRecords.filter(item => item.CustomerType === "B2C").length;
+        b2bCount = filteredCombinedRecords.filter(item => item.CustomerType === "B2B").length;
+    } else {
+        // Đếm số lượng đơn từ mỗi tab riêng lẻ
+        b2cCount = filteredRecords.length;
+        b2bCount = filteredCompanyRecords.length;
+    }
+    
+    setB2bVsB2cData([
+      { name: t.b2cRevenue, value: b2cCount },
+      { name: t.b2bRevenue, value: b2bCount }
+    ]);
+}, [filteredRecords, filteredCompanyRecords, filteredCombinedRecords, activeTab, t]);
+
+// Tổng hợp dữ liệu B2B + B2C
+useEffect(() => {
+    if (activeTab !== "combined") return;
+    
+    const combined = [
+      ...records.map(r => ({...r, CustomerType: "B2C", YeuCauID: r.YeuCauID})),
+      ...companyRecords.map(r => ({...r, CustomerType: "B2B", YeuCauID: r.YeuCauID || r._id}))
+    ];
+    setCombinedRecords(combined);
+    setFilteredCombinedRecords(combined);
+}, [activeTab, records, companyRecords]);
+
+// Cập nhật biểu đồ khi viewMode hoặc filteredCombinedRecords thay đổi
+useEffect(() => {
+    if (activeTab === "combined" && filteredCombinedRecords.length > 0) {
+        prepareChartData(filteredCombinedRecords, viewMode, "combined");
+    }
+}, [activeTab, viewMode, filteredCombinedRecords]);
+
+// Cập nhật B2C service pie data khi ngôn ngữ thay đổi
+useEffect(() => {
+    if (activeTab === "personal" && filteredRecords.length > 0) {
+        prepareB2CServicePieData(filteredRecords);
+    }
+}, [filteredRecords, currentLanguage, activeTab]);
+
 const handleFilter = () => {
     const isPersonal = activeTab === "personal";
-    let filtered = isPersonal ? records : companyRecords;
+    const isCombined = activeTab === "combined";
+    let filtered = isPersonal ? records : (isCombined ? combinedRecords : companyRecords);
     
     // 1. Lọc theo thời gian (Date Range)
     if (startDate || endDate) {
@@ -491,9 +620,16 @@ const handleFilter = () => {
     }
 
 
-    if (isPersonal) {
+    if (isCombined) {
+        setFilteredCombinedRecords(filtered);
+        // Biểu đồ sẽ tự động cập nhật qua useEffect
+        const pages = Math.ceil(filtered.length / rowsPerPage);
+        setCombinedTotalPages(pages || 1);
+        if (combinedCurrentPage > pages) setCombinedCurrentPage(1);
+    } else if (isPersonal) {
         setFilteredRecords(filtered);
         prepareChartData(filtered, viewMode, "personal");
+        prepareB2CServicePieData(filtered);
         
    
         if (filtered.length < records.length) {
@@ -643,8 +779,26 @@ const handleFilter = () => {
   };
 
   const handleExportExcel = () => {
+    const isCombined = activeTab === "combined";
     const isPersonal = activeTab === "personal";
-    if (isPersonal) {
+    
+    if (isCombined) {
+        if (!filteredCombinedRecords.length) return toast.warning("Không có dữ liệu!");
+        const exportData = filteredCombinedRecords.map((r) => ({
+            "Loại KH": r.CustomerType,
+            "Khách hàng": r.CustomerType === "B2B" ? r.TenDoanhNghiep : r.HoTen,
+            "Dịch vụ": translateService(typeof r.TenDichVu === 'object' ? r.TenDichVu?.name : r.TenDichVu, currentLanguage),
+            "Loại dịch vụ": translateService(typeof r.LoaiDichVu === 'object' ? r.LoaiDichVu?.name : r.LoaiDichVu, currentLanguage),
+            "Người phụ trách": typeof r.NguoiPhuTrach === 'object' ? r.NguoiPhuTrach?.name : r.NguoiPhuTrach,
+            "Chiết khấu": (r.MucChietKhau || 0) + "%",
+            "Doanh Thu": r.DoanhThuSauChietKhau || r.DoanhThu || 0,
+            "Invoice": ["Yes", "yes", "true", "1"].includes(String(r.Invoice || r.YeuCauHoaDon)) ? "Có" : "Không",
+        }));
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "TongHop");
+        XLSX.writeFile(workbook, "DoanhThu_TongHop.xlsx");
+    } else if (isPersonal) {
         if (!filteredRecords.length) return toast.warning("Không có dữ liệu!");
         const exportData = filteredRecords.map((r) => ({
             ID: r.YeuCauID, "Họ tên": r.HoTen, "Email": r.Email, "SĐT": r.SoDienThoai,
@@ -678,7 +832,9 @@ const handleFilter = () => {
 
  const currentTotalRevenue = activeTab === "personal"
     ? filteredRecords.reduce((sum, item) => sum + (parseFloat(item.DoanhThuSauChietKhau) || parseFloat(item.DoanhThu) || 0), 0)
-    : filteredCompanyRecords.reduce((sum, item) => sum + (parseFloat(item.DoanhThuSauChietKhau) || 0), 0); 
+    : activeTab === "company" 
+    ? filteredCompanyRecords.reduce((sum, item) => sum + (parseFloat(item.DoanhThuSauChietKhau) || 0), 0)
+    : filteredCombinedRecords.reduce((sum, item) => sum + (parseFloat(item.DoanhThuSauChietKhau) || parseFloat(item.DoanhThu) || 0), 0); 
 
  
   const fixedDiscounts = [5, 10, 12, 15, 17, 30];
@@ -695,6 +851,7 @@ const handleFilter = () => {
 
           {/* TABS */}
           <div className="d-flex gap-2 mb-4 border-bottom">
+            <button onClick={() => setActiveTab("combined")} style={{ padding: "10px 20px", border: "none", background: "transparent", borderBottom: activeTab === "combined" ? "3px solid #2563eb" : "3px solid transparent", color: activeTab === "combined" ? "#2563eb" : "#64748b", fontWeight: 600, cursor: "pointer" }}>{t.combinedTab}</button>
             <button onClick={() => setActiveTab("personal")} style={{ padding: "10px 20px", border: "none", background: "transparent", borderBottom: activeTab === "personal" ? "3px solid #2563eb" : "3px solid transparent", color: activeTab === "personal" ? "#2563eb" : "#64748b", fontWeight: 600, cursor: "pointer" }}>{t.personalTab}</button>
             <button onClick={() => setActiveTab("company")} style={{ padding: "10px 20px", border: "none", background: "transparent", borderBottom: activeTab === "company" ? "3px solid #2563eb" : "3px solid transparent", color: activeTab === "company" ? "#2563eb" : "#64748b", fontWeight: 600, cursor: "pointer" }}>{t.companyTab}</button>
           </div>
@@ -705,7 +862,7 @@ const handleFilter = () => {
               <input type="date" className="form-control" style={{width: 140}} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
               <span>→</span>
               <input type="date" className="form-control" style={{width: 140}} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-              <select className="form-select" style={{width: 100}} value={viewMode} onChange={(e) => { setViewMode(e.target.value); activeTab === "personal" ? prepareChartData(filteredRecords, e.target.value, "personal") : prepareChartData(filteredCompanyRecords, e.target.value, "company"); }}>
+              <select className="form-select" style={{width: 100}} value={viewMode} onChange={(e) => { setViewMode(e.target.value); activeTab === "personal" ? prepareChartData(filteredRecords, e.target.value, "personal") : activeTab === "company" ? prepareChartData(filteredCompanyRecords, e.target.value, "company") : prepareChartData(filteredCombinedRecords, e.target.value, "combined"); }}>
                 <option value="ngay">Ngày</option><option value="tuan">Tuần</option><option value="thang">Tháng</option><option value="nam">Năm</option>
               </select>
               {activeTab === "personal" && (
@@ -725,19 +882,89 @@ const handleFilter = () => {
           </div>
 
           <div className="bg-white rounded-3 p-4 shadow-sm mb-4" style={{ minHeight: "360px" }}>
-            <h5 className="text-primary fw-bold mb-3">{t.chartTitle} {activeTab === "personal" ? t.chartPersonal : t.chartBusiness}</h5>
+            <h5 className="text-primary fw-bold mb-3">{t.chartTitle} {activeTab === "personal" ? t.chartPersonal : activeTab === "company" ? t.chartBusiness : t.chartCombined}</h5>
             {loading ? <p>{t.loadingChart}</p> : (
-              activeTab === "personal" ? (
-                <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis tickFormatter={(v) => formatCurrency(v)} width={100} />
-                      <Tooltip labelFormatter={(label) => `${t.time}: ${label}`} formatter={(v) => [formatCurrency(v) + " " + t.revenueUnit, t.revenue]} />
-                      <Legend />
-                      <Line type="monotone" dataKey="doanhthu" stroke="#2563eb" strokeWidth={2} name={t.revenue} />
-                    </LineChart>
-                </ResponsiveContainer>
+              activeTab === "combined" ? (
+                <div className="row">
+                    <div className="col-md-8">
+                        <ResponsiveContainer width="100%" height={300}>
+                            <LineChart data={combinedChartData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="name" />
+                              <YAxis width={60} />
+                              <Tooltip labelFormatter={(label) => `${t.time}: ${label}`} formatter={(v) => [v + " " + t.orders, t.orderCount]} />
+                              <Legend />
+                              <Line type="monotone" dataKey="doanhthu" stroke="#8b5cf6" strokeWidth={2} name={t.orderCount} />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+                    <div className="col-md-4">
+                        <h6 className="text-center text-primary fw-bold mb-3">{t.b2bVsB2c}</h6>
+                        <ResponsiveContainer width="100%" height={260}>
+                          <PieChart>
+                            <Pie 
+                              data={b2bVsB2cData} 
+                              cx="50%" 
+                              cy="50%" 
+                              labelLine={false} 
+                              innerRadius={50}
+                              outerRadius={85} 
+                              fill="#8884d8" 
+                              dataKey="value"
+                              label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                            >
+                              <Cell fill="#3b82f6" />
+                              <Cell fill="#ec4899" />
+                            </Pie>
+                            <Tooltip formatter={(v) => [v + " " + t.orders, t.orderCount]} />
+                            <Legend />
+                            <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: "20px", fontWeight: "bold", fill: "#1e3a8a" }}>
+                              {b2bVsB2cData.reduce((sum, item) => sum + item.value, 0)}
+                            </text>
+                            <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: "10px", fill: "#64748b" }}>
+                              ({t.orders})
+                            </text>
+                          </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+              ) : activeTab === "personal" ? (
+                <div className="row">
+                    <div className="col-md-8">
+                        <ResponsiveContainer width="100%" height={300}>
+                            <LineChart data={chartData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="name" />
+                              <YAxis tickFormatter={(v) => formatCurrency(v)} width={100} />
+                              <Tooltip labelFormatter={(label) => `${t.time}: ${label}`} formatter={(v) => [formatCurrency(v) + " " + t.revenueUnit, t.revenue]} />
+                              <Legend />
+                              <Line type="monotone" dataKey="doanhthu" stroke="#2563eb" strokeWidth={2} name={t.revenue} />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+                    <div className="col-md-4">
+                        <h6 className="text-center text-primary fw-bold mb-3">{t.serviceCount}</h6>
+                        <ResponsiveContainer width="100%" height={260}>
+                          <PieChart>
+                            <Pie 
+                              data={b2CServicePieData} 
+                              cx="50%" 
+                              cy="50%" 
+                              labelLine={false} 
+                              outerRadius={80} 
+                              fill="#8884d8" 
+                              dataKey="value"
+                              nameKey="name"
+                              label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                            >
+                              {b2CServicePieData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                            </Pie>
+                            <Tooltip formatter={(v) => [v + " " + t.orders, t.orderCount]} />
+                            <Legend layout="vertical" verticalAlign="middle" align="right" />
+                          </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
               ) : (
                 <div className="row">
                     <div className="col-md-8">
@@ -928,7 +1155,18 @@ const handleFilter = () => {
           </div>
 
           {/* TABLES */}
-          {activeTab === "personal" ? (
+          {activeTab === "combined" ? (
+            <CombinedTable
+              loading={loading}
+              data={filteredCombinedRecords}
+              currentPage={combinedCurrentPage}
+              setCurrentPage={setCombinedCurrentPage}
+              totalPages={combinedTotalPages}
+              currentLanguage={currentLanguage}
+              visibleColumns={visibleColumns}
+              t={t}
+            />
+          ) : activeTab === "personal" ? (
             <PersonalTable
               loading={loading}
               data={filteredRecords}
@@ -1709,6 +1947,96 @@ const PaginationControls = ({ currentPage, totalPages, setCurrentPage, totalItem
           {currentLanguage === "vi" ? `Trang ${currentPage}/${totalPages}` : `Page ${currentPage}/${totalPages}`}
         </div>
       </div>
+    </div>
+  );
+};
+
+const CombinedTable = ({ loading, data, currentPage, setCurrentPage, totalPages, currentLanguage, visibleColumns, t }) => {
+  const rowsPerPage = 20;
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = startIndex + rowsPerPage;
+  const paginatedData = data.slice(startIndex, endIndex);
+
+  return (
+    <div className="bg-white rounded-3 shadow-sm p-0 overflow-hidden">
+      <div className="table-responsive">
+        {loading ? <div className="p-4 text-center">Đang tải dữ liệu...</div> : (
+          <table className="table table-custom mb-0" style={{ minWidth: "1200px" }}>
+            <thead>
+              <tr>
+                {visibleColumns.stt && <th style={{width: "50px"}}>STT</th>}
+                <th style={{width: "80px"}}>Loại KH</th>
+                {visibleColumns.khachHang && <th style={{width: "150px"}}>Khách Hàng</th>}
+                {visibleColumns.loaiDichVu && <th style={{width: "120px"}}>Loại Dịch Vụ</th>}
+                {visibleColumns.nguoiPhuTrach && <th style={{width: "120px"}}>Người Phụ Trách</th>}
+                {visibleColumns.invoiceYN && <th style={{width: "80px"}}>Invoice Y/N</th>}
+                {visibleColumns.dtTruoc && <th style={{width: "130px"}}>Doanh thu Trước CK</th>}
+                {visibleColumns.mucCK && <th style={{width: "90px"}}>Mức CK</th>}
+                {visibleColumns.dtSau && <th style={{width: "130px"}}>Doanh thu Sau CK</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedData.length === 0 ? (
+                <tr><td colSpan="9" className="p-4 text-center text-muted">Không có dữ liệu</td></tr>
+              ) : (
+                paginatedData.map((item, idx) => {
+                  const isB2B = item.CustomerType === "B2B";
+                  const revenue = parseFloat(item.DoanhThuSauChietKhau) || parseFloat(item.DoanhThu) || 0;
+                  const discount = parseFloat(item.MucChietKhau) || 0;
+                  const revenueBefore = discount > 0 ? revenue / (1 - discount / 100) : revenue;
+                  
+                  return (
+                    <tr key={`${item.YeuCauID}_${idx}`}>
+                      {visibleColumns.stt && <td className="text-center">{startIndex + idx + 1}</td>}
+                      <td className="text-center">
+                        <span className={`badge ${isB2B ? 'bg-warning' : 'bg-info'}`}>
+                          {isB2B ? 'B2B' : 'B2C'}
+                        </span>
+                      </td>
+                      {visibleColumns.khachHang && (
+                        <td className="text-center fw-semibold">
+                          {isB2B ? item.TenDoanhNghiep : item.HoTen}
+                        </td>
+                      )}
+                      {visibleColumns.loaiDichVu && (
+                        <td className="text-center">
+                          {translateService(typeof item.LoaiDichVu === 'object' ? item.LoaiDichVu?.name : item.LoaiDichVu, currentLanguage)}
+                        </td>
+                      )}
+                      {visibleColumns.nguoiPhuTrach && (
+                        <td className="text-center">
+                          {typeof item.NguoiPhuTrach === 'object' ? item.NguoiPhuTrach?.name : item.NguoiPhuTrach}
+                        </td>
+                      )}
+                      {visibleColumns.invoiceYN && (
+                        <td className="text-center">
+                          {["Yes", "yes", "true", "1"].includes(String(item.Invoice || item.YeuCauHoaDon)) ? "Có" : "Không"}
+                        </td>
+                      )}
+                      {visibleColumns.dtTruoc && (
+                        <td className="text-end">{formatCurrency(revenueBefore)}</td>
+                      )}
+                      {visibleColumns.mucCK && (
+                        <td className="text-center">{discount}%</td>
+                      )}
+                      {visibleColumns.dtSau && (
+                        <td className="text-end fw-bold text-success">{formatCurrency(revenue)}</td>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+      <PaginationControls 
+        currentPage={currentPage} 
+        totalPages={totalPages} 
+        setCurrentPage={setCurrentPage} 
+        totalItems={data.length} 
+        currentLanguage={currentLanguage} 
+      />
     </div>
   );
 };

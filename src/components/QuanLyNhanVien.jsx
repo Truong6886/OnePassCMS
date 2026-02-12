@@ -28,6 +28,7 @@ export default function QuanLyNhanVien() {
   const [editingUserId, setEditingUserId] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [uploadingCV, setUploadingCV] = useState(false);
+  const [showPermDropdown, setShowPermDropdown] = useState(false);
   
   // State mở rộng hàng để xem CV
   const [expandedUserId, setExpandedUserId] = useState(null);
@@ -369,20 +370,45 @@ const handleSaveUser = async () => {
     );
   };
 
+  const permissionOptions = [
+    { key: "perm_approve_b2b", label: t.duyetB2B },
+    { key: "perm_approve_b2c", label: t.duyetB2C },
+    { key: "perm_view_revenue", label: t.xemDoanhThu },
+    { key: "perm_view_staff", label: t.xemCV }
+  ];
+
+  const selectedPermissions = permissionOptions
+    .filter((opt) => formData[opt.key])
+    .map((opt) => opt.label)
+    .join(", ");
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest(".perm-select")) {
+        setShowPermDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   // STYLE
   const inputStyle = {
-      backgroundColor: isDeleting ? "#F3F4F6" : "#fff", 
-      border: "1px solid #E5E7EB", 
-      borderRadius: "8px", 
-      padding: "7px 10px", // Giữ kích thước nhỏ gọn
+      backgroundColor: isDeleting ? "#F3F4F6" : "#F2F6F7", 
+      border: "1px solid #313131", 
+      borderRadius: "10px", 
+      padding: "0 14px",
+      height: "44px",
       fontSize: "13px",
-      color: isDeleting ? "#9CA3AF" : "#374151", 
+      color: isDeleting ? "#9CA3AF" : "#ACACAC", 
       width: "100%",
       outline: "none",
-      cursor: isDeleting ? "not-allowed" : "text"
+      cursor: isDeleting ? "not-allowed" : "text",
+      transition: "border-color 0.2s"
   };
   
-  const labelStyle = { fontWeight: "700", fontSize: "13px", color: "#111827", marginBottom: "6px", display: "block" };
+  const labelStyle = { fontWeight: "600", fontSize: "13px", color: "#111827", marginBottom: "2px", display: "block" };
   const helperTextStyle = { fontSize: "11px", color: "#3B82F6", marginTop: "4px", fontStyle: "italic" };
 
   return (
@@ -537,7 +563,7 @@ const handleSaveUser = async () => {
                     <div className="col-md-12">
                         <label style={labelStyle}>Tải lên CV nhân viên <span className="text-danger">*</span></label>
                         <div style={{ position: "relative" }}>
-                            <input type="text" style={{...inputStyle, paddingRight: "40px", cursor: "pointer"}} placeholder={formData.CV ? "Đã có file CV" : "Tải lên CV"} value={formData.CV} readOnly onClick={() => document.getElementById('fileCV').click()} />
+                            <input type="text" style={{...inputStyle, paddingRight: "40px", cursor: "pointer", height: "44px"}} placeholder={formData.CV ? "Đã có file CV" : "Tải lên CV"} value={formData.CV} readOnly onClick={() => document.getElementById('fileCV').click()} />
                             <div style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>{uploadingCV ? <span className="spinner-border spinner-border-sm text-secondary"></span> : <UploadCloud size={20} color="#6B7280" />}</div>
                             <input id="fileCV" type="file" hidden onChange={handleFileUpload} accept=".pdf,.doc,.docx" />
                         </div>
@@ -571,12 +597,12 @@ const handleSaveUser = async () => {
                     </div>
                     <div className="col-md-6">
                         <label style={labelStyle}>Số điện thoại <span className="text-danger">*</span></label>
-                        <div className="d-flex gap-2">
-                            <select style={{...inputStyle, width: "35%"}} value={formData.MaVung} disabled={isDeleting} onChange={e => setFormData({...formData, MaVung: e.target.value})}>
+                        <div className="d-flex gap-2 align-items-center">
+                            <select style={{...inputStyle, width: "35%", height: "44px"}} value={formData.MaVung} disabled={isDeleting} onChange={e => setFormData({...formData, MaVung: e.target.value})}>
                                 <option value="+84">+84</option>
                                 <option value="+82">+82</option>
                             </select>
-                            <input type="text" style={{...inputStyle, width: "65%"}} placeholder="number" value={formData.SoDienThoai} disabled={isDeleting} onChange={e => setFormData({...formData, SoDienThoai: e.target.value})} />
+                            <input type="text" style={{...inputStyle, width: "65%", height: "44px"}} placeholder="number" value={formData.SoDienThoai} disabled={isDeleting} onChange={e => setFormData({...formData, SoDienThoai: e.target.value})} />
                         </div>
                     </div>
 
@@ -599,14 +625,57 @@ const handleSaveUser = async () => {
                     {/* Phân quyền chỉ hiện khi không phải mode Xóa */}
                     {!isDeleting && (
                     <div className="col-12 mt-2">
-                        <div className="card bg-light border-0 p-3">
-                            <label className="form-label small fw-bold text-primary mb-2">{t.phanQuyenNangCao}</label>
-                            <div className="d-flex gap-4">
-                                <div className="form-check"><input className="form-check-input" type="checkbox" id="permB2B" checked={formData.perm_approve_b2b} onChange={e => setFormData({...formData, perm_approve_b2b: e.target.checked})} /><label className="form-check-label small cursor-pointer" htmlFor="permB2B">{t.duyetB2B}</label></div>
-                                <div className="form-check"><input className="form-check-input" type="checkbox" id="permB2C" checked={formData.perm_approve_b2c} onChange={e => setFormData({...formData, perm_approve_b2c: e.target.checked})} /><label className="form-check-label small cursor-pointer" htmlFor="permB2C">{t.duyetB2C}</label></div>
-                                <div className="form-check"><input className="form-check-input" type="checkbox" id="permRev" checked={formData.perm_view_revenue} onChange={e => setFormData({...formData, perm_view_revenue: e.target.checked})} /><label className="form-check-label small cursor-pointer" htmlFor="permRev">{t.xemDoanhThu}</label></div>
-                                <div className="form-check"><input className="form-check-input" type="checkbox" id="permStaff" checked={formData.perm_view_staff} onChange={e => setFormData({...formData, perm_view_staff: e.target.checked})} /><label className="form-check-label small cursor-pointer" htmlFor="permStaff">{t.xemCV}</label></div>
-                            </div>
+                        <label style={labelStyle}>Cài đặt quyền hạn <span className="text-danger">*</span></label>
+                        <div className="perm-select" style={{ position: "relative" }}>
+                            <button
+                                type="button"
+                                style={{
+                                  ...inputStyle,
+                                  textAlign: "left",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  cursor: "pointer"
+                                }}
+                                onClick={() => setShowPermDropdown(!showPermDropdown)}
+                            >
+                                <span style={{ color: selectedPermissions ? "#ACACAC" : "#808080" }}>
+                                  {selectedPermissions || "Chọn các quyền cấp phép"}
+                                </span>
+                                <span style={{ marginLeft: "12px", fontSize: "12px" }}>▼</span>
+                            </button>
+
+                            {showPermDropdown && (
+                              <div
+                                className="perm-dropdown"
+                                style={{
+                                  position: "absolute",
+                                  top: "calc(100% + 6px)",
+                                  left: 0,
+                                  right: 0,
+                                  background: "#F2F6F7",
+                                  border: "1px solid #313131",
+                                  borderRadius: "10px",
+                                  padding: "10px",
+                                  zIndex: 20
+                                }}
+                              >
+                                {permissionOptions.map((opt) => (
+                                  <label
+                                    key={opt.key}
+                                    className="perm-item"
+                                    style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px", color: "#111827" }}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={formData[opt.key]}
+                                      onChange={(e) => setFormData({ ...formData, [opt.key]: e.target.checked })}
+                                    />
+                                    <span>{opt.label}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            )}
                         </div>
                     </div>
                     )}
@@ -638,7 +707,7 @@ const handleSaveUser = async () => {
                             <input 
                                 type={showPassword ? "text" : "password"} 
                                 // Style cho ô password: Nếu là xóa thì nền hơi xám
-                                style={{...inputStyle, paddingRight: "40px", backgroundColor: "#fff", cursor: "text", color: "#374151"}} 
+                                style={{...inputStyle, paddingRight: "40px", backgroundColor: "#F2F6F7", cursor: "text", color: "#ACACAC", height: "44px"}} 
                                 placeholder="Nhập mật khẩu" 
                                 value={formData.password}
                                 onChange={e => setFormData({...formData, password: e.target.value})}
@@ -677,7 +746,7 @@ const handleSaveUser = async () => {
                         <div style={{ position: "relative" }}>
                             <input 
                                 type={showDirectorPassword ? "text" : "password"} 
-                                style={{...inputStyle, paddingRight: "40px"}} 
+                                style={{...inputStyle, paddingRight: "40px", height: "44px"}} 
                                 placeholder="Nhập mật khẩu để xác nhận" 
                                 value={directorPassword}
                                 onChange={e => setDirectorPassword(e.target.value)}
@@ -732,6 +801,11 @@ const handleSaveUser = async () => {
       <style>{`
         .table-bordered { border: 1px solid #dee2e6 !important; }
         .table-bordered th, .table-bordered td { border: 1px solid #dee2e6 !important; }
+        input::placeholder, select option:first-child { color: #808080 !important; opacity: 0.6; }
+        input::-webkit-input-placeholder { color: #808080 !important; opacity: 0.6; }
+        input::-moz-placeholder { color: #808080 !important; opacity: 0.6; }
+        select { color: #ACACAC !important; }
+        select option { background-color: #F2F6F7; color: #ACACAC; }
       `}</style>
     </div>
   );

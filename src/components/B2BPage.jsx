@@ -5,6 +5,7 @@ import useSocketListener from "./CMSDashboard/hooks/useSocketListener";
 import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import EditProfileModal from "./EditProfileModal";
 import RegisterB2BModal from "./RegisterB2BModal";
+import AddServiceModalB2B from "./AddServiceModalB2B";
 import { showToast } from "../utils/toast";
 import { Save, Trash2, XCircle, Check, FileText, Edit, Eye, EyeOff, Plus, X, ChevronDown, Paperclip } from "lucide-react";
 import Swal from "sweetalert2";
@@ -105,7 +106,9 @@ const formatDateTimeReject = (isoString) => {
 const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
 const unformatNumber = (value) => (value ? value.toString().replace(/\./g, "") : "");
 
-const API_BASE = "https://onepasscms-backend-tvdy.onrender.com/api";
+const API_BASE = window.location.hostname === "localhost"
+  ? "http://localhost:5000/api"
+  : "https://onepasscms-backend-tvdy.onrender.com/api";
 const parseMoney = (str) => {
   if (!str) return 0;
   return parseFloat(str.toString().replace(/\./g, "")) || 0;
@@ -315,6 +318,12 @@ export default function B2BPage() {
       ConfirmPassword: ""
     });
     setAvailableServices([]);
+    
+    // Load danh sách khách hàng đã duyệt nếu chưa có
+    if (approvedList.length === 0) {
+      loadApproved(1);
+    }
+    
     setShowAddServiceModal(true);
   };
   const handleModalChange = (e) => {
@@ -357,7 +366,88 @@ export default function B2BPage() {
     }
   };
 
+  // Handler for AddServiceModalB2B
+  const handleAddServiceModalB2B = async (payload) => {
+    try {
+      setLoading(true);
 
+      // Verify password
+      const verifyRes = await authenticatedFetch(`${API_BASE}/verify-password`, {
+        method: "POST",
+        body: JSON.stringify({
+          username: currentUser.username,
+          password: payload.ConfirmPassword
+        })
+      });
+
+      if (!verifyRes) {
+        console.error("Verify password request failed");
+        showToast("Lỗi xác thực mật khẩu - vui lòng thử lại", "error");
+        return;
+      }
+
+      const verifyJson = await verifyRes.json();
+      if (!verifyJson.success) {
+        showToast("Mật khẩu xác nhận không chính xác!", "error");
+        return;
+      }
+
+      // Prepare API payload
+      const apiPayload = {
+        ...payload,
+        userId: currentUser?.id,
+        approveAction: null
+      };
+
+      if (!apiPayload.NgayThucHien && apiPayload.NgayBatDau) {
+        apiPayload.NgayThucHien = apiPayload.NgayBatDau;
+      }
+      if (!apiPayload.NgayHoanThanh && apiPayload.NgayKetThuc) {
+        apiPayload.NgayHoanThanh = apiPayload.NgayKetThuc;
+      }
+
+      // Remove ConfirmPassword before sending
+      delete apiPayload.ConfirmPassword;
+
+      console.log("Submitting payload:", apiPayload);
+
+      const res = await authenticatedFetch(`${API_BASE}/b2b/services`, {
+        method: "POST",
+        body: JSON.stringify(apiPayload)
+      });
+
+      if (!res) {
+        console.error("Service registration request failed");
+        showToast("Lỗi kết nối server - vui lòng kiểm tra kết nối", "error");
+        return;
+      }
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("Service registration failed:", res.status, text);
+        showToast(text || "Lỗi server khi đăng ký dịch vụ", "error");
+        return;
+      }
+
+      const json = await res.json();
+      console.log("Response from server:", json);
+
+      if (json.success) {
+        showToast("Đã gửi yêu cầu đăng ký!", "success");
+        setShowAddServiceModal(false);
+        loadServices(currentPage.services || 1);
+      } else {
+        showToast(json.message || "Đã xảy ra lỗi", "error");
+      }
+    } catch (err) {
+      console.error("Detailed error:", err);
+      console.error("Error message:", err.message);
+      console.error("Error stack:", err.stack);
+      showToast(`Lỗi: ${err.message || "Kết nối server thất bại"}`, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleModalSubmit = async () => {
 
@@ -816,7 +906,11 @@ export default function B2BPage() {
     if (!res) return;
 
     const json = await res.json();
-    if (json.success) { setApprovedData(json.data); setApprovedTotal(json.total); }
+    if (json.success) { 
+      setApprovedData(json.data);
+      setApprovedList(json.data || []);
+      setApprovedTotal(json.total); 
+    }
   };
 
   const loadRejected = async (page = 1) => {
@@ -2517,638 +2611,16 @@ export default function B2BPage() {
       )}
 
 
-      {showAddServiceModal && (
-        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style={{ backgroundColor: "rgba(0,0,0,0.6)", zIndex: 1050, backdropFilter: "blur(2px)" }}>
-          <div
-            className="bg-white p-3 scrollbar-hide position-relative"
-            style={{
-              width: "600px",
-              maxWidth: "80%",
-              maxHeight: "99vh",
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-              overflowY: "auto",
-              borderRadius: "20px",
-              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
-            }}
-          >
-            {/* --- NÚT ĐÓNG (CLOSE BUTTON) --- */}
-            <button
-              onClick={() => setShowAddServiceModal(false)}
-              className="position-absolute d-flex align-items-center justify-content-center border-0 bg-light rounded-circle text-muted hover-text-dark transition-all"
-              style={{
-                top: "15px",
-                right: "15px",
-                width: "32px",
-                height: "32px",
-                cursor: "pointer",
-                zIndex: 10
-              }}
-              title="Đóng"
-            >
-              <X size={20} />
-            </button>
-
-            {/* Header Modal */}
-            <div className="text-center mb-1 mt-1">
-              <h3 className="fw-bold m-0" style={{ color: "#333", fontSize: "20px" }}>
-                {newServiceForm.id ? "Cập nhật dịch vụ (B2B)" : "Đăng ký dịch vụ mới (B2B)"}
-              </h3>
-              <p className="text-muted small mt-1 mb-0">Hệ thống quản lý dịch vụ của One Pass</p>
-            </div>
-
-            <div className="row g-3 px-2">
-
-              {(() => {
-
-                const inputStyle = {
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: "10px",
-                  border: "2px solid #E5E7EB",
-                  fontSize: "13px",
-                  color: "#374151",
-                  backgroundColor: "#F9FAFB",
-                  outline: "none",
-                  transition: "border-color 0.2s",
-                };
-
-
-                const arrowSvg = `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3e%3c/svg%3e")`;
-
-
-                const selectStyle = {
-                  ...inputStyle,
-                  appearance: "none",
-                  WebkitAppearance: "none",
-                  MozAppearance: "none",
-                  backgroundImage: arrowSvg,
-                  backgroundRepeat: "no-repeat",
-                  backgroundPosition: "right 12px center",
-                  backgroundSize: "16px",
-                  paddingRight: "35px",
-                  cursor: "pointer"
-                };
-
-                const labelStyle = {
-                  fontSize: "13px",
-                  fontWeight: "700",
-                  color: "#1F2937",
-                  marginBottom: "4px",
-                  display: "block",
-                };
-
-                const helperTextStyle = {
-                  fontSize: "10px",
-                  color: "#3B82F6",
-                  marginTop: "2px",
-                  fontStyle: "normal",
-                };
-
-
-                const ToggleButton = ({ name, value, onChange }) => (
-                  <div className="d-flex gap-4 w-100">
-                    {["Yes", "No"].map((option) => (
-                      <label
-                        key={option}
-                        className="flex-grow-1 cursor-pointer"
-                        style={{ position: "relative" }}
-                      >
-                        <input
-                          type="radio"
-                          name={name}
-                          value={option}
-                          checked={value === option}
-                          onChange={onChange}
-                          className="d-none"
-                        />
-                        <div
-                          className="text-center py-2"
-                          style={{
-                            ...inputStyle,
-                            backgroundColor: value === option ? "#F3F4F6" : "#fff",
-                            borderColor: value === option ? "#9CA3AF" : "#E5E7EB",
-                            color: value === option ? "#000" : "#9CA3AF",
-                            fontWeight: value === option ? "bold" : "normal",
-                            cursor: "pointer",
-                            padding: "8px 0",
-                          }}
-                        >
-                          {option}
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                );
-
-                const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false, footerAction }) => {
-                  const [isOpen, setIsOpen] = React.useState(false);
-                  const containerRef = React.useRef(null);
-
-                  const selectedOption = options.find(opt => String(opt.value) === String(value));
-                  const displayLabel = selectedOption ? selectedOption.label : placeholder;
-
-                  React.useEffect(() => {
-                    const handleClickOutside = (event) => {
-                      if (containerRef.current && !containerRef.current.contains(event.target)) {
-                        setIsOpen(false);
-                      }
-                    };
-                    document.addEventListener("mousedown", handleClickOutside);
-                    return () => document.removeEventListener("mousedown", handleClickOutside);
-                  }, []);
-
-                  const handleSelect = (val) => {
-                    if (disabled) return;
-                    onChange({ target: { name, value: val } });
-                    setIsOpen(false);
-                  };
-
-                  return (
-                    <div className="position-relative" ref={containerRef} style={{ width: "100%" }}>
-                      {/* Box hiển thị chính */}
-                      <div
-                        onClick={() => !disabled && setIsOpen(!isOpen)}
-                        style={{
-                          width: "100%",
-                          padding: "10px 12px",
-                          borderRadius: "10px",
-                          border: "2px solid #E5E7EB",
-                          fontSize: "13px",
-                          color: "#374151",
-                          backgroundColor: disabled ? "#F3F4F6" : "#F9FAFB",
-                          outline: "none",
-                          transition: "border-color 0.2s",
-                          cursor: disabled ? "not-allowed" : "pointer",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          userSelect: "none",
-                          height: "45px"
-                        }}
-                      >
-                        <span style={{ color: value ? "#374151" : "#9CA3AF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {displayLabel}
-                        </span>
-                        <ChevronDown size={16} color="#6B7280" />
-                      </div>
-
-                      {/* Dropdown Menu */}
-                      {isOpen && !disabled && (
-                        <div
-                          className="position-absolute w-100 bg-white shadow-sm rounded-bottom border"
-                          style={{
-                            top: "48px",
-                            left: 0,
-                            zIndex: 1000,
-                            maxHeight: "250px",
-                            overflowY: "auto",
-                            borderRadius: "8px",
-                            padding: "8px",
-                            display: "flex",
-                            flexDirection: "column"
-                          }}
-                        >
-                          <div style={{
-                            display: twoColumns ? "grid" : "block",
-                            gridTemplateColumns: twoColumns ? "1fr 1fr" : "none",
-                            gap: twoColumns ? "8px" : "0"
-                          }}>
-                            {options.length > 0 ? (
-                              options.map((opt, idx) => (
-                                <div
-                                  key={idx}
-                                  onClick={() => handleSelect(opt.value)}
-                                  className={`px-3 py-2 transition-all ${twoColumns ? 'rounded' : ''}`}
-                                  style={{
-                                    cursor: "pointer",
-                                    fontSize: "12px",
-                                    color: String(opt.value) === String(value) ? "#2563eb" : "#374151",
-                                    backgroundColor: String(opt.value) === String(value) ? "#EFF6FF" : "transparent",
-                                    borderBottom: !twoColumns && idx !== options.length - 1 ? "1px solid #f3f4f6" : "none",
-                                    border: twoColumns ? "1px solid #E5E7EB" : undefined,
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis"
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    if (String(opt.value) !== String(value)) e.target.style.backgroundColor = twoColumns ? "#E5E7EB" : "#F3F4F6";
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    if (String(opt.value) !== String(value)) e.target.style.backgroundColor = "transparent";
-                                  }}
-                                  title={opt.label}
-                                >
-                                  {opt.label}
-                                </div>
-                              ))
-                            ) : (
-                              <div className="px-3 py-2 text-muted small text-center">Không có dữ liệu</div>
-                            )}
-                          </div>
-
-                          {/* [NEW] Phần Footer Action (Nút cộng) */}
-                          {footerAction && (
-                            <div
-                              className="border-top mt-1 pt-1"
-                              style={{ position: "sticky", bottom: 0, backgroundColor: "white" }}
-                            >
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setIsOpen(false);
-                                  footerAction.onClick();
-                                }}
-                                className="px-3 py-2 text-primary d-flex align-items-center gap-2 rounded transition-all"
-                                style={{ cursor: "pointer", fontSize: "12px", fontWeight: "600" }}
-                                onMouseEnter={(e) => e.target.style.backgroundColor = "#EFF6FF"}
-                                onMouseLeave={(e) => e.target.style.backgroundColor = "transparent"}
-                              >
-                                {footerAction.icon} {footerAction.label}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                };
-                return (
-                  <>
-
-                    {/* Tên Doanh Nghiệp */}
-                    <div className="col-md-6">
-                      <label style={labelStyle}>
-                        Tên doanh nghiệp <span className="text-danger">*</span>
-                      </label>
-                      <ModernSelect
-                        name="DoanhNghiepID"
-                        value={newServiceForm.DoanhNghiepID}
-                        onChange={handleModalChange}
-                        placeholder="Chọn doanh nghiệp"
-                        options={approvedList.map(c => ({ value: c.ID, label: c.TenDoanhNghiep }))}
-                      />
-                    </div>
-                    {/* Số ĐKKD */}
-                    <div className="col-md-6">
-                      <label style={labelStyle}>Số đăng ký kinh doanh <span className="text-danger">*</span></label>
-                      <input
-                        type="text"
-                        value={newServiceForm.SoDKKD}
-                        readOnly
-                        style={{ ...inputStyle, backgroundColor: "#F3F4F6", color: "#9CA3AF" }}
-                      />
-                    </div>
-
-
-
-                    <div className="col-md-6">
-                      <label style={labelStyle}>
-                        Loại dịch vụ <span className="text-danger">*</span>
-                      </label>
-                      <ModernSelect
-                        name="LoaiDichVu"
-                        value={newServiceForm.LoaiDichVu}
-                        onChange={handleModalChange}
-                        placeholder="Chọn loại dịch vụ"
-                        disabled={!newServiceForm.DoanhNghiepID}
-
-                        options={availableServices.map(svc => ({ value: svc, label: svc }))}
-                      />
-                    </div>
-
-
-
-                    {/* Tên dịch vụ chi tiết */}
-                    <div className="col-md-6">
-                      <label style={labelStyle}>Tên dịch vụ chi tiết <span className="text-danger">*</span></label>
-                      <input
-                        type="text"
-                        name="TenDichVu"
-                        placeholder="Cấp lại hộ chiếu..."
-                        value={newServiceForm.TenDichVu}
-                        onChange={handleModalChange}
-                        style={inputStyle}
-                      />
-                    </div>
-
-                    {/* Địa chỉ nhận */}
-                    <div className="col-12">
-                      <label style={labelStyle}>{t.diaChiNhan}</label>
-                      <input
-                        type="text"
-                        name="DiaChiNhan"
-                        placeholder={t.diaChiNhanPlaceholder}
-                        value={newServiceForm.DiaChiNhan || ""}
-                        onChange={handleModalChange}
-                        style={inputStyle}
-                      />
-                    </div>
-
-                    <div className="col-12">
-                      <label style={labelStyle}>
-                        Danh mục <span className="text-danger">*</span>
-                      </label>
-
-                      <ModernSelect
-                        name="DanhMuc"
-                        value={newServiceForm.DanhMuc}
-                        onChange={handleModalChange}
-                        placeholder={newServiceForm.LoaiDichVu ? "Chọn danh mục chính" : "Vui lòng chọn Loại dịch vụ trước"}
-                        disabled={!newServiceForm.LoaiDichVu}
-                        options={getDanhMucOptions(newServiceForm.LoaiDichVu).map(dm => ({
-                          value: dm,
-                          label: dm
-                        }))}
-
-                        footerAction={{
-                          label: showExtras ? "Ẩn dịch vụ bổ sung" : "Thêm dịch vụ bổ sung (+5)",
-                          icon: showExtras ? <EyeOff size={14} /> : <Plus size={14} />,
-                          onClick: () => {
-                            // Nếu đang đóng mà mở ra thì reset về 1 dòng rỗng nếu chưa có gì
-                            if (!showExtras && extraServices.length === 0) setExtraServices([""]);
-                            setShowExtras(!showExtras);
-                          }
-                        }}
-                      />
-
-                      {showExtras && (
-                        <div className="mt-2 p-3 bg-light rounded border">
-
-                          <div style={{ fontSize: "11px", color: "#666", marginBottom: "8px", fontStyle: "italic" }}>
-
-                            {isApprover
-                              ? "Nhập tên dịch vụ bổ sung"
-                              : "Nhập tên dịch vụ bổ sung"}
-                          </div>
-
-                          {extraServices.map((service, index) => (
-                            <div key={index} className="d-flex mb-2 gap-2 align-items-center">
-
-                              <input
-                                className="form-control form-control-sm"
-                                placeholder="Tên dịch vụ..."
-                                value={service.name}
-                                onChange={(e) => handleChangeExtra(index, "name", e.target.value)}
-
-                                style={{ flex: isApprover ? 2.5 : 1 }}
-                              />
-
-
-                              {isApprover && (
-                                <>
-
-                                  <input
-                                    className="form-control form-control-sm text-center"
-                                    placeholder="Doanh thu"
-                                    value={service.revenue}
-                                    onChange={(e) => handleChangeExtra(index, "revenue", e.target.value)}
-                                    style={{ flex: 1 }} // <-- Đã giảm kích thước
-                                  />
-
-
-                                  <select
-                                    className="form-select form-select-sm"
-                                    value={service.discount || ""}
-                                    onChange={(e) => handleChangeExtra(index, "discount", e.target.value)}
-                                    style={{
-                                      flex: 0.5,
-                                      fontSize: "12px",
-                                      height: "31px",
-                                      paddingLeft: "14px",
-                                      cursor: "pointer"
-                                    }}
-                                  >
-                                    <option value="">%</option>
-                                    <option value="5">5%</option>
-                                    <option value="10">10%</option>
-                                    <option value="12">12%</option>
-                                    <option value="15">15%</option>
-                                    <option value="17">17%</option>
-                                    <option value="20">20%</option>
-                                    <option value="30">30%</option>
-                                  </select>
-                                </>
-                              )}
-
-                              {/* Nút xóa */}
-                              <button
-                                className="btn btn-sm btn-danger p-0 d-flex align-items-center justify-content-center"
-                                style={{ width: "34px", height: "34px" }}
-                                onClick={() => handleRemoveRow(index)}
-                              >
-                                <X size={14} />
-                              </button>
-                            </div>
-                          ))}
-                          {extraServices.length < 5 && (
-                            <button className="btn btn-sm btn-success mt-1" onClick={handleAddRow}>
-                              <Plus size={14} /> Thêm dòng
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Ngày bắt đầu */}
-                    <div className="col-md-6">
-                      <label style={labelStyle}>Ngày bắt đầu <span className="text-danger">*</span></label>
-                      <input
-                        type="date"
-                        name="NgayBatDau"
-                        value={newServiceForm.NgayBatDau}
-                        onChange={handleModalChange}
-                        style={inputStyle}
-                      />
-                    </div>
-
-                    {/* Ngày hoàn thành */}
-                    <div className="col-md-6">
-                      <label style={labelStyle}>Ngày hoàn thành mong muốn <span className="text-danger">*</span></label>
-                      <input
-                        type="date"
-                        name="NgayHoanThanh"
-                        value={newServiceForm.NgayHoanThanh}
-                        onChange={handleModalChange}
-                        style={inputStyle}
-                      />
-                      <div style={helperTextStyle}>
-                        Ngày hoàn thành dịch vụ có thể sai khác tuỳ thuộc vào thực tế hồ sơ và tình hình xử lý hồ sơ tại cơ quan.
-                      </div>
-                    </div>
-
-                    {/* Thủ tục cấp tốc */}
-                    <div className="col-md-6">
-                      <label style={labelStyle}>Yêu cầu thủ tục cấp tốc <span className="text-danger">*</span></label>
-                      <ToggleButton name="ThuTucCapToc" value={newServiceForm.ThuTucCapToc} onChange={handleModalChange} />
-                      <div style={helperTextStyle}>
-                        Thời gian cấp tốc đối với từng dịch vụ sẽ được hướng dẫn thông qua người phụ trách.
-                      </div>
-                    </div>
-
-                    {/* Xuất hóa đơn */}
-                    <div className="col-md-6">
-                      <label style={labelStyle}>Yêu cầu xuất hóa đơn <span className="text-danger">*</span></label>
-                      <ToggleButton name="YeuCauHoaDon" value={newServiceForm.YeuCauHoaDon} onChange={handleModalChange} />
-                      <div style={helperTextStyle}>
-                        Hóa đơn sẽ được gửi về email đăng ký khi đăng ký doanh nghiệp trên hệ thống.
-                      </div>
-                    </div>
-                    <div className="col-md-12">
-                      <label style={labelStyle}>
-                        Chọn người phụ trách <span className="text-danger">*</span>
-                      </label>
-                      <ModernSelect
-                        name="NguoiPhuTrachId"
-                        value={newServiceForm.NguoiPhuTrachId}
-                        onChange={handleModalChange}
-                        placeholder="Chọn trong danh sách nhân viên"
-
-                        twoColumns={true}
-
-                        options={userList.map(u => ({
-                          value: u.id,
-                          label: `${u.name} (${u.username})`
-                        }))}
-                      />
-                    </div>
-
-                    {/* Doanh thu & Chiết khấu/Ví */}
-
-                    {(currentUser?.is_director || currentUser?.is_accountant || currentUser?.perm_approve_b2b) && (
-                      <div className="col-12">
-
-                        <div className="d-flex gap-2">
-
-
-                          <div style={{ flex: 1 }}>
-                            <label style={labelStyle}>Doanh thu <span className="text-danger">*</span></label>
-                            <input
-                              type="text"
-                              name="DoanhThu"
-                              value={newServiceForm.DoanhThu}
-                              onChange={handleModalChange}
-                              placeholder="Doanh Thu"
-                              style={{ ...inputStyle, textAlign: "center" }}
-                            />
-                          </div>
-
-
-                          <div style={{ flex: 1 }}>
-                            <label style={labelStyle}>Mức chiết khấu</label>
-                            <ModernSelect
-                              name="MucChietKhau"
-                              value={newServiceForm.MucChietKhau || 0}
-                              onChange={handleModalChange}
-                              placeholder="%"
-                              options={discountOptions}
-                            />
-
-                          </div>
-
-
-                          <div style={{ flex: 1 }}>
-                            <label style={labelStyle}>Ví</label>
-                            <input
-                              type="text"
-                              name="Vi"
-                              value={newServiceForm.Vi}
-                              onChange={handleModalChange}
-                              placeholder=""
-                              style={{ ...inputStyle, textAlign: "center" }}
-                            />
-                            <div style={helperTextStyle}>Trừ ví (VND)</div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* [MỚI] Input Trạng thái cho Modal Thêm/Sửa */}
-                    <div className="col-12">
-                      <label style={labelStyle}>Trạng thái <span className="text-danger">*</span></label>
-                      <input
-                        type="text"
-                        name="TrangThai"
-                        value={newServiceForm.TrangThai || ""} // Map với state
-                        onChange={handleModalChange}
-                        placeholder="Nhập trạng thái (VD: Chờ duyệt, Đang xử lý...)"
-                        style={inputStyle}
-                      />
-                    </div>
-                    {/* Ghi chú */}
-                    <div className="col-12">
-                      <label style={labelStyle}>Ghi chú </label>
-                      <textarea
-                        type="text"
-                        name="GhiChu"
-                        placeholder="Nhập ghi chú"
-                        value={newServiceForm.GhiChu}
-                        onChange={handleModalChange}
-                        style={inputStyle}
-                      />
-                    </div>
-
-
-
-
-                    {/* Mật khẩu xác nhận */}
-                    <div className="col-12">
-                      <label style={labelStyle}>Nhập mật khẩu để đăng ký <span className="text-danger">*</span></label>
-                      <div className="position-relative">
-                        <input
-                          type={showConfirmPassword ? "text" : "password"}
-                          placeholder="******"
-                          name="ConfirmPassword"
-                          value={newServiceForm.ConfirmPassword}
-                          onChange={handleModalChange}
-                          autoComplete="new-password"
-                          style={{ ...inputStyle, paddingRight: "40px" }}
-                        />
-                        <span
-                          className="position-absolute top-50 translate-middle-y end-0 me-3 cursor-pointer"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          style={{ color: "#6B7280" }}
-                        >
-                          {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                        </span>
-                      </div>
-                      <div style={helperTextStyle}>Mật khẩu tài khoản admin hiện tại</div>
-                    </div>
-
-                    {/* Nút Submit */}
-                    {/* ... Trong phần render Modal ... */}
-
-                    <div className="col-12 mt-2 pt-2">
-                      <button
-                        className="btn w-100 fw-bold shadow-sm"
-                        onClick={handleModalSubmit}
-                        style={{
-                          // Đổi màu nút thành xanh nếu là hành động duyệt
-                          backgroundColor: (currentUser?.is_accountant && newServiceForm.status === "Chờ Kế toán duyệt") ? "#0ea5e9" : "#22C55E",
-                          color: "white",
-                          padding: "12px",
-                          borderRadius: "10px",
-                          fontSize: "15px",
-                          border: "none",
-                          boxShadow: "0 4px 6px -1px rgba(34, 197, 94, 0.4)"
-                        }}
-                      >
-                        {/* Logic hiển thị Text của nút */}
-                        {newServiceForm.id
-                          ? (currentUser?.is_accountant && newServiceForm.status === "Chờ Kế toán duyệt"
-                            ? "Duyệt & Cấp mã dịch vụ" // Text khi kế toán duyệt
-                            : "Cập nhật dịch vụ")      // Text khi sửa bình thường
-                          : "Đăng ký dịch vụ mới"}
-                      </button>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal Đăng ký dịch vụ mới (B2B) - Modern */}
+      <AddServiceModalB2B
+        isOpen={showAddServiceModal}
+        onClose={() => setShowAddServiceModal(false)}
+        onSave={handleAddServiceModalB2B}
+        currentUser={currentUser}
+        currentLanguage={currentLanguage}
+        companiesList={approvedList}
+        b2bServiceMapping={B2B_SERVICE_MAPPING}
+      />
       
       {/* Modal Đăng ký doanh nghiệp */}
       <RegisterB2BModal 
