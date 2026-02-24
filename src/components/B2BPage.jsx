@@ -267,7 +267,7 @@ export default function B2BPage() {
       DanhMuc: mainCatName,
       NgayBatDau: rec.startDate ? rec.startDate : "",
       NgayHoanThanh: rec.endDate ? rec.endDate : "",
-      ThuTucCapToc: (rec.package === "Cấp tốc" || rec.package === "Yes") ? "Yes" : "No",
+      ThuTucCapToc: rec.package || "thường",
       YeuCauHoaDon: rec.invoiceYN || "No",
       TrangThai: rec.status || rec.TrangThai,
       DoanhThu: mainRevenueStr,
@@ -1071,7 +1071,7 @@ export default function B2BPage() {
       GhiChu: service.GhiChu || "",
       NguoiPhuTrachId: service.picId || "",
       ConfirmPassword: "",
-      GoiDichVu: service.package === "Cấp tốc" ? "Yes" : "No",
+      GoiDichVu: service.package || "thường",
       YeuCauHoaDon: service.invoiceYN || "No"
     });
 
@@ -1120,7 +1120,7 @@ export default function B2BPage() {
         DiaChiNhan: selectedService.DiaChiNhan || service.DiaChiNhan || "",
         TrangThai: selectedService.TrangThai,
         NgayHoanThanh: selectedService.NgayHoanThanh || selectedService.endDate,
-        GoiDichVu: selectedService.GoiDichVu === "Yes" ? "Cấp tốc" : "Thông thường",
+        GoiDichVu: selectedService.GoiDichVu || "thường",
         YeuCauHoaDon: selectedService.YeuCauHoaDon,
         GhiChu: selectedService.GhiChu || "",
         NguoiPhuTrachId: selectedService.NguoiPhuTrachId || selectedService.picId,
@@ -2432,11 +2432,22 @@ export default function B2BPage() {
                       <label style={labelStyle}>Gói dịch vụ</label>
                       <ToggleButton
                         name="GoiDichVu"
-                        value={selectedService.package === "Cấp tốc" || selectedService.package === "Yes" ? "Yes" : "No"}
+                        value={selectedService.package || "thường"}
                         onChange={handleApproveModalChange}
                       />
+                      <ModernSelect
+                        name="GoiDichVu"
+                        value={selectedService.package || selectedService.GoiDichVu || "thường"}
+                        onChange={handleApproveModalChange}
+                        placeholder="Chọn gói"
+                        options={[
+                          { value: "thường", label: "thường" },
+                          { value: "gấp 1", label: "gấp 1" },
+                          { value: "gấp 0", label: "gấp 0" }
+                        ]}
+                      />
                       <div style={helperTextStyle}>
-                        {selectedService.package === "Cấp tốc" || selectedService.package === "Yes"
+                        {selectedService.package === "gấp 1" || selectedService.package === "gấp 0"
                           ? "Thời gian xử lý nhanh hơn"
                           : "Thời gian xử lý tiêu chuẩn"}
                       </div>

@@ -27,6 +27,10 @@ export default function QuanLyNhanVien() {
   const [showDirectorPassword, setShowDirectorPassword] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [currentPasswordInput, setCurrentPasswordInput] = useState("");
+  const [newPasswordInput, setNewPasswordInput] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(true);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [uploadingCV, setUploadingCV] = useState(false);
   const [showPermDropdown, setShowPermDropdown] = useState(false);
   
@@ -133,6 +137,8 @@ const handleOpenAdd = () => {
     setIsEditing(false);
     setIsDeleting(false);
     setDirectorPassword(""); 
+  setCurrentPasswordInput("");
+  setNewPasswordInput("");
     setFormData({
       username: "", name: "", email: "", password: "", role: "", 
       perm_approve_b2b: false, perm_approve_b2c: false, perm_view_revenue: false, perm_view_staff: false,
@@ -171,6 +177,8 @@ const handleOpenAdd = () => {
     setIsEditing(true);
     setIsDeleting(false);
     setEditingUserId(user.id);
+    setCurrentPasswordInput("");
+    setNewPasswordInput("");
     fillFormData(user);
     setShowUserModal(true);
   };
@@ -179,6 +187,8 @@ const handleOpenAdd = () => {
     setIsEditing(false);
     setIsDeleting(true);
     setEditingUserId(user.id);
+    setCurrentPasswordInput("");
+    setNewPasswordInput("");
     fillFormData(user);
     setShowUserModal(true);
   };
@@ -300,6 +310,34 @@ const handleSaveUser = async () => {
     if (!isEditing && !formData.password) {
         return showToast("Vui lòng tạo mật khẩu cho nhân viên mới", "warning");
     }
+
+    if (isEditing) {
+      const hasCurrentPassword = currentPasswordInput.trim() !== "";
+      const hasNewPassword = newPasswordInput.trim() !== "";
+
+      if (hasCurrentPassword !== hasNewPassword) {
+        return showToast("Vui lòng nhập đầy đủ Mật khẩu hiện tại và Mật khẩu mới", "warning");
+      }
+
+      if (hasCurrentPassword && hasNewPassword) {
+        try {
+          const verifyCurrentRes = await fetch("https://onepasscms-backend-tvdy.onrender.com/api/verify-password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              username: formData.username,
+              password: currentPasswordInput
+            })
+          });
+          const verifyCurrentData = await verifyCurrentRes.json();
+          if (!verifyCurrentData.success) {
+            return showToast("Mật khẩu hiện tại không đúng!", "error");
+          }
+        } catch (err) {
+          return showToast("Lỗi xác thực mật khẩu hiện tại", "error");
+        }
+      }
+    }
     
 
     if (!directorPassword) {
@@ -335,9 +373,12 @@ const handleSaveUser = async () => {
     const payload = { ...formData, ...roleFlags };
     delete payload.role;
 
-
-    if (isEditing && !formData.password) {
+    if (isEditing) {
+      if (newPasswordInput.trim()) {
+        payload.password = newPasswordInput.trim();
+      } else {
         delete payload.password;
+      }
     }
 
     try {
@@ -393,6 +434,16 @@ const handleSaveUser = async () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Format date to yyyy-mm-dd
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "-";
+    const date = new Date(dateStr);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // STYLE
   const inputStyle = {
       backgroundColor: isDeleting ? "#F3F4F6" : "#F2F6F7", 
@@ -401,7 +452,7 @@ const handleSaveUser = async () => {
       padding: "0 14px",
       height: "44px",
       fontSize: "13px",
-      color: isDeleting ? "#9CA3AF" : "#ACACAC", 
+      color: isDeleting ? "#9CA3AF" : "#000000", 
       width: "100%",
       outline: "none",
       cursor: isDeleting ? "not-allowed" : "text",
@@ -481,7 +532,7 @@ const handleSaveUser = async () => {
                           <td className="text-muted text-center">{u.email}</td>
                           <td className="text-center">{u.MaVung}</td>
                           <td style={{width:70}} className="text-center">{u.SoDienThoai}</td>
-                          <td className="text-center">{u.NgayVaoLam ? new Date(u.NgayVaoLam).toLocaleDateString('vi-VN') : "-"}</td>
+                          <td className="text-center">{formatDate(u.NgayVaoLam)}</td>
                           <td className="text-center">{translateContractType(u.LoaiHopDong) || ""}</td>
                           {canViewPermissions && (<td className="text-center">{renderPermissions(u)}</td>)}
                           {canViewCV && (
@@ -694,33 +745,62 @@ const handleSaveUser = async () => {
                     </div>
                     )}
 
-                    {/* [MODIFIED] Ô mật khẩu luôn hiển thị */}
-                    <div className="col-12">
-                        <label style={labelStyle}>
-                            {/* Đổi label tùy theo mode */}
-                            {isDeleting ? "Nhập mật khẩu để xác nhận xóa" 
-                             : isEditing ? "Nhập mật khẩu giám đốc để xác nhận cập nhật" 
-                             : "Mật khẩu cho nhân viên mới"} 
-                             <span className="text-danger">*</span>
-                        </label>
+                    {isEditing ? (
+                    <>
+                      <div className="col-md-6">
+                        <label style={labelStyle}>Mật khẩu hiện tại <span className="text-danger">*</span></label>
                         <div style={{ position: "relative" }}>
-                            <input 
-                                type={showPassword ? "text" : "password"} 
-                                // Style cho ô password: Nếu là xóa thì nền hơi xám
-                                style={{...inputStyle, paddingRight: "40px", backgroundColor: "#F2F6F7", cursor: "text", color: "#ACACAC", height: "44px"}} 
-                                placeholder="Nhập mật khẩu" 
-                                value={formData.password}
-                                onChange={e => setFormData({...formData, password: e.target.value})}
-                            />
-                            <div onClick={() => setShowPassword(!showPassword)} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", cursor: "pointer" }}>
-                                {showPassword ? <EyeOff size={20} color="#6B7280"/> : <Eye size={20} color="#6B7280"/>}
-                            </div>
+                          <input
+                            type={showCurrentPassword ? "text" : "password"}
+                            style={{...inputStyle, paddingRight: "40px", backgroundColor: "#F2F6F7", cursor: "text", color: "#ACACAC", height: "44px"}}
+                            placeholder="Nhập mật khẩu đổi lần cuối"
+                            value={currentPasswordInput}
+                            onChange={e => setCurrentPasswordInput(e.target.value)}
+                          />
+                          <div onClick={() => setShowCurrentPassword(!showCurrentPassword)} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", cursor: "pointer" }}>
+                            {showCurrentPassword ? <EyeOff size={20} color="#6B7280"/> : <Eye size={20} color="#6B7280"/>}
+                          </div>
                         </div>
-                        <div style={helperTextStyle}>
-                            {/* Đổi helper text */}
-                            {(isDeleting || isEditing) ? "Mật khẩu tài khoản giám đốc." : "Mật khẩu tài khoản giám đốc."}
+                        <div style={helperTextStyle}>Mật khẩu đổi lần cuối cùng.</div>
+                      </div>
+                      <div className="col-md-6">
+                        <label style={labelStyle}>Mật khẩu mới <span className="text-danger">*</span></label>
+                        <div style={{ position: "relative" }}>
+                          <input
+                            type={showNewPassword ? "text" : "password"}
+                            style={{...inputStyle, paddingRight: "40px", backgroundColor: "#F2F6F7", cursor: "text", color: "#ACACAC", height: "44px"}}
+                            placeholder="Nhập mật khẩu sẽ thay đổi"
+                            value={newPasswordInput}
+                            onChange={e => setNewPasswordInput(e.target.value)}
+                          />
+                          <div onClick={() => setShowNewPassword(!showNewPassword)} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", cursor: "pointer" }}>
+                            {showNewPassword ? <EyeOff size={20} color="#6B7280"/> : <Eye size={20} color="#6B7280"/>}
+                          </div>
                         </div>
+                        <div style={helperTextStyle}>Nhập mật khẩu sẽ thay đổi.</div>
+                      </div>
+                    </>
+                    ) : (
+                    <div className="col-12">
+                      <label style={labelStyle}>
+                        {isDeleting ? "Nhập mật khẩu để xác nhận xóa" : "Mật khẩu cho nhân viên mới"}
+                        <span className="text-danger">*</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          style={{...inputStyle, paddingRight: "40px", backgroundColor: "#F2F6F7", cursor: "text", color: "#ACACAC", height: "44px"}}
+                          placeholder="Nhập mật khẩu"
+                          value={formData.password}
+                          onChange={e => setFormData({...formData, password: e.target.value})}
+                        />
+                        <div onClick={() => setShowPassword(!showPassword)} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", cursor: "pointer" }}>
+                          {showPassword ? <EyeOff size={20} color="#6B7280"/> : <Eye size={20} color="#6B7280"/>}
+                        </div>
+                      </div>
+                      <div style={helperTextStyle}>Mật khẩu tài khoản giám đốc.</div>
                     </div>
+                    )}
 
                     {/* --- VAI TRÒ HỆ THỐNG --- */}
                     <div className="col-md-12">
@@ -804,7 +884,10 @@ const handleSaveUser = async () => {
         input::placeholder, select option:first-child { color: #808080 !important; opacity: 0.6; }
         input::-webkit-input-placeholder { color: #808080 !important; opacity: 0.6; }
         input::-moz-placeholder { color: #808080 !important; opacity: 0.6; }
+        input { color: #000000 !important; }
+        input:disabled { color: #9CA3AF !important; }
         select { color: #ACACAC !important; }
+        select:disabled { color: #9CA3AF !important; }
         select option { background-color: #F2F6F7; color: #ACACAC; }
       `}</style>
     </div>

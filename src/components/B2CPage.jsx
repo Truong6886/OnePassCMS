@@ -6,7 +6,7 @@ import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import EditProfileModal from "./EditProfileModal";
 import { showToast } from "../utils/toast";
 import useDashboardData from "./CMSDashboard/hooks/useDashboardData";
-import { LayoutGrid, Edit, Trash2, X, Pin, PinOff, PlusCircle, Check, ChevronDown, Eye, EyeOff, Plus } from "lucide-react";
+import { LayoutGrid, Edit, Trash2, X, Pin, PinOff, PlusCircle, Check, ChevronDown, Eye, EyeOff, Plus, Ban, RotateCcw } from "lucide-react";
 import Swal from "sweetalert2";
 import "../styles/DashboardList.css";
 import { authenticatedFetch } from "../utils/api";
@@ -74,17 +74,26 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
   const dropdownRef = useRef(null);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0, maxHeight: 300 });
   const selectedOption = options.find(opt => String(opt.value) === String(value));
   const displayLabel = selectedOption ? selectedOption.label : placeholder;
 
   const updatePosition = () => {
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+      const spacing = 8;
+      const preferredHeight = 300;
+      const spaceBelow = Math.max(0, viewportHeight - rect.bottom - spacing);
+      const spaceAbove = Math.max(0, rect.top - spacing);
+      const openUpward = spaceBelow < 220 && spaceAbove > spaceBelow;
+      const maxHeight = Math.max(140, Math.min(preferredHeight, openUpward ? spaceAbove : spaceBelow));
+
       setDropdownPosition({
-        top: rect.bottom + 4,
+        top: openUpward ? Math.max(spacing, rect.top - maxHeight - 4) : rect.bottom + 4,
         left: rect.left,
-        width: rect.width
+        width: rect.width,
+        maxHeight
       });
     }
   };
@@ -103,13 +112,21 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
         updatePosition();
       }
     };
+
+    const handleResize = () => {
+      if (isOpen) {
+        updatePosition();
+      }
+    };
     
     document.addEventListener("mousedown", handleClickOutside);
     window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleResize);
     
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleResize);
     };
   }, [isOpen]);
 
@@ -151,7 +168,7 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
             left: `${dropdownPosition.left}px`,
             width: `${dropdownPosition.width}px`,
             zIndex: 99999,
-            maxHeight: "300px",
+            maxHeight: `${dropdownPosition.maxHeight}px`,
             overflowY: "auto",
             borderRadius: "8px",
             padding: "4px",
@@ -236,39 +253,88 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   const [loading, setLoading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [uploadedFileName, setUploadedFileName] = useState("");
+  const [serviceInlineNote, setServiceInlineNote] = useState("");
 
   // Helper formats
   const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : "0";
   const unformatMoney = (val) => val ? parseFloat(val.toString().replace(/\./g, "")) : 0;
+  const normalizePackageOption = (value) => {
+    if (value === "Thông thường") return "thường";
+    if (value === "Cấp tốc") return "gấp 1";
+    return value || "";
+  };
+
+  const normalizeServiceType = (val) => {
+      if (!val) return "";
+      const cleanVal = String(val).trim();
+      const krMap = {
+        "인증 센터": "Hợp pháp hóa, công chứng", "결혼 이민": "Kết hôn", "출생신고 대행": "Khai sinh, khai tử", "국적 대행": "Quốc tịch",
+        "여권 • 호적 대행": "Hộ chiếu, Hộ tịch", "입양 절차 대행": "Nhận nuôi", "비자 대행": "Thị thực", "법률 컨설팅": "Tư vấn pháp lý",
+        "B2B 서비스": "Dịch vụ B2B", "기타": "Khác", "번역 공증": "Dịch thuật",
+      };
+      return krMap[cleanVal] || cleanVal;
+  };
+
+  const createEmptyServiceRow = () => ({
+    name: "",
+    donvi: "",
+    soluong: "1",
+    loaigoi: "",
+    dongia: "",
+    thue: "0",
+    chietkhau: "0",
+    thanhtien: ""
+  });
+
+  const createEmptyServiceSection = () => ({
+    serviceType: "",
+    note: "",
+    rows: [createEmptyServiceRow()]
+  });
 
   // --- 1. STATE DỊCH VỤ PHỤ (EXTRA SERVICES) - CẬP NHẬT ĐỂ HỖ TRỢ BẢNG DỊCH VỤ PHỨC TẠP ---
-  const [serviceRows, setServiceRows] = useState(() => {
+  const [serviceSections, setServiceSections] = useState(() => {
     // Ưu tiên đọc từ JSON ChiTietDichVu nếu có
     if (request && request.ChiTietDichVu) {
         let details = typeof request.ChiTietDichVu === 'string' ? JSON.parse(request.ChiTietDichVu) : request.ChiTietDichVu;
-        if (details.sub && details.sub.length > 0) {
-             return details.sub.map(s => ({
+        if (details.services && details.services.length > 0) {
+             return [{
+               serviceType: normalizeServiceType(request?.LoaiDichVu),
+               note: "",
+               rows: details.services.map(s => ({
                  name: s.name,
                  donvi: s.donvi || "",
                  soluong: s.soluong || "1",
-                 loaigoi: s.loaigoi || "",
+                 loaigoi: normalizePackageOption(s.loaigoi),
                  dongia: s.dongia ? formatNumber(s.dongia) : "",
                  thue: s.thue || "0",
                  chietkhau: s.chietkhau || "0",
                  thanhtien: s.thanhtien ? formatNumber(s.thanhtien) : ""
-             }));
+               }))
+             }];
+        }
+        if (details.sub && details.sub.length > 0) {
+             return [{
+               serviceType: normalizeServiceType(request?.LoaiDichVu),
+               note: "",
+               rows: details.sub.map(s => ({
+                 name: s.name,
+                 donvi: s.donvi || "",
+                 soluong: s.soluong || "1",
+                 loaigoi: normalizePackageOption(s.loaigoi),
+                 dongia: s.dongia ? formatNumber(s.dongia) : "",
+                 thue: s.thue || "0",
+                 chietkhau: s.chietkhau || "0",
+                 thanhtien: s.thanhtien ? formatNumber(s.thanhtien) : ""
+               }))
+             }];
         }
     }
     // Fallback: tạo 1 dòng mặc định
     return [{
-      name: "",
-      donvi: "",
-      soluong: "1",
-      loaigoi: "",
-      dongia: "",
-      thue: "0",
-      chietkhau: "0",
-      thanhtien: ""
+      serviceType: normalizeServiceType(request?.LoaiDichVu),
+      note: "",
+      rows: [createEmptyServiceRow()]
     }];
   });
 
@@ -304,48 +370,74 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   });
 
   // --- CÁC HÀM XỬ LÝ BẢNG DỊCH VỤ ---
-  const handleAddServiceRow = () => {
-    setServiceRows([...serviceRows, {
-      name: "",
-      donvi: "",
-      soluong: "1",
-      loaigoi: "",
-      dongia: "",
-      thue: "0",
-      chietkhau: "0",
-      thanhtien: ""
-    }]);
+  const handleAddServiceSection = () => {
+    setServiceSections((prev) => ([...prev, createEmptyServiceSection()]));
   };
 
-  const handleRemoveServiceRow = (index) => {
-    const newRows = [...serviceRows];
-    newRows.splice(index, 1);
-    if (newRows.length === 0) {
-      setServiceRows([{
-        name: "",
-        donvi: "",
-        soluong: "1",
-        loaigoi: "",
-        dongia: "",
-        thue: "0",
-        chietkhau: "0",
-        thanhtien: ""
-      }]);
-    } else {
-      setServiceRows(newRows);
-    }
+  const handleAddServiceRow = (sectionIndex) => {
+    setServiceSections((prev) => {
+      const next = [...prev];
+      next[sectionIndex] = {
+        ...next[sectionIndex],
+        rows: [...next[sectionIndex].rows, createEmptyServiceRow()]
+      };
+      return next;
+    });
   };
 
-  const handleServiceRowChange = (index, field, value) => {
-    const newRows = [...serviceRows];
-    newRows[index][field] = value;
+  const handleRemoveServiceRow = (sectionIndex, rowIndex) => {
+    setServiceSections((prev) => {
+      const next = [...prev];
+      const section = next[sectionIndex];
+      const newRows = [...section.rows];
+      newRows.splice(rowIndex, 1);
+
+      if (newRows.length === 0) {
+        if (next.length === 1) {
+          next[sectionIndex] = { ...section, rows: [createEmptyServiceRow()] };
+          return next;
+        }
+        next.splice(sectionIndex, 1);
+        return next;
+      }
+
+      next[sectionIndex] = { ...section, rows: newRows };
+      return next;
+    });
+  };
+
+  const handleServiceTypeChange = (sectionIndex, value) => {
+    setServiceSections((prev) => {
+      const next = [...prev];
+      next[sectionIndex] = {
+        ...next[sectionIndex],
+        serviceType: value,
+        rows: next[sectionIndex].rows.map((row) => ({ ...row, name: "" }))
+      };
+      return next;
+    });
+  };
+
+  const handleServiceNoteChange = (sectionIndex, value) => {
+    setServiceSections((prev) => {
+      const next = [...prev];
+      next[sectionIndex] = { ...next[sectionIndex], note: value };
+      return next;
+    });
+  };
+
+  const handleServiceRowChange = (sectionIndex, rowIndex, field, value) => {
+    const nextSections = [...serviceSections];
+    const section = { ...nextSections[sectionIndex] };
+    const rows = [...section.rows];
+    rows[rowIndex] = { ...rows[rowIndex], [field]: value };
 
     // Tự động tính thành tiền khi có đủ dữ liệu
     if (field === "soluong" || field === "dongia" || field === "thue" || field === "chietkhau") {
-      const soluong = parseFloat(newRows[index].soluong) || 0;
-      const dongia = unformatMoney(newRows[index].dongia) || 0;
-      const thue = parseFloat(newRows[index].thue) || 0;
-      const chietkhau = parseFloat(newRows[index].chietkhau) || 0;
+      const soluong = parseFloat(rows[rowIndex].soluong) || 0;
+      const dongia = unformatMoney(rows[rowIndex].dongia) || 0;
+      const thue = parseFloat(rows[rowIndex].thue) || 0;
+      const chietkhau = parseFloat(rows[rowIndex].chietkhau) || 0;
       
       const subtotal = soluong * dongia;
       const thueAmount = subtotal * (thue / 100);
@@ -353,36 +445,40 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
       const thanhtien = subtotal + thueAmount - chietkhauAmount;
       const roundedThanhtien = Math.round(thanhtien);
       
-      newRows[index].thanhtien = formatNumber(Math.max(0, roundedThanhtien));
+      rows[rowIndex].thanhtien = formatNumber(Math.max(0, roundedThanhtien));
     }
 
     // Format số cho đơn giá
     if (field === "dongia") {
       const raw = value.replace(/\./g, "");
       if (!isNaN(raw)) {
-        newRows[index][field] = raw.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        rows[rowIndex][field] = raw.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
       }
     }
 
-    setServiceRows(newRows);
+    section.rows = rows;
+    nextSections[sectionIndex] = section;
+    setServiceSections(nextSections);
   };
 
   // Tính tổng các giá trị trong bảng
   const calculateTotals = () => {
-    const subtotal = serviceRows.reduce((sum, row) => {
+    const flatRows = serviceSections.flatMap((section) => section.rows);
+
+    const subtotal = flatRows.reduce((sum, row) => {
       const soluong = parseFloat(row.soluong) || 0;
       const dongia = unformatMoney(row.dongia) || 0;
       return sum + (soluong * dongia);
     }, 0);
 
-    const totalThue = serviceRows.reduce((sum, row) => {
+    const totalThue = flatRows.reduce((sum, row) => {
       const soluong = parseFloat(row.soluong) || 0;
       const dongia = unformatMoney(row.dongia) || 0;
       const thue = parseFloat(row.thue) || 0;
       return sum + ((soluong * dongia) * (thue / 100));
     }, 0);
 
-    const total = serviceRows.reduce((sum, row) => {
+    const total = flatRows.reduce((sum, row) => {
       return sum + (unformatMoney(row.thanhtien) || 0);
     }, 0);
 
@@ -429,17 +525,6 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   };
 
   // --- HÀM HELPER & TRANSLATIONS ---
-  const normalizeServiceType = (val) => {
-      if (!val) return "";
-      const cleanVal = String(val).trim();
-      const krMap = {
-        "인증 센터": "Hợp pháp hóa, công chứng", "결혼 이민": "Kết hôn", "출생신고 대행": "Khai sinh, khai tử", "국적 대행": "Quốc tịch",
-        "여권 • 호적 대행": "Hộ chiếu, Hộ tịch", "입양 절차 대행": "Nhận nuôi", "비자 대행": "Thị thực", "법률 컨설팅": "Tư vấn pháp lý",
-        "B2B 서비스": "Dịch vụ B2B", "기타": "Khác", "번역 공증": "Dịch thuật",
-      };
-      return krMap[cleanVal] || cleanVal;
-  };
-
   const getDanhMucOptions = (serviceType) => {
     if (!serviceType) return [];
     const normalized = normalizeServiceType(serviceType).trim().toLowerCase();
@@ -517,7 +602,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           MaVung: request.MaVung || "+84",
           TenHinhThuc: request.TenHinhThuc || "Trực tiếp",
           CoSoTuVan: request.CoSoTuVan || "Seoul",
-          GoiDichVu: request.GoiDichVu || "Thông thường",
+          GoiDichVu: normalizePackageOption(request.GoiDichVu) || "thường",
           Invoice: request.Invoice || "No",
           YeuCauXuatHoaDon: request.Invoice || "No",
           MaHoSo: request.MaHoSo || "",
@@ -535,9 +620,10 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
         }
   );
 
-  const handleServiceTypeChange = (eOrName) => {
-      handleInputChange(eOrName);
-      setFormData(prev => ({...prev, DanhMuc: ""}));
+  const getFilteredServiceOptions = (serviceType) => {
+    if (!serviceType) return allServiceOptions;
+    const selectedType = normalizeServiceType(serviceType);
+    return allServiceOptions.filter((opt) => opt.category === selectedType);
   };
 
   const handleInputChange = (eOrName, value) => {
@@ -575,7 +661,9 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     }
 
     // Kiểm tra ít nhất 1 dịch vụ được chọn
-    const hasService = serviceRows.some(row => row.name && row.name.trim() !== "");
+    const hasService = serviceSections.some((section) =>
+      section.rows.some((row) => row.name && row.name.trim() !== "")
+    );
     if (!hasService) {
         showToast("Vui lòng chọn ít nhất một dịch vụ", "warning");
         return;
@@ -605,7 +693,12 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
 
     // 3. XỬ LÝ DỮ LIỆU TỪ BẢNG DỊCH VỤ
     // Lọc các dịch vụ hợp lệ (có tên)
-    const validServices = serviceRows.filter(row => row.name && row.name.trim() !== "");
+    const validServices = serviceSections.flatMap((section) =>
+      section.rows
+        .filter((row) => row.name && row.name.trim() !== "")
+        .map((row) => ({ ...row, serviceType: section.serviceType || "" }))
+    );
+    const firstSelectedServiceType = serviceSections.find((section) => section.serviceType)?.serviceType || "";
     
     // Tạo chuỗi DanhMuc (danh sách tên dịch vụ)
     const danhMucList = validServices.map(row => row.name).join(" + ");
@@ -655,6 +748,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
       ...formData,
       currentUserId: currentUser?.id,
       autoApprove: isNew && canApprove,
+      LoaiDichVu: firstSelectedServiceType || formData.LoaiDichVu || "",
       DanhMuc: danhMucList,
       DoanhThuTruocChietKhau: roundedRevenue,
       MucChietKhau: Math.round(averageDiscountPercent * 100) / 100,
@@ -672,6 +766,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     };
     
     delete payload.ConfirmPassword;
+    delete payload.NoiTiepNhanHoSo;
 
     // 5. Upload file nếu có
     if (uploadedFile) {
@@ -710,8 +805,16 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   const branchOptions = [{ value: "Seoul", label: "Seoul" }, { value: "Busan", label: "Busan" }];
   const statusOptions = currentLanguage === "vi" ? ["Tư vấn", "Tiến hành", "Hoàn thành"] : ["Consultation", "Processing", "Completed"];
   const currencyOptions = [{ value: 0, label: "VND" }, { value: 1, label: "KRW" }];
-  const packageOptions = [{ value: "Thông thường", label: "Thông thường" }, { value: "Cấp tốc", label: "Cấp tốc" }];
+  const packageOptions = [
+    { value: "thường", label: "thường" },
+    { value: "gấp 1", label: "gấp 1" },
+    { value: "gấp 0", label: "gấp 0" }
+  ];
   const discountOptions = [{ value: 0, label: "0%" }, { value: 5, label: "5%" }, { value: 10, label: "10%" }, { value: 12, label: "12%" }, { value: 15, label: "15%" }, { value: 17, label: "17%" }, { value: 30, label: "30%" }];
+  const serviceTypeOptions = Object.keys(B2C_CATEGORY_LIST).map((serviceType) => ({
+    value: serviceType,
+    label: serviceType,
+  }));
 
   return (
     <div className="modal-overlay" style={{
@@ -754,11 +857,58 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                 />
               </div>
             </div>
-            
-            {/* Phone & Email - Hidden fields for backend sync */}
-            <input type="hidden" name="MaVung" value={formData.MaVung} />
-            <input type="hidden" name="SoDienThoai" value={formData.SoDienThoai} />
-            <input type="hidden" name="Email" value={formData.Email} />
+
+            <div className="mt-3" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div style={{ minWidth: "150px", flexShrink: 0 }}>
+                <label style={{...labelStyle, marginBottom: "0", display: "block"}}>
+                  Số điện thoại
+                </label>
+                <p style={{ fontSize: "11px", color: "#9ca3af", margin: "3px 0 0 0", fontStyle: "italic", lineHeight: "1.3" }}>
+                  Mã vùng + số điện thoại
+                </p>
+              </div>
+              <div style={{ flex: 1, display: "flex", gap: "8px" }}>
+                <div style={{ width: "90px", flexShrink: 0 }}>
+                  <ModernSelect
+                    name="MaVung"
+                    height="44px"
+                    value={formData.MaVung}
+                    placeholder="+84"
+                    options={areaCodes}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <input
+                  type="text"
+                  name="SoDienThoai"
+                  value={formData.SoDienThoai}
+                  onChange={handleInputChange}
+                  placeholder={t.enterPhone}
+                  style={{...inputStyle, height: "44px"}}
+                />
+              </div>
+            </div>
+
+            <div className="mt-3" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div style={{ minWidth: "150px", flexShrink: 0 }}>
+                <label style={{...labelStyle, marginBottom: "0", display: "block"}}>
+                  Email
+                </label>
+                <p style={{ fontSize: "11px", color: "#9ca3af", margin: "3px 0 0 0", fontStyle: "italic", lineHeight: "1.3" }}>
+                  Email liên hệ
+                </p>
+              </div>
+              <div style={{ flex: 1 }}>
+                <input
+                  type="email"
+                  name="Email"
+                  value={formData.Email}
+                  onChange={handleInputChange}
+                  placeholder={t.enterEmail}
+                  style={{...inputStyle, height: "44px"}}
+                />
+              </div>
+            </div>
           </div>
           
           <div className="col-md-7" style={{ paddingLeft: "30px" }}>
@@ -846,163 +996,198 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                      <th style={{ padding: "12px 10px", textAlign: "center", fontWeight: "700", color: "#111827" }}>Thành tiền</th>
                      <th style={{ width: "30px" }}></th>
                    </tr>
-                   <tr style={{ backgroundColor: "#f3f4f6" }}>
-                     <td style={{ width: "30px", padding: "10px", textAlign: "center" }}></td>
-                     <td style={{ padding: "10px" }}>
-                       <span style={{ fontSize: "12px", color: "#9ca3af", fontStyle: "italic" }}>Nhập nội dung</span>
-                     </td>
-                     <td style={{ padding: "10px" }}></td>
-                     <td style={{ padding: "10px" }}></td>
-                     <td style={{ padding: "10px" }}></td>
-                     <td style={{ padding: "10px" }}></td>
-                     <td style={{ padding: "10px" }}></td>
-                     <td style={{ padding: "10px" }}></td>
-                     <td style={{ padding: "10px" }}></td>
-                     <td style={{ padding: "10px" }}></td>
-                   </tr>
                  </thead>
                  <tbody>
-                   {serviceRows.map((row, index) => (
-                     <tr key={index} style={{ backgroundColor: "#ffffff" }}>
-                       <td style={{ padding: "8px", textAlign: "center", color: "#d1d5db" }}>
-                         <span style={{ fontSize: "14px", cursor: "grab" }}>⋮⋮</span>
-                       </td>
-                       <td style={{ padding: "8px" }}>
-                         <ModernSelect
-                           name={`service-${index}`}
-                           height="32px"
-                           value={row.name}
-                           placeholder={index === 0 ? "Nhập dịch vụ" : "Chọn"}
-                           noBorder={true}
-                           backgroundColor="white"
-                           options={[
-                             { value: "", label: "Chọn dịch vụ" },
-                             ...allServiceOptions
-                           ]}
-                           onChange={(e) => handleServiceRowChange(index, "name", e.target.value)}
-                         />
-                         {index === 0 && (
-                           <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "4px", fontStyle: "italic" }}>Nhập ghi chú</div>
-                         )}
-                       </td>
-                       <td style={{ padding: "8px" }}>
-                         <ModernSelect
-                           name={`donvi-${index}`}
-                           height="32px"
-                           value={row.donvi}
-                           placeholder="Chọn"
-                           noBorder={true}
-                           backgroundColor="white"
-                           options={[
-                             { value: "", label: "Chọn" },
-                             { value: "Hồ sơ", label: "Hồ sơ" },
-                             { value: "Trang", label: "Trang" },
-                             { value: "Bản", label: "Bản" }
-                           ]}
-                           onChange={(e) => handleServiceRowChange(index, "donvi", e.target.value)}
-                         />
-                       </td>
-                       <td style={{ padding: "8px" }}>
-                         <input
-                           type="number"
-                           value={row.soluong}
-                           onChange={(e) => handleServiceRowChange(index, "soluong", e.target.value)}
-                           style={{ width: "100%", height: "32px", textAlign: "center", padding: "4px", border: "none", borderRadius: "0", fontSize: "13px", color: "#111827", backgroundColor: "white", outline: "none" }}
-                         />
-                       </td>
-                       <td style={{ padding: "8px" }}>
-                         <ModernSelect
-                           name={`loaigoi-${index}`}
-                           height="32px"
-                           value={row.loaigoi}
-                           placeholder="Chọn"
-                           noBorder={true}
-                           backgroundColor="white"
-                           options={[
-                             { value: "", label: "Chọn" },
-                             { value: "Thông thường", label: "Thông thường" },
-                             { value: "Cấp tốc", label: "Cấp tốc" }
-                           ]}
-                           onChange={(e) => handleServiceRowChange(index, "loaigoi", e.target.value)}
-                         />
-                       </td>
-                       <td style={{ padding: "8px" }}>
-                         <input
-                           type="text"
-                           value={row.dongia}
-                           onChange={(e) => handleServiceRowChange(index, "dongia", e.target.value)}
-                           placeholder="Nhập vào"
-                           style={{ width: "100%", height: "32px", textAlign: "right", padding: "4px 8px", border: "none", borderRadius: "0", fontSize: "13px", color: "#111827", backgroundColor: "white", outline: "none" }}
-                         />
-                       </td>
-                       <td style={{ padding: "8px" }}>
-                         <ModernSelect
-                           name={`thue-${index}`}
-                           height="32px"
-                           value={row.thue}
-                           placeholder="Chọn"
-                           noBorder={true}
-                           backgroundColor="white"
-                           options={[
-                             { value: "0", label: "0" },
-                             { value: "5", label: "5%" },
-                             { value: "10", label: "10%" }
-                           ]}
-                           onChange={(e) => handleServiceRowChange(index, "thue", e.target.value)}
-                         />
-                       </td>
-                       <td style={{ padding: "8px" }}>
-                         <ModernSelect
-                           name={`chietkhau-${index}`}
-                           height="32px"
-                           value={row.chietkhau}
-                           placeholder="Chọn"
-                           noBorder={true}
-                           backgroundColor="white"
-                           options={[
-                             { value: "0", label: "0" },
-                             { value: "5", label: "5%" },
-                             { value: "10", label: "10%" },
-                             { value: "15", label: "15%" },
-                             { value: "20", label: "20%" }
-                           ]}
-                           onChange={(e) => handleServiceRowChange(index, "chietkhau", e.target.value)}
-                         />
-                       </td>
-                       <td style={{ padding: "8px" }}>
-                         <input
-                           type="text"
-                           value={row.thanhtien}
-                           readOnly
-                           style={{ width: "100%", height: "32px", textAlign: "right", padding: "4px 8px", border: "none", borderRadius: "0", fontSize: "13px", color: "#111827", backgroundColor: "white", outline: "none" }}
-                         />
-                       </td>
-                       <td style={{ padding: "8px", textAlign: "center" }}>
-                         {index > 0 && (
-                           <button
-                             type="button"
-                             onClick={() => handleRemoveServiceRow(index)}
-                             style={{
-                               width: "20px",
-                               height: "20px",
-                               border: "none",
-                               borderRadius: "0",
-                               backgroundColor: "transparent",
-                               color: "#ef4444",
-                               cursor: "pointer",
-                               fontSize: "14px",
-                               display: "flex",
-                               alignItems: "center",
-                               justifyContent: "center",
-                               padding: "0",
-                               lineHeight: "1"
-                             }}
-                           >
-                             −
-                           </button>
-                         )}
-                       </td>
-                     </tr>
+                   {serviceSections.map((section, sectionIndex) => (
+                     <React.Fragment key={`section-${sectionIndex}`}>
+                       <tr style={{ backgroundColor: "#f3f4f6" }}>
+                         <td style={{ width: "30px", padding: "10px", textAlign: "center" }}></td>
+                         <td style={{ padding: "10px" }}>
+                           <ModernSelect
+                             name={`LoaiDichVu-${sectionIndex}`}
+                             height="32px"
+                             value={section.serviceType}
+                             placeholder="Chọn loại dịch vụ"
+                             noBorder={true}
+                             backgroundColor="#f3f4f6"
+                             options={[
+                               { value: "", label: "Chọn loại dịch vụ" },
+                               ...serviceTypeOptions
+                             ]}
+                             onChange={(e) => handleServiceTypeChange(sectionIndex, e.target.value)}
+                           />
+                         </td>
+                         <td style={{ padding: "10px" }}></td>
+                         <td style={{ padding: "10px" }}></td>
+                         <td style={{ padding: "10px" }}></td>
+                         <td style={{ padding: "10px" }}></td>
+                         <td style={{ padding: "10px" }}></td>
+                         <td style={{ padding: "10px" }}></td>
+                         <td style={{ padding: "10px" }}></td>
+                         <td style={{ padding: "10px" }}></td>
+                       </tr>
+                       {section.rows.map((row, rowIndex) => (
+                         <tr key={`section-${sectionIndex}-row-${rowIndex}`} style={{ backgroundColor: "#ffffff" }}>
+                           <td style={{ padding: "8px", textAlign: "center", color: "#d1d5db" }}>
+                             <span style={{ fontSize: "14px", cursor: "grab" }}>⋮⋮</span>
+                           </td>
+                           <td style={{ padding: "8px" }}>
+                             <ModernSelect
+                               name={`service-${sectionIndex}-${rowIndex}`}
+                               height="32px"
+                               value={row.name}
+                               placeholder={rowIndex === 0 ? "Nhập dịch vụ" : "Chọn"}
+                               noBorder={true}
+                               backgroundColor="white"
+                               options={[
+                                 { value: "", label: "Chọn dịch vụ" },
+                                 ...getFilteredServiceOptions(section.serviceType)
+                               ]}
+                               onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "name", e.target.value)}
+                             />
+                             {rowIndex === 0 && (
+                               <input
+                                 type="text"
+                                 value={section.note || ""}
+                                 onChange={(e) => handleServiceNoteChange(sectionIndex, e.target.value)}
+                                 placeholder="Nhập ghi chú"
+                                 style={{
+                                   width: "100%",
+                                   height: "20px",
+                                   marginTop: "4px",
+                                   padding: "2px 4px",
+                                   fontSize: "11px",
+                                   color: "#374151",
+                                   border: "none",
+                                   borderRadius: "0",
+                                   backgroundColor: "transparent",
+                                   outline: "none",
+                                   fontStyle: "italic"
+                                 }}
+                               />
+                             )}
+                           </td>
+                           <td style={{ padding: "8px" }}>
+                             <ModernSelect
+                               name={`donvi-${sectionIndex}-${rowIndex}`}
+                               height="32px"
+                               value={row.donvi}
+                               placeholder="Chọn"
+                               noBorder={true}
+                               backgroundColor="white"
+                               options={[
+                                 { value: "", label: "Chọn" },
+                                 { value: "Hồ sơ", label: "Hồ sơ" },
+                                 { value: "Trang", label: "Trang" },
+                                 { value: "Bản", label: "Bản" }
+                               ]}
+                               onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "donvi", e.target.value)}
+                             />
+                           </td>
+                           <td style={{ padding: "8px" }}>
+                             <input
+                               type="number"
+                               value={row.soluong}
+                               onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "soluong", e.target.value)}
+                               style={{ width: "100%", height: "32px", textAlign: "center", padding: "4px", border: "none", borderRadius: "0", fontSize: "13px", color: "#111827", backgroundColor: "white", outline: "none" }}
+                             />
+                           </td>
+                           <td style={{ padding: "8px" }}>
+                             <ModernSelect
+                               name={`loaigoi-${sectionIndex}-${rowIndex}`}
+                               height="32px"
+                               value={row.loaigoi}
+                               placeholder="Chọn"
+                               noBorder={true}
+                               backgroundColor="white"
+                               options={[
+                                 { value: "", label: "Chọn" },
+                                 { value: "thường", label: "thường" },
+                                 { value: "gấp 1", label: "gấp 1" },
+                                 { value: "gấp 0", label: "gấp 0" }
+                               ]}
+                               onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "loaigoi", e.target.value)}
+                             />
+                           </td>
+                           <td style={{ padding: "8px" }}>
+                             <input
+                               type="text"
+                               value={row.dongia}
+                               onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "dongia", e.target.value)}
+                               placeholder="Nhập vào"
+                               style={{ width: "100%", height: "32px", textAlign: "right", padding: "4px 8px", border: "none", borderRadius: "0", fontSize: "13px", color: "#111827", backgroundColor: "white", outline: "none" }}
+                             />
+                           </td>
+                           <td style={{ padding: "8px" }}>
+                             <ModernSelect
+                               name={`thue-${sectionIndex}-${rowIndex}`}
+                               height="32px"
+                               value={row.thue}
+                               placeholder="Chọn"
+                               noBorder={true}
+                               backgroundColor="white"
+                               options={[
+                                 { value: "0", label: "0" },
+                                 { value: "5", label: "5%" },
+                                 { value: "10", label: "10%" }
+                               ]}
+                               onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "thue", e.target.value)}
+                             />
+                           </td>
+                           <td style={{ padding: "8px" }}>
+                             <ModernSelect
+                               name={`chietkhau-${sectionIndex}-${rowIndex}`}
+                               height="32px"
+                               value={row.chietkhau}
+                               placeholder="Chọn"
+                               noBorder={true}
+                               backgroundColor="white"
+                               options={[
+                                 { value: "0", label: "0" },
+                                 { value: "5", label: "5%" },
+                                 { value: "10", label: "10%" },
+                                 { value: "15", label: "15%" },
+                                 { value: "20", label: "20%" }
+                               ]}
+                               onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "chietkhau", e.target.value)}
+                             />
+                           </td>
+                           <td style={{ padding: "8px" }}>
+                             <input
+                               type="text"
+                               value={row.thanhtien}
+                               readOnly
+                               style={{ width: "100%", height: "32px", textAlign: "right", padding: "4px 8px", border: "none", borderRadius: "0", fontSize: "13px", color: "#111827", backgroundColor: "white", outline: "none" }}
+                             />
+                           </td>
+                           <td style={{ padding: "8px", textAlign: "center" }}>
+                             {(rowIndex > 0 || serviceSections.length > 1) && (
+                               <button
+                                 type="button"
+                                 onClick={() => handleRemoveServiceRow(sectionIndex, rowIndex)}
+                                 style={{
+                                   width: "20px",
+                                   height: "20px",
+                                   border: "none",
+                                   borderRadius: "0",
+                                   backgroundColor: "transparent",
+                                   color: "#ef4444",
+                                   cursor: "pointer",
+                                   fontSize: "14px",
+                                   display: "flex",
+                                   alignItems: "center",
+                                   justifyContent: "center",
+                                   padding: "0",
+                                   lineHeight: "1"
+                                 }}
+                               >
+                                 <Trash2 size={13} />
+                               </button>
+                             )}
+                           </td>
+                         </tr>
+                       ))}
+                     </React.Fragment>
                    ))}
                  </tbody>
                </table>
@@ -1011,7 +1196,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                <div style={{ padding: "10px", borderTop: "1px solid #e5e7eb", display: "flex", gap: "10px" }}>
                  <button
                    type="button"
-                   onClick={handleAddServiceRow}
+                   onClick={handleAddServiceSection}
                    style={{
                      padding: "6px 0",
                      fontSize: "13px",
@@ -1030,6 +1215,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                  </button>
                  <button
                    type="button"
+                   onClick={() => handleAddServiceRow(serviceSections.length - 1)}
                    style={{
                      padding: "6px 0",
                      fontSize: "13px",
@@ -1041,20 +1227,6 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                    }}
                  >
                    Thêm phần
-                 </button>
-                 <button
-                   type="button"
-                   style={{
-                     padding: "6px 0",
-                     fontSize: "13px",
-                     backgroundColor: "transparent",
-                     color: "#3b82f6",
-                     border: "none",
-                     cursor: "pointer",
-                     fontStyle: "italic"
-                   }}
-                 >
-                   Thêm ghi chú
                  </button>
                </div>
              </div>
@@ -1123,24 +1295,14 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
               </p>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", width: "320px" }}>
-              <button
-                type="button"
-                style={{
-                  width: "100%",
-                  padding: "8px 20px",
-                  backgroundColor: "#e5e7eb",
-                  border: "1px solid #374151",
-                  borderRadius: "8px",
-                  fontSize: "13px",
-                  cursor: "pointer",
-                  color: "#374151",
-                  fontWeight: "400",
-                  boxShadow: "0 0 0 1px #374151 inset",
-                  transition: "all 0.2s"
-                }}
-              >
-                Sở Tài Chính
-              </button>
+              <input
+                type="text"
+                name="NoiTiepNhanHoSo"
+                value={formData.NoiTiepNhanHoSo || ""}
+                onChange={handleInputChange}
+                placeholder="Nhập nơi tiếp nhận hồ sơ"
+                style={{...inputStyle, height: "36px"}}
+              />
             </div>
           </div>
 
@@ -1354,6 +1516,7 @@ const RowItem = ({
   onEdit,
   onDelete,
   onApprove,
+  onDisable,
   currentLanguage,
   visibleColumns,
   pinnedColumns,
@@ -1361,6 +1524,9 @@ const RowItem = ({
   const canApprove = currentUser?.is_director || currentUser?.perm_approve_b2c;
   const canViewFinance = currentUser?.is_accountant || currentUser?.is_director;
   const hasServiceCode = item.MaHoSo && item.MaHoSo.length > 5;
+  const isDisabledStatus = ["vô hiệu hóa", "vo hieu hoa", "disabled"].includes(
+    String(item.TrangThai || "").trim().toLowerCase()
+  );
 
   // --- [ĐÃ SỬA] THÊM HÀM XỬ LÝ XÓA ---
   const handleDeleteClick = () => {
@@ -1376,6 +1542,35 @@ const RowItem = ({
     }).then((result) => {
       if (result.isConfirmed) {
         onDelete(item.YeuCauID);
+      }
+    });
+  };
+
+  const handleDisableClick = () => {
+    const nextStatus = isDisabledStatus ? "Tư vấn" : "Vô hiệu hóa";
+    const titleText = isDisabledStatus
+      ? (currentLanguage === "vi" ? "Bỏ vô hiệu hóa hồ sơ này?" : "Re-enable this request?")
+      : (currentLanguage === "vi" ? "Vô hiệu hóa hồ sơ này?" : "Disable this request?");
+    const bodyText = isDisabledStatus
+      ? (currentLanguage === "vi" ? "Hồ sơ sẽ chuyển về trạng thái Tư vấn." : "This request will be moved to Consultation.")
+      : (currentLanguage === "vi" ? "Hồ sơ sẽ được chuyển sang trạng thái Vô hiệu hóa." : "This request will be moved to Disabled status.");
+    const confirmText = isDisabledStatus
+      ? (currentLanguage === "vi" ? "Bỏ vô hiệu hóa" : "Re-enable")
+      : (currentLanguage === "vi" ? "Vô hiệu hóa" : "Disable");
+    const confirmColor = isDisabledStatus ? "#10b981" : "#f59e0b";
+
+    Swal.fire({
+      title: titleText,
+      text: bodyText,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: confirmColor,
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: confirmText,
+      cancelButtonText: currentLanguage === "vi" ? "Hủy" : "Cancel",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        onDisable(item, nextStatus);
       }
     });
   };
@@ -1498,7 +1693,6 @@ const RowItem = ({
                     </div>
                 </td>
             )}
-            {isVisible("tenDichVu") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("tenDichVu")}`} style={mergedStyle}>{item.TenDichVu || ""}</td>}
             {isVisible("maDichVu") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("maDichVu")}`}style={{...mergedStyle,width:130}}>{hasServiceCode ? item.MaHoSo : ""}</td>}
 
             {(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) && isVisible("nguoiPhuTrach") && isFirst && (
@@ -1523,13 +1717,6 @@ const RowItem = ({
             {isVisible("invoice") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("invoice")}`} style={mergedStyle}>{item.Invoice === "Yes" ? <span className="text-success fw-bold">Yes</span> : <span className="text-muted">No</span>}</td>}
             {canViewFinance && isVisible("invoiceUrl") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("invoiceUrl")}`} style={mergedStyle}>{item.InvoiceUrl ? <a href={item.InvoiceUrl} target="_blank" rel="noreferrer">Link</a> : "-"}</td>}
             
-            {isVisible("gio") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("gio")}`} style={mergedStyle}>{item.Gio ? item.Gio.substring(0,5) : ""}</td>}
-              {isVisible("noiDung") && isFirst && (
-                <td rowSpan={rowSpanCount} className={getStickyClass("noiDung")} style={{...mergedStyle, maxWidth: "250px",width:270, whiteSpace: "normal", wordWrap: "break-word"}}>
-                    {item.NoiDung}
-                </td>
-            )}
-
             {/* SỬA CỘT GHI CHÚ: Bỏ text-truncate, thêm whiteSpace: "normal" */}
             {isVisible("ghiChu") && isFirst && (
                 <td rowSpan={rowSpanCount} className={getStickyClass("ghiChu")} style={{...mergedStyle, maxWidth: "200px",width:270, whiteSpace: "normal", wordWrap: "break-word"}}>
@@ -1568,66 +1755,93 @@ const RowItem = ({
             )}
             {/* Hành động (Gộp) */}
             {isVisible("hanhDong") && isFirst && (
-                <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("hanhDong")}`} style={mergedStyle}>
-                     <div className="d-flex justify-content-center align-items-center gap-2">
-                        
-                        {/* CASE 1: CHƯA DUYỆT (Chưa có mã hồ sơ) */}
-                        {!hasServiceCode && canApprove && (
-                            <>
-                                {/* Nút Duyệt: Đổi sang màu Cyan giống B2B */}
-                                <button 
-                                    className="btn btn-sm text-white shadow-sm d-flex align-items-center justify-content-center" 
-                                    style={{
-                                        width: 32, 
-                                        height: 32, 
-                                        backgroundColor: "#06b6d4", // Màu Cyan giống ảnh
-                                        borderColor: "#06b6d4",
-                                        borderRadius: "6px"
-                                    }} 
-                                    onClick={() => onApprove(item)} 
-                                    title={currentLanguage === "vi" ? "Duyệt" : "Approve"}
-                                >
-                                    <Check size={18} strokeWidth={2.5} />
-                                </button>
+              <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("hanhDong")}`} style={{ ...mergedStyle, padding: "10px 12px", minWidth: "132px" }}>
+                <div className="d-flex justify-content-center align-items-center gap-2">
+                  {!hasServiceCode && canApprove && (
+                    <>
+                      <button
+                        className="btn btn-sm text-white shadow-sm d-flex align-items-center justify-content-center"
+                        style={{
+                          width: 32,
+                          height: 32,
+                          backgroundColor: "#06b6d4",
+                          borderColor: "#06b6d4",
+                          borderRadius: "6px"
+                        }}
+                        onClick={() => onApprove(item)}
+                        title={currentLanguage === "vi" ? "Duyệt" : "Approve"}
+                      >
+                        <Check size={18} strokeWidth={2.5} />
+                      </button>
 
-                                {/* Nút Xoá: Hiển thị ngay cạnh nút duyệt */}
-                                <button 
-                                    className="btn btn-sm btn-danger shadow-sm d-flex align-items-center justify-content-center" 
-                                    style={{width: 32, height: 32, borderRadius: "6px"}} 
-                                    onClick={handleDeleteClick} 
-                                    title={currentLanguage === "vi" ? "Xóa" : "Delete"}
-                                >
-                                    <Trash2 size={16}/>
-                                </button>
-                            </>
-                        )}
+                      <button
+                        className="btn btn-sm btn-danger shadow-sm d-flex align-items-center justify-content-center"
+                        style={{ width: 32, height: 32, borderRadius: "6px" }}
+                        onClick={handleDeleteClick}
+                        title={currentLanguage === "vi" ? "Xóa" : "Delete"}
+                      >
+                        <Trash2 size={16} />
+                      </button>
 
-                        {/* CASE 2: ĐÃ DUYỆT (Đã có mã hồ sơ) */}
-                        {hasServiceCode && (
-                            <>
-                                {/* Nút Sửa */}
-                                <button 
-                                    className="btn btn-sm btn-primary shadow-sm d-flex align-items-center justify-content-center" 
-                                    style={{width: 32, height: 32, borderRadius: "6px"}} 
-                                    onClick={() => onEdit(item)} 
-                                    title={currentLanguage === "vi" ? "Sửa" : "Edit"}
-                                >
-                                    <Edit size={16}/>
-                                </button>
+                      <button
+                        className="btn btn-sm shadow-sm d-flex align-items-center justify-content-center"
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "6px",
+                          padding: "6px",
+                          backgroundColor: isDisabledStatus ? "#10b981" : "#f59e0b",
+                          borderColor: isDisabledStatus ? "#10b981" : "#f59e0b",
+                          color: "#ffffff"
+                        }}
+                        onClick={handleDisableClick}
+                        title={isDisabledStatus ? (currentLanguage === "vi" ? "Bỏ vô hiệu hóa" : "Re-enable") : (currentLanguage === "vi" ? "Vô hiệu hóa" : "Disable")}
+                      >
+                        {isDisabledStatus ? <RotateCcw size={16} /> : <Ban size={16} />}
+                      </button>
+                    </>
+                  )}
 
-                                {/* Nút Xoá */}
-                                <button 
-                                    className="btn btn-sm btn-danger shadow-sm d-flex align-items-center justify-content-center" 
-                                    style={{width: 32, height: 32, borderRadius: "6px"}} 
-                                    onClick={handleDeleteClick} 
-                                    title={currentLanguage === "vi" ? "Xóa" : "Delete"}
-                                >
-                                    <Trash2 size={16}/>
-                                </button>
-                            </>
-                        )}
-                     </div>
-                </td>
+                  {hasServiceCode && (
+                    <>
+                      <button
+                        className="btn btn-sm btn-primary shadow-sm d-flex align-items-center justify-content-center"
+                        style={{ width: 32, height: 32, borderRadius: "6px", padding: "6px" }}
+                        onClick={() => onEdit(item)}
+                        title={currentLanguage === "vi" ? "Sửa" : "Edit"}
+                      >
+                        <Edit size={16} />
+                      </button>
+
+                      <button
+                        className="btn btn-sm btn-danger shadow-sm d-flex align-items-center justify-content-center"
+                        style={{ width: 32, height: 32, borderRadius: "6px" }}
+                        onClick={handleDeleteClick}
+                        title={currentLanguage === "vi" ? "Xóa" : "Delete"}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+
+                      <button
+                        className="btn btn-sm shadow-sm d-flex align-items-center justify-content-center"
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "6px",
+                          padding: "6px",
+                          backgroundColor: isDisabledStatus ? "#10b981" : "#f59e0b",
+                          borderColor: isDisabledStatus ? "#10b981" : "#f59e0b",
+                          color: "#ffffff"
+                        }}
+                        onClick={handleDisableClick}
+                        title={isDisabledStatus ? (currentLanguage === "vi" ? "Bỏ vô hiệu hóa" : "Re-enable") : (currentLanguage === "vi" ? "Vô hiệu hóa" : "Disable")}
+                      >
+                        {isDisabledStatus ? <RotateCcw size={16} /> : <Ban size={16} />}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </td>
             )}
           </tr>
         );
@@ -1635,6 +1849,7 @@ const RowItem = ({
     </>
   );
 };
+
 const B2CPage = () => {
   const { currentUser } = useDashboardData();
   const [showSidebar, setShowSidebar] = useState(true);
@@ -1662,7 +1877,7 @@ const B2CPage = () => {
   const tableHeadersTranslations = {
     vi: {
       stt: "STT", khachHang: "Khách hàng", maVung: "Mã vùng", soDienThoai: "Số Điện Thoại", email: "Email",
-      kenhLienHe: "Kênh Liên Hệ", coSo: "Cơ sở", loaiDichVu: "Loại Dịch Vụ", danhMuc: "Danh Mục", tenDichVu: "Tên Dịch Vụ",
+      kenhLienHe: "Kênh Liên Hệ", coSo: "Cơ sở", loaiDichVu: "Loại Dịch Vụ", danhMuc: "Tên Dịch Vụ", tenDichVu: "Tên Dịch Vụ",
       maDichVu: "Mã Dịch Vụ", nguoiPhuTrach: "Người phụ trách", ngayHen: "Ngày hẹn", ngayBatDau: "Ngày bắt đầu",
       ngayKetThuc: "Ngày kết thúc", trangThai: "Trạng thái", goi: "Gói", invoiceYN: "Invoice Y/N", invoice: "Invoice",
       gio: "Giờ", noiDung: "Nội dung", ghiChu: "Ghi chú", ngayTao: "Ngày tạo",
@@ -1672,7 +1887,7 @@ const B2CPage = () => {
     },
     en: {
       stt: "No.", khachHang: "Customer", maVung: "Area Code", soDienThoai: "Phone", email: "Email",
-      kenhLienHe: "Channel", coSo: "Branch", loaiDichVu: "Service Type", danhMuc: "Category", tenDichVu: "Service Name",
+      kenhLienHe: "Channel", coSo: "Branch", loaiDichVu: "Service Type", danhMuc: "Service Name", tenDichVu: "Service Name",
       maDichVu: "Service Code", nguoiPhuTrach: "Assignee", ngayHen: "Appointment Date", ngayBatDau: "Start Date",
       ngayKetThuc: "End Date", trangThai: "Status", goi: "Package", invoiceYN: "Invoice Y/N", invoice: "Invoice",
       gio: "Time", noiDung: "Content", ghiChu: "Note", ngayTao: "Created",
@@ -1682,7 +1897,7 @@ const B2CPage = () => {
     },
     ko: {
       stt: "번호", khachHang: "고객", maVung: "지역번호", soDienThoai: "전화번호", email: "이메일",
-      kenhLienHe: "채널", coSo: "지점", loaiDichVu: "서비스 유형", danhMuc: "카테고리", tenDichVu: "서비스명",
+      kenhLienHe: "채널", coSo: "지점", loaiDichVu: "서비스 유형", danhMuc: "서비스명", tenDichVu: "서비스명",
       maDichVu: "서비스 코드", nguoiPhuTrach: "담당자", ngayHen: "약속 날짜", ngayBatDau: "시작일",
       ngayKetThuc: "종료일", trangThai: "상태", goi: "패키지", invoiceYN: "청구서 Y/N", invoice: "청구서",
       gio: "시간", noiDung: "내용", ghiChu: "비고", ngayTao: "생성일",
@@ -1723,7 +1938,6 @@ const initialColumnKeys = [
     { key: "coSo", label: tHeaders.coSo },
     { key: "loaiDichVu", label: tHeaders.loaiDichVu },
     { key: "danhMuc", label: tHeaders.danhMuc },
-    { key: "tenDichVu", label: tHeaders.tenDichVu },
     { key: "maDichVu", label: tHeaders.maDichVu },
     ...(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant ? [{ key: "nguoiPhuTrach", label: tHeaders.nguoiPhuTrach }] : []),
     { key: "ngayHen", label: tHeaders.ngayHen },
@@ -1733,8 +1947,6 @@ const initialColumnKeys = [
     { key: "goiDichVu", label: tHeaders.goi },
     { key: "invoice", label: tHeaders.invoiceYN },
     ...(canViewFinance ? [{ key: "invoiceUrl", label: tHeaders.invoice }] : []), 
-    { key: "gio", label: tHeaders.gio },
-    { key: "noiDung", label: tHeaders.noiDung },
     { key: "ghiChu", label: tHeaders.ghiChu },
     { key: "ngayTao", label: tHeaders.ngayTao },
     
@@ -1796,12 +2008,12 @@ const handleApproveClick = (item) => {
 
 const tableHeaders = [
     tHeaders.stt, tHeaders.khachHang, tHeaders.maVung, tHeaders.soDienThoai, tHeaders.email, 
-    tHeaders.kenhLienHe, tHeaders.coSo, tHeaders.loaiDichVu, tHeaders.danhMuc, tHeaders.tenDichVu, tHeaders.maDichVu,
+    tHeaders.kenhLienHe, tHeaders.coSo, tHeaders.loaiDichVu, tHeaders.danhMuc, tHeaders.maDichVu,
     ...((currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) ? [tHeaders.nguoiPhuTrach] : []),
     tHeaders.ngayHen, tHeaders.ngayBatDau,
     tHeaders.ngayKetThuc, tHeaders.trangThai, tHeaders.goi, tHeaders.invoiceYN,
     ...(canViewFinance ? [tHeaders.invoice] : []),
-    tHeaders.gio, tHeaders.noiDung, tHeaders.ghiChu, tHeaders.ngayTao,
+    tHeaders.ghiChu, tHeaders.ngayTao,
 
     // --- Giữ cột tài chính ---
     ...(canViewFinance ? [
@@ -2002,6 +2214,11 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
   // Helper formats
   const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : "0";
   const unformatMoney = (val) => val ? parseFloat(val.toString().replace(/\./g, "")) : 0;
+  const normalizePackageOption = (value) => {
+    if (value === "Thông thường") return "thường";
+    if (value === "Cấp tốc") return "gấp 1";
+    return value || "";
+  };
 
   const [formData, setFormData] = useState({
     HoTen: request.HoTen || "",
@@ -2010,7 +2227,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
     Email: request.Email || "",
     LoaiDichVu: request.LoaiDichVu || "",
     TenDichVu: request.TenDichVu || "",
-    GoiDichVu: request.GoiDichVu || "Thông thường",
+    GoiDichVu: normalizePackageOption(request.GoiDichVu) || "thường",
     TenHinhThuc: request.TenHinhThuc || "",
     CoSoTuVan: request.CoSoTuVan || "",
     DanhMuc: (request.DanhMuc || "").split(" + ")[0], 
@@ -2239,7 +2456,11 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
   };
 
   const serviceTypeList = dichvuList?.map(dv => dv.LoaiDichVu) || [];
-  const packageOptions = [{ value: "Thông thường", label: "Thông thường" }, { value: "Cấp tốc", label: "Cấp tốc" }];
+  const packageOptions = [
+    { value: "thường", label: "thường" },
+    { value: "gấp 1", label: "gấp 1" },
+    { value: "gấp 0", label: "gấp 0" }
+  ];
   const branchOptions = [{ value: "Seoul", label: "Seoul" }, { value: "Busan", label: "Busan" }];
   const formOptions = [
   "Messenger",
@@ -2501,6 +2722,39 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
     } catch { showToast("Lỗi kết nối", "error"); }
   };
 
+  const handleDisable = async (item, nextStatus = "Vô hiệu hóa") => {
+    try {
+      const payload = {
+        ...item,
+        TrangThai: nextStatus,
+      };
+      delete payload.NguoiPhuTrach;
+      delete payload.User;
+
+      const res = await fetch(`${API_BASE}/yeucau/${item.YeuCauID}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        const successMsg = nextStatus === "Vô hiệu hóa"
+          ? (currentLanguage === "vi" ? "Đã vô hiệu hóa hồ sơ" : "Request disabled successfully")
+          : (currentLanguage === "vi" ? "Đã bỏ vô hiệu hóa" : "Request re-enabled successfully");
+        showToast(successMsg, "success");
+        fetchData();
+      } else {
+        const errorMsg = nextStatus === "Vô hiệu hóa"
+          ? (currentLanguage === "vi" ? "Không thể vô hiệu hóa" : "Cannot disable request")
+          : (currentLanguage === "vi" ? "Không thể bỏ vô hiệu hóa" : "Cannot re-enable request");
+        showToast(json.message || errorMsg, "error");
+      }
+    } catch {
+      showToast(currentLanguage === "vi" ? "Lỗi kết nối" : "Connection error", "error");
+    }
+  };
+
   const filteredData = data.filter((i) => {
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
@@ -2721,6 +2975,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                         onEdit={handleEditClick}
                         onDelete={handleDelete}
                         onApprove={handleApproveClick}
+                        onDisable={handleDisable}
                         currentLanguage={currentLanguage}
                         visibleColumns={visibleColumns}
                         pinnedColumns={pinnedColumns}
