@@ -123,6 +123,7 @@ export default function B2BPage() {
 
   const [availableServices, setAvailableServices] = useState([]);
   const [showAddServiceModal, setShowAddServiceModal] = useState(false);
+  const [editingServiceData, setEditingServiceData] = useState(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [userList, setUserList] = useState([]);
@@ -201,123 +202,13 @@ export default function B2BPage() {
 
 
   const handleEditService = (rec) => {
-
-    const company = approvedList.find(c => String(c.ID) === String(rec.companyId));
-
-
-    const details = rec.ChiTietDichVu || { main: {}, sub: [] };
-
-    let mainRevenueStr = "";
-    let mainDiscountStr = "";
-    let currentExtras = [];
-
-
-    if (details.main && details.main.revenue !== undefined) {
-
-      mainRevenueStr = formatNumber(details.main.revenue);
-      mainDiscountStr = details.main.discount || "";
-    } else {
-
-      mainRevenueStr = rec.revenueBefore ? formatNumber(rec.revenueBefore) : "";
-      mainDiscountStr = rec.discountRate || "";
-    }
-
-
-    if (details.sub && details.sub.length > 0) {
-
-      currentExtras = details.sub.map(s => ({
-        name: s.name,
-        revenue: s.revenue ? formatNumber(s.revenue) : "",
-        discount: s.discount || ""
-      }));
-    } else {
-
-      const fullDanhMuc = rec.DanhMuc || "";
-      const parts = fullDanhMuc.split(" + ");
-
-      if (parts.length > 1) {
-        currentExtras = parts.slice(1).map(name => ({
-          name: name.trim(),
-          revenue: "",
-          discount: ""
-        }));
-      }
-    }
-
-
-    if (currentExtras.length > 0) {
-      setExtraServices(currentExtras);
-      setShowExtras(true);
-    } else {
-      setExtraServices([{ name: "", revenue: "", discount: "" }]);
-      setShowExtras(false);
-    }
-
-
-    const mainCatName = (rec.DanhMuc || "").split(" + ")[0];
-
-    setNewServiceForm({
-      id: rec.id,
-      DoanhNghiepID: rec.companyId,
-      SoDKKD: company ? company.SoDKKD : (rec.soDKKD || ""),
-      LoaiDichVu: rec.serviceType,
-      TenDichVu: rec.serviceName,
-      DiaChiNhan: rec.DiaChiNhan || "",
-
-      DanhMuc: mainCatName,
-      NgayBatDau: rec.startDate ? rec.startDate : "",
-      NgayHoanThanh: rec.endDate ? rec.endDate : "",
-      ThuTucCapToc: rec.package || "thường",
-      YeuCauHoaDon: rec.invoiceYN || "No",
-      TrangThai: rec.status || rec.TrangThai,
-      DoanhThu: mainRevenueStr,
-      MucChietKhau: mainDiscountStr,
-
-      Vi: rec.walletUsage ? formatNumber(rec.walletUsage) : "",
-      GhiChu: rec.GhiChu || "",
-      NguoiPhuTrachId: rec.picId || "",
-      ConfirmPassword: "",
-      status: rec.TrangThai || rec.status || "Chờ Giám đốc duyệt"
-    });
-
-    if (company) {
-      let services = [];
-      if (company.DichVu) services.push(...parseServices(company.DichVu));
-      if (company.DichVuKhac) services.push(...parseServices(company.DichVuKhac));
-      setAvailableServices([...new Set(services)].filter(Boolean));
-    } else {
-      setAvailableServices([]);
-    }
-
+    // Truyền toàn bộ service record cho modal
+    setEditingServiceData(rec);
     setShowAddServiceModal(true);
   };
 
   const handleOpenAddServiceModal = () => {
-    const isStaff = currentUser?.is_staff && !currentUser?.is_director && !currentUser?.is_accountant && !currentUser?.is_admin;
-
-    setExtraServices([""]);
-    setShowExtras(false);
-    setNewServiceForm({
-      id: null,
-      DoanhNghiepID: "",
-      SoDKKD: "",
-      LoaiDichVu: "",
-      DanhMuc: "",
-      TenDichVu: "",
-      DiaChiNhan: "",
-      NgayBatDau: new Date().toISOString().split('T')[0],
-      NgayHoanThanh: "",
-      ThuTucCapToc: "No",
-      YeuCauHoaDon: "No",
-      DoanhThu: "",
-      Vi: "",
-      GhiChu: "",
-      MucChietKhau: "",
-      TrangThai: "",
-      NguoiPhuTrachId: isStaff ? currentUser.id : "",
-      ConfirmPassword: ""
-    });
-    setAvailableServices([]);
+    setEditingServiceData(null); // Reset editing state
     
     // Load danh sách khách hàng đã duyệt nếu chưa có
     if (approvedList.length === 0) {
@@ -326,6 +217,7 @@ export default function B2BPage() {
     
     setShowAddServiceModal(true);
   };
+  
   const handleModalChange = (e) => {
     const { name, value } = e.target;
 
@@ -411,21 +303,30 @@ export default function B2BPage() {
 
       console.log("Submitting payload:", apiPayload);
 
-      const res = await authenticatedFetch(`${API_BASE}/b2b/services`, {
-        method: "POST",
+      // Determine if creating or updating
+      let url = `${API_BASE}/b2b/services`;
+      let method = "POST";
+      
+      if (editingServiceData?.id) {
+        url = `${API_BASE}/b2b/services/update/${editingServiceData.id}`;
+        method = "PUT";
+      }
+
+      const res = await authenticatedFetch(url, {
+        method,
         body: JSON.stringify(apiPayload)
       });
 
       if (!res) {
-        console.error("Service registration request failed");
+        console.error("Service request failed");
         showToast("Lỗi kết nối server - vui lòng kiểm tra kết nối", "error");
         return;
       }
 
       if (!res.ok) {
         const text = await res.text();
-        console.error("Service registration failed:", res.status, text);
-        showToast(text || "Lỗi server khi đăng ký dịch vụ", "error");
+        console.error("Service request failed:", res.status, text);
+        showToast(text || "Lỗi server", "error");
         return;
       }
 
@@ -433,8 +334,12 @@ export default function B2BPage() {
       console.log("Response from server:", json);
 
       if (json.success) {
-        showToast("Đã gửi yêu cầu đăng ký!", "success");
+        showToast(
+          editingServiceData ? "Cập nhật thành công!" : "Đã gửi yêu cầu đăng ký!", 
+          "success"
+        );
         setShowAddServiceModal(false);
+        setEditingServiceData(null);
         loadServices(currentPage.services || 1);
       } else {
         showToast(json.message || "Đã xảy ra lỗi", "error");
@@ -1314,13 +1219,37 @@ export default function B2BPage() {
     const canApproveB2B = currentUser?.is_director || currentUser?.perm_approve_b2b;
     const canViewRevenue = currentUser?.is_director || currentUser?.is_accountant || currentUser?.perm_view_revenue;
 
-    const getSubRowCount = (danhMucStr) => {
+    const getSubRowCount = (rec) => {
+      if (!rec) return 1;
+      const details = rec.ChiTietDichVu || {};
+      // Cấu trúc MỚI: đếm services array
+      if (details.services && Array.isArray(details.services)) {
+        return Math.max(1, details.services.length);
+      }
+      // Cấu trúc CŨ: đếm từ DanhMuc string
+      const danhMucStr = rec.DanhMuc || "";
       if (!danhMucStr) return 1;
       return danhMucStr.split(" + ").length;
     };
 
     const getRowBeforeDiscount = (rec, subIdx) => {
       const details = rec.ChiTietDichVu || { main: {}, sub: [] };
+      
+      // Cấu trúc MỚI: {services: [], totals: {}}
+      if (details.services && Array.isArray(details.services)) {
+        const service = details.services[subIdx];
+        if (service) {
+          const soluong = parseFloat(service.soluong) || 1;
+          const dongia = parseFloat(service.dongia) || 0;
+          const thue = parseFloat(service.thue) || 0;
+          const subtotal = soluong * dongia;
+          const taxAmount = subtotal * (thue / 100);
+          return subtotal + taxAmount; // Doanh thu trước chiết khấu
+        }
+        return 0;
+      }
+      
+      // Cấu trúc CŨ: {main: {}, sub: []}
       if (details.main && details.main.revenue !== undefined) {
         if (subIdx === 0) return Number(details.main.revenue) || 0;
         const subItem = details.sub && details.sub[subIdx - 1];
@@ -1332,6 +1261,14 @@ export default function B2BPage() {
 
     const getRowDiscountRate = (rec, subIdx) => {
       const details = rec.ChiTietDichVu || { main: {}, sub: [] };
+      
+      // Cấu trúc MỚI: {services: [], totals: {}}
+      if (details.services && Array.isArray(details.services)) {
+        const service = details.services[subIdx];
+        return service ? (parseFloat(service.chietkhau) || 0) : 0;
+      }
+      
+      // Cấu trúc CŨ: {main: {}, sub: []}
       if (details.main && details.main.revenue !== undefined) {
         if (subIdx === 0) return Number(details.main.discount) || 0;
         const subItem = details.sub && details.sub[subIdx - 1];
@@ -1343,6 +1280,24 @@ export default function B2BPage() {
 
     const getRowRevenue = (rec, subIdx) => {
       const details = rec.ChiTietDichVu || { main: {}, sub: [] };
+      
+      // Cấu trúc MỚI: {services: [], totals: {}}
+      if (details.services && Array.isArray(details.services)) {
+        const service = details.services[subIdx];
+        if (service) {
+          const soluong = parseFloat(service.soluong) || 1;
+          const dongia = parseFloat(service.dongia) || 0;
+          const thue = parseFloat(service.thue) || 0;
+          const chietkhau = parseFloat(service.chietkhau) || 0;
+          const subtotal = soluong * dongia;
+          const taxAmount = subtotal * (thue / 100);
+          const discountAmount = subtotal * (chietkhau / 100);
+          return subtotal + taxAmount - discountAmount; // Doanh thu sau chiết khấu
+        }
+        return 0;
+      }
+      
+      // Cấu trúc CŨ: {main: {}, sub: []}
       if (details.main && details.main.revenue !== undefined) {
         if (subIdx === 0) {
           const mainRev = Number(details.main.revenue) || 0;
@@ -1375,6 +1330,24 @@ export default function B2BPage() {
     const getTotalRecordAfterDiscount = (rec) => {
       const details = rec.ChiTietDichVu || { main: {}, sub: [] };
       const wallet = rec.walletUsage ? parseFloat(String(rec.walletUsage).replace(/\./g, "")) : 0;
+      
+      // Cấu trúc MỚI: {services: [], totals: {}}
+      if (details.services && Array.isArray(details.services)) {
+        let total = 0;
+        details.services.forEach(service => {
+          const soluong = parseFloat(service.soluong) || 1;
+          const dongia = parseFloat(service.dongia) || 0;
+          const thue = parseFloat(service.thue) || 0;
+          const chietkhau = parseFloat(service.chietkhau) || 0;
+          const subtotal = soluong * dongia;
+          const taxAmount = subtotal * (thue / 100);
+          const discountAmount = subtotal * (chietkhau / 100);
+          total += (subtotal + taxAmount - discountAmount);
+        });
+        return Math.max(0, total - wallet);
+      }
+      
+      // Cấu trúc CŨ: {main: {}, sub: []}
       if (details.main && (details.main.revenue !== undefined)) {
         const mainRev = Number(details.main.revenue) || 0;
         const mainDisc = Number(details.main.discount) || 0;
@@ -1496,7 +1469,7 @@ export default function B2BPage() {
         ) : (
           <>
             <div className="table-responsive shadow-sm rounded">
-              <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: "12px", borderCollapse: "collapse", tableLayout: "fixed" }}>
+              <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: "12px", borderCollapse: "separate", borderSpacing: 0, tableLayout: "fixed" }}>
                 <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a" }}>
                   <tr>
                     <th className="py-2 border" style={{ width: "40px", whiteSpace: "pre-wrap" }}>{t.stt}</th>
@@ -1527,15 +1500,42 @@ export default function B2BPage() {
                         <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.tongDoanhThuTichLuy}</th>
                       </>
                     )}
-                    <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.hanhDong}</th>
+                    <th
+                      className="py-2 border"
+                      style={{
+                        width: "100px",
+                        minWidth: "100px",
+                        maxWidth: "100px",
+                        whiteSpace: "pre-wrap",
+                        position: "sticky",
+                        right: 0,
+                        zIndex: 30,
+                        backgroundColor: "#1e3a8a",
+                        boxShadow: "-2px 0 6px rgba(0,0,0,0.12)",
+                        borderLeft: "1px solid #2e4fa3"
+                      }}
+                    >
+                      {t.hanhDong}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {displayData && displayData.length > 0 ? (
                     displayData.map((rec, idx) => {
                       const globalIndex = idx + 1 + (currentPage.services - 1) * 20;
-                      const servicesList = (rec.DanhMuc || "").split(" + ");
-                      const subRowsCount = servicesList.length;
+                      const subRowsCount = getSubRowCount(rec);
+                      
+                      // Lấy danh sách service names từ ChiTietDichVu
+                      const details = rec.ChiTietDichVu || {};
+                      let servicesList = [];
+                      if (details.services && Array.isArray(details.services)) {
+                        // Cấu trúc MỚI: lấy từ services array
+                        servicesList = details.services.map(s => s.name || "");
+                      } else {
+                        // Cấu trúc CŨ: lấy từ DanhMuc string
+                        servicesList = (rec.DanhMuc || "").split(" + ");
+                      }
+                      
                       const currentCompanyId = String(rec.companyId || rec.DoanhNghiepID || "");
                       const prevCompanyId = idx > 0 ? String(displayData[idx - 1].companyId || displayData[idx - 1].DoanhNghiepID || "") : null;
 
@@ -1548,7 +1548,7 @@ export default function B2BPage() {
                         for (let i = idx; i < displayData.length; i++) {
                           const nextRec = displayData[i];
                           if (String(nextRec.companyId || nextRec.DoanhNghiepID || "") !== currentCompanyId) break;
-                          companyRowSpan += getSubRowCount(nextRec.DanhMuc);
+                          companyRowSpan += getSubRowCount(nextRec);
                           groupTotalRevenue += getTotalRecordAfterDiscount(nextRec);
                         }
                       }
@@ -1605,7 +1605,17 @@ export default function B2BPage() {
 
                                 <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, textAlign: 'left' }} title={rec.DiaChiNhan || "--"}>{rec.DiaChiNhan || "--"}</td>
                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.serviceType}>{rec.serviceType}</td>
-                                <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.serviceName}>{rec.serviceName}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, whiteSpace: 'normal', lineHeight: '1.5', overflow: 'visible', maxWidth: 'none', textAlign: 'center' }}>
+                                  {servicesList && servicesList.length > 1 ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                                      {servicesList.map((name, i) => (
+                                        <div key={i}>{name.trim()}</div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    servicesList[0] || rec.serviceName
+                                  )}
+                                </td>
                               </>
                             )}
 
@@ -1640,7 +1650,22 @@ export default function B2BPage() {
                             )}
 
                             {isFirstSubRow && (
-                              <td className="border" rowSpan={subRowsCount} style={mergedStyle}>
+                              <td
+                                className="border"
+                                rowSpan={subRowsCount}
+                                style={{
+                                  ...mergedStyle,
+                                  width: "100px",
+                                  minWidth: "100px",
+                                  maxWidth: "100px",
+                                  position: "sticky",
+                                  right: 0,
+                                  zIndex: 20,
+                                  backgroundColor: rec.isNew ? "#dcfce7" : "#fff",
+                                  boxShadow: "-2px 0 6px rgba(0,0,0,0.08)",
+                                  borderLeft: "1px solid #dee2e6"
+                                }}
+                              >
                                 <div className="d-flex justify-content-center gap-1">
                                   {!rec.code && (currentUser?.is_accountant || currentUser?.is_director) ? (
                                     <button className="btn btn-sm shadow-sm p-0 d-flex align-items-center justify-content-center" style={{ backgroundColor: "#06b6d4", color: "#fff", width: 28, height: 28 }} onClick={() => handleApprove(rec)}><Check size={16} /></button>
@@ -1738,7 +1763,7 @@ export default function B2BPage() {
         <div className="table-responsive shadow-sm rounded overflow-hidden">
         <table
           className="table table-bordered table-sm mb-0 align-middle"
-          style={{ fontSize: "12px", tableLayout: "fixed", width: "100%" }}
+          style={{ fontSize: "12px", tableLayout: "fixed", width: "100%", borderCollapse: "separate", borderSpacing: 0 }}
         >
           <thead
             className="text-white text-center align-middle"
@@ -1768,7 +1793,21 @@ export default function B2BPage() {
               {activeTab === "approved" && (
                 <th style={{ width: "100px" }}>{t.tongDoanhThuTichLuy}</th>
               )}
-              <th style={{ width: "90px" }}>{t.hanhDong}</th>
+              <th
+                style={{
+                  width: "90px",
+                  minWidth: "90px",
+                  maxWidth: "90px",
+                  position: "sticky",
+                  right: 0,
+                  zIndex: 30,
+                  backgroundColor: "#1e3a8a",
+                  boxShadow: "-2px 0 6px rgba(0,0,0,0.12)",
+                  borderLeft: "1px solid #2e4fa3"
+                }}
+              >
+                {t.hanhDong}
+              </th>
             </tr>
           </thead>
 
@@ -1859,7 +1898,20 @@ export default function B2BPage() {
                       {activeTab === "approved" && <td className="text-center border fw-bold text-primary">{formatNumber(calculateCompanyTotalRevenue(item.ID))}</td>}
 
                       {/* Cột Hành Động */}
-                      <td className="text-center border">
+                      <td
+                        className="text-center border"
+                        style={{
+                          width: "90px",
+                          minWidth: "90px",
+                          maxWidth: "90px",
+                          position: "sticky",
+                          right: 0,
+                          zIndex: 20,
+                          backgroundColor: isEditing ? "#fff9c4" : "#fff",
+                          boxShadow: "-2px 0 6px rgba(0,0,0,0.08)",
+                          borderLeft: "1px solid #dee2e6"
+                        }}
+                      >
                         <div className="d-flex gap-1 justify-content-center">
                           {isEditing ? (
                             <>
@@ -2625,12 +2677,16 @@ export default function B2BPage() {
       {/* Modal Đăng ký dịch vụ mới (B2B) - Modern */}
       <AddServiceModalB2B
         isOpen={showAddServiceModal}
-        onClose={() => setShowAddServiceModal(false)}
+        onClose={() => { 
+          setShowAddServiceModal(false);
+          setEditingServiceData(null);
+        }}
         onSave={handleAddServiceModalB2B}
         currentUser={currentUser}
         currentLanguage={currentLanguage}
         companiesList={approvedList}
         b2bServiceMapping={B2B_SERVICE_MAPPING}
+        editingService={editingServiceData}
       />
       
       {/* Modal Đăng ký doanh nghiệp */}

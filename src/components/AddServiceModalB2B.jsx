@@ -81,7 +81,7 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
   );
 };
 
-const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLanguage, companiesList = [], b2bServiceMapping = {} }) => {
+const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLanguage, companiesList = [], b2bServiceMapping = {}, editingService = null }) => {
   const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : "0";
   const unformatMoney = (val) => val ? parseFloat(val.toString().replace(/\./g, "")) : 0;
   
@@ -125,6 +125,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
   const [loading, setLoading] = useState(false);
   const [userList, setUserList] = useState([]);
   const [serviceSections, setServiceSections] = useState([createEmptyServiceSection()]);
+  const [existingService, setExistingService] = useState(null);
 
   const fileInputRef = useRef(null);
   const [uploadingDocs, setUploadingDocs] = useState(false);
@@ -151,6 +152,91 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
           if (data?.success) setUserList(data.data || []);
         })
         .catch(err => console.error("Fetch users error:", err));
+        
+      // Parse editingService nếu đang edit
+      if (editingService) {
+        setFormData({
+          DoanhNghiepID: editingService.companyId || "",
+          SoDKKD: editingService.soDKKD || "",
+          MaVung: "+84",
+          SoDienThoai: editingService.phoneNumber || "",
+          Email: editingService.email || "",
+          NgayDangKy: editingService.startDate || new Date().toISOString().split('T')[0],
+          NgayHen: editingService.endDate || "",
+          GhiChu: editingService.GhiChu || "",
+          NguoiPhuTrachId: editingService.picId ? String(editingService.picId) : (currentUser?.id ? String(currentUser.id) : ""),
+          ConfirmPassword: "",
+          YeuCauHoaDon: editingService.invoiceYN || "No",
+          DiaChiNhan: editingService.DiaChiNhan || "",
+          InvoiceUrl: editingService.InvoiceUrl || ""
+        });
+        
+        // Parse ChiTietDichVu
+        const details = editingService.ChiTietDichVu || { main: {}, sub: [] };
+        
+        if (details.services && Array.isArray(details.services) && details.services.length > 0) {
+          // Cấu trúc mới: Group services theo serviceType
+          const grouped = details.services.reduce((acc, s) => {
+            const type = s.serviceType || editingService.serviceType || "Khác";
+            if (!acc[type]) acc[type] = [];
+            acc[type].push({
+              name: s.name || "",
+              donvi: s.donvi || "",
+              soluong: String(s.soluong || "1"),
+              loaigoi: normalizePackageOption(s.loaigoi) || "",
+              dongia: s.dongia ? formatNumber(s.dongia) : "",
+              thue: String(s.thue || "0"),
+              chietkhau: String(s.chietkhau || "0"),
+              thanhtien: s.thanhtien ? formatNumber(s.thanhtien) : ""
+            });
+            return acc;
+          }, {});
+          
+          setServiceSections(Object.entries(grouped).map(([serviceType, rows]) => ({
+            serviceType,
+            note: "",
+            rows
+          })));
+        } else if (details.sub && details.sub.length > 0) {
+          // Cấu trúc cũ: Tạo 1 section với tất cả dịch vụ
+          setServiceSections([{
+            serviceType: editingService.serviceType || "Khác",
+            note: "",
+            rows: details.sub.map(s => ({
+              name: s.name || "",
+              donvi: "",
+              soluong: "1",
+              loaigoi: "",
+              dongia: s.revenue ? formatNumber(s.revenue) : "",
+              thue: "0",
+              chietkhau: String(s.discount || "0"),
+              thanhtien: ""
+            }))
+          }]);
+        } else {
+          // Fallback: Dùng DanhMuc
+          const danhMuc = editingService.DanhMuc || "";
+          const parts = danhMuc.split(" + ").filter(Boolean);
+          if (parts.length > 0) {
+            setServiceSections([{
+              serviceType: editingService.serviceType || "Khác",
+              note: "",
+              rows: parts.map(name => ({
+                name: name.trim(),
+                donvi: "",
+                soluong: "1",
+                loaigoi: "",
+                dongia: "",
+                thue: "0",
+                chietkhau: "0",
+                thanhtien: ""
+              }))
+            }]);
+          } else {
+            setServiceSections([createEmptyServiceSection()]);
+          }
+        }
+      }
     } else {
       setFormData({
         DoanhNghiepID: "",
@@ -169,8 +255,9 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
       });
       setUploadedDocs([]);
       setServiceSections([createEmptyServiceSection()]);
+      setExistingService(null);
     }
-  }, [isOpen, currentUser]);
+  }, [isOpen, currentUser, editingService]);
 
   const handleAddServiceSection = () => {
     setServiceSections([...serviceSections, createEmptyServiceSection()]);
@@ -392,7 +479,8 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
             dongia, 
             thue, 
             chietkhau, 
-            thanhtien: totalAmount 
+            thanhtien: totalAmount,
+            serviceType: section.serviceType || "" 
           });
           danhMucList.push(row.name);
         }

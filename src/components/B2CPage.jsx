@@ -297,34 +297,43 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     // Ưu tiên đọc từ JSON ChiTietDichVu nếu có
     if (request && request.ChiTietDichVu) {
         let details = typeof request.ChiTietDichVu === 'string' ? JSON.parse(request.ChiTietDichVu) : request.ChiTietDichVu;
-        if (details.services && details.services.length > 0) {
-             return [{
-               serviceType: normalizeServiceType(request?.LoaiDichVu),
-               note: "",
-               rows: details.services.map(s => ({
-                 name: s.name,
+        if (details.services && Array.isArray(details.services) && details.services.length > 0) {
+             // Group services theo serviceType
+             const grouped = details.services.reduce((acc, s) => {
+               const type = s.serviceType || normalizeServiceType(request?.LoaiDichVu) || "";
+               if (!acc[type]) acc[type] = [];
+               acc[type].push({
+                 name: s.name || "",
                  donvi: s.donvi || "",
-                 soluong: s.soluong || "1",
-                 loaigoi: normalizePackageOption(s.loaigoi),
+                 soluong: String(s.soluong || "1"),
+                 loaigoi: normalizePackageOption(s.loaigoi) || "",
                  dongia: s.dongia ? formatNumber(s.dongia) : "",
-                 thue: s.thue || "0",
-                 chietkhau: s.chietkhau || "0",
+                 thue: String(s.thue || "0"),
+                 chietkhau: String(s.chietkhau || "0"),
                  thanhtien: s.thanhtien ? formatNumber(s.thanhtien) : ""
-               }))
-             }];
+               });
+               return acc;
+             }, {});
+             
+             // Convert grouped object to array of sections
+             return Object.entries(grouped).map(([serviceType, rows]) => ({
+               serviceType,
+               note: "",
+               rows
+             }));
         }
         if (details.sub && details.sub.length > 0) {
              return [{
-               serviceType: normalizeServiceType(request?.LoaiDichVu),
+               serviceType: normalizeServiceType(request?.LoaiDichVu) || "",
                note: "",
                rows: details.sub.map(s => ({
-                 name: s.name,
+                 name: s.name || "",
                  donvi: s.donvi || "",
-                 soluong: s.soluong || "1",
-                 loaigoi: normalizePackageOption(s.loaigoi),
+                 soluong: String(s.soluong || "1"),
+                 loaigoi: normalizePackageOption(s.loaigoi) || "",
                  dongia: s.dongia ? formatNumber(s.dongia) : "",
-                 thue: s.thue || "0",
-                 chietkhau: s.chietkhau || "0",
+                 thue: String(s.thue || "0"),
+                 chietkhau: String(s.chietkhau || "0"),
                  thanhtien: s.thanhtien ? formatNumber(s.thanhtien) : ""
                }))
              }];
@@ -332,7 +341,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     }
     // Fallback: tạo 1 dòng mặc định
     return [{
-      serviceType: normalizeServiceType(request?.LoaiDichVu),
+      serviceType: normalizeServiceType(request?.LoaiDichVu) || "",
       note: "",
       rows: [createEmptyServiceRow()]
     }];
@@ -599,6 +608,9 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
         }
       : { 
           ...request,
+          HoTen: request.HoTen || "",
+          SoDienThoai: request.SoDienThoai || "",
+          Email: request.Email || "",
           MaVung: request.MaVung || "+84",
           TenHinhThuc: request.TenHinhThuc || "Trực tiếp",
           CoSoTuVan: request.CoSoTuVan || "Seoul",
@@ -608,6 +620,8 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           MaHoSo: request.MaHoSo || "",
           NguoiPhuTrachId: request.NguoiPhuTrachId || "",
           TrangThai: request.TrangThai || "Tư vấn",
+          ChonNgay: request.ChonNgay || "",
+          Gio: request.Gio || "",
           DonViTienTe: request.DonViTienTe ?? 0,
           LoaiDichVu: normalizeServiceType(request.LoaiDichVu), 
           DanhMuc: (request.DanhMuc || "").split(",")[0],
@@ -731,7 +745,8 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
         dongia: dongia,
         thue: thue,
         chietkhau: chietkhau,
-        thanhtien: totalAmount
+        thanhtien: totalAmount,
+        serviceType: row.serviceType || ""
       };
     });
 
@@ -746,7 +761,6 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     // 4. Tạo payload
     const payload = { 
       ...formData,
-      currentUserId: currentUser?.id,
       autoApprove: isNew && canApprove,
       LoaiDichVu: firstSelectedServiceType || formData.LoaiDichVu || "",
       DanhMuc: danhMucList,
@@ -806,9 +820,9 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   const statusOptions = currentLanguage === "vi" ? ["Tư vấn", "Tiến hành", "Hoàn thành"] : ["Consultation", "Processing", "Completed"];
   const currencyOptions = [{ value: 0, label: "VND" }, { value: 1, label: "KRW" }];
   const packageOptions = [
-    { value: "thường", label: "thường" },
-    { value: "gấp 1", label: "gấp 1" },
-    { value: "gấp 0", label: "gấp 0" }
+    { value: "thường", label: "Thường" },
+    { value: "gấp 1", label: "Gấp 1" },
+    { value: "gấp 0", label: "Gấp 0" }
   ];
   const discountOptions = [{ value: 0, label: "0%" }, { value: 5, label: "5%" }, { value: 10, label: "10%" }, { value: 12, label: "12%" }, { value: 15, label: "15%" }, { value: 17, label: "17%" }, { value: 30, label: "30%" }];
   const serviceTypeOptions = Object.keys(B2C_CATEGORY_LIST).map((serviceType) => ({
@@ -1102,9 +1116,9 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                                backgroundColor="white"
                                options={[
                                  { value: "", label: "Chọn" },
-                                 { value: "thường", label: "thường" },
-                                 { value: "gấp 1", label: "gấp 1" },
-                                 { value: "gấp 0", label: "gấp 0" }
+                                 { value: "thường", label: "Thường" },
+                                 { value: "gấp 1", label: "Gấp 1" },
+                                 { value: "gấp 0", label: "Gấp 0" }
                                ]}
                                onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "loaigoi", e.target.value)}
                              />
@@ -1582,38 +1596,89 @@ const RowItem = ({
 
   let rowsToRender = [];
 
-  // Dòng chính (Main)
-  const mainData = {
-      isMain: true,
-      name: item.DanhMuc ? item.DanhMuc.split(" + ")[0] : "",
-      revenue: (details.main && details.main.revenue !== undefined) ? details.main.revenue : item.DoanhThuTruocChietKhau,
-      discount: (details.main && details.main.discount !== undefined) ? details.main.discount : item.MucChietKhau,
-  };
-  rowsToRender.push(mainData);
-
-  // Các dòng phụ (Sub)
-  if (details.sub && details.sub.length > 0) {
-      details.sub.forEach(sub => {
+  // HỖ TRỢ CẤU TRÚC MỚI: {services: [...], totals: {...}}
+  if (details.services && Array.isArray(details.services) && details.services.length > 0) {
+      // Lấy danh sách unique service types từ DanhMuc nếu có
+      const serviceNames = (item.DanhMuc || "").split(" + ").map(s => s.trim()).filter(Boolean);
+      
+      details.services.forEach((service, idx) => {
+          const soluong = parseFloat(service.soluong) || 1;
+          const dongia = parseFloat(service.dongia) || 0;
+          const thue = parseFloat(service.thue) || 0;
+          const chietkhau = parseFloat(service.chietkhau) || 0;
+          
+          const subtotal = soluong * dongia;
+          const taxAmount = subtotal * (thue / 100);
+          const discountAmount = subtotal * (chietkhau / 100);
+          const revenue = subtotal + taxAmount;
+          const revenueAfterDiscount = revenue - discountAmount;
+          
+          // Lấy serviceType từ tên dịch vụ (map với B2C_CATEGORY_LIST)
+          let serviceType = item.LoaiDichVu || "";
+          const serviceName = service.name || serviceNames[idx] || "";
+          
+          // Tìm loại dịch vụ từ B2C_CATEGORY_LIST dựa trên tên
+          Object.entries(B2C_CATEGORY_LIST).forEach(([category, items]) => {
+              if (items.includes(serviceName)) {
+                  serviceType = category;
+              }
+          });
+          
           rowsToRender.push({
-              isMain: false,
-              name: sub.name,
-              revenue: sub.revenue,
-              discount: sub.discount
+              isMain: idx === 0,
+              name: serviceName,
+              serviceType: serviceType,
+              revenue: revenue,
+              discount: chietkhau,
+              revenueAfterDiscount: revenueAfterDiscount
           });
       });
-  } else {
-      // Fallback: Dữ liệu cũ
-      const parts = (item.DanhMuc || "").split(" + ");
-      if (parts.length > 1) {
-          parts.slice(1).forEach(subName => {
+  } 
+  // CẤU TRÚC CŨ: {main: {...}, sub: [...]}
+  else if (details.main || details.sub) {
+      // Dòng chính (Main)
+      const mainData = {
+          isMain: true,
+          name: item.DanhMuc ? item.DanhMuc.split(" + ")[0] : "",
+          revenue: (details.main && details.main.revenue !== undefined) ? details.main.revenue : item.DoanhThuTruocChietKhau,
+          discount: (details.main && details.main.discount !== undefined) ? details.main.discount : item.MucChietKhau,
+      };
+      rowsToRender.push(mainData);
+
+      // Các dòng phụ (Sub)
+      if (details.sub && details.sub.length > 0) {
+          details.sub.forEach(sub => {
               rowsToRender.push({
                   isMain: false,
-                  name: subName,
-                  revenue: 0, 
-                  discount: 0
+                  name: sub.name,
+                  revenue: sub.revenue,
+                  discount: sub.discount
               });
           });
+      } else {
+          // Fallback: Dữ liệu cũ từ DanhMuc
+          const parts = (item.DanhMuc || "").split(" + ");
+          if (parts.length > 1) {
+              parts.slice(1).forEach(subName => {
+                  rowsToRender.push({
+                      isMain: false,
+                      name: subName,
+                      revenue: 0, 
+                      discount: 0
+                  });
+              });
+          }
       }
+  }
+  // FALLBACK CỰC CUỐI: Không có ChiTietDichVu
+  else {
+      const mainData = {
+          isMain: true,
+          name: item.DanhMuc ? item.DanhMuc.split(" + ")[0] : "",
+          revenue: item.DoanhThuTruocChietKhau || 0,
+          discount: item.MucChietKhau || 0,
+      };
+      rowsToRender.push(mainData);
   }
 
   const rowSpanCount = rowsToRender.length;
@@ -1623,15 +1688,13 @@ const RowItem = ({
       const rev = Number(row.revenue) || 0;
       const disc = Number(row.discount) || 0;
       const discAmount = rev * (disc / 100);
-      const after = rev - discAmount;
+      // Nếu row đã có revenueAfterDiscount thì dùng luôn
+      const after = row.revenueAfterDiscount !== undefined ? Number(row.revenueAfterDiscount) : (rev - discAmount);
       return { rev, disc, discAmount, after };
   };
   const totalRevenueAfterDiscount = rowsToRender.reduce((sum, row) => {
-      const rev = Number(row.revenue) || 0;
-      const disc = Number(row.discount) || 0;
-      const discAmount = rev * (disc / 100);
-      const after = rev - discAmount;
-      return sum + after;
+      const stats = calculateRowStats(row);
+      return sum + stats.after;
   }, 0);
 
   const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
@@ -1648,6 +1711,18 @@ const RowItem = ({
       backgroundColor: "#fff", 
       borderBottom: "1px solid #dee2e6"
   };
+
+    const actionStickyCellStyle = {
+      position: "sticky",
+      right: 0,
+      zIndex: 12,
+      width: "132px",
+      minWidth: "132px",
+      maxWidth: "132px",
+      backgroundColor: "#fff",
+      boxShadow: "-2px 0 6px rgba(0, 0, 0, 0.08)",
+      borderLeft: "1px solid #dee2e6"
+    };
 
   return (
     <>
@@ -1674,14 +1749,14 @@ const RowItem = ({
 
             {isVisible("maVung") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("maVung")}`} style={mergedStyle}>{item.MaVung}</td>}
             {isVisible("sdt") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("sdt")}`} style={mergedStyle}>{item.SoDienThoai}</td>}
-            {isVisible("email") && isFirst && <td rowSpan={rowSpanCount} className={`text-center text-truncate ${getStickyClass("email")}`} style={{...mergedStyle, maxWidth: "150px"}} title={item.Email}>{item.Email}</td>}
+            {isVisible("email") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("email")}`} style={{...mergedStyle, minWidth: "180px", maxWidth: "240px", whiteSpace: "normal", wordBreak: "break-all"}} title={item.Email}>{item.Email}</td>}
 
             {isVisible("hinhThuc") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("hinhThuc")}`} style={mergedStyle}>{item.TenHinhThuc}</td>}
             {isVisible("coSo") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("coSo")}`} style={mergedStyle}>{translateBranch(item.CoSoTuVan)}</td>}
-            {isVisible("loaiDichVu") && isFirst && (
-                <td rowSpan={rowSpanCount} className={`text-center text-truncate ${getStickyClass("loaiDichVu")}`} style={{...mergedStyle, maxWidth: "150px"}}>
-                    {/* Gọi hàm dịch ở đây */}
-                    {translateService(item.LoaiDichVu, currentLanguage)} 
+            {isVisible("loaiDichVu") && (
+                <td className={`text-center text-truncate ${getStickyClass("loaiDichVu")}`} style={{ maxWidth: "150px", verticalAlign: "middle", backgroundColor: "#fff", borderBottom: "1px solid #dee2e6" }}>
+                    {/* Hiển thị serviceType của từng row thay vì item.LoaiDichVu tổng hợp */}
+                    {translateService(row.serviceType || item.LoaiDichVu, currentLanguage)} 
                 </td>
             )}
 
@@ -1693,7 +1768,7 @@ const RowItem = ({
                     </div>
                 </td>
             )}
-            {isVisible("maDichVu") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("maDichVu")}`}style={{...mergedStyle,width:130}}>{hasServiceCode ? item.MaHoSo : ""}</td>}
+            {isVisible("maDichVu") && <td className={`text-center ${getStickyClass("maDichVu")}`} style={{width:130, verticalAlign: "middle", backgroundColor: "#fff", borderBottom: "1px solid #dee2e6"}}>{hasServiceCode ? item.MaHoSo : ""}</td>}
 
             {(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) && isVisible("nguoiPhuTrach") && isFirst && (
                 <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("nguoiPhuTrach")}`} style={mergedStyle}>
@@ -1755,7 +1830,7 @@ const RowItem = ({
             )}
             {/* Hành động (Gộp) */}
             {isVisible("hanhDong") && isFirst && (
-              <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("hanhDong")}`} style={{ ...mergedStyle, padding: "10px 12px", minWidth: "132px" }}>
+              <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("hanhDong")}`} style={{ ...mergedStyle, ...actionStickyCellStyle, padding: "10px 12px" }}>
                 <div className="d-flex justify-content-center align-items-center gap-2">
                   {!hasServiceCode && canApprove && (
                     <>
@@ -2090,7 +2165,12 @@ const fetchData = async () => {
       }
 
       
-      const payload = { ...formData, currentUserId: currentUser?.id };
+      const payload = { ...formData };
+      if (method === "POST") {
+        payload.currentUserId = currentUser?.id;
+      } else {
+        delete payload.currentUserId;
+      }
       delete payload.NguoiPhuTrach; 
       delete payload.User;         
       delete payload.ConfirmPassword; 
@@ -2457,9 +2537,9 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
 
   const serviceTypeList = dichvuList?.map(dv => dv.LoaiDichVu) || [];
   const packageOptions = [
-    { value: "thường", label: "thường" },
-    { value: "gấp 1", label: "gấp 1" },
-    { value: "gấp 0", label: "gấp 0" }
+    { value: "thường", label: "Thường" },
+    { value: "gấp 1", label: "Gấp 1" },
+    { value: "gấp 0", label: "Gấp 0" }
   ];
   const branchOptions = [{ value: "Seoul", label: "Seoul" }, { value: "Busan", label: "Busan" }];
   const formOptions = [
@@ -2924,6 +3004,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                         return true;
                       });
                       const currentKey = availableKeys[i]?.key;
+                      const isActionColumn = currentKey === "hanhDong";
                       const allowedPinKeys = ["id", "hoTen", "maVung", "sdt", "email"];
                       if (currentKey && !isVisible(currentKey)) return null;
 
@@ -2934,13 +3015,18 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                               position: "sticky",        
                               top: 0,                    
                               left: isPinned(currentKey) ? "0" : "auto", 
-                              zIndex: isPinned(currentKey) ? 20 : 10, 
+                              right: isActionColumn ? 0 : "auto",
+                              zIndex: isActionColumn ? 30 : (isPinned(currentKey) ? 20 : 10), 
+                              width: isActionColumn ? "132px" : "auto",
+                              minWidth: isActionColumn ? "132px" : "auto",
+                              maxWidth: isActionColumn ? "132px" : "auto",
                               backgroundColor: "#2c4d9e", 
                               color: "#ffffff",           
+                              borderLeft: isActionColumn ? "1px solid #4a6fdc" : "none",
                               borderRight: "1px solid #4a6fdc", 
                               textAlign: "center",
                               verticalAlign: "middle",
-                              boxShadow: "0 1px 2px rgba(0,0,0,0.2)" 
+                              boxShadow: isActionColumn ? "-2px 0 6px rgba(0,0,0,0.2)" : "0 1px 2px rgba(0,0,0,0.2)" 
                           }}
                         >
                           <div className="d-flex justify-content-center align-items-center position-relative w-100" style={{ minHeight: "24px", paddingRight: "28px" }}>
