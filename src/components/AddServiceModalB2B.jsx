@@ -155,14 +155,29 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
         
       // Parse editingService nếu đang edit
       if (editingService) {
+        const selectedCompany = companiesList.find(c => String(c.ID) === String(editingService.companyId || editingService.DoanhNghiepID));
+        const fallbackPhone = selectedCompany?.SoDienThoai || selectedCompany?.phoneNumber || selectedCompany?.PhoneNumber || "";
+        const fallbackEmail = selectedCompany?.Email || selectedCompany?.email || "";
+        const mergedPhone = editingService.phoneNumber || editingService.SoDienThoai || editingService.PhoneNumber || fallbackPhone;
+        const mergedEmail = editingService.email || editingService.Email || fallbackEmail;
+        const parsePhone = (rawPhone = "") => {
+          const phone = String(rawPhone || "").trim();
+          if (!phone) return { maVung: "+84", soDienThoai: "" };
+          if (phone.startsWith("+84")) return { maVung: "+84", soDienThoai: phone.slice(3).trim() };
+          if (phone.startsWith("+82")) return { maVung: "+82", soDienThoai: phone.slice(3).trim() };
+          return { maVung: "+84", soDienThoai: phone };
+        };
+        const { maVung, soDienThoai } = parsePhone(mergedPhone);
+
         setFormData({
           DoanhNghiepID: editingService.companyId || "",
           SoDKKD: editingService.soDKKD || "",
-          MaVung: "+84",
-          SoDienThoai: editingService.phoneNumber || "",
-          Email: editingService.email || "",
+          MaVung: maVung,
+          SoDienThoai: soDienThoai,
+          Email: mergedEmail,
           NgayDangKy: editingService.startDate || new Date().toISOString().split('T')[0],
           NgayHen: editingService.endDate || "",
+          TrangThai: editingService.status || editingService.TrangThai || "Chờ duyệt",
           GhiChu: editingService.GhiChu || "",
           NguoiPhuTrachId: editingService.picId ? String(editingService.picId) : (currentUser?.id ? String(currentUser.id) : ""),
           ConfirmPassword: "",
@@ -246,6 +261,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
         Email: "",
         NgayDangKy: new Date().toISOString().split('T')[0],
         NgayHen: "",
+        TrangThai: "Chờ duyệt",
         GhiChu: "",
         NguoiPhuTrachId: "",
         ConfirmPassword: "",
@@ -363,6 +379,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
     Email: "",
     NgayDangKy: new Date().toISOString().split('T')[0],
     NgayHen: "",
+    TrangThai: "Chờ duyệt",
     GhiChu: "",
     NguoiPhuTrachId: "",
     ConfirmPassword: "",
@@ -370,6 +387,23 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
     DiaChiNhan: "",
     InvoiceUrl: ""
   });
+
+  const parsePhoneWithAreaCode = (rawPhone = "") => {
+    const phone = String(rawPhone || "").trim();
+    if (!phone) {
+      return { maVung: "+84", soDienThoai: "" };
+    }
+
+    if (phone.startsWith("+84")) {
+      return { maVung: "+84", soDienThoai: phone.slice(3).trim() };
+    }
+
+    if (phone.startsWith("+82")) {
+      return { maVung: "+82", soDienThoai: phone.slice(3).trim() };
+    }
+
+    return { maVung: "+84", soDienThoai: phone };
+  };
 
   const handleDocUpload = async (files) => {
     if (!files || files.length === 0) return;
@@ -413,13 +447,27 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
     if (name === "DoanhNghiepID") {
       const selectedCompany = companiesList.find(c => String(c.ID) === String(value));
       if (selectedCompany) {
+        const companyPhone = selectedCompany.SoDienThoai || selectedCompany.phoneNumber || selectedCompany.PhoneNumber || "";
+        const companyEmail = selectedCompany.Email || selectedCompany.email || "";
+        const { maVung, soDienThoai } = parsePhoneWithAreaCode(companyPhone);
+
         setFormData(prev => ({
           ...prev,
           [name]: value,
-          SoDKKD: selectedCompany.SoDKKD || ""
+          SoDKKD: selectedCompany.SoDKKD || "",
+          MaVung: maVung,
+          SoDienThoai: soDienThoai,
+          Email: companyEmail
         }));
       } else {
-        setFormData(prev => ({ ...prev, [name]: value, SoDKKD: "" }));
+        setFormData(prev => ({
+          ...prev,
+          [name]: value,
+          SoDKKD: "",
+          MaVung: "+84",
+          SoDienThoai: "",
+          Email: ""
+        }));
       }
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
@@ -517,7 +565,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
       Vi: 0,
       ThuTucCapToc: "No",
       YeuCauHoaDon: formData.YeuCauHoaDon || "No",
-      TrangThai: "Chờ duyệt",
+      TrangThai: formData.TrangThai || "Chờ duyệt",
       DiaChiNhan: formData.DiaChiNhan || "",
       InvoiceUrl: formData.InvoiceUrl || "",
       ChiTietDichVu: {
@@ -695,6 +743,34 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
                         placeholder="mm/dd/yyyy"
                       />
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-12">
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div style={{ minWidth: "110px", flexShrink: 0 }}>
+                    <label style={{...labelStyle, marginBottom: "0", display: "block"}}>
+                      Trạng thái
+                    </label>
+                    <p style={{ fontSize: "11px", color: "#9ca3af", margin: "3px 0 0 0", fontStyle: "italic", lineHeight: "1.3" }}>
+                      Trạng thái hồ sơ dịch vụ
+                    </p>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <ModernSelect
+                      name="TrangThai"
+                      height="44px"
+                      value={formData.TrangThai}
+                      placeholder="Chọn trạng thái"
+                      options={[
+                        { value: "Chờ duyệt", label: "Chờ duyệt" },
+                        { value: "Đang xử lý", label: "Đang xử lý" },
+                        { value: "Đã duyệt", label: "Đã duyệt" },
+                        { value: "Từ chối", label: "Từ chối" }
+                      ]}
+                      onChange={handleInputChange}
+                    />
                   </div>
                 </div>
               </div>

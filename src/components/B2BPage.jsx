@@ -843,6 +843,8 @@ export default function B2BPage() {
           companyId: item.DoanhNghiepID,
           companyName: item.TenDoanhNghiep,
           soDKKD: item.SoDKKD,
+          phoneNumber: item.SoDienThoai || item.PhoneNumber || item.phoneNumber || "",
+          email: item.Email || item.email || "",
           serviceType: item.LoaiDichVu,
           serviceName: item.TenDichVu,
           DiaChiNhan: item.DiaChiNhan || "",

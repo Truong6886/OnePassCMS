@@ -70,6 +70,115 @@ const B2C_CATEGORY_LIST = {
   ]
 };
 
+const B2C_SERVICE_CODE_MAP = {
+  "Hộ chiếu cấp mới (Hợp pháp - Trẻ em)": "HCCM",
+  "Hộ chiếu cấp đổi (Hợp pháp - Còn hạn)": "HCCL A1",
+  "Hộ chiếu cấp đổi (Hợp pháp - Hết hạn)": "HCCL A2",
+  "Hộ chiếu cấp đổi (Bất hợp pháp - Còn hạn)": "HCCL B1",
+  "Hộ chiếu cấp đổi (Bất hợp pháp - Hết hạn)": "HCCL B2",
+  "Hộ chiếu cấp đổi rút gọn (công tác ngắn hạn, du lịch, trục xuất)": "HCRG",
+  "Hộ chiếu bị chú": "BCHC",
+  "Dán ảnh trẻ em": "DCDA",
+  "Xác minh": "XM",
+  "Thôi quốc tịch Việt Nam": "TQT",
+  "Giấy xác nhận có quốc tịch Việt Nam": "XNQT",
+  "Cấp giấy xác nhận người gốc Việt": "XNQT",
+  "Đăng ký việc nuôi con nuôi": "NCN",
+  "Giấy miễn thị thực": "MTT",
+  "Đăng ký khai sinh": "KS",
+  "Đăng ký kết hôn Việt - Việt": "KHV-V",
+  "Giấy xác nhận tình trạng hôn nhân": "TTHN",
+  "Giấy chứng nhận đủ điều kiện kết hôn Việt - Hàn": "KHV-H",
+  "Đăng ký việc nhận cha, mẹ, con": "CNC",
+  "Cải chính hộ tịch": "CCHT",
+  "Trích lục khai sinh (sao)": "TLKS",
+  "Ghi chú kết hôn (Ghi vào sổ hộ tịch việc kết hôn)": "GCKH",
+  "Ghi chú ly hôn": "GCLH",
+  "Ghi chú khai sinh": "GCKS",
+  "Hợp pháp hoá lãnh sự/Chứng nhận lãnh sự": "HPH",
+  "Công chứng, chứng thực hợp đồng giao dịch": "CCHD",
+  "Hợp đồng ủy quyền": "HDUQ",
+  "Ủy quyền": "UQ",
+  "Ủy quyền đưa con về nước": "UQĐTE",
+  "Chứng thực chữ ký": "CTCK",
+  "Sao y bản chính": "SYBC",
+  "Dịch Việt - Hàn": "DTVH",
+  "Dịch Hàn - Việt": "DTHV",
+  "Dịch BLX": "DTBLX"
+};
+
+const normalizeServiceName = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d").replace(/Đ/g, "D")
+    .replace(/[\s_]+/g, " ")
+    .replace(/[–—-]/g, "-")
+    .replace(/\s*\/\s*/g, "/")
+    .trim()
+    .toLowerCase();
+
+const B2C_SERVICE_CODE_MAP_NORMALIZED = Object.entries(B2C_SERVICE_CODE_MAP).reduce((acc, [name, code]) => {
+  acc[normalizeServiceName(name)] = code;
+  return acc;
+}, {});
+
+const getPrimaryServiceName = (item) => {
+  const tenDichVu = String(item?.TenDichVu || "").trim();
+  if (tenDichVu) return tenDichVu;
+
+  const danhMuc = String(item?.DanhMuc || "").trim();
+  if (danhMuc) {
+    const firstByPlus = danhMuc.split(" + ")[0]?.trim();
+    if (firstByPlus) return firstByPlus;
+  }
+
+  try {
+    const details = typeof item?.ChiTietDichVu === "string"
+      ? JSON.parse(item.ChiTietDichVu)
+      : item?.ChiTietDichVu;
+
+    if (Array.isArray(details?.services) && details.services.length > 0) {
+      const firstName = String(details.services[0]?.name || "").trim();
+      if (firstName) return firstName;
+    }
+    if (Array.isArray(details?.sub) && details.sub.length > 0) {
+      const firstName = String(details.sub[0]?.name || "").trim();
+      if (firstName) return firstName;
+    }
+  } catch (_) {}
+
+  return "";
+};
+
+const normalizeServiceCodeForRow = (item) => {
+  const currentCode = String(item?.MaHoSo || "").trim();
+  if (!currentCode) return currentCode;
+
+  const serviceName = getPrimaryServiceName(item);
+  const expectedPrefix = B2C_SERVICE_CODE_MAP_NORMALIZED[normalizeServiceName(serviceName)];
+  if (!expectedPrefix) return currentCode;
+
+  const codeMatch = currentCode.match(/^[^-]+-(\d{6})-([YNyn])-([0-9]{3})$/);
+  if (!codeMatch) return currentCode;
+
+  const normalizedCode = `${expectedPrefix}-${codeMatch[1]}-${codeMatch[2].toUpperCase()}-${codeMatch[3]}`;
+  return normalizedCode;
+};
+
+const buildCodeByServiceName = (baseCode, serviceName) => {
+  const currentCode = String(baseCode || "").trim();
+  if (!currentCode) return "";
+
+  const expectedPrefix = B2C_SERVICE_CODE_MAP_NORMALIZED[normalizeServiceName(serviceName)];
+  if (!expectedPrefix) return currentCode;
+
+  const codeMatch = currentCode.match(/^[^-]+-(\d{6})-([YNyn])-([0-9]{3})$/);
+  if (!codeMatch) return currentCode;
+
+  return `${expectedPrefix}-${codeMatch[1]}-${codeMatch[2].toUpperCase()}-${codeMatch[3]}`;
+};
+
 const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false, height = "38px", footerAction, width = "100%", noBorder = false, backgroundColor = "#ffffff" }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -599,7 +708,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           CoSoTuVan: "", Gio: "", ChonNgay: "",
           LoaiDichVu: "", DanhMuc: "", TenDichVu: "",
           MaHoSo: "", NguoiPhuTrachId: currentUser?.id || "",
-          TrangThai: "Tư vấn", GoiDichVu: "",
+          TrangThai: "Đăng ký mới", GoiDichVu: "",
           DonViTienTe: 0,
           Invoice: "No", InvoiceUrl: "", ConfirmPassword: "",
           YeuCauXuatHoaDon: "No",
@@ -619,7 +728,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           YeuCauXuatHoaDon: request.Invoice || "No",
           MaHoSo: request.MaHoSo || "",
           NguoiPhuTrachId: request.NguoiPhuTrachId || "",
-          TrangThai: request.TrangThai || "Tư vấn",
+          TrangThai: request.TrangThai || "Đăng ký mới",
           ChonNgay: request.ChonNgay || "",
           Gio: request.Gio || "",
           DonViTienTe: request.DonViTienTe ?? 0,
@@ -817,7 +926,15 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   const areaCodes = [{ value: "+82", label: "+82" }, { value: "+84", label: "+84" }];
   const formOptions = currentLanguage === "vi" ? ["Messenger","Kakao Talk", "Zalo","Naver Talk", "Email", "Gọi điện","Trực tiếp"] : ["Messenger","Kakao Talk", "Zalo","Naver Talk", "Email", "Phone", "Direct"];
   const branchOptions = [{ value: "Seoul", label: "Seoul" }, { value: "Busan", label: "Busan" }];
-  const statusOptions = currentLanguage === "vi" ? ["Tư vấn", "Tiến hành", "Hoàn thành"] : ["Consultation", "Processing", "Completed"];
+  const statusOptions = [
+    "Đăng ký mới",
+    "Đang tư vấn",
+    "Đã tạo đơn",
+    "Đã thanh toán",
+    "Nộp hồ sơ",
+    "Trả kết quả",
+    "Hoàn thành"
+  ];
   const currencyOptions = [{ value: 0, label: "VND" }, { value: 1, label: "KRW" }];
   const packageOptions = [
     { value: "thường", label: "Thường" },
@@ -979,6 +1096,29 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                         placeholder="2025-01-20"
                       />
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-12">
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div style={{ minWidth: "110px", flexShrink: 0 }}>
+                    <label style={{...labelStyle, marginBottom: "0", display: "block"}}>
+                      Trạng thái
+                    </label>
+                    <p style={{ fontSize: "11px", color: "#9ca3af", margin: "3px 0 0 0", fontStyle: "italic", lineHeight: "1.3" }}>
+                      Chọn trạng thái xử lý hồ sơ
+                    </p>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <ModernSelect
+                      name="TrangThai"
+                      height="44px"
+                      value={formData.TrangThai}
+                      placeholder={t.selectStatus}
+                      options={statusOptions.map((status) => ({ value: status, label: status }))}
+                      onChange={handleInputChange}
+                    />
                   </div>
                 </div>
               </div>
@@ -1729,6 +1869,7 @@ const RowItem = ({
       {rowsToRender.map((row, idx) => {
         const isFirst = idx === 0;
         const stats = calculateRowStats(row);
+        const rowServiceCode = hasServiceCode ? buildCodeByServiceName(item.MaHoSo, row.name) : "";
 
         return (
           <tr key={`${item.YeuCauID}_${idx}`} className="hover-bg-gray">
@@ -1768,7 +1909,7 @@ const RowItem = ({
                     </div>
                 </td>
             )}
-            {isVisible("maDichVu") && <td className={`text-center ${getStickyClass("maDichVu")}`} style={{width:130, verticalAlign: "middle", backgroundColor: "#fff", borderBottom: "1px solid #dee2e6"}}>{hasServiceCode ? item.MaHoSo : ""}</td>}
+            {isVisible("maDichVu") && <td className={`text-center ${getStickyClass("maDichVu")}`} style={{width:130, verticalAlign: "middle", backgroundColor: "#fff", borderBottom: "1px solid #dee2e6"}}>{rowServiceCode}</td>}
 
             {(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) && isVisible("nguoiPhuTrach") && isFirst && (
                 <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("nguoiPhuTrach")}`} style={mergedStyle}>
@@ -2134,7 +2275,11 @@ const fetchData = async () => {
       const json = await res.json();
       
       if (json.success) { 
-          setData(json.data); 
+          const normalizedRows = (json.data || []).map((row) => ({
+            ...row,
+            MaHoSo: normalizeServiceCodeForRow(row)
+          }));
+          setData(normalizedRows); 
           setTotalPages(json.totalPages || 1); 
           setTotalRevenue(json.totalRevenue || 0);
       } else { 
@@ -2852,10 +2997,8 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
   const toggleColumn = (key) => { setVisibleColumns(prev => ({ ...prev, [key]: !prev[key] })); };
 
   const togglePinColumn = (key) => {
-    setPinnedColumns(prev => {
-      if (prev.includes(key)) { return prev.filter(col => col !== key); } 
-      else { return [...prev, key]; }
-    });
+    if (!key || key === "hanhDong") return;
+    setPinnedColumns(prev => (prev.includes(key) ? [] : [key]));
   };
 
   const isVisible = (key) => visibleColumns[key];
@@ -3005,7 +3148,6 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                       });
                       const currentKey = availableKeys[i]?.key;
                       const isActionColumn = currentKey === "hanhDong";
-                      const allowedPinKeys = ["id", "hoTen", "maVung", "sdt", "email"];
                       if (currentKey && !isVisible(currentKey)) return null;
 
                       return (
@@ -3031,7 +3173,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                         >
                           <div className="d-flex justify-content-center align-items-center position-relative w-100" style={{ minHeight: "24px", paddingRight: "28px" }}>
                             <span>{header}</span>
-                            {allowedPinKeys.includes(currentKey) && (
+                            {currentKey && !isActionColumn && (
                             <button 
                               className={`btn btn-sm d-flex align-items-center justify-content-center text-white ${isPinned(currentKey) ? "btn-danger" : ""}`} 
                               style={{ 
