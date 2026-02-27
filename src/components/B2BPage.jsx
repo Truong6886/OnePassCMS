@@ -113,6 +113,13 @@ const parseMoney = (str) => {
   if (!str) return 0;
   return parseFloat(str.toString().replace(/\./g, "")) || 0;
 };
+
+const hasB2BApprovePermission = (user) =>
+  Boolean(user?.is_admin || user?.is_director || user?.perm_approve_b2b);
+
+const hasRevenueViewPermission = (user) =>
+  Boolean(user?.is_admin || user?.is_director || user?.is_accountant || user?.perm_view_revenue);
+
 export default function B2BPage() {
   const [expandedRowId, setExpandedRowId] = useState(null);
   const [showRegisterB2BModal, setShowRegisterB2BModal] = useState(false);
@@ -124,6 +131,7 @@ export default function B2BPage() {
   const [availableServices, setAvailableServices] = useState([]);
   const [showAddServiceModal, setShowAddServiceModal] = useState(false);
   const [editingServiceData, setEditingServiceData] = useState(null);
+  const [serviceModalMode, setServiceModalMode] = useState("create");
   const [showSidebar, setShowSidebar] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [userList, setUserList] = useState([]);
@@ -201,14 +209,16 @@ export default function B2BPage() {
 
 
 
-  const handleEditService = (rec) => {
+  const handleEditService = (rec, mode = "edit") => {
     // Truyền toàn bộ service record cho modal
     setEditingServiceData(rec);
+    setServiceModalMode(mode);
     setShowAddServiceModal(true);
   };
 
   const handleOpenAddServiceModal = () => {
     setEditingServiceData(null); // Reset editing state
+    setServiceModalMode("create");
     
     // Load danh sách khách hàng đã duyệt nếu chưa có
     if (approvedList.length === 0) {
@@ -275,20 +285,27 @@ export default function B2BPage() {
       if (!verifyRes) {
         console.error("Verify password request failed");
         showToast("Lỗi xác thực mật khẩu - vui lòng thử lại", "error");
-        return;
+        return false;
       }
 
       const verifyJson = await verifyRes.json();
       if (!verifyJson.success) {
         showToast("Mật khẩu xác nhận không chính xác!", "error");
-        return;
+        return false;
       }
 
       // Prepare API payload
+      const isApproveMode = serviceModalMode === "approve";
+      const isApprovalFlow = Boolean(
+        editingServiceData?.id &&
+        isApproveMode &&
+        hasB2BApprovePermission(currentUser)
+      );
+
       const apiPayload = {
         ...payload,
         userId: currentUser?.id,
-        approveAction: null
+        approveAction: isApprovalFlow ? "accountant_approve" : null
       };
 
       if (!apiPayload.NgayThucHien && apiPayload.NgayBatDau) {
@@ -296,6 +313,9 @@ export default function B2BPage() {
       }
       if (!apiPayload.NgayHoanThanh && apiPayload.NgayKetThuc) {
         apiPayload.NgayHoanThanh = apiPayload.NgayKetThuc;
+      }
+      if (isApproveMode) {
+        apiPayload.TrangThai = "Đã duyệt";
       }
 
       // Remove ConfirmPassword before sending
@@ -320,35 +340,48 @@ export default function B2BPage() {
       if (!res) {
         console.error("Service request failed");
         showToast("Lỗi kết nối server - vui lòng kiểm tra kết nối", "error");
-        return;
+        return false;
       }
 
       if (!res.ok) {
         const text = await res.text();
         console.error("Service request failed:", res.status, text);
         showToast(text || "Lỗi server", "error");
-        return;
+        return false;
       }
 
       const json = await res.json();
       console.log("Response from server:", json);
 
       if (json.success) {
-        showToast(
-          editingServiceData ? "Cập nhật thành công!" : "Đã gửi yêu cầu đăng ký!", 
-          "success"
-        );
+        if (json.newCode) {
+          await MySwal.fire({
+            icon: "success",
+            title: "Duyệt thành công!",
+            html: `Mã dịch vụ được cấp: <b>${json.newCode}</b>`,
+            confirmButtonColor: "#22c55e"
+          });
+        } else {
+          showToast(
+            editingServiceData ? "Cập nhật thành công!" : "Đã gửi yêu cầu đăng ký!",
+            "success"
+          );
+        }
         setShowAddServiceModal(false);
         setEditingServiceData(null);
+        setServiceModalMode("create");
         loadServices(currentPage.services || 1);
+        return true;
       } else {
         showToast(json.message || "Đã xảy ra lỗi", "error");
+        return false;
       }
     } catch (err) {
       console.error("Detailed error:", err);
       console.error("Error message:", err.message);
       console.error("Error stack:", err.stack);
       showToast(`Lỗi: ${err.message || "Kết nối server thất bại"}`, "error");
+      return false;
     } finally {
       setLoading(false);
     }
@@ -381,7 +414,7 @@ export default function B2BPage() {
         return showToast("Mật khẩu xác nhận không chính xác!", "error");
       }
 
-      const canApproveB2B = currentUser?.is_director || currentUser?.perm_approve_b2b;
+      const canApproveB2B = hasB2BApprovePermission(currentUser);
       let approveAction = null;
 
       if (!newServiceForm.id && canApproveB2B) {
@@ -639,6 +672,7 @@ export default function B2BPage() {
       loaiDichVu: "Loại Dịch Vụ",
       tenDichVu: "Tên Dịch Vụ",
       maDichVu: "Mã Dịch Vụ",
+      ghiChuDichVu: "Ghi chú DV",
       danhMuc: "Danh Mục",
       nguoiPhuTrach: "Người Phụ Trách",
       goi: "Gói",
@@ -682,6 +716,7 @@ export default function B2BPage() {
       loaiDichVu: "Service Type",
       tenDichVu: "Service Name",
       maDichVu: "Service ID",
+      ghiChuDichVu: "Service Note",
       danhMuc: "Category",
       nguoiPhuTrach: "Assignee",
       goi: "Package",
@@ -724,6 +759,7 @@ export default function B2BPage() {
       loaiDichVu: "서비스 유형",
       tenDichVu: "서비스 이름",
       maDichVu: "서비스 코드",
+      ghiChuDichVu: "서비스 비고",
       danhMuc: "카테고리",
       nguoiPhuTrach: "담당자",
       goi: "패키지",
@@ -1019,13 +1055,16 @@ export default function B2BPage() {
 
       const rawDoanhThu = selectedService.DoanhThu ? parseFloat(unformatNumber(selectedService.DoanhThu)) : 0;
       const rawVi = selectedService.Vi ? parseFloat(unformatNumber(selectedService.Vi)) : 0;
+      const currentStatusText = String(selectedService.TrangThai || selectedService.status || "");
+      const isPendingStatus = /chờ|cho|pending/i.test(currentStatusText);
+      const finalApprovedStatus = isPendingStatus || !currentStatusText ? "Đã duyệt" : currentStatusText;
 
       const payload = {
         LoaiDichVu: selectedService.LoaiDichVu || selectedService.serviceType,
         TenDichVu: selectedService.TenDichVu || selectedService.serviceName,
         NgayThucHien: selectedService.NgayBatDau || selectedService.startDate,
-        DiaChiNhan: selectedService.DiaChiNhan || service.DiaChiNhan || "",
-        TrangThai: selectedService.TrangThai,
+        DiaChiNhan: selectedService.DiaChiNhan || "",
+        TrangThai: finalApprovedStatus,
         NgayHoanThanh: selectedService.NgayHoanThanh || selectedService.endDate,
         GoiDichVu: selectedService.GoiDichVu || "thường",
         YeuCauHoaDon: selectedService.YeuCauHoaDon,
@@ -1090,7 +1129,7 @@ export default function B2BPage() {
     } catch (e) { showToast("Lỗi server", "error"); }
   };
 
-  const isApprover = currentUser?.is_director || currentUser?.is_accountant;
+  const isApprover = currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant;
 
   const approve = async (id) => {
     const result = await MySwal.fire({
@@ -1218,8 +1257,8 @@ export default function B2BPage() {
   };
 
   const renderServicesTab = () => {
-    const canApproveB2B = currentUser?.is_director || currentUser?.perm_approve_b2b;
-    const canViewRevenue = currentUser?.is_director || currentUser?.is_accountant || currentUser?.perm_view_revenue;
+    const canApproveB2B = hasB2BApprovePermission(currentUser);
+    const canViewRevenue = hasRevenueViewPermission(currentUser);
 
     const getSubRowCount = (rec) => {
       if (!rec) return 1;
@@ -1484,6 +1523,7 @@ export default function B2BPage() {
 
                     <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>{t.danhMuc}</th>
                     <th className="py-2 border" style={{ width: "160px", whiteSpace: "pre-wrap" }}>{t.maDichVu}</th>
+                    <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>{t.ghiChuDichVu}</th>
                     <th className="py-2 border" style={{ width: "110px", whiteSpace: "pre-wrap" }}>{t.nguoiPhuTrach}</th>
                     <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayBatDau}</th>
                     <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayKetThuc}</th>
@@ -1529,14 +1569,18 @@ export default function B2BPage() {
                       
                       // Lấy danh sách service names từ ChiTietDichVu
                       const details = rec.ChiTietDichVu || {};
-                      let servicesList = [];
+                      let serviceRows = [];
                       if (details.services && Array.isArray(details.services)) {
                         // Cấu trúc MỚI: lấy từ services array
-                        servicesList = details.services.map(s => s.name || "");
+                        serviceRows = details.services.map((s) => ({
+                          name: s.name || "",
+                          note: String(s.note || s.ghiChu || s.serviceNote || "").trim()
+                        }));
                       } else {
                         // Cấu trúc CŨ: lấy từ DanhMuc string
-                        servicesList = (rec.DanhMuc || "").split(" + ");
+                        serviceRows = (rec.DanhMuc || "").split(" + ").map((name) => ({ name, note: "" }));
                       }
+                      const servicesList = serviceRows.map((s) => s.name || "");
                       
                       const currentCompanyId = String(rec.companyId || rec.DoanhNghiepID || "");
                       const prevCompanyId = idx > 0 ? String(displayData[idx - 1].companyId || displayData[idx - 1].DoanhNghiepID || "") : null;
@@ -1577,8 +1621,11 @@ export default function B2BPage() {
                         textAlign: "left"
                       };
 
-                      return servicesList.map((svcName, subIdx) => {
+                      return servicesList.map((_, subIdx) => {
                         const isFirstSubRow = subIdx === 0;
+                        const serviceRow = serviceRows[subIdx] || {};
+                        const svcName = serviceRow.name || "";
+                        const serviceNote = serviceRow.note || "";
 
                         return (
                           <tr key={`${rec.uiId}_${subIdx}`} className={rec.isNew ? "" : "bg-white hover:bg-gray-50"}>
@@ -1628,6 +1675,17 @@ export default function B2BPage() {
                             {isFirstSubRow && (
                               <>
                                 <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, width: 170 }}><span className="fw-bold text-dark">{rec.code}</span></td>
+                              </>
+                            )}
+
+                            <td className="border" style={{ ...danhMucStyle, minWidth: 140, maxWidth: 220 }}>
+                              <div className="px-1" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                                {serviceNote}
+                              </div>
+                            </td>
+
+                            {isFirstSubRow && (
+                              <>
                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.picName}>{rec.picName}</td>
                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.startDate}</td>
                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.endDate}</td>
@@ -1669,8 +1727,8 @@ export default function B2BPage() {
                                 }}
                               >
                                 <div className="d-flex justify-content-center gap-1">
-                                  {!rec.code && (currentUser?.is_accountant || currentUser?.is_director) ? (
-                                    <button className="btn btn-sm shadow-sm p-0 d-flex align-items-center justify-content-center" style={{ backgroundColor: "#06b6d4", color: "#fff", width: 28, height: 28 }} onClick={() => handleApprove(rec)}><Check size={16} /></button>
+                                  {(canApproveB2B && (!rec.code || String(rec.status || "").toLowerCase().includes("chờ") || String(rec.status || "").toLowerCase().includes("cho") || String(rec.status || "").toLowerCase().includes("pending"))) ? (
+                                    <button className="btn btn-sm shadow-sm p-0 d-flex align-items-center justify-content-center" style={{ backgroundColor: "#06b6d4", color: "#fff", width: 28, height: 28 }} onClick={() => handleEditService(rec, "approve")}><Check size={16} /></button>
                                   ) : (
                                     <button className="btn btn-sm shadow-sm p-0 d-flex align-items-center justify-content-center" style={{ backgroundColor: "#f59e0b", color: "#fff", width: 28, height: 28 }} onClick={() => handleEditService(rec)}><Edit size={14} /></button>
                                   )}
@@ -1740,7 +1798,7 @@ export default function B2BPage() {
     const totalColumns = activeTab === "pending" ? 8 : 9;
     
     // Check permission to approve B2B
-    const canApproveB2B = currentUser?.is_director || currentUser?.perm_approve_b2b;
+    const canApproveB2B = hasB2BApprovePermission(currentUser);
 
     return (
       <>
@@ -2521,7 +2579,7 @@ export default function B2BPage() {
                     </div>
 
 
-                    {(currentUser?.is_director || currentUser?.is_accountant || currentUser?.perm_approve_b2b) && (
+                    {(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant || currentUser?.perm_approve_b2b) && (
                       <div className="col-12">
                         <div className="d-flex gap-2">
 
@@ -2569,7 +2627,7 @@ export default function B2BPage() {
                     )}
 
 
-                    {!(currentUser?.is_staff && !currentUser?.is_director && !currentUser?.is_accountant) && (
+                    {!(currentUser?.is_staff && !currentUser?.is_admin && !currentUser?.is_director && !currentUser?.is_accountant) && (
                       <div className="col-12">
                         <label style={labelStyle}>
                           Chọn người phụ trách <span className="text-danger">*</span>
@@ -2682,6 +2740,7 @@ export default function B2BPage() {
         onClose={() => { 
           setShowAddServiceModal(false);
           setEditingServiceData(null);
+          setServiceModalMode("create");
         }}
         onSave={handleAddServiceModalB2B}
         currentUser={currentUser}
@@ -2689,6 +2748,7 @@ export default function B2BPage() {
         companiesList={approvedList}
         b2bServiceMapping={B2B_SERVICE_MAPPING}
         editingService={editingServiceData}
+        actionMode={serviceModalMode}
       />
       
       {/* Modal Đăng ký doanh nghiệp */}

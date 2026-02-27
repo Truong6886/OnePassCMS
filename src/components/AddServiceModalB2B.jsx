@@ -81,9 +81,10 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
   );
 };
 
-const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLanguage, companiesList = [], b2bServiceMapping = {}, editingService = null }) => {
+const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLanguage, companiesList = [], b2bServiceMapping = {}, editingService = null, actionMode = "create" }) => {
   const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : "0";
   const unformatMoney = (val) => val ? parseFloat(val.toString().replace(/\./g, "")) : 0;
+  const isApproveMode = actionMode === "approve";
   
   const normalizeServiceType = (val) => {
     if (!val) return "";
@@ -111,7 +112,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
   }, [b2bServiceMapping]);
 
   const createEmptyServiceRow = () => ({
-    name: "", donvi: "", soluong: "1", loaigoi: "",
+    name: "", donvi: "", soluong: "1", loaigoi: "thường",
     dongia: "", thue: "0", chietkhau: "0", thanhtien: ""
   });
 
@@ -155,6 +156,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
         
       // Parse editingService nếu đang edit
       if (editingService) {
+        const defaultPackage = normalizePackageOption(editingService.package || editingService.GoiDichVu || "thường") || "thường";
         const selectedCompany = companiesList.find(c => String(c.ID) === String(editingService.companyId || editingService.DoanhNghiepID));
         const fallbackPhone = selectedCompany?.SoDienThoai || selectedCompany?.phoneNumber || selectedCompany?.PhoneNumber || "";
         const fallbackEmail = selectedCompany?.Email || selectedCompany?.email || "";
@@ -177,7 +179,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
           Email: mergedEmail,
           NgayDangKy: editingService.startDate || new Date().toISOString().split('T')[0],
           NgayHen: editingService.endDate || "",
-          TrangThai: editingService.status || editingService.TrangThai || "Chờ duyệt",
+          TrangThai: isApproveMode ? "Đã duyệt" : (editingService.status || editingService.TrangThai || "Chờ duyệt"),
           GhiChu: editingService.GhiChu || "",
           NguoiPhuTrachId: editingService.picId ? String(editingService.picId) : (currentUser?.id ? String(currentUser.id) : ""),
           ConfirmPassword: "",
@@ -193,12 +195,15 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
           // Cấu trúc mới: Group services theo serviceType
           const grouped = details.services.reduce((acc, s) => {
             const type = s.serviceType || editingService.serviceType || "Khác";
-            if (!acc[type]) acc[type] = [];
-            acc[type].push({
+            if (!acc[type]) acc[type] = { rows: [], note: "" };
+            if (!acc[type].note) {
+              acc[type].note = String(s.note || s.ghiChu || s.serviceNote || "").trim();
+            }
+            acc[type].rows.push({
               name: s.name || "",
               donvi: s.donvi || "",
               soluong: String(s.soluong || "1"),
-              loaigoi: normalizePackageOption(s.loaigoi) || "",
+              loaigoi: normalizePackageOption(s.loaigoi) || defaultPackage,
               dongia: s.dongia ? formatNumber(s.dongia) : "",
               thue: String(s.thue || "0"),
               chietkhau: String(s.chietkhau || "0"),
@@ -207,10 +212,10 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
             return acc;
           }, {});
           
-          setServiceSections(Object.entries(grouped).map(([serviceType, rows]) => ({
+          setServiceSections(Object.entries(grouped).map(([serviceType, group]) => ({
             serviceType,
-            note: "",
-            rows
+            note: group.note || "",
+            rows: group.rows
           })));
         } else if (details.sub && details.sub.length > 0) {
           // Cấu trúc cũ: Tạo 1 section với tất cả dịch vụ
@@ -221,7 +226,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
               name: s.name || "",
               donvi: "",
               soluong: "1",
-              loaigoi: "",
+              loaigoi: defaultPackage,
               dongia: s.revenue ? formatNumber(s.revenue) : "",
               thue: "0",
               chietkhau: String(s.discount || "0"),
@@ -240,7 +245,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
                 name: name.trim(),
                 donvi: "",
                 soluong: "1",
-                loaigoi: "",
+                loaigoi: defaultPackage,
                 dongia: "",
                 thue: "0",
                 chietkhau: "0",
@@ -273,7 +278,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
       setServiceSections([createEmptyServiceSection()]);
       setExistingService(null);
     }
-  }, [isOpen, currentUser, editingService]);
+  }, [isOpen, currentUser, editingService, isApproveMode]);
 
   const handleAddServiceSection = () => {
     setServiceSections([...serviceSections, createEmptyServiceSection()]);
@@ -523,12 +528,13 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
             name: row.name, 
             donvi: row.donvi, 
             soluong, 
-            loaigoi: row.loaigoi, 
+            loaigoi: normalizePackageOption(row.loaigoi) || "thường",
             dongia, 
             thue, 
             chietkhau, 
             thanhtien: totalAmount,
-            serviceType: section.serviceType || "" 
+            serviceType: section.serviceType || "",
+            note: section.note || ""
           });
           danhMucList.push(row.name);
         }
@@ -541,6 +547,13 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
     const roundedDiscount = Math.round(totalDiscount);
     const roundedFinalRevenue = Math.round(finalRevenue);
     const averageDiscountPercent = totalRevenue > 0 ? (totalDiscount / totalRevenue) * 100 : 0;
+    const selectedPackage = normalizePackageOption(
+      validServices.find(service => service.loaigoi)?.loaigoi ||
+      serviceSections[0]?.rows?.[0]?.loaigoi ||
+      editingService?.package ||
+      editingService?.GoiDichVu ||
+      "thường"
+    ) || "thường";
 
     const payload = {
       DoanhNghiepID: formData.DoanhNghiepID,
@@ -557,6 +570,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
       DanhMuc: danhMucList.join(" + "),
       TenDichVu: danhMucList.join(" + "),
       LoaiDichVu: serviceSections[0]?.serviceType || "Khác",
+      GoiDichVu: selectedPackage,
       DoanhThuTruocChietKhau: roundedRevenue,
       DoanhThu: roundedFinalRevenue,
       MucChietKhau: Math.round(averageDiscountPercent * 100) / 100,
@@ -565,7 +579,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
       Vi: 0,
       ThuTucCapToc: "No",
       YeuCauHoaDon: formData.YeuCauHoaDon || "No",
-      TrangThai: formData.TrangThai || "Chờ duyệt",
+      TrangThai: isApproveMode ? "Đã duyệt" : (formData.TrangThai || "Chờ duyệt"),
       DiaChiNhan: formData.DiaChiNhan || "",
       InvoiceUrl: formData.InvoiceUrl || "",
       ChiTietDichVu: {
@@ -581,8 +595,10 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
 
     setLoading(true);
     try {
-      await onSave(payload);
-      onClose();
+      const saved = await onSave(payload);
+      if (saved) {
+        onClose();
+      }
     } catch (err) {
       console.error("Save error:", err);
       showToast("Lỗi khi lưu dịch vụ", "error");
@@ -600,6 +616,11 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
   };
   const labelStyle = { fontSize: "13px", fontWeight: "600", color: "#111827", marginBottom: "4px", display: "block" };
   const areaCodes = [{ value: "+82", label: "+82" }, { value: "+84", label: "+84" }];
+  const modalTitle = isApproveMode ? "Duyệt cấp dịch vụ" : "Đăng ký dịch vụ mới (B2B)";
+  const modalSubtitle = isApproveMode ? "Kiểm tra thông tin trước khi cấp duyệt" : "Nhập thông tin khách hàng và dịch vụ";
+  const submitText = isApproveMode ? "Cấp duyệt" : "Đăng ký Dịch Vụ";
+  const submitBg = isApproveMode ? "#0ea5e9" : "#22c55e";
+  const submitShadow = isApproveMode ? "0 6px 16px rgba(14, 165, 233, 0.35)" : "0 6px 16px rgba(34, 197, 94, 0.35)";
 
   return (
     <div className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" 
@@ -613,8 +634,8 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
         </button>
 
         <div className="text-center mb-4">
-          <h3 className="fw-bold m-0" style={{ fontSize: "20px", color: "#111827" }}>Đăng ký dịch vụ mới (B2B)</h3>
-          <p className="text-muted m-0 mt-1" style={{ fontSize: "13px" }}>Nhập thông tin khách hàng và dịch vụ</p>
+          <h3 className="fw-bold m-0" style={{ fontSize: "20px", color: "#111827" }}>{modalTitle}</h3>
+          <p className="text-muted m-0 mt-1" style={{ fontSize: "13px" }}>{modalSubtitle}</p>
         </div>
 
         <div className="row g-3">
@@ -765,6 +786,11 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
                       placeholder="Chọn trạng thái"
                       options={[
                         { value: "Chờ duyệt", label: "Chờ duyệt" },
+                        { value: "Đã tạo đơn", label: "Đã tạo đơn" },
+                        { value: "Đã thanh toán", label: "Đã thanh toán" },
+                        { value: "Nộp hồ sơ", label: "Nộp hồ sơ" },
+                        { value: "Trả kết quả", label: "Trả kết quả" },
+                        { value: "Hoàn thành", label: "Hoàn thành" },
                         { value: "Đang xử lý", label: "Đang xử lý" },
                         { value: "Đã duyệt", label: "Đã duyệt" },
                         { value: "Từ chối", label: "Từ chối" }
@@ -1167,8 +1193,8 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
           {/* Submit Button */}
           <div className="col-12 mt-3 text-center">
             <button type="button" onClick={handleSave} disabled={loading} 
-              style={{ width: "220px", padding: "10px 16px", backgroundColor: "#22c55e", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: loading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", margin: "0 auto", boxShadow: "0 6px 16px rgba(34, 197, 94, 0.35)" }}>
-              {loading ? <span className="spinner-border spinner-border-sm"></span> : "Đăng ký Dịch Vụ"}
+              style={{ width: "220px", padding: "10px 16px", backgroundColor: submitBg, color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: loading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", margin: "0 auto", boxShadow: submitShadow }}>
+              {loading ? <span className="spinner-border spinner-border-sm"></span> : submitText}
             </button>
           </div>
         </div>

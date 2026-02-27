@@ -410,8 +410,11 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
              // Group services theo serviceType
              const grouped = details.services.reduce((acc, s) => {
                const type = s.serviceType || normalizeServiceType(request?.LoaiDichVu) || "";
-               if (!acc[type]) acc[type] = [];
-               acc[type].push({
+               if (!acc[type]) acc[type] = { rows: [], note: "" };
+               if (!acc[type].note) {
+                 acc[type].note = String(s.note || s.ghiChu || s.serviceNote || "").trim();
+               }
+               acc[type].rows.push({
                  name: s.name || "",
                  donvi: s.donvi || "",
                  soluong: String(s.soluong || "1"),
@@ -425,10 +428,10 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
              }, {});
              
              // Convert grouped object to array of sections
-             return Object.entries(grouped).map(([serviceType, rows]) => ({
+             return Object.entries(grouped).map(([serviceType, group]) => ({
                serviceType,
-               note: "",
-               rows
+               note: group.note || "",
+               rows: group.rows
              }));
         }
         if (details.sub && details.sub.length > 0) {
@@ -705,6 +708,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
       ? {
           HoTen: "", MaVung: "+84", SoDienThoai: "", Email: "",
           NoiDung: "", GhiChu: "", TenHinhThuc: "",
+          NoiTiepNhanHoSo: "", DiaChiNhan: "",
           CoSoTuVan: "", Gio: "", ChonNgay: "",
           LoaiDichVu: "", DanhMuc: "", TenDichVu: "",
           MaHoSo: "", NguoiPhuTrachId: currentUser?.id || "",
@@ -737,6 +741,8 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           TenDichVu: request.TenDichVu || "",
           NoiDung: request.NoiDung || "",
           GhiChu: request.GhiChu || "",
+          NoiTiepNhanHoSo: request.NoiTiepNhanHoSo || "",
+          DiaChiNhan: request.DiaChiNhan || request.NoiTiepNhanHoSo || "",
           DoanhThuTruocChietKhau: formatNumber(request.DoanhThuTruocChietKhau),
           NgayBatDau: request.NgayBatDau ? new Date(request.NgayBatDau).toISOString().split("T")[0] : "",
           NgayKetThuc: request.NgayKetThuc ? new Date(request.NgayKetThuc).toISOString().split("T")[0] : "",
@@ -819,7 +825,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     const validServices = serviceSections.flatMap((section) =>
       section.rows
         .filter((row) => row.name && row.name.trim() !== "")
-        .map((row) => ({ ...row, serviceType: section.serviceType || "" }))
+        .map((row) => ({ ...row, serviceType: section.serviceType || "", note: section.note || "" }))
     );
     const firstSelectedServiceType = serviceSections.find((section) => section.serviceType)?.serviceType || "";
     
@@ -848,6 +854,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
       
       return {
         name: row.name,
+        note: row.note || "",
         donvi: row.donvi,
         soluong: soluong,
         loaigoi: row.loaigoi,
@@ -884,12 +891,18 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           tax: roundedTax,
           discount: roundedDiscount,
           total: roundedFinalRevenue
+        },
+        meta: {
+          receivingOffice: String(formData.NoiTiepNhanHoSo || "").trim(),
+          receivingAddress: String(formData.DiaChiNhan || "").trim()
         }
       }
     };
+
+    delete payload.NoiTiepNhanHoSo;
+    delete payload.DiaChiNhan;
     
     delete payload.ConfirmPassword;
-    delete payload.NoiTiepNhanHoSo;
 
     // 5. Upload file nếu có
     if (uploadedFile) {
@@ -911,8 +924,10 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
       }
     }
 
+    const { DiaChiNhan: _removedDiaChiNhan, NoiTiepNhanHoSo: _removedNoiTiepNhanHoSo, ...safePayload } = payload;
+
     setLoading(true);
-    await onSave(payload);
+    await onSave(safePayload);
     setLoading(false);
   };
 
@@ -1122,7 +1137,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                   </div>
                 </div>
               </div>
-              
+
               {/* Hidden field for NgayKetThuc */}
               <input type="hidden" name="NgayKetThuc" value={formData.NgayKetThuc || ""} />
             </div>
@@ -1438,6 +1453,27 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
             </div>
           </div>
 
+          <div className="col-12" style={{ display: "flex", gap: "30px", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ minWidth: "320px", width: "320px", flexShrink: 0, borderBottom: "1px solid #e5e7eb", paddingBottom: "6px" }}>
+              <label style={{...labelStyle, fontSize: "13px", marginBottom: "0"}}>
+                Kênh liên hệ
+              </label>
+              <p style={{ fontSize: "11px", color: "#9ca3af", margin: "2px 0 0 0", fontStyle: "italic" }}>
+                Chọn kênh tiếp nhận khách hàng
+              </p>
+            </div>
+            <div style={{ width: "320px" }}>
+              <ModernSelect
+                name="TenHinhThuc"
+                height="36px"
+                value={formData.TenHinhThuc}
+                placeholder={t.selectForm}
+                options={formOptions.map((form) => ({ value: form, label: form }))}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+
           {/* NƠI TIẾP NHẬN HỒ SƠ */}
           <div className="col-12" style={{ display: "flex", gap: "30px", alignItems: "center", justifyContent: "center" }}>
             <div style={{ minWidth: "320px", width: "320px", flexShrink: 0, borderBottom: "1px solid #e5e7eb", paddingBottom: "6px" }}>
@@ -1455,6 +1491,28 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                 value={formData.NoiTiepNhanHoSo || ""}
                 onChange={handleInputChange}
                 placeholder="Nhập nơi tiếp nhận hồ sơ"
+                style={{...inputStyle, height: "36px"}}
+              />
+            </div>
+          </div>
+
+          {/* ĐỊA CHỈ NHẬN */}
+          <div className="col-12" style={{ display: "flex", gap: "30px", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ minWidth: "320px", width: "320px", flexShrink: 0, borderBottom: "1px solid #e5e7eb", paddingBottom: "6px" }}>
+              <label style={{...labelStyle, fontSize: "13px", marginBottom: "0"}}>
+                Địa chỉ nhận
+              </label>
+              <p style={{ fontSize: "11px", color: "#9ca3af", margin: "2px 0 0 0", fontStyle: "italic" }}>
+                Địa chỉ nhận hồ sơ từ khách hàng
+              </p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", width: "320px" }}>
+              <input
+                type="text"
+                name="DiaChiNhan"
+                value={formData.DiaChiNhan || ""}
+                onChange={handleInputChange}
+                placeholder="Nhập địa chỉ nhận"
                 style={{...inputStyle, height: "36px"}}
               />
             </div>
@@ -1768,6 +1826,7 @@ const RowItem = ({
               isMain: idx === 0,
               name: serviceName,
               serviceType: serviceType,
+              note: String(service.note || service.ghiChu || service.serviceNote || "").trim(),
               revenue: revenue,
               discount: chietkhau,
               revenueAfterDiscount: revenueAfterDiscount
@@ -1780,6 +1839,7 @@ const RowItem = ({
       const mainData = {
           isMain: true,
           name: item.DanhMuc ? item.DanhMuc.split(" + ")[0] : "",
+          note: String(details?.main?.note || details?.main?.ghiChu || "").trim(),
           revenue: (details.main && details.main.revenue !== undefined) ? details.main.revenue : item.DoanhThuTruocChietKhau,
           discount: (details.main && details.main.discount !== undefined) ? details.main.discount : item.MucChietKhau,
       };
@@ -1791,6 +1851,7 @@ const RowItem = ({
               rowsToRender.push({
                   isMain: false,
                   name: sub.name,
+                  note: String(sub.note || sub.ghiChu || "").trim(),
                   revenue: sub.revenue,
                   discount: sub.discount
               });
@@ -1803,6 +1864,7 @@ const RowItem = ({
                   rowsToRender.push({
                       isMain: false,
                       name: subName,
+                    note: "",
                       revenue: 0, 
                       discount: 0
                   });
@@ -1815,6 +1877,7 @@ const RowItem = ({
       const mainData = {
           isMain: true,
           name: item.DanhMuc ? item.DanhMuc.split(" + ")[0] : "",
+          note: "",
           revenue: item.DoanhThuTruocChietKhau || 0,
           discount: item.MucChietKhau || 0,
       };
@@ -1894,6 +1957,11 @@ const RowItem = ({
 
             {isVisible("hinhThuc") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("hinhThuc")}`} style={mergedStyle}>{item.TenHinhThuc}</td>}
             {isVisible("coSo") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("coSo")}`} style={mergedStyle}>{translateBranch(item.CoSoTuVan)}</td>}
+            {isVisible("diaChiNhan") && isFirst && (
+              <td rowSpan={rowSpanCount} className={`${getStickyClass("diaChiNhan")}`} style={{ ...mergedStyle, minWidth: "180px", maxWidth: "260px", whiteSpace: "normal", wordBreak: "break-word" }}>
+                {item.DiaChiNhan || item.NoiTiepNhanHoSo || details?.meta?.receivingAddress || details?.meta?.receivingOffice || ""}
+              </td>
+            )}
             {isVisible("loaiDichVu") && (
                 <td className={`text-center text-truncate ${getStickyClass("loaiDichVu")}`} style={{ maxWidth: "150px", verticalAlign: "middle", backgroundColor: "#fff", borderBottom: "1px solid #dee2e6" }}>
                     {/* Hiển thị serviceType của từng row thay vì item.LoaiDichVu tổng hợp */}
@@ -1910,6 +1978,11 @@ const RowItem = ({
                 </td>
             )}
             {isVisible("maDichVu") && <td className={`text-center ${getStickyClass("maDichVu")}`} style={{width:130, verticalAlign: "middle", backgroundColor: "#fff", borderBottom: "1px solid #dee2e6"}}>{rowServiceCode}</td>}
+            {isVisible("ghiChuDichVu") && (
+              <td className={`${getStickyClass("ghiChuDichVu")}`} style={{ minWidth: "150px", maxWidth: "220px", verticalAlign: "middle", backgroundColor: "#fff", borderBottom: "1px solid #dee2e6", whiteSpace: "normal", wordBreak: "break-word" }}>
+                {row.note || ""}
+              </td>
+            )}
 
             {(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) && isVisible("nguoiPhuTrach") && isFirst && (
                 <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("nguoiPhuTrach")}`} style={mergedStyle}>
@@ -2093,8 +2166,8 @@ const B2CPage = () => {
   const tableHeadersTranslations = {
     vi: {
       stt: "STT", khachHang: "Khách hàng", maVung: "Mã vùng", soDienThoai: "Số Điện Thoại", email: "Email",
-      kenhLienHe: "Kênh Liên Hệ", coSo: "Cơ sở", loaiDichVu: "Loại Dịch Vụ", danhMuc: "Tên Dịch Vụ", tenDichVu: "Tên Dịch Vụ",
-      maDichVu: "Mã Dịch Vụ", nguoiPhuTrach: "Người phụ trách", ngayHen: "Ngày hẹn", ngayBatDau: "Ngày bắt đầu",
+      kenhLienHe: "Kênh Liên Hệ", coSo: "Cơ sở", diaChiNhan: "Địa chỉ nhận", loaiDichVu: "Loại Dịch Vụ", danhMuc: "Tên Dịch Vụ", tenDichVu: "Tên Dịch Vụ",
+      maDichVu: "Mã Dịch Vụ", ghiChuDichVu: "Ghi chú DV", nguoiPhuTrach: "Người phụ trách", ngayHen: "Ngày hẹn", ngayBatDau: "Ngày bắt đầu",
       ngayKetThuc: "Ngày kết thúc", trangThai: "Trạng thái", goi: "Gói", invoiceYN: "Invoice Y/N", invoice: "Invoice",
       gio: "Giờ", noiDung: "Nội dung", ghiChu: "Ghi chú", ngayTao: "Ngày tạo",
       doanhThuTruoc: "Doanh Thu Trước CK", mucChietKhau: "% CK", soTienChietKhau: "Tiền Chiết Khấu",
@@ -2103,8 +2176,8 @@ const B2CPage = () => {
     },
     en: {
       stt: "No.", khachHang: "Customer", maVung: "Area Code", soDienThoai: "Phone", email: "Email",
-      kenhLienHe: "Channel", coSo: "Branch", loaiDichVu: "Service Type", danhMuc: "Service Name", tenDichVu: "Service Name",
-      maDichVu: "Service Code", nguoiPhuTrach: "Assignee", ngayHen: "Appointment Date", ngayBatDau: "Start Date",
+      kenhLienHe: "Channel", coSo: "Branch", diaChiNhan: "Receiving Address", loaiDichVu: "Service Type", danhMuc: "Service Name", tenDichVu: "Service Name",
+      maDichVu: "Service Code", ghiChuDichVu: "Service Note", nguoiPhuTrach: "Assignee", ngayHen: "Appointment Date", ngayBatDau: "Start Date",
       ngayKetThuc: "End Date", trangThai: "Status", goi: "Package", invoiceYN: "Invoice Y/N", invoice: "Invoice",
       gio: "Time", noiDung: "Content", ghiChu: "Note", ngayTao: "Created",
       doanhThuTruoc: "Revenue Before Discount", mucChietKhau: "Discount %", soTienChietKhau: "Discount Amount",
@@ -2113,8 +2186,8 @@ const B2CPage = () => {
     },
     ko: {
       stt: "번호", khachHang: "고객", maVung: "지역번호", soDienThoai: "전화번호", email: "이메일",
-      kenhLienHe: "채널", coSo: "지점", loaiDichVu: "서비스 유형", danhMuc: "서비스명", tenDichVu: "서비스명",
-      maDichVu: "서비스 코드", nguoiPhuTrach: "담당자", ngayHen: "약속 날짜", ngayBatDau: "시작일",
+      kenhLienHe: "채널", coSo: "지점", diaChiNhan: "수령 주소", loaiDichVu: "서비스 유형", danhMuc: "서비스명", tenDichVu: "서비스명",
+      maDichVu: "서비스 코드", ghiChuDichVu: "서비스 비고", nguoiPhuTrach: "담당자", ngayHen: "약속 날짜", ngayBatDau: "시작일",
       ngayKetThuc: "종료일", trangThai: "상태", goi: "패키지", invoiceYN: "청구서 Y/N", invoice: "청구서",
       gio: "시간", noiDung: "내용", ghiChu: "비고", ngayTao: "생성일",
       doanhThuTruoc: "할인 전 매출", mucChietKhau: "할인 %", soTienChietKhau: "할인 금액",
@@ -2152,9 +2225,11 @@ const initialColumnKeys = [
     { key: "email", label: tHeaders.email },
     { key: "hinhThuc", label: tHeaders.kenhLienHe },
     { key: "coSo", label: tHeaders.coSo },
+    { key: "diaChiNhan", label: tHeaders.diaChiNhan },
     { key: "loaiDichVu", label: tHeaders.loaiDichVu },
     { key: "danhMuc", label: tHeaders.danhMuc },
     { key: "maDichVu", label: tHeaders.maDichVu },
+    { key: "ghiChuDichVu", label: tHeaders.ghiChuDichVu },
     ...(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant ? [{ key: "nguoiPhuTrach", label: tHeaders.nguoiPhuTrach }] : []),
     { key: "ngayHen", label: tHeaders.ngayHen },
     { key: "ngayBatDau", label: tHeaders.ngayBatDau },
@@ -2224,7 +2299,8 @@ const handleApproveClick = (item) => {
 
 const tableHeaders = [
     tHeaders.stt, tHeaders.khachHang, tHeaders.maVung, tHeaders.soDienThoai, tHeaders.email, 
-    tHeaders.kenhLienHe, tHeaders.coSo, tHeaders.loaiDichVu, tHeaders.danhMuc, tHeaders.maDichVu,
+  tHeaders.kenhLienHe, tHeaders.coSo, tHeaders.diaChiNhan, tHeaders.loaiDichVu, tHeaders.danhMuc, tHeaders.maDichVu,
+  tHeaders.ghiChuDichVu,
     ...((currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) ? [tHeaders.nguoiPhuTrach] : []),
     tHeaders.ngayHen, tHeaders.ngayBatDau,
     tHeaders.ngayKetThuc, tHeaders.trangThai, tHeaders.goi, tHeaders.invoiceYN,
@@ -2311,6 +2387,29 @@ const fetchData = async () => {
 
       
       const payload = { ...formData };
+
+      let details = payload.ChiTietDichVu;
+      if (typeof details === "string") {
+        try {
+          details = JSON.parse(details);
+        } catch {
+          details = {};
+        }
+      }
+      if (!details || typeof details !== "object" || Array.isArray(details)) {
+        details = {};
+      }
+      const hasReceivingOffice = payload.NoiTiepNhanHoSo !== undefined && payload.NoiTiepNhanHoSo !== null;
+      const hasReceivingAddress = payload.DiaChiNhan !== undefined && payload.DiaChiNhan !== null;
+      details.meta = {
+        ...(details.meta || {}),
+        ...(hasReceivingOffice ? { receivingOffice: String(payload.NoiTiepNhanHoSo || "").trim() } : {}),
+        ...(hasReceivingAddress ? { receivingAddress: String(payload.DiaChiNhan || "").trim() } : {})
+      };
+      payload.ChiTietDichVu = details;
+
+      delete payload.NoiTiepNhanHoSo;
+      delete payload.DiaChiNhan;
       if (method === "POST") {
         payload.currentUserId = currentUser?.id;
       } else {
@@ -2368,15 +2467,17 @@ const fetchData = async () => {
           payload.NguoiPhuTrachId = null;
       }
 
+      const { DiaChiNhan: _removedDiaChiNhan, NoiTiepNhanHoSo: _removedNoiTiepNhanHoSo, ...safePayload } = payload;
+
       const res = await fetch(url, {
         method: method, 
         headers: { "Content-Type": "application/json" }, 
-        body: JSON.stringify(payload), 
+        body: JSON.stringify(safePayload), 
       });
 
       if (!res.ok) {
         const errText = await res.text();
-        console.error("API /yeucau error", res.status, errText, payload);
+        console.error("API /yeucau error", res.status, errText, safePayload);
         showToast(errText || `Lỗi server (${res.status})`, "error");
         return;
       }
@@ -2388,7 +2489,7 @@ const fetchData = async () => {
         fetchData();
         setEditingRequest(null);
       } else { 
-        console.error("API /yeucau returned error", json, payload);
+        console.error("API /yeucau returned error", json, safePayload);
         showToast(json.message || "Lỗi xử lý", "error"); 
       }
     } catch (err) { 
@@ -2668,7 +2769,9 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
 
     delete payload.InvoiceFile; // Xoá file object khỏi payload
     
-    await onConfirm(request.YeuCauID, payload);
+    const { DiaChiNhan: _removedDiaChiNhan, NoiTiepNhanHoSo: _removedNoiTiepNhanHoSo, ...safePayload } = payload;
+
+    await onConfirm(request.YeuCauID, safePayload);
     setLoading(false);
   };
 
@@ -2955,6 +3058,8 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
       };
       delete payload.NguoiPhuTrach;
       delete payload.User;
+      delete payload.DiaChiNhan;
+      delete payload.NoiTiepNhanHoSo;
 
       const res = await fetch(`${API_BASE}/yeucau/${item.YeuCauID}`, {
         method: "PUT",
