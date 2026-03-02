@@ -13,6 +13,8 @@ import { authenticatedFetch } from "../utils/api";
 import translateService from "../utils/translateService";
 
 const API_BASE = "https://onepasscms-backend-tvdy.onrender.com/api";
+const CUSTOM_SERVICE_OPTION_VALUE = "__ADD_CUSTOM_SERVICE__";
+const CUSTOM_SERVICE_TYPE_VALUE = "__ADD_CUSTOM_SERVICE_TYPE__";
 const B2C_CATEGORY_LIST = {
   "Hộ chiếu, Hộ tịch": [
     "Hộ chiếu cấp mới (Hợp pháp - Trẻ em)",
@@ -104,7 +106,8 @@ const B2C_SERVICE_CODE_MAP = {
   "Sao y bản chính": "SYBC",
   "Dịch Việt - Hàn": "DTVH",
   "Dịch Hàn - Việt": "DTHV",
-  "Dịch BLX": "DTBLX"
+  "Dịch BLX": "DTBLX",
+  "Thêm": "ADD"
 };
 
 const normalizeServiceName = (value) =>
@@ -117,6 +120,12 @@ const normalizeServiceName = (value) =>
     .replace(/\s*\/\s*/g, "/")
     .trim()
     .toLowerCase();
+
+const B2C_KNOWN_SERVICE_NAMES = new Set(
+  Object.values(B2C_CATEGORY_LIST)
+    .flat()
+    .map((name) => normalizeServiceName(name))
+);
 
 const B2C_SERVICE_CODE_MAP_NORMALIZED = Object.entries(B2C_SERVICE_CODE_MAP).reduce((acc, [name, code]) => {
   acc[normalizeServiceName(name)] = code;
@@ -336,7 +345,7 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
   );
 };
 
-const RequestEditModal = ({ request, users, currentUser, onClose, onSave, currentLanguage, dichvuList }) => {
+const RequestEditModal = ({ request, users, currentUser, onClose, onSave, currentLanguage, dichvuList, approveMode = false }) => {
   const isNew = !request || !request.YeuCauID;
 
   // Lấy danh sách dịch vụ từ API
@@ -386,6 +395,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
 
   const createEmptyServiceRow = () => ({
     name: "",
+    isCustomService: false,
     donvi: "",
     soluong: "1",
     loaigoi: "",
@@ -411,11 +421,20 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
              const grouped = details.services.reduce((acc, s) => {
                const type = s.serviceType || normalizeServiceType(request?.LoaiDichVu) || "";
                if (!acc[type]) acc[type] = { rows: [], note: "" };
+               const normalizedType = normalizeServiceType(type);
+               const knownServices = B2C_CATEGORY_LIST[normalizedType] || [];
+               const serviceName = s.name || "";
+               const isCustomService = Boolean(
+                 s.isCustomService ||
+                 s.codePrefix === "ADD" ||
+                 (serviceName && !knownServices.includes(serviceName))
+               );
                if (!acc[type].note) {
                  acc[type].note = String(s.note || s.ghiChu || s.serviceNote || "").trim();
                }
                acc[type].rows.push({
-                 name: s.name || "",
+                 name: serviceName,
+                 isCustomService,
                  donvi: s.donvi || "",
                  soluong: String(s.soluong || "1"),
                  loaigoi: normalizePackageOption(s.loaigoi) || "",
@@ -440,6 +459,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                note: "",
                rows: details.sub.map(s => ({
                  name: s.name || "",
+                 isCustomService: false,
                  donvi: s.donvi || "",
                  soluong: String(s.soluong || "1"),
                  loaigoi: normalizePackageOption(s.loaigoi) || "",
@@ -530,10 +550,15 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   const handleServiceTypeChange = (sectionIndex, value) => {
     setServiceSections((prev) => {
       const next = [...prev];
+      const isCustomServiceType = value === CUSTOM_SERVICE_TYPE_VALUE;
       next[sectionIndex] = {
         ...next[sectionIndex],
         serviceType: value,
-        rows: next[sectionIndex].rows.map((row) => ({ ...row, name: "" }))
+        rows: next[sectionIndex].rows.map((row) => ({
+          ...row,
+          name: "",
+          isCustomService: isCustomServiceType
+        }))
       };
       return next;
     });
@@ -551,7 +576,24 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     const nextSections = [...serviceSections];
     const section = { ...nextSections[sectionIndex] };
     const rows = [...section.rows];
-    rows[rowIndex] = { ...rows[rowIndex], [field]: value };
+
+    if (field === "name") {
+      if (value === CUSTOM_SERVICE_OPTION_VALUE) {
+        rows[rowIndex] = {
+          ...rows[rowIndex],
+          name: "",
+          isCustomService: true
+        };
+      } else {
+        rows[rowIndex] = {
+          ...rows[rowIndex],
+          [field]: value,
+          isCustomService: rows[rowIndex].isCustomService
+        };
+      }
+    } else {
+      rows[rowIndex] = { ...rows[rowIndex], [field]: value };
+    }
 
     // Tự động tính thành tiền khi có đủ dữ liệu
     if (field === "soluong" || field === "dongia" || field === "thue" || field === "chietkhau") {
@@ -655,45 +697,45 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
 
   const translations = {
     vi: {
-      title: isNew ? "Đăng ký dịch vụ mới (B2C)" : `Cập nhật yêu cầu #${request?.YeuCauID || ""}`,
-      subtitle: "Nhập thông tin khách hàng và dịch vụ",
+      title: approveMode ? "Duyệt hồ sơ & Cấp mã" : (isNew ? "Đăng ký dịch vụ mới (B2C)" : `Cập nhật yêu cầu #${request?.YeuCauID || ""}`),
+      subtitle: approveMode ? "Kiểm tra thông tin trước khi cấp duyệt" : "Nhập thông tin khách hàng và dịch vụ",
       customer: "Khách Hàng", areaCode: "Mã", phone: "Số Điện Thoại", email: "Email",
       serviceType: "Loại Dịch Vụ", category: "Danh Mục", serviceName: "Tên Dịch Vụ",
       package: "Gói", form: "Kênh Liên Hệ", branch: "Cơ Sở Tư Vấn",
       appointmentDate: "Ngày Hẹn", appointmentTime: "Giờ Hẹn", content: "Nội Dung",
       note: "Ghi Chú", assignee: "Người Phụ Trách", status: "Trạng thái",
       confirmPassword: "Mật khẩu xác nhận", 
-      save: isNew ? "Đăng ký dịch vụ mới" : "Lưu thay đổi",
+      save: approveMode ? "DUYỆT & CẤP MÃ HỒ SƠ" : (isNew ? "Đăng ký dịch vụ mới" : "Lưu thay đổi"),
       selectServiceType: "Chọn Loại Dịch Vụ", selectCategory: "Chọn Danh Mục Chi Tiết",
       enterServiceName: "Nhập Tên Dịch Vụ Cụ Thể", selectPackage: "Chọn Gói",
       selectForm: "Chọn Hình Thức", selectBranch: "Chọn Cơ Sở", selectNguoiPT: "Chọn Người Phụ Trách", selectStatus: "Chọn Trạng Thái",
       enterName: "Nhập Tên Khách Hàng", enterPhone: "Nhập Số Điện Thoại", enterEmail: "Nhập Email", enterContent: "Nhập Nội Dung", enterNote: "Nhập Ghi Chú",
     },
     en: {
-      title: isNew ? "Register New Service (B2C)" : `Update Request #${request?.YeuCauID || ""}`,
-      subtitle: "Enter customer and service information",
+      title: approveMode ? "Approve Request" : (isNew ? "Register New Service (B2C)" : `Update Request #${request?.YeuCauID || ""}`),
+      subtitle: approveMode ? "Review information before approval" : "Enter customer and service information",
       customer: "Customer", areaCode: "Code", phone: "Phone", email: "Email",
       serviceType: "Service Type", category: "Category", serviceName: "Service Name",
       package: "Package", form: "Channel", branch: "Branch",
       appointmentDate: "Date", appointmentTime: "Time", content: "Content",
       note: "Note", assignee: "Assignee", status: "Status",
       confirmPassword: "Confirm Password",
-      save: isNew ? "Register New Service" : "Save Changes",
+      save: approveMode ? "APPROVE & GENERATE CODE" : (isNew ? "Register New Service" : "Save Changes"),
       selectServiceType: "Select Type", selectCategory: "Select Category",
       enterServiceName: "Enter Service Name", selectPackage: "Select Package",
       selectForm: "Select Channel", selectBranch: "Select Branch", selectNguoiPT: "Select Assignee", selectStatus: "Select Status",
       enterName: "Enter Name", enterPhone: "Enter Phone", enterEmail: "Enter Email", enterContent: "Enter Content", enterNote: "Enter Note",
     },
     ko: {
-      title: isNew ? "새 서비스 등록 (B2C)" : `요청 #${request?.YeuCauID || ""} 업데이트`,
-      subtitle: "고객 및 서비스 정보 입력",
+      title: approveMode ? "요청 승인 및 코드 발급" : (isNew ? "새 서비스 등록 (B2C)" : `요청 #${request?.YeuCauID || ""} 업데이트`),
+      subtitle: approveMode ? "승인 전에 정보를 확인하세요" : "고객 및 서비스 정보 입력",
       customer: "고객", areaCode: "코드", phone: "전화번호", email: "이메일",
       serviceType: "서비스 유형", category: "카테고리", serviceName: "서비스명",
       package: "패키지", form: "채널", branch: "지점",
       appointmentDate: "날짜", appointmentTime: "시간", content: "내용",
       note: "비고", assignee: "담당자", status: "상태",
       confirmPassword: "비밀번호 확인",
-      save: isNew ? "새 서비스 등록" : "변경 사항 저장",
+      save: approveMode ? "승인 및 코드 발급" : (isNew ? "새 서비스 등록" : "변경 사항 저장"),
       selectServiceType: "유형 선택", selectCategory: "카테고리 선택",
       enterServiceName: "서비스명 입력", selectPackage: "패키지 선택",
       selectForm: "채널 선택", selectBranch: "지점 선택", selectNguoiPT: "담당자 선택", selectStatus: "상태 선택",
@@ -750,6 +792,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   );
 
   const getFilteredServiceOptions = (serviceType) => {
+    if (serviceType === CUSTOM_SERVICE_TYPE_VALUE) return allServiceOptions;
     if (!serviceType) return allServiceOptions;
     const selectedType = normalizeServiceType(serviceType);
     return allServiceOptions.filter((opt) => opt.category === selectedType);
@@ -827,6 +870,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
         .filter((row) => row.name && row.name.trim() !== "")
         .map((row) => ({ ...row, serviceType: section.serviceType || "", note: section.note || "" }))
     );
+    const hasCustomService = validServices.some((row) => row.isCustomService);
     const firstSelectedServiceType = serviceSections.find((section) => section.serviceType)?.serviceType || "";
     
     // Tạo chuỗi DanhMuc (danh sách tên dịch vụ)
@@ -855,6 +899,8 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
       return {
         name: row.name,
         note: row.note || "",
+        isCustomService: Boolean(row.isCustomService),
+        codePrefix: row.isCustomService ? "ADD" : "",
         donvi: row.donvi,
         soluong: soluong,
         loaigoi: row.loaigoi,
@@ -877,8 +923,8 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     // 4. Tạo payload
     const payload = { 
       ...formData,
-      autoApprove: isNew && canApprove,
       LoaiDichVu: firstSelectedServiceType || formData.LoaiDichVu || "",
+      TenDichVu: hasCustomService ? "Thêm" : (formData.TenDichVu || ""),
       DanhMuc: danhMucList,
       DoanhThuTruocChietKhau: roundedRevenue,
       MucChietKhau: Math.round(averageDiscountPercent * 100) / 100,
@@ -1181,6 +1227,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                              backgroundColor="#f3f4f6"
                              options={[
                                { value: "", label: "Chọn loại dịch vụ" },
+                               { value: CUSTOM_SERVICE_TYPE_VALUE, label: "Dịch vụ thêm" },
                                ...serviceTypeOptions
                              ]}
                              onChange={(e) => handleServiceTypeChange(sectionIndex, e.target.value)}
@@ -1201,19 +1248,57 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                              <span style={{ fontSize: "14px", cursor: "grab" }}>⋮⋮</span>
                            </td>
                            <td style={{ padding: "8px" }}>
-                             <ModernSelect
-                               name={`service-${sectionIndex}-${rowIndex}`}
-                               height="32px"
-                               value={row.name}
-                               placeholder={rowIndex === 0 ? "Nhập dịch vụ" : "Chọn"}
-                               noBorder={true}
-                               backgroundColor="white"
-                               options={[
-                                 { value: "", label: "Chọn dịch vụ" },
-                                 ...getFilteredServiceOptions(section.serviceType)
-                               ]}
-                               onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "name", e.target.value)}
-                             />
+                             {row.isCustomService ? (
+                               <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                                 <input
+                                   type="text"
+                                   value={row.name}
+                                   onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "name", e.target.value)}
+                                   placeholder="Gõ dịch vụ"
+                                   style={{
+                                     width: "100%",
+                                     height: "32px",
+                                     padding: "0 8px",
+                                     border: "1px solid #d1d5db",
+                                     borderRadius: "6px",
+                                     fontSize: "13px",
+                                     color: "#111827",
+                                     outline: "none"
+                                   }}
+                                 />
+                                 <button
+                                   type="button"
+                                   onClick={() => handleServiceRowChange(sectionIndex, rowIndex, "name", row.name)}
+                                   style={{
+                                     height: "32px",
+                                     minWidth: "42px",
+                                     border: "1px solid #d1d5db",
+                                     borderRadius: "6px",
+                                     backgroundColor: "#f9fafb",
+                                     color: "#374151",
+                                     fontSize: "11px",
+                                     cursor: "pointer"
+                                   }}
+                                 >
+                                   Chọn
+                                 </button>
+                               </div>
+                             ) : (
+                               <ModernSelect
+                                 name={`service-${sectionIndex}-${rowIndex}`}
+                                 height="32px"
+                                 value={row.name}
+                                 placeholder={rowIndex === 0 ? "Nhập dịch vụ" : "Chọn"}
+                                 noBorder={true}
+                                 backgroundColor="white"
+                                 options={[
+                                   { value: "", label: "Chọn dịch vụ" },
+                                   ...getFilteredServiceOptions(section.serviceType),
+                                   { value: CUSTOM_SERVICE_OPTION_VALUE, label: "Thêm" }
+                                 ]}
+                                 onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "name", e.target.value)}
+                               />
+                             )}
                              {rowIndex === 0 && (
                                <input
                                  type="text"
@@ -1681,7 +1766,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
             </div>
           </div>
 
-          {/* NÚT ĐĂNG KÝ DỊCH VỤ MỚI */}
+          {/* NÚT XÁC NHẬN */}
           <div className="col-12 mt-4">
             <button
               type="button"
@@ -1708,7 +1793,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
               {loading ? (
                 <span className="spinner-border spinner-border-sm"></span>
               ) : (
-                "Đăng ký dịch vụ mới"
+                t.save
               )}
             </button>
           </div>
@@ -1793,6 +1878,8 @@ const RowItem = ({
       : (item.ChiTietDichVu || { main: {}, sub: [] });
 
   let rowsToRender = [];
+  let hasCustomServiceInRecord = false;
+  let hasRegularServiceInRecord = false;
 
   // HỖ TRỢ CẤU TRÚC MỚI: {services: [...], totals: {...}}
   if (details.services && Array.isArray(details.services) && details.services.length > 0) {
@@ -1800,6 +1887,17 @@ const RowItem = ({
       const serviceNames = (item.DanhMuc || "").split(" + ").map(s => s.trim()).filter(Boolean);
       
       details.services.forEach((service, idx) => {
+          const serviceName = service.name || serviceNames[idx] || "";
+          const isKnownServiceName = B2C_KNOWN_SERVICE_NAMES.has(normalizeServiceName(serviceName));
+          const isCustomService = Boolean(
+            service?.isCustomService ||
+            String(service?.codePrefix || "").trim().toUpperCase() === "ADD" ||
+            !isKnownServiceName
+          );
+
+          if (isCustomService) hasCustomServiceInRecord = true;
+          else hasRegularServiceInRecord = true;
+
           const soluong = parseFloat(service.soluong) || 1;
           const dongia = parseFloat(service.dongia) || 0;
           const thue = parseFloat(service.thue) || 0;
@@ -1813,8 +1911,6 @@ const RowItem = ({
           
           // Lấy serviceType từ tên dịch vụ (map với B2C_CATEGORY_LIST)
           let serviceType = item.LoaiDichVu || "";
-          const serviceName = service.name || serviceNames[idx] || "";
-          
           // Tìm loại dịch vụ từ B2C_CATEGORY_LIST dựa trên tên
           Object.entries(B2C_CATEGORY_LIST).forEach(([category, items]) => {
               if (items.includes(serviceName)) {
@@ -1826,6 +1922,7 @@ const RowItem = ({
               isMain: idx === 0,
               name: serviceName,
               serviceType: serviceType,
+              isCustomService,
               note: String(service.note || service.ghiChu || service.serviceNote || "").trim(),
               revenue: revenue,
               discount: chietkhau,
@@ -1839,6 +1936,7 @@ const RowItem = ({
       const mainData = {
           isMain: true,
           name: item.DanhMuc ? item.DanhMuc.split(" + ")[0] : "",
+          isCustomService: false,
           note: String(details?.main?.note || details?.main?.ghiChu || "").trim(),
           revenue: (details.main && details.main.revenue !== undefined) ? details.main.revenue : item.DoanhThuTruocChietKhau,
           discount: (details.main && details.main.discount !== undefined) ? details.main.discount : item.MucChietKhau,
@@ -1851,6 +1949,7 @@ const RowItem = ({
               rowsToRender.push({
                   isMain: false,
                   name: sub.name,
+                  isCustomService: false,
                   note: String(sub.note || sub.ghiChu || "").trim(),
                   revenue: sub.revenue,
                   discount: sub.discount
@@ -1864,6 +1963,7 @@ const RowItem = ({
                   rowsToRender.push({
                       isMain: false,
                       name: subName,
+                    isCustomService: false,
                     note: "",
                       revenue: 0, 
                       discount: 0
@@ -1877,12 +1977,15 @@ const RowItem = ({
       const mainData = {
           isMain: true,
           name: item.DanhMuc ? item.DanhMuc.split(" + ")[0] : "",
+          isCustomService: false,
           note: "",
           revenue: item.DoanhThuTruocChietKhau || 0,
           discount: item.MucChietKhau || 0,
       };
       rowsToRender.push(mainData);
   }
+
+  const shouldHideServiceCode = hasCustomServiceInRecord && hasRegularServiceInRecord;
 
   const rowSpanCount = rowsToRender.length;
 
@@ -2264,12 +2367,26 @@ const handleApproveClick = (item) => {
 
  const handleConfirmApprove = async (id, fullFormData) => {
     try {
+        const normalizeNullable = (value) => {
+          if (value === undefined || value === null) return null;
+          if (typeof value === "string" && value.trim() === "") return null;
+          return value;
+        };
+
+        const normalizedPayload = {
+          ...fullFormData,
+          ChonNgay: normalizeNullable(fullFormData?.ChonNgay),
+          Gio: normalizeNullable(fullFormData?.Gio),
+          NgayBatDau: normalizeNullable(fullFormData?.NgayBatDau),
+          NgayKetThuc: normalizeNullable(fullFormData?.NgayKetThuc),
+        };
+
         const res = await fetch(`${API_BASE}/yeucau/approve/${id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
                 userId: currentUser.id,
-                ...fullFormData // Gửi tất cả thông tin form + tài chính
+                ...normalizedPayload // Gửi tất cả thông tin form + tài chính
             }),
         });
         const json = await res.json();
@@ -2784,6 +2901,14 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
   };
 
   const serviceTypeList = dichvuList?.map(dv => dv.LoaiDichVu) || [];
+  const getDanhMucOptions = (serviceType) => {
+    if (!serviceType) return [];
+    const normalizedType = normalizeServiceName(serviceType);
+    const match = Object.entries(B2C_CATEGORY_LIST).find(
+      ([key]) => normalizeServiceName(key) === normalizedType
+    );
+    return match ? match[1] : [];
+  };
   const packageOptions = [
     { value: "thường", label: "Thường" },
     { value: "gấp 1", label: "Gấp 1" },
@@ -2801,6 +2926,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
 ];
   const areaCodes = [{ value: "+82", label: "+82" }, { value: "+84", label: "+84" }];
   const statusOptions = currentLanguage === "vi" ? ["Tư vấn", "Tiến hành", "Hoàn thành"] : ["Consultation", "Processing", "Completed"];
+  const currencyOptions = [{ value: 0, label: "VND" }, { value: 1, label: "KRW" }];
   const discountOptions = [{ value: 0, label: "0%" }, { value: 5, label: "5%" }, { value: 10, label: "10%" }, { value: 12, label: "12%" }, { value: 15, label: "15%" }, { value: 17, label: "17%" }, { value: 30, label: "30%" }];
 
   return (
@@ -3147,14 +3273,15 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
           />
         )}
         {approveModalItem && (
-          <ApproveModal 
+          <RequestEditModal
             request={approveModalItem}
-            users={users} 
-            currentUser={currentUser} 
+            users={users}
+            currentUser={currentUser}
             currentLanguage={currentLanguage}
-            dichvuList={dichvuList} 
+            dichvuList={dichvuList}
+            approveMode={true}
             onClose={() => setApproveModalItem(null)}
-            onConfirm={handleConfirmApprove}
+            onSave={(payload) => handleConfirmApprove(approveModalItem.YeuCauID, payload)}
           />
         )}
        {editingRequest && (

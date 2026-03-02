@@ -1117,7 +1117,7 @@ const handleFilter = () => {
               
                 <div className="text-end bg-white px-3 py-2 rounded border border-primary shadow-sm" style={{minWidth: 200, marginRight: 10}}>
                     <div className="text-muted text-uppercase small fw-bold mb-0" style={{fontSize: "11px"}}>{t.totalRevenue}:</div>
-                    <div className="fw-bold text-primary" style={{fontSize: "18px", lineHeight: "1.2"}}>{formatCurrency(currentTotalRevenue)} {t.revenueUnit}</div>
+                    <div className="fw-bold text-primary" style={{fontSize: "18px", lineHeight: "1.2"}}>{formatCurrency(currentTotalRevenue)} WON</div>
                 </div>
        
                 <div className="d-flex align-items-center gap-2" style={{marginRight: 10}}>

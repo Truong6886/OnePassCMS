@@ -6,6 +6,7 @@ const Header = ({ currentUser, onToggleSidebar, showSidebar, onOpenEditModal, ha
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const languageDropdownRef = useRef(null);
+  const accountDisplayName = currentUser?.name || currentUser?.username || "User";
   const headerTexts = {
     editProfile: {
       vi: "Sửa thông tin",
@@ -67,7 +68,7 @@ const Header = ({ currentUser, onToggleSidebar, showSidebar, onOpenEditModal, ha
         transition: "left 0.3s ease-in-out"
       }}
     >
-      <div className="d-flex align-items-center">
+      <div className="d-flex align-items-center" style={{ gap: "12px", minWidth: 0 }}>
         <button
           onClick={onToggleSidebar}
           style={{
@@ -86,6 +87,21 @@ const Header = ({ currentUser, onToggleSidebar, showSidebar, onOpenEditModal, ha
         >
           ☰
         </button>
+
+        <div
+          title={accountDisplayName}
+          style={{
+            color: "#374151",
+            fontSize: "28px",
+            fontWeight: 700,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            maxWidth: "320px"
+          }}
+        >
+          {accountDisplayName}
+        </div>
       </div>
 
       {/* Bell + Language + Avatar Section */}

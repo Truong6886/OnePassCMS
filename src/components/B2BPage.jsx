@@ -115,10 +115,24 @@ const parseMoney = (str) => {
 };
 
 const hasB2BApprovePermission = (user) =>
-  Boolean(user?.is_admin || user?.is_director || user?.perm_approve_b2b);
+  Boolean(user?.is_admin || user?.is_director || user?.is_accountant || user?.perm_approve_b2b);
 
 const hasRevenueViewPermission = (user) =>
   Boolean(user?.is_admin || user?.is_director || user?.is_accountant || user?.perm_view_revenue);
+
+const isPendingServiceStatus = (statusValue) => {
+  const normalized = String(statusValue || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  return (
+    normalized.includes("cho") ||
+    normalized.includes("pending") ||
+    normalized.includes("dang ky moi")
+  );
+};
 
 export default function B2BPage() {
   const [expandedRowId, setExpandedRowId] = useState(null);
@@ -298,8 +312,7 @@ export default function B2BPage() {
       const isApproveMode = serviceModalMode === "approve";
       const isApprovalFlow = Boolean(
         editingServiceData?.id &&
-        isApproveMode &&
-        hasB2BApprovePermission(currentUser)
+        isApproveMode
       );
 
       const apiPayload = {
@@ -688,6 +701,7 @@ export default function B2BPage() {
       tongDoanhThuTichLuy: "Tổng Doanh Thu",
       hanhDong: "Hành động",
       msgWalletLimit: "Số tiền ví không được quá 2.000.000",
+      noiTiepNhanHoSo: "Nơi tiếp nhận hồ sơ",
       diaChiNhan: "Địa chỉ nhận",
       diaChiNhanPlaceholder: "Nhập địa chỉ nhận hồ sơ"
     },
@@ -732,6 +746,7 @@ export default function B2BPage() {
       suDungVi: "Wallet Usage",
       hanhDong: "Actions",
       msgWalletLimit: "Wallet usage cannot exceed 2,000,000",
+      noiTiepNhanHoSo: "Receiving Office",
       diaChiNhan: "Receiving Address",
       diaChiNhanPlaceholder: "Enter receiving address"
     },
@@ -776,6 +791,7 @@ export default function B2BPage() {
       tongDoanhThuTichLuy: "총 매출",
       hanhDong: "작업",
       msgWalletLimit: "지갑 사용 금액은 2,000,000을 초과할 수 없습니다",
+      noiTiepNhanHoSo: "접수 기관",
       diaChiNhan: "수령 주소",
       diaChiNhanPlaceholder: "수령 주소를 입력하세요"
     }
@@ -872,38 +888,52 @@ export default function B2BPage() {
 
       const json = await res.json();
       if (json.success) {
-        const formattedData = (json.data || []).map((item, index) => ({
-          ...item,
-          id: item.ID,
-          uiId: item.ID ? `server_${item.ID}` : `temp_${index}_${Date.now()}`,
-          companyId: item.DoanhNghiepID,
-          companyName: item.TenDoanhNghiep,
-          soDKKD: item.SoDKKD,
-          phoneNumber: item.SoDienThoai || item.PhoneNumber || item.phoneNumber || "",
-          email: item.Email || item.email || "",
-          serviceType: item.LoaiDichVu,
-          serviceName: item.TenDichVu,
-          DiaChiNhan: item.DiaChiNhan || "",
-          package: item.GoiDichVu,
-          invoiceYN: item.YeuCauHoaDon,
-          invoiceUrl: item.InvoiceUrl,
-          picId: item.NguoiPhuTrachId,
-          picName: item.NguoiPhuTrach ? (item.NguoiPhuTrach.username || item.NguoiPhuTrach.name) : "",
-          code: item.MaDichVu,
-          startDate: item.NgayThucHien?.split("T")[0],
-          endDate: item.NgayHoanThanh?.split("T")[0],
-          revenueBefore: item.DoanhThuTruocChietKhau,
-          discountRate: item.MucChietKhau,
-          discountAmount: item.SoTienChietKhau,
-          revenueAfter: item.DoanhThuSauChietKhau,
-          ChiTietDichVu: (typeof item.ChiTietDichVu === "string"
-            ? JSON.parse(item.ChiTietDichVu)
-            : item.ChiTietDichVu) || { main: {}, sub: [] },
-          totalRevenue: item.TongDoanhThuTichLuy,
-          walletUsage: item.Vi,
-          status: item.TrangThai,
-          isNew: false
-        }));
+        const formattedData = (json.data || []).map((item, index) => {
+          let parsedChiTietDichVu = { main: {}, sub: [] };
+          if (item.ChiTietDichVu) {
+            if (typeof item.ChiTietDichVu === "string") {
+              try {
+                parsedChiTietDichVu = JSON.parse(item.ChiTietDichVu) || { main: {}, sub: [] };
+              } catch (error) {
+                parsedChiTietDichVu = { main: {}, sub: [] };
+              }
+            } else {
+              parsedChiTietDichVu = item.ChiTietDichVu;
+            }
+          }
+
+          return {
+            ...item,
+            id: item.ID,
+            uiId: item.ID ? `server_${item.ID}` : `temp_${index}_${Date.now()}`,
+            companyId: item.DoanhNghiepID,
+            companyName: item.TenDoanhNghiep,
+            soDKKD: item.SoDKKD,
+            phoneNumber: item.SoDienThoai || item.PhoneNumber || item.phoneNumber || "",
+            email: item.Email || item.email || "",
+            serviceType: item.LoaiDichVu,
+            serviceName: item.TenDichVu,
+            NoiTiepNhanHoSo: parsedChiTietDichVu?.meta?.NoiTiepNhanHoSo || "",
+            DiaChiNhan: item.DiaChiNhan || "",
+            package: item.GoiDichVu,
+            invoiceYN: item.YeuCauHoaDon,
+            invoiceUrl: item.InvoiceUrl,
+            picId: item.NguoiPhuTrachId,
+            picName: item.NguoiPhuTrach ? (item.NguoiPhuTrach.username || item.NguoiPhuTrach.name) : "",
+            code: !isPendingServiceStatus(item.TrangThai) ? item.MaDichVu : "",
+            startDate: item.NgayThucHien?.split("T")[0],
+            endDate: item.NgayHoanThanh?.split("T")[0],
+            revenueBefore: item.DoanhThuTruocChietKhau,
+            discountRate: item.MucChietKhau,
+            discountAmount: item.SoTienChietKhau,
+            revenueAfter: item.DoanhThuSauChietKhau,
+            ChiTietDichVu: parsedChiTietDichVu,
+            totalRevenue: item.TongDoanhThuTichLuy,
+            walletUsage: item.Vi,
+            status: item.TrangThai,
+            isNew: false
+          };
+        });
         setServiceData(formattedData);
         setServiceTotal(json.total);
       } else {
@@ -1517,6 +1547,7 @@ export default function B2BPage() {
                     <th className="py-2 border" style={{ width: "120px", whiteSpace: "pre-wrap" }}>{t.chonDN}</th>
                     <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>Số ĐKKD</th>
                     <th className="py-2 border" style={{ width: "219px", whiteSpace: "pre-wrap" }}>{t.hoSo}</th>
+                    <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>{t.noiTiepNhanHoSo}</th>
                     <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>{t.diaChiNhan}</th>
                     <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.loaiDichVu}</th>
                     <th className="py-2 border" style={{ width: "140px", whiteSpace: "pre-wrap" }}>{t.tenDichVu}</th>
@@ -1652,6 +1683,7 @@ export default function B2BPage() {
                                   ) : <div className="text-center text-muted">-</div>}
                                 </td>
 
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, textAlign: 'left' }} title={rec.NoiTiepNhanHoSo || "--"}>{rec.NoiTiepNhanHoSo || "--"}</td>
                                 <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, textAlign: 'left' }} title={rec.DiaChiNhan || "--"}>{rec.DiaChiNhan || "--"}</td>
                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.serviceType}>{rec.serviceType}</td>
                                 <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, whiteSpace: 'normal', lineHeight: '1.5', overflow: 'visible', maxWidth: 'none', textAlign: 'center' }}>

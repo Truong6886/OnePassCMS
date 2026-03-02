@@ -7,6 +7,8 @@ import { authenticatedFetch } from "../utils/api";
 const API_BASE = window.location.hostname === "localhost"
   ? "http://localhost:5000/api"
   : "https://onepasscms-backend-tvdy.onrender.com/api";
+const CUSTOM_SERVICE_OPTION_VALUE = "__ADD_CUSTOM_SERVICE__";
+const CUSTOM_SERVICE_TYPE_VALUE = "__ADD_CUSTOM_SERVICE_TYPE__";
 
 const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false, height = "38px", footerAction, width = "100%", noBorder = false, backgroundColor = "#ffffff" }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -112,7 +114,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
   }, [b2bServiceMapping]);
 
   const createEmptyServiceRow = () => ({
-    name: "", donvi: "", soluong: "1", loaigoi: "thường",
+    name: "", isCustomService: false, donvi: "", soluong: "1", loaigoi: "thường",
     dongia: "", thue: "0", chietkhau: "0", thanhtien: ""
   });
 
@@ -156,6 +158,8 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
         
       // Parse editingService nếu đang edit
       if (editingService) {
+        const details = editingService.ChiTietDichVu || { main: {}, sub: [] };
+        const savedMeta = details?.meta || {};
         const defaultPackage = normalizePackageOption(editingService.package || editingService.GoiDichVu || "thường") || "thường";
         const selectedCompany = companiesList.find(c => String(c.ID) === String(editingService.companyId || editingService.DoanhNghiepID));
         const fallbackPhone = selectedCompany?.SoDienThoai || selectedCompany?.phoneNumber || selectedCompany?.PhoneNumber || "";
@@ -184,12 +188,13 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
           NguoiPhuTrachId: editingService.picId ? String(editingService.picId) : (currentUser?.id ? String(currentUser.id) : ""),
           ConfirmPassword: "",
           YeuCauHoaDon: editingService.invoiceYN || "No",
+          TenHinhThuc: editingService.TenHinhThuc || savedMeta.TenHinhThuc || "",
+          NoiTiepNhanHoSo: savedMeta.NoiTiepNhanHoSo || "",
           DiaChiNhan: editingService.DiaChiNhan || "",
           InvoiceUrl: editingService.InvoiceUrl || ""
         });
-        
+
         // Parse ChiTietDichVu
-        const details = editingService.ChiTietDichVu || { main: {}, sub: [] };
         
         if (details.services && Array.isArray(details.services) && details.services.length > 0) {
           // Cấu trúc mới: Group services theo serviceType
@@ -201,6 +206,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
             }
             acc[type].rows.push({
               name: s.name || "",
+              isCustomService: Boolean(s.isCustomService || (s.codePrefix && String(s.codePrefix).trim().toUpperCase() === "ADD")),
               donvi: s.donvi || "",
               soluong: String(s.soluong || "1"),
               loaigoi: normalizePackageOption(s.loaigoi) || defaultPackage,
@@ -224,6 +230,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
             note: "",
             rows: details.sub.map(s => ({
               name: s.name || "",
+              isCustomService: false,
               donvi: "",
               soluong: "1",
               loaigoi: defaultPackage,
@@ -243,6 +250,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
               note: "",
               rows: parts.map(name => ({
                 name: name.trim(),
+                isCustomService: false,
                 donvi: "",
                 soluong: "1",
                 loaigoi: defaultPackage,
@@ -271,6 +279,8 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
         NguoiPhuTrachId: "",
         ConfirmPassword: "",
         YeuCauHoaDon: "No",
+        TenHinhThuc: "",
+        NoiTiepNhanHoSo: "",
         DiaChiNhan: "",
         InvoiceUrl: ""
       });
@@ -307,9 +317,11 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
 
   const handleServiceTypeChange = (sectionIndex, value) => {
     const newSections = [...serviceSections];
+    const isCustomServiceType = value === CUSTOM_SERVICE_TYPE_VALUE;
     newSections[sectionIndex].serviceType = value;
     newSections[sectionIndex].rows.forEach(row => {
       row.name = "";
+      row.isCustomService = isCustomServiceType;
     });
     setServiceSections(newSections);
   };
@@ -322,7 +334,18 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
 
   const handleServiceRowChange = (sectionIndex, rowIndex, field, value) => {
     const newSections = [...serviceSections];
-    newSections[sectionIndex].rows[rowIndex][field] = value;
+
+    if (field === "name") {
+      if (value === CUSTOM_SERVICE_OPTION_VALUE) {
+        newSections[sectionIndex].rows[rowIndex].name = "";
+        newSections[sectionIndex].rows[rowIndex].isCustomService = true;
+      } else {
+        newSections[sectionIndex].rows[rowIndex].name = value;
+        newSections[sectionIndex].rows[rowIndex].isCustomService = newSections[sectionIndex].rows[rowIndex].isCustomService;
+      }
+    } else {
+      newSections[sectionIndex].rows[rowIndex][field] = value;
+    }
 
     if (field === "soluong" || field === "dongia" || field === "thue" || field === "chietkhau") {
       const soluong = parseFloat(newSections[sectionIndex].rows[rowIndex].soluong) || 0;
@@ -347,6 +370,15 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
     }
 
     setServiceSections(newSections);
+  };
+
+  const getFilteredServiceOptions = (serviceType) => {
+    if (serviceType === CUSTOM_SERVICE_TYPE_VALUE) return allServiceOptions;
+    if (!serviceType) return [];
+    return (b2bServiceMapping[serviceType] || []).map((serviceName) => ({
+      value: serviceName,
+      label: serviceName
+    }));
   };
 
   const calculateTotals = () => {
@@ -389,6 +421,8 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
     NguoiPhuTrachId: "",
     ConfirmPassword: "",
     YeuCauHoaDon: "No",
+    TenHinhThuc: "",
+    NoiTiepNhanHoSo: "",
     DiaChiNhan: "",
     InvoiceUrl: ""
   });
@@ -526,6 +560,8 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
           
           validServices.push({ 
             name: row.name, 
+            isCustomService: Boolean(row.isCustomService),
+            codePrefix: row.isCustomService ? "ADD" : "",
             donvi: row.donvi, 
             soluong, 
             loaigoi: normalizePackageOption(row.loaigoi) || "thường",
@@ -533,7 +569,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
             thue, 
             chietkhau, 
             thanhtien: totalAmount,
-            serviceType: section.serviceType || "",
+            serviceType: section.serviceType === CUSTOM_SERVICE_TYPE_VALUE ? "Khác" : (section.serviceType || ""),
             note: section.note || ""
           });
           danhMucList.push(row.name);
@@ -565,11 +601,12 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
       NgayKetThuc: formData.NgayHen,
       NgayHoanThanh: formData.NgayHen,
       GhiChu: formData.GhiChu || "",
+      TenHinhThuc: formData.TenHinhThuc || "",
       NguoiPhuTrachId: formData.NguoiPhuTrachId || currentUser?.id || "",
       ConfirmPassword: formData.ConfirmPassword,
       DanhMuc: danhMucList.join(" + "),
       TenDichVu: danhMucList.join(" + "),
-      LoaiDichVu: serviceSections[0]?.serviceType || "Khác",
+      LoaiDichVu: serviceSections[0]?.serviceType === CUSTOM_SERVICE_TYPE_VALUE ? "Khác" : (serviceSections[0]?.serviceType || "Khác"),
       GoiDichVu: selectedPackage,
       DoanhThuTruocChietKhau: roundedRevenue,
       DoanhThu: roundedFinalRevenue,
@@ -584,6 +621,11 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
       InvoiceUrl: formData.InvoiceUrl || "",
       ChiTietDichVu: {
         services: validServices,
+        meta: {
+          TenHinhThuc: formData.TenHinhThuc || "",
+          NoiTiepNhanHoSo: formData.NoiTiepNhanHoSo || "",
+          DiaChiNhan: formData.DiaChiNhan || ""
+        },
         totals: {
           subtotal: roundedRevenue,
           tax: roundedTax,
@@ -616,6 +658,15 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
   };
   const labelStyle = { fontSize: "13px", fontWeight: "600", color: "#111827", marginBottom: "4px", display: "block" };
   const areaCodes = [{ value: "+82", label: "+82" }, { value: "+84", label: "+84" }];
+  const contactChannelOptions = [
+    { value: "Messenger", label: "Messenger" },
+    { value: "Kakao Talk", label: "Kakao Talk" },
+    { value: "Zalo", label: "Zalo" },
+    { value: "Naver Talk", label: "Naver Talk" },
+    { value: "Email", label: "Email" },
+    { value: "Gọi điện", label: "Gọi điện" },
+    { value: "Trực tiếp", label: "Trực tiếp" }
+  ];
   const modalTitle = isApproveMode ? "Duyệt cấp dịch vụ" : "Đăng ký dịch vụ mới (B2B)";
   const modalSubtitle = isApproveMode ? "Kiểm tra thông tin trước khi cấp duyệt" : "Nhập thông tin khách hàng và dịch vụ";
   const submitText = isApproveMode ? "Cấp duyệt" : "Đăng ký Dịch Vụ";
@@ -837,7 +888,11 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
                             placeholder="Chọn loại dịch vụ"
                             noBorder={true}
                             backgroundColor="#f3f4f6"
-                            options={Object.keys(b2bServiceMapping || {}).map(key => ({ value: key, label: key }))}
+                            options={[
+                              { value: "", label: "Chọn loại dịch vụ" },
+                              { value: CUSTOM_SERVICE_TYPE_VALUE, label: "Dịch vụ thêm" },
+                              ...Object.keys(b2bServiceMapping || {}).map(key => ({ value: key, label: key }))
+                            ]}
                             onChange={(e) => handleServiceTypeChange(sectionIndex, e.target.value)}
                           />
                         </td>
@@ -851,19 +906,57 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
                             <span style={{ fontSize: "14px", cursor: "grab" }}>⋮⋮</span>
                           </td>
                           <td style={{ padding: "8px" }}>
-                            <ModernSelect
-                              name={`service-${sectionIndex}-${rowIndex}`}
-                              height="32px"
-                              value={row.name}
-                              placeholder="Chọn"
-                              noBorder={true}
-                              backgroundColor="white"
-                              options={[
-                                { value: "", label: "Chọn dịch vụ" },
-                                ...(section.serviceType ? (b2bServiceMapping[section.serviceType] || []).map(s => ({ value: s, label: s })) : [])
-                              ]}
-                              onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "name", e.target.value)}
-                            />
+                            {row.isCustomService ? (
+                              <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                                <input
+                                  type="text"
+                                  value={row.name}
+                                  onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "name", e.target.value)}
+                                  placeholder="Gõ dịch vụ"
+                                  style={{
+                                    width: "100%",
+                                    height: "32px",
+                                    padding: "0 8px",
+                                    border: "1px solid #d1d5db",
+                                    borderRadius: "6px",
+                                    fontSize: "13px",
+                                    color: "#111827",
+                                    outline: "none"
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleServiceRowChange(sectionIndex, rowIndex, "name", row.name)}
+                                  style={{
+                                    height: "32px",
+                                    minWidth: "42px",
+                                    border: "1px solid #d1d5db",
+                                    borderRadius: "6px",
+                                    backgroundColor: "#f9fafb",
+                                    color: "#374151",
+                                    fontSize: "11px",
+                                    cursor: "pointer"
+                                  }}
+                                >
+                                  Chọn
+                                </button>
+                              </div>
+                            ) : (
+                              <ModernSelect
+                                name={`service-${sectionIndex}-${rowIndex}`}
+                                height="32px"
+                                value={row.name}
+                                placeholder="Chọn"
+                                noBorder={true}
+                                backgroundColor="white"
+                                options={[
+                                  { value: "", label: "Chọn dịch vụ" },
+                                  ...getFilteredServiceOptions(section.serviceType),
+                                  { value: CUSTOM_SERVICE_OPTION_VALUE, label: "Thêm" }
+                                ]}
+                                onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "name", e.target.value)}
+                              />
+                            )}
                             {rowIndex === 0 && (
                               <input
                                 type="text"
@@ -1042,6 +1135,28 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
             </div>
           </div>
 
+          {/* KÊNH LIÊN HỆ */}
+          <div className="col-12" style={{ display: "flex", gap: "30px", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ minWidth: "320px", width: "320px", flexShrink: 0, borderBottom: "1px solid #e5e7eb", paddingBottom: "6px" }}>
+              <label style={{...labelStyle, fontSize: "13px", marginBottom: "0"}}>
+                Kênh liên hệ
+              </label>
+              <p style={{ fontSize: "11px", color: "#9ca3af", margin: "2px 0 0 0", fontStyle: "italic" }}>
+                Hình thức trao đổi với khách hàng
+              </p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", width: "320px" }}>
+              <ModernSelect
+                name="TenHinhThuc"
+                height="36px"
+                value={formData.TenHinhThuc}
+                placeholder="Chọn Hình Thức"
+                options={contactChannelOptions}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+
           {/* NƠI TIẾP NHẬN HỒ SƠ */}
           <div className="col-12" style={{ display: "flex", gap: "30px", alignItems: "center", justifyContent: "center" }}>
             <div style={{ minWidth: "320px", width: "320px", flexShrink: 0, borderBottom: "1px solid #e5e7eb", paddingBottom: "6px" }}>
@@ -1055,10 +1170,32 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
             <div style={{ display: "flex", alignItems: "center", gap: "10px", width: "320px" }}>
               <input
                 type="text"
+                name="NoiTiepNhanHoSo"
+                value={formData.NoiTiepNhanHoSo || ""}
+                onChange={handleInputChange}
+                placeholder="Nhập nơi tiếp nhận hồ sơ"
+                style={{...inputStyle, height: "36px"}}
+              />
+            </div>
+          </div>
+
+          {/* ĐỊA CHỈ NHẬN */}
+          <div className="col-12" style={{ display: "flex", gap: "30px", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ minWidth: "320px", width: "320px", flexShrink: 0, borderBottom: "1px solid #e5e7eb", paddingBottom: "6px" }}>
+              <label style={{...labelStyle, fontSize: "13px", marginBottom: "0"}}>
+                Địa chỉ nhận
+              </label>
+              <p style={{ fontSize: "11px", color: "#9ca3af", margin: "2px 0 0 0", fontStyle: "italic" }}>
+                Địa chỉ nhận hồ sơ từ khách hàng
+              </p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", width: "320px" }}>
+              <input
+                type="text"
                 name="DiaChiNhan"
                 value={formData.DiaChiNhan || ""}
                 onChange={handleInputChange}
-                placeholder="Nhập nơi tiếp nhận hồ sơ"
+                placeholder="Nhập địa chỉ nhận"
                 style={{...inputStyle, height: "36px"}}
               />
             </div>
