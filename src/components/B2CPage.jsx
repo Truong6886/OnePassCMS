@@ -188,6 +188,20 @@ const buildCodeByServiceName = (baseCode, serviceName) => {
   return `${expectedPrefix}-${codeMatch[1]}-${codeMatch[2].toUpperCase()}-${codeMatch[3]}`;
 };
 
+const normalizeStatusText = (value) =>
+  String(value || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const isCompletedStatus = (value) => {
+  const normalized = normalizeStatusText(value);
+  return normalized === "hoan thanh" || normalized === "completed";
+};
+
+const getTodayDateString = () => new Date().toISOString().split("T")[0];
+
 const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false, height = "38px", footerAction, width = "100%", noBorder = false, backgroundColor = "#ffffff" }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -345,7 +359,7 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
   );
 };
 
-const RequestEditModal = ({ request, users, currentUser, onClose, onSave, currentLanguage, dichvuList, approveMode = false }) => {
+const RequestEditModal = ({ request, users, currentUser, onClose, onSave, currentLanguage, dichvuList, approveMode = false, viewMode = false }) => {
   const isNew = !request || !request.YeuCauID;
 
   // Lấy danh sách dịch vụ từ API
@@ -743,6 +757,13 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     }
   };
   const t = translations[currentLanguage === "vi" ? "vi" : currentLanguage === "ko" ? "ko" : "en"];
+  const clickedServiceCode = String(request?.__viewServiceCode || request?.MaHoSo || "").trim();
+  const modalTitle = viewMode
+    ? (clickedServiceCode || (currentLanguage === "vi" ? "Chi tiết dịch vụ" : currentLanguage === "ko" ? "서비스 상세" : "Service Details"))
+    : t.title;
+  const modalSubtitle = viewMode
+    ? (currentLanguage === "vi" ? "Thông tin đầy đủ (chỉ xem)" : currentLanguage === "ko" ? "전체 정보 (읽기 전용)" : "Full information (read-only)")
+    : t.subtitle;
 
   // --- STATE FORM DATA ---
   const [formData, setFormData] = useState(
@@ -802,7 +823,13 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     let name, val;
     if (typeof eOrName === 'string') { name = eOrName; val = value; } 
     else { name = eOrName.target.name; val = eOrName.target.value; }
-    setFormData((prev) => ({ ...prev, [name]: val }));
+    setFormData((prev) => {
+      const next = { ...prev, [name]: val };
+      if (name === "TrangThai" && isCompletedStatus(val)) {
+        next.NgayKetThuc = getTodayDateString();
+      }
+      return next;
+    });
   };
 
   // Xử lý nhập tiền (cho DoanhThu và Vi)
@@ -919,12 +946,18 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     const roundedDiscount = Math.round(totalDiscount);
     const roundedFinalRevenue = Math.round(finalRevenue);
     const averageDiscountPercent = totalRevenue > 0 ? (totalDiscount / totalRevenue) * 100 : 0;
+    const selectedPackage = normalizePackageOption(
+      validServices.find((row) => String(row.loaigoi || "").trim())?.loaigoi ||
+      formData.GoiDichVu ||
+      "thường"
+    ) || "thường";
 
     // 4. Tạo payload
     const payload = { 
       ...formData,
       LoaiDichVu: firstSelectedServiceType || formData.LoaiDichVu || "",
       TenDichVu: hasCustomService ? "Thêm" : (formData.TenDichVu || ""),
+      GoiDichVu: selectedPackage,
       DanhMuc: danhMucList,
       DoanhThuTruocChietKhau: roundedRevenue,
       MucChietKhau: Math.round(averageDiscountPercent * 100) / 100,
@@ -944,6 +977,10 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
         }
       }
     };
+
+    if (isCompletedStatus(payload.TrangThai)) {
+      payload.NgayKetThuc = getTodayDateString();
+    }
 
     delete payload.NoiTiepNhanHoSo;
     delete payload.DiaChiNhan;
@@ -1022,11 +1059,11 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
         </button>
 
         <div className="text-center mb-4 mt-2">
-          <h3 className="fw-bold m-0" style={{ fontSize: "20px", color: "#111827" }}>{t.title}</h3>
-          <p className="text-muted m-0 mt-1" style={{ fontSize: "13px" }}>{t.subtitle}</p>
+          <h3 className="fw-bold m-0" style={{ fontSize: "20px", color: "#111827" }}>{modalTitle}</h3>
+          <p className="text-muted m-0 mt-1" style={{ fontSize: "13px" }}>{modalSubtitle}</p>
         </div>
 
-        <div className="row g-3">
+        <div className="row g-3" style={viewMode ? { pointerEvents: "none" } : undefined}>
           {/* THÔNG TIN KHÁCH HÀNG & NGÀY THÁNG */}
           <div className="col-md-5" style={{ paddingRight: "30px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -1109,10 +1146,10 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                   <div style={{ minWidth: "110px", flexShrink: 0 }}>
                     <label style={{...labelStyle, marginBottom: "0", display: "block"}}>
-                      Ngày đăng ký <span className="text-danger">*</span>
+                      Ngày bắt đầu <span className="text-danger">*</span>
                     </label>
                     <p style={{ fontSize: "11px", color: "#9ca3af", margin: "3px 0 0 0", fontStyle: "italic", lineHeight: "1.3" }}>
-                      Ngày đăng ký trên hệ thống
+                      Ngày nộp hồ sơ
                     </p>
                   </div>
                   <div style={{ flex: 1 }}>
@@ -1122,9 +1159,9 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                     >
                       <input 
                         type="date" 
-                        name="ChonNgay" 
+                        name="NgayBatDau" 
                         style={{...inputStyle, height: "44px", cursor: "pointer"}}
-                        value={formData.ChonNgay ? new Date(formData.ChonNgay).toISOString().split("T")[0] : ""}
+                        value={formData.NgayBatDau || ""}
                         onChange={handleInputChange}
                         placeholder="Chọn ngày"
                       />
@@ -1140,7 +1177,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                       Ngày hẹn
                     </label>
                     <p style={{ fontSize: "11px", color: "#9ca3af", margin: "3px 0 0 0", fontStyle: "italic", lineHeight: "1.3" }}>
-                      Ngày tháng muốn nhận hồ sơ
+                      Ngày hẹn trả kết quả
                     </p>
                   </div>
                   <div style={{ flex: 1 }}>
@@ -1150,9 +1187,9 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                     >
                       <input 
                         type="date" 
-                        name="NgayBatDau" 
+                        name="ChonNgay" 
                         style={{...inputStyle, height: "44px", cursor: "pointer"}}
-                        value={formData.NgayBatDau || ""}
+                        value={formData.ChonNgay ? new Date(formData.ChonNgay).toISOString().split("T")[0] : ""}
                         onChange={handleInputChange}
                         placeholder="2025-01-20"
                       />
@@ -1718,6 +1755,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           </div>
 
           {/* CHỌN NGƯỜI PHỤ TRÁCH */}
+          {!viewMode && (
           <div className="col-12" style={{ display: "flex", justifyContent: "center", gap: "40px", flexWrap: "wrap" }}>
             {(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) && (
               <div style={{ width: "360px" }}>
@@ -1765,8 +1803,10 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
               </p>
             </div>
           </div>
+          )}
 
           {/* NÚT XÁC NHẬN */}
+          {!viewMode && (
           <div className="col-12 mt-4">
             <button
               type="button"
@@ -1797,6 +1837,29 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
               )}
             </button>
           </div>
+          )}
+
+          {viewMode && (
+            <div className="col-12 mt-4" style={{ display: "flex", justifyContent: "center" }}>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  width: "220px",
+                  padding: "10px 16px",
+                  backgroundColor: "#2563eb",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "14px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  cursor: "pointer"
+                }}
+              >
+                {currentLanguage === "vi" ? "Đóng" : currentLanguage === "ko" ? "닫기" : "Close"}
+              </button>
+            </div>
+          )}
 
         </div>
       </div>
@@ -1811,6 +1874,7 @@ const RowItem = ({
   item,
   currentUser,
   onEdit,
+  onViewDetail,
   onDelete,
   onApprove,
   onDisable,
@@ -1923,6 +1987,7 @@ const RowItem = ({
               name: serviceName,
               serviceType: serviceType,
               isCustomService,
+              package: normalizePackageForDisplay(service.loaigoi || service.GoiDichVu || service.package),
               note: String(service.note || service.ghiChu || service.serviceNote || "").trim(),
               revenue: revenue,
               discount: chietkhau,
@@ -1937,6 +2002,7 @@ const RowItem = ({
           isMain: true,
           name: item.DanhMuc ? item.DanhMuc.split(" + ")[0] : "",
           isCustomService: false,
+          package: normalizePackageForDisplay(details?.main?.loaigoi || details?.main?.GoiDichVu || item.GoiDichVu),
           note: String(details?.main?.note || details?.main?.ghiChu || "").trim(),
           revenue: (details.main && details.main.revenue !== undefined) ? details.main.revenue : item.DoanhThuTruocChietKhau,
           discount: (details.main && details.main.discount !== undefined) ? details.main.discount : item.MucChietKhau,
@@ -1950,6 +2016,7 @@ const RowItem = ({
                   isMain: false,
                   name: sub.name,
                   isCustomService: false,
+                  package: normalizePackageForDisplay(sub.loaigoi || sub.GoiDichVu || sub.package),
                   note: String(sub.note || sub.ghiChu || "").trim(),
                   revenue: sub.revenue,
                   discount: sub.discount
@@ -1964,6 +2031,7 @@ const RowItem = ({
                       isMain: false,
                       name: subName,
                     isCustomService: false,
+                    package: "",
                     note: "",
                       revenue: 0, 
                       discount: 0
@@ -1978,6 +2046,7 @@ const RowItem = ({
           isMain: true,
           name: item.DanhMuc ? item.DanhMuc.split(" + ")[0] : "",
           isCustomService: false,
+        package: normalizePackageForDisplay(item.GoiDichVu),
           note: "",
           revenue: item.DoanhThuTruocChietKhau || 0,
           discount: item.MucChietKhau || 0,
@@ -2002,6 +2071,14 @@ const RowItem = ({
       const stats = calculateRowStats(row);
       return sum + stats.after;
   }, 0);
+
+  function normalizePackageForDisplay(value) {
+      const normalized = String(value || "").trim().toLowerCase();
+      if (!normalized) return "";
+      if (normalized === "thong thuong") return "thường";
+      if (normalized === "cap toc") return "gấp 1";
+      return normalized;
+  }
 
   const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
   const translateBranch = (branch) => { const map = { 서울: "Seoul", 부산: "Busan" }; return map[branch] || branch || ""; };
@@ -2080,10 +2157,31 @@ const RowItem = ({
                     </div>
                 </td>
             )}
-            {isVisible("maDichVu") && <td className={`text-center ${getStickyClass("maDichVu")}`} style={{width:130, verticalAlign: "middle", backgroundColor: "#fff", borderBottom: "1px solid #dee2e6"}}>{rowServiceCode}</td>}
+            {isVisible("maDichVu") && (
+              <td className={`text-center ${getStickyClass("maDichVu")}`} style={{width:130, verticalAlign: "middle", backgroundColor: "#fff", borderBottom: "1px solid #dee2e6"}}>
+                {rowServiceCode ? (
+                  <button
+                    type="button"
+                    onClick={() => onViewDetail(item, rowServiceCode)}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      color: "#1d4ed8",
+                      fontWeight: 600,
+                      textDecoration: "underline",
+                      cursor: "pointer",
+                      padding: 0
+                    }}
+                    title={currentLanguage === "vi" ? "Xem chi tiết" : "View details"}
+                  >
+                    {rowServiceCode}
+                  </button>
+                ) : ""}
+              </td>
+            )}
             {isVisible("ghiChuDichVu") && (
               <td className={`${getStickyClass("ghiChuDichVu")}`} style={{ minWidth: "150px", maxWidth: "220px", verticalAlign: "middle", backgroundColor: "#fff", borderBottom: "1px solid #dee2e6", whiteSpace: "normal", wordBreak: "break-word" }}>
-                {row.note || ""}
+                {row.note || (isFirst ? (item.GhiChuDichVu || item.GhiChuDV || "") : "")}
               </td>
             )}
 
@@ -2093,19 +2191,28 @@ const RowItem = ({
                 </td>
             )}
 
-            {isVisible("ngayHen") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("ngayHen")}`} style={mergedStyle}>{item.ChonNgay ? new Date(item.ChonNgay).toLocaleDateString("vi-VN") : ""}</td>}
+            {isVisible("ngayTao") && isFirst && (
+              <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("ngayTao")}`} style={mergedStyle}>
+                {item.NgayTao ? new Date(item.NgayTao).toLocaleDateString("vi-VN") : ""}
+              </td>
+            )}
             {isVisible("ngayBatDau") && isFirst && (
                 <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("ngayBatDau")}`} style={mergedStyle}>
                     {item.NgayBatDau ? new Date(item.NgayBatDau).toLocaleDateString("vi-VN") : ""}
                 </td>
             )}
+            {isVisible("ngayHen") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("ngayHen")}`} style={mergedStyle}>{item.ChonNgay ? new Date(item.ChonNgay).toLocaleDateString("vi-VN") : ""}</td>}
             {isVisible("ngayKetThuc") && isFirst && (
                 <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("ngayKetThuc")}`} style={mergedStyle}>
                     {item.NgayKetThuc ? new Date(item.NgayKetThuc).toLocaleDateString("vi-VN") : ""}
                 </td>
             )}
             {isVisible("trangThai") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("trangThai")}`} style={mergedStyle}>{item.TrangThai}</td>}
-            {isVisible("goiDichVu") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("goiDichVu")}`} style={{...mergedStyle,width:102}}>{item.GoiDichVu}</td>}
+            {isVisible("goiDichVu") && (
+              <td className={`text-center ${getStickyClass("goiDichVu")}`} style={{ width: 102, verticalAlign: "middle", backgroundColor: "#fff", borderBottom: "1px solid #dee2e6" }}>
+                {row.package || (isFirst ? normalizePackageForDisplay(item.GoiDichVu) : "")}
+              </td>
+            )}
             {isVisible("invoice") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("invoice")}`} style={mergedStyle}>{item.Invoice === "Yes" ? <span className="text-success fw-bold">Yes</span> : <span className="text-muted">No</span>}</td>}
             {canViewFinance && isVisible("invoiceUrl") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("invoiceUrl")}`} style={mergedStyle}>{item.InvoiceUrl ? <a href={item.InvoiceUrl} target="_blank" rel="noreferrer">Link</a> : "-"}</td>}
             
@@ -2114,11 +2221,6 @@ const RowItem = ({
                 <td rowSpan={rowSpanCount} className={getStickyClass("ghiChu")} style={{...mergedStyle, maxWidth: "200px",width:270, whiteSpace: "normal", wordWrap: "break-word"}}>
                     {item.GhiChu}
                 </td>
-            )}
-            {isVisible("ngayTao") && isFirst && (
-              <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("ngayTao")}`} style={mergedStyle}>
-                {item.NgayTao ? new Date(item.NgayTao).toLocaleDateString("vi-VN") : ""}
-              </td>
             )}
             {/* === CỘT TÀI CHÍNH (RIÊNG TỪNG DÒNG) === */}
             {canViewFinance && isVisible("doanhThuTruoc") && (
@@ -2262,6 +2364,7 @@ const B2CPage = () => {
   const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
   const unformatNumber = (value) => (value ? value.toString().replace(/\./g, "") : "");
   const [editingRequest, setEditingRequest] = useState(null);
+  const [viewingRequest, setViewingRequest] = useState(null);
  
   const canViewFinance = currentUser?.is_accountant || currentUser?.is_director;
 
@@ -2270,8 +2373,8 @@ const B2CPage = () => {
     vi: {
       stt: "STT", khachHang: "Khách hàng", maVung: "Mã vùng", soDienThoai: "Số Điện Thoại", email: "Email",
       kenhLienHe: "Kênh Liên Hệ", coSo: "Cơ sở", diaChiNhan: "Địa chỉ nhận", loaiDichVu: "Loại Dịch Vụ", danhMuc: "Tên Dịch Vụ", tenDichVu: "Tên Dịch Vụ",
-      maDichVu: "Mã Dịch Vụ", ghiChuDichVu: "Ghi chú DV", nguoiPhuTrach: "Người phụ trách", ngayHen: "Ngày hẹn", ngayBatDau: "Ngày bắt đầu",
-      ngayKetThuc: "Ngày kết thúc", trangThai: "Trạng thái", goi: "Gói", invoiceYN: "Invoice Y/N", invoice: "Invoice",
+      maDichVu: "Mã Dịch Vụ", ghiChuDichVu: "Ghi chú DV", nguoiPhuTrach: "Người phụ trách", ngayHen: "Ngày hẹn trả kết quả", ngayBatDau: "Ngày nộp hồ sơ",
+      ngayKetThuc: "Ngày hoàn thành", trangThai: "Trạng thái", goi: "Gói", invoiceYN: "Invoice Y/N", invoice: "Invoice",
       gio: "Giờ", noiDung: "Nội dung", ghiChu: "Ghi chú", ngayTao: "Ngày tạo",
       doanhThuTruoc: "Doanh Thu Trước CK", mucChietKhau: "% CK", soTienChietKhau: "Tiền Chiết Khấu",
       doanhThuSau: "Doanh Thu Sau CK", tongDoanhThuTichLuy: "Tổng Doanh Thu Sau CK", hanhDong: "Hành động",
@@ -2280,8 +2383,8 @@ const B2CPage = () => {
     en: {
       stt: "No.", khachHang: "Customer", maVung: "Area Code", soDienThoai: "Phone", email: "Email",
       kenhLienHe: "Channel", coSo: "Branch", diaChiNhan: "Receiving Address", loaiDichVu: "Service Type", danhMuc: "Service Name", tenDichVu: "Service Name",
-      maDichVu: "Service Code", ghiChuDichVu: "Service Note", nguoiPhuTrach: "Assignee", ngayHen: "Appointment Date", ngayBatDau: "Start Date",
-      ngayKetThuc: "End Date", trangThai: "Status", goi: "Package", invoiceYN: "Invoice Y/N", invoice: "Invoice",
+      maDichVu: "Service Code", ghiChuDichVu: "Service Note", nguoiPhuTrach: "Assignee", ngayHen: "Result Appointment", ngayBatDau: "Submission Date",
+      ngayKetThuc: "Completion Date", trangThai: "Status", goi: "Package", invoiceYN: "Invoice Y/N", invoice: "Invoice",
       gio: "Time", noiDung: "Content", ghiChu: "Note", ngayTao: "Created",
       doanhThuTruoc: "Revenue Before Discount", mucChietKhau: "Discount %", soTienChietKhau: "Discount Amount",
       doanhThuSau: "Revenue After Discount", tongDoanhThuTichLuy: "Total Revenue After Discount", hanhDong: "Actions",
@@ -2290,8 +2393,8 @@ const B2CPage = () => {
     ko: {
       stt: "번호", khachHang: "고객", maVung: "지역번호", soDienThoai: "전화번호", email: "이메일",
       kenhLienHe: "채널", coSo: "지점", diaChiNhan: "수령 주소", loaiDichVu: "서비스 유형", danhMuc: "서비스명", tenDichVu: "서비스명",
-      maDichVu: "서비스 코드", ghiChuDichVu: "서비스 비고", nguoiPhuTrach: "담당자", ngayHen: "약속 날짜", ngayBatDau: "시작일",
-      ngayKetThuc: "종료일", trangThai: "상태", goi: "패키지", invoiceYN: "청구서 Y/N", invoice: "청구서",
+      maDichVu: "서비스 코드", ghiChuDichVu: "서비스 비고", nguoiPhuTrach: "담당자", ngayHen: "결과 수령 예약일", ngayBatDau: "접수일",
+      ngayKetThuc: "완료일", trangThai: "상태", goi: "패키지", invoiceYN: "청구서 Y/N", invoice: "청구서",
       gio: "시간", noiDung: "내용", ghiChu: "비고", ngayTao: "생성일",
       doanhThuTruoc: "할인 전 매출", mucChietKhau: "할인 %", soTienChietKhau: "할인 금액",
       doanhThuSau: "할인 후 매출", tongDoanhThuTichLuy: "할인 후 총 매출", hanhDong: "작업",
@@ -2334,15 +2437,15 @@ const initialColumnKeys = [
     { key: "maDichVu", label: tHeaders.maDichVu },
     { key: "ghiChuDichVu", label: tHeaders.ghiChuDichVu },
     ...(currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant ? [{ key: "nguoiPhuTrach", label: tHeaders.nguoiPhuTrach }] : []),
-    { key: "ngayHen", label: tHeaders.ngayHen },
+    { key: "ngayTao", label: tHeaders.ngayTao },
     { key: "ngayBatDau", label: tHeaders.ngayBatDau },
+    { key: "ngayHen", label: tHeaders.ngayHen },
     { key: "ngayKetThuc", label: tHeaders.ngayKetThuc },
     { key: "trangThai", label: tHeaders.trangThai },
     { key: "goiDichVu", label: tHeaders.goi },
     { key: "invoice", label: tHeaders.invoiceYN },
     ...(canViewFinance ? [{ key: "invoiceUrl", label: tHeaders.invoice }] : []), 
     { key: "ghiChu", label: tHeaders.ghiChu },
-    { key: "ngayTao", label: tHeaders.ngayTao },
     
    
     ...(canViewFinance ? [
@@ -2419,10 +2522,10 @@ const tableHeaders = [
   tHeaders.kenhLienHe, tHeaders.coSo, tHeaders.diaChiNhan, tHeaders.loaiDichVu, tHeaders.danhMuc, tHeaders.maDichVu,
   tHeaders.ghiChuDichVu,
     ...((currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) ? [tHeaders.nguoiPhuTrach] : []),
-    tHeaders.ngayHen, tHeaders.ngayBatDau,
-    tHeaders.ngayKetThuc, tHeaders.trangThai, tHeaders.goi, tHeaders.invoiceYN,
+    tHeaders.ngayTao, tHeaders.ngayBatDau,
+    tHeaders.ngayHen, tHeaders.ngayKetThuc, tHeaders.trangThai, tHeaders.goi, tHeaders.invoiceYN,
     ...(canViewFinance ? [tHeaders.invoice] : []),
-    tHeaders.ghiChu, tHeaders.ngayTao,
+    tHeaders.ghiChu,
 
     // --- Giữ cột tài chính ---
     ...(canViewFinance ? [
@@ -2487,6 +2590,12 @@ const fetchData = async () => {
   useEffect(() => { fetchData(); }, [currentPage, currentUser]);
 
   const handleEditClick = (item) => { setEditingRequest(item); };
+  const handleViewDetailClick = (item, serviceCode) => {
+    setViewingRequest({
+      ...item,
+      __viewServiceCode: serviceCode || item?.MaHoSo || ""
+    });
+  };
   
   const handleCreateClick = () => {
       setEditingRequest({});
@@ -2738,7 +2847,13 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
         const raw = val.toString().replace(/\./g, "");
         if (!isNaN(raw)) setFormData(prev => ({ ...prev, [name]: formatNumber(raw) }));
     } else {
-        setFormData(prev => ({ ...prev, [name]: val }));
+        setFormData(prev => {
+          const next = { ...prev, [name]: val };
+          if (name === "TrangThai" && isCompletedStatus(val)) {
+            next.NgayKetThuc = getTodayDateString();
+          }
+          return next;
+        });
     }
   };
 
@@ -2790,6 +2905,17 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
     } catch (err) { setLoading(false); return; }
 
 
+    let existingDetails = {};
+    if (request?.ChiTietDichVu) {
+      try {
+        existingDetails = typeof request.ChiTietDichVu === "string"
+          ? JSON.parse(request.ChiTietDichVu)
+          : (request.ChiTietDichVu || {});
+      } catch (_) {
+        existingDetails = {};
+      }
+    }
+
     const mainRevenue = unformatMoney(formData.DoanhThuTruocChietKhau);
     const mainDiscount = parseFloat(formData.MucChietKhau || 0);
     const mainDiscountAmount = mainRevenue * (mainDiscount / 100);
@@ -2799,26 +2925,45 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
     let extraRevenue = 0;
     let extraDiscountAmount = 0;
 
-    const subServicesData = validExtras.map(sub => {
+    const subServicesData = validExtras.map((sub, subIndex) => {
         const r = unformatMoney(sub.revenue);
         const d = parseFloat(sub.discount || 0);
         extraRevenue += r;
         extraDiscountAmount += r * (d / 100);
+        const matchedService = Array.isArray(existingDetails?.services)
+          ? existingDetails.services.find((svc) => String(svc?.name || "").trim() === String(sub?.name || "").trim())
+          : null;
+        const matchedSub = Array.isArray(existingDetails?.sub) ? existingDetails.sub[subIndex] : null;
         return {
             name: sub.name,
             revenue: r,
-            discount: d
+            discount: d,
+            note: String(
+              matchedService?.note ||
+              matchedService?.ghiChu ||
+              matchedService?.serviceNote ||
+              matchedSub?.note ||
+              matchedSub?.ghiChu ||
+              ""
+            ).trim()
         };
     });
 
 
-    const chiTietDichVu = {
-        main: {
+    const chiTietDichVu = Array.isArray(existingDetails?.services)
+      ? {
+          ...existingDetails,
+          meta: existingDetails?.meta || {}
+        }
+      : {
+          main: {
             revenue: mainRevenue,
-            discount: mainDiscount
-        },
-        sub: subServicesData
-    };
+            discount: mainDiscount,
+            note: String(existingDetails?.main?.note || existingDetails?.main?.ghiChu || "").trim()
+          },
+          sub: subServicesData,
+          meta: existingDetails?.meta || {}
+        };
 
 
     const totalRevenue = mainRevenue + extraRevenue;
@@ -2844,6 +2989,10 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
       DoanhThuSauChietKhau: totalRevenue - totalDiscountAmount,
       ChiTietDichVu: chiTietDichVu
   };
+
+    if (isCompletedStatus(payload.TrangThai)) {
+      payload.NgayKetThuc = getTodayDateString();
+    }
 
       // Chuẩn hóa các trường rỗng về null để backend không lỗi
       ["ChonNgay","Gio","NgayBatDau","NgayKetThuc","Email","NoiDung","GhiChu","TenDichVu","MaHoSo"].forEach((key) => {
@@ -3295,6 +3444,18 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
             onSave={handleModalSave}
           />
         )}
+        {viewingRequest && (
+          <RequestEditModal
+            request={viewingRequest}
+            users={users}
+            currentUser={currentUser}
+            currentLanguage={currentLanguage}
+            dichvuList={dichvuList}
+            viewMode={true}
+            onClose={() => setViewingRequest(null)}
+            onSave={handleModalSave}
+          />
+        )}
         <div style={{marginTop:100}}></div>
 
         <div className="mb-4">
@@ -3433,6 +3594,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                         item={item}
                         currentUser={currentUser}
                         onEdit={handleEditClick}
+                        onViewDetail={handleViewDetailClick}
                         onDelete={handleDelete}
                         onApprove={handleApproveClick}
                         onDisable={handleDisable}

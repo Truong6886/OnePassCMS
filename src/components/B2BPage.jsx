@@ -134,6 +134,27 @@ const isPendingServiceStatus = (statusValue) => {
   );
 };
 
+const normalizeStatusText = (value) =>
+  String(value || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const isCompletedStatus = (value) => normalizeStatusText(value) === "hoan thanh";
+
+const toDateOnly = (value) => {
+  if (!value) return "";
+  const text = String(value).trim();
+  const match = text.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (match) return match[1];
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().split("T")[0];
+  }
+  return "";
+};
+
 export default function B2BPage() {
   const [expandedRowId, setExpandedRowId] = useState(null);
   const [showRegisterB2BModal, setShowRegisterB2BModal] = useState(false);
@@ -321,11 +342,20 @@ export default function B2BPage() {
         approveAction: isApprovalFlow ? "accountant_approve" : null
       };
 
+      if (isCompletedStatus(apiPayload.TrangThai)) {
+        if (!apiPayload.NgayHoanThanh) {
+          apiPayload.NgayHoanThanh = new Date().toISOString().split("T")[0];
+        }
+      } else if (editingServiceData?.completionDate && !apiPayload.NgayHoanThanh) {
+        apiPayload.NgayHoanThanh = editingServiceData.completionDate;
+      }
+
+      if (!editingServiceData?.id && !apiPayload.NgayTao) {
+        apiPayload.NgayTao = new Date().toISOString().split("T")[0];
+      }
+
       if (!apiPayload.NgayThucHien && apiPayload.NgayBatDau) {
         apiPayload.NgayThucHien = apiPayload.NgayBatDau;
-      }
-      if (!apiPayload.NgayHoanThanh && apiPayload.NgayKetThuc) {
-        apiPayload.NgayHoanThanh = apiPayload.NgayKetThuc;
       }
       if (isApproveMode) {
         apiPayload.TrangThai = "Đã duyệt";
@@ -691,7 +721,9 @@ export default function B2BPage() {
       goi: "Gói",
       invoiceYN: "Invoice Y/N",
       invoice: "Invoice",
+      ngayTao: "Ngày Tạo",
       ngayBatDau: "Ngày Bắt Đầu",
+      ngayHen: "Ngày Hẹn",
       ngayKetThuc: "Ngày Kết Thúc",
       doanhThuTruoc: "Doanh Thu\nTrước Chiết Khấu",
       mucChietKhau: "Mức\nChiết Khấu",
@@ -736,7 +768,9 @@ export default function B2BPage() {
       goi: "Package",
       invoiceYN: "Invoice Y/N",
       invoice: "Invoice",
+      ngayTao: "Created Date",
       ngayBatDau: "Start Date",
+      ngayHen: "Appointment Date",
       ngayKetThuc: "End Date",
       doanhThuTruoc: "Revenue Before Discount",
       mucChietKhau: "Discount Rate",
@@ -780,7 +814,9 @@ export default function B2BPage() {
       goi: "패키지",
       invoiceYN: "인보이스 Y/N",
       invoice: "인보이스",
+      ngayTao: "생성일",
       ngayBatDau: "시작일",
+      ngayHen: "예약일",
       ngayKetThuc: "종료일",
       doanhThuTruoc: "할인 전 매출",
       mucChietKhau: "할인율",
@@ -921,8 +957,10 @@ export default function B2BPage() {
             picId: item.NguoiPhuTrachId,
             picName: item.NguoiPhuTrach ? (item.NguoiPhuTrach.username || item.NguoiPhuTrach.name) : "",
             code: !isPendingServiceStatus(item.TrangThai) ? item.MaDichVu : "",
-            startDate: item.NgayThucHien?.split("T")[0],
-            endDate: item.NgayHoanThanh?.split("T")[0],
+            createdDate: toDateOnly(item.NgayTao) || toDateOnly(item.createdAt) || toDateOnly(item.CreatedAt) || toDateOnly(item.NgayDangKy) || toDateOnly(item.NgayDangKyB2B) || toDateOnly(item.NgayBatDau) || toDateOnly(item.NgayThucHien),
+            startDate: toDateOnly(item.NgayBatDau) || toDateOnly(item.NgayThucHien),
+            appointmentDate: toDateOnly(item.NgayKetThuc),
+            completionDate: toDateOnly(item.NgayHoanThanh),
             revenueBefore: item.DoanhThuTruocChietKhau,
             discountRate: item.MucChietKhau,
             discountAmount: item.SoTienChietKhau,
@@ -1556,7 +1594,9 @@ export default function B2BPage() {
                     <th className="py-2 border" style={{ width: "160px", whiteSpace: "pre-wrap" }}>{t.maDichVu}</th>
                     <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>{t.ghiChuDichVu}</th>
                     <th className="py-2 border" style={{ width: "110px", whiteSpace: "pre-wrap" }}>{t.nguoiPhuTrach}</th>
+                    <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayTao}</th>
                     <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayBatDau}</th>
+                    <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayHen}</th>
                     <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayKetThuc}</th>
                     <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>Gói</th>
                     <th className="py-2 border" style={{ width: "70px", whiteSpace: "pre-wrap" }}>Invoice Y/N</th>
@@ -1719,8 +1759,10 @@ export default function B2BPage() {
                             {isFirstSubRow && (
                               <>
                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.picName}>{rec.picName}</td>
+                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.createdDate}</td>
                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.startDate}</td>
-                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.endDate}</td>
+                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.appointmentDate}</td>
+                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.completionDate}</td>
                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle}><span className={rec.package === "Cấp tốc" ? "text-danger fw-bold" : ""}>{rec.package}</span></td>
                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.invoiceYN}</td>
                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.invoiceUrl ? (<a href={rec.invoiceUrl} target="_blank" rel="noreferrer" className="text-primary d-inline-block"><FileText size={16} /></a>) : ""}</td>

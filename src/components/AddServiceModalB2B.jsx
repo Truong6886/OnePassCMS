@@ -10,6 +10,17 @@ const API_BASE = window.location.hostname === "localhost"
 const CUSTOM_SERVICE_OPTION_VALUE = "__ADD_CUSTOM_SERVICE__";
 const CUSTOM_SERVICE_TYPE_VALUE = "__ADD_CUSTOM_SERVICE_TYPE__";
 
+const normalizeStatusText = (value) =>
+  String(value || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const isCompletedStatus = (value) => normalizeStatusText(value) === "hoan thanh";
+
+const getTodayDateString = () => new Date().toISOString().split("T")[0];
+
 const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false, height = "38px", footerAction, width = "100%", noBorder = false, backgroundColor = "#ffffff" }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -182,7 +193,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
           SoDienThoai: soDienThoai,
           Email: mergedEmail,
           NgayDangKy: editingService.startDate || new Date().toISOString().split('T')[0],
-          NgayHen: editingService.endDate || "",
+          NgayHen: editingService.appointmentDate || editingService.NgayKetThuc || "",
           TrangThai: isApproveMode ? "Đã duyệt" : (editingService.status || editingService.TrangThai || "Chờ duyệt"),
           GhiChu: editingService.GhiChu || "",
           NguoiPhuTrachId: editingService.picId ? String(editingService.picId) : (currentUser?.id ? String(currentUser.id) : ""),
@@ -591,15 +602,33 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
       "thường"
     ) || "thường";
 
+    const finalStatus = isApproveMode ? "Đã duyệt" : (formData.TrangThai || "Chờ duyệt");
+    const previouslyCompleted = isCompletedStatus(editingService?.status || editingService?.TrangThai);
+    const nowCompleted = isCompletedStatus(finalStatus);
+    const existingCompletionDate =
+      editingService?.completionDate ||
+      editingService?.NgayHoanThanh?.split?.("T")?.[0] ||
+      "";
+    const completionDate = nowCompleted
+      ? (previouslyCompleted && existingCompletionDate ? existingCompletionDate : getTodayDateString())
+      : existingCompletionDate;
+    const existingCreatedDate =
+      editingService?.createdDate ||
+      editingService?.NgayTao?.split?.("T")?.[0] ||
+      editingService?.CreatedAt?.split?.("T")?.[0] ||
+      "";
+    const createdDate = existingCreatedDate || getTodayDateString();
+
     const payload = {
       DoanhNghiepID: formData.DoanhNghiepID,
       SoDKKD: formData.SoDKKD,
       MaVung: formData.MaVung,
       SoDienThoai: formData.SoDienThoai,
       Email: formData.Email,
+      NgayTao: createdDate,
       NgayBatDau: formData.NgayDangKy,
       NgayKetThuc: formData.NgayHen,
-      NgayHoanThanh: formData.NgayHen,
+      NgayHoanThanh: completionDate,
       GhiChu: formData.GhiChu || "",
       TenHinhThuc: formData.TenHinhThuc || "",
       NguoiPhuTrachId: formData.NguoiPhuTrachId || currentUser?.id || "",
@@ -616,7 +645,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
       Vi: 0,
       ThuTucCapToc: "No",
       YeuCauHoaDon: formData.YeuCauHoaDon || "No",
-      TrangThai: isApproveMode ? "Đã duyệt" : (formData.TrangThai || "Chờ duyệt"),
+      TrangThai: finalStatus,
       DiaChiNhan: formData.DiaChiNhan || "",
       InvoiceUrl: formData.InvoiceUrl || "",
       ChiTietDichVu: {
@@ -773,10 +802,10 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                   <div style={{ minWidth: "110px", flexShrink: 0 }}>
                     <label style={{...labelStyle, marginBottom: "0", display: "block"}}>
-                      Ngày đăng ký <span className="text-danger">*</span>
+                      Ngày bắt đầu <span className="text-danger">*</span>
                     </label>
                     <p style={{ fontSize: "11px", color: "#9ca3af", margin: "3px 0 0 0", fontStyle: "italic", lineHeight: "1.3" }}>
-                      Ngày đăng ký trên hệ thống
+                      Ngày nộp hồ sơ
                     </p>
                   </div>
                   <div style={{ flex: 1 }}>
@@ -801,7 +830,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
                       Ngày hẹn
                     </label>
                     <p style={{ fontSize: "11px", color: "#9ca3af", margin: "3px 0 0 0", fontStyle: "italic", lineHeight: "1.3" }}>
-                      Ngày tháng muốn nhận hồ sơ
+                      Ngày hẹn trả kết quả
                     </p>
                   </div>
                   <div style={{ flex: 1 }}>
@@ -812,7 +841,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
                         style={{...inputStyle, height: "44px", cursor: "pointer"}}
                         value={formData.NgayHen}
                         onChange={handleInputChange}
-                        placeholder="mm/dd/yyyy"
+                        placeholder="Chọn ngày"
                       />
                     </div>
                   </div>
