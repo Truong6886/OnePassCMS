@@ -98,6 +98,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
   const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : "0";
   const unformatMoney = (val) => val ? parseFloat(val.toString().replace(/\./g, "")) : 0;
   const isApproveMode = actionMode === "approve";
+  const isViewMode = actionMode === "view";
   
   const normalizeServiceType = (val) => {
     if (!val) return "";
@@ -299,7 +300,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
       setServiceSections([createEmptyServiceSection()]);
       setExistingService(null);
     }
-  }, [isOpen, currentUser, editingService, isApproveMode]);
+  }, [isOpen, currentUser, editingService, isApproveMode, isViewMode]);
 
   const handleAddServiceSection = () => {
     setServiceSections([...serviceSections, createEmptyServiceSection()]);
@@ -696,8 +697,13 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
     { value: "Gọi điện", label: "Gọi điện" },
     { value: "Trực tiếp", label: "Trực tiếp" }
   ];
-  const modalTitle = isApproveMode ? "Duyệt cấp dịch vụ" : "Đăng ký dịch vụ mới (B2B)";
-  const modalSubtitle = isApproveMode ? "Kiểm tra thông tin trước khi cấp duyệt" : "Nhập thông tin khách hàng và dịch vụ";
+  const serviceCodeTitle = String(editingService?.__viewServiceCode || editingService?.code || editingService?.MaDichVu || "").trim();
+  const modalTitle = isViewMode
+    ? (serviceCodeTitle || "Chi tiết dịch vụ")
+    : (isApproveMode ? "Duyệt cấp dịch vụ" : "Đăng ký dịch vụ mới (B2B)");
+  const modalSubtitle = isViewMode
+    ? "Thông tin đầy đủ (chỉ xem)"
+    : (isApproveMode ? "Kiểm tra thông tin trước khi cấp duyệt" : "Nhập thông tin khách hàng và dịch vụ");
   const submitText = isApproveMode ? "Cấp duyệt" : "Đăng ký Dịch Vụ";
   const submitBg = isApproveMode ? "#0ea5e9" : "#22c55e";
   const submitShadow = isApproveMode ? "0 6px 16px rgba(14, 165, 233, 0.35)" : "0 6px 16px rgba(34, 197, 94, 0.35)";
@@ -718,7 +724,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
           <p className="text-muted m-0 mt-1" style={{ fontSize: "13px" }}>{modalSubtitle}</p>
         </div>
 
-        <div className="row g-3">
+        <div className="row g-3" style={isViewMode ? { pointerEvents: "none" } : undefined}>
           {/* THONG TIN KHACH HANG */}
           <div className="col-md-5" style={{ paddingRight: "30px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -1316,6 +1322,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
           </div>
 
           {/* Người phụ trách */}
+          {!isViewMode && (
           <div className="col-md-6 offset-md-3">
             <label style={labelStyle}>Người phụ trách <span className="text-danger">*</span></label>
             <ModernSelect
@@ -1341,8 +1348,10 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
               </p>
             )}
           </div>
+          )}
 
           {/* Password */}
+          {!isViewMode && (
           <div className="col-md-6 offset-md-3">
             <label style={labelStyle}>Mật khẩu xác nhận <span className="text-danger">*</span></label>
             <div className="position-relative">
@@ -1355,15 +1364,30 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
               </span>
             </div>
           </div>
+          )}
 
           {/* Submit Button */}
+          {!isViewMode && (
           <div className="col-12 mt-3 text-center">
             <button type="button" onClick={handleSave} disabled={loading} 
               style={{ width: "220px", padding: "10px 16px", backgroundColor: submitBg, color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: loading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", margin: "0 auto", boxShadow: submitShadow }}>
               {loading ? <span className="spinner-border spinner-border-sm"></span> : submitText}
             </button>
           </div>
+          )}
         </div>
+
+        {isViewMode && (
+          <div className="mt-3 text-center">
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ width: "220px", padding: "10px 16px", backgroundColor: "#2563eb", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}
+            >
+              Đóng
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

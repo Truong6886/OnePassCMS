@@ -202,6 +202,34 @@ const isCompletedStatus = (value) => {
 
 const getTodayDateString = () => new Date().toISOString().split("T")[0];
 
+const extractReceivingInfoFromDetails = (detailsSource) => {
+  try {
+    const details = typeof detailsSource === "string" ? JSON.parse(detailsSource) : (detailsSource || {});
+    const meta = details?.meta || {};
+
+    const receivingOffice =
+      meta.receivingOffice ||
+      meta.NoiTiepNhanHoSo ||
+      meta.noiTiepNhanHoSo ||
+      meta.office ||
+      "";
+
+    const receivingAddress =
+      meta.receivingAddress ||
+      meta.DiaChiNhan ||
+      meta.diaChiNhan ||
+      meta.address ||
+      "";
+
+    return {
+      receivingOffice: String(receivingOffice || "").trim(),
+      receivingAddress: String(receivingAddress || "").trim(),
+    };
+  } catch {
+    return { receivingOffice: "", receivingAddress: "" };
+  }
+};
+
 const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false, height = "38px", footerAction, width = "100%", noBorder = false, backgroundColor = "#ffffff" }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -758,6 +786,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   };
   const t = translations[currentLanguage === "vi" ? "vi" : currentLanguage === "ko" ? "ko" : "en"];
   const clickedServiceCode = String(request?.__viewServiceCode || request?.MaHoSo || "").trim();
+  const requestDetailMeta = extractReceivingInfoFromDetails(request?.ChiTietDichVu);
   const modalTitle = viewMode
     ? (clickedServiceCode || (currentLanguage === "vi" ? "Chi tiết dịch vụ" : currentLanguage === "ko" ? "서비스 상세" : "Service Details"))
     : t.title;
@@ -804,8 +833,8 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           TenDichVu: request.TenDichVu || "",
           NoiDung: request.NoiDung || "",
           GhiChu: request.GhiChu || "",
-          NoiTiepNhanHoSo: request.NoiTiepNhanHoSo || "",
-          DiaChiNhan: request.DiaChiNhan || request.NoiTiepNhanHoSo || "",
+          NoiTiepNhanHoSo: request.NoiTiepNhanHoSo || requestDetailMeta.receivingOffice || "",
+          DiaChiNhan: request.DiaChiNhan || requestDetailMeta.receivingAddress || request.NoiTiepNhanHoSo || requestDetailMeta.receivingOffice || "",
           DoanhThuTruocChietKhau: formatNumber(request.DoanhThuTruocChietKhau),
           NgayBatDau: request.NgayBatDau ? new Date(request.NgayBatDau).toISOString().split("T")[0] : "",
           NgayKetThuc: request.NgayKetThuc ? new Date(request.NgayKetThuc).toISOString().split("T")[0] : "",
@@ -1839,29 +1868,29 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           </div>
           )}
 
-          {viewMode && (
-            <div className="col-12 mt-4" style={{ display: "flex", justifyContent: "center" }}>
-              <button
-                type="button"
-                onClick={onClose}
-                style={{
-                  width: "220px",
-                  padding: "10px 16px",
-                  backgroundColor: "#2563eb",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "14px",
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  cursor: "pointer"
-                }}
-              >
-                {currentLanguage === "vi" ? "Đóng" : currentLanguage === "ko" ? "닫기" : "Close"}
-              </button>
-            </div>
-          )}
-
         </div>
+
+        {viewMode && (
+          <div className="mt-4" style={{ display: "flex", justifyContent: "center" }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                width: "220px",
+                padding: "10px 16px",
+                backgroundColor: "#2563eb",
+                color: "white",
+                border: "none",
+                borderRadius: "14px",
+                fontSize: "14px",
+                fontWeight: "600",
+                cursor: "pointer"
+              }}
+            >
+              {currentLanguage === "vi" ? "Đóng" : currentLanguage === "ko" ? "닫기" : "Close"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2138,8 +2167,13 @@ const RowItem = ({
             {isVisible("hinhThuc") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("hinhThuc")}`} style={mergedStyle}>{item.TenHinhThuc}</td>}
             {isVisible("coSo") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("coSo")}`} style={mergedStyle}>{translateBranch(item.CoSoTuVan)}</td>}
             {isVisible("diaChiNhan") && isFirst && (
-              <td rowSpan={rowSpanCount} className={`${getStickyClass("diaChiNhan")}`} style={{ ...mergedStyle, minWidth: "180px", maxWidth: "260px", whiteSpace: "normal", wordBreak: "break-word" }}>
+              <td rowSpan={rowSpanCount} className={`${getStickyClass("diaChiNhan")}`} style={{ ...mergedStyle, minWidth: "150px", maxWidth: "220px", whiteSpace: "normal", wordBreak: "break-word", textAlign: "center" }}>
                 {item.DiaChiNhan || item.NoiTiepNhanHoSo || details?.meta?.receivingAddress || details?.meta?.receivingOffice || ""}
+              </td>
+            )}
+            {isVisible("noiTiepNhanHoSo") && isFirst && (
+              <td rowSpan={rowSpanCount} className={`${getStickyClass("noiTiepNhanHoSo")}`} style={{ ...mergedStyle, minWidth: "150px", maxWidth: "220px", whiteSpace: "normal", wordBreak: "break-word", textAlign: "center" }}>
+                {item.NoiTiepNhanHoSo || details?.meta?.receivingOffice || details?.meta?.NoiTiepNhanHoSo || ""}
               </td>
             )}
             {isVisible("loaiDichVu") && (
@@ -2158,11 +2192,11 @@ const RowItem = ({
                 </td>
             )}
             {isVisible("maDichVu") && (
-              <td className={`text-center ${getStickyClass("maDichVu")}`} style={{width:130, verticalAlign: "middle", backgroundColor: "#fff", borderBottom: "1px solid #dee2e6"}}>
+              <td className={`text-center ${getStickyClass("maDichVu")}`} style={{ width: 200, minWidth: 200, verticalAlign: "middle", backgroundColor: "#fff", borderBottom: "1px solid #dee2e6", whiteSpace: "nowrap" }}>
                 {rowServiceCode ? (
                   <button
                     type="button"
-                    onClick={() => onViewDetail(item, rowServiceCode)}
+                    onClick={() => onViewDetail(item, rowServiceCode, row)}
                     style={{
                       border: "none",
                       background: "transparent",
@@ -2170,7 +2204,8 @@ const RowItem = ({
                       fontWeight: 600,
                       textDecoration: "underline",
                       cursor: "pointer",
-                      padding: 0
+                      padding: 0,
+                      whiteSpace: "nowrap"
                     }}
                     title={currentLanguage === "vi" ? "Xem chi tiết" : "View details"}
                   >
@@ -2372,7 +2407,7 @@ const B2CPage = () => {
   const tableHeadersTranslations = {
     vi: {
       stt: "STT", khachHang: "Khách hàng", maVung: "Mã vùng", soDienThoai: "Số Điện Thoại", email: "Email",
-      kenhLienHe: "Kênh Liên Hệ", coSo: "Cơ sở", diaChiNhan: "Địa chỉ nhận", loaiDichVu: "Loại Dịch Vụ", danhMuc: "Tên Dịch Vụ", tenDichVu: "Tên Dịch Vụ",
+      kenhLienHe: "Kênh Liên Hệ", coSo: "Cơ sở", diaChiNhan: "Địa chỉ nhận", noiTiepNhanHoSo: "Nơi tiếp nhận hồ sơ", loaiDichVu: "Loại Dịch Vụ", danhMuc: "Tên Dịch Vụ", tenDichVu: "Tên Dịch Vụ",
       maDichVu: "Mã Dịch Vụ", ghiChuDichVu: "Ghi chú DV", nguoiPhuTrach: "Người phụ trách", ngayHen: "Ngày hẹn trả kết quả", ngayBatDau: "Ngày nộp hồ sơ",
       ngayKetThuc: "Ngày hoàn thành", trangThai: "Trạng thái", goi: "Gói", invoiceYN: "Invoice Y/N", invoice: "Invoice",
       gio: "Giờ", noiDung: "Nội dung", ghiChu: "Ghi chú", ngayTao: "Ngày tạo",
@@ -2382,7 +2417,7 @@ const B2CPage = () => {
     },
     en: {
       stt: "No.", khachHang: "Customer", maVung: "Area Code", soDienThoai: "Phone", email: "Email",
-      kenhLienHe: "Channel", coSo: "Branch", diaChiNhan: "Receiving Address", loaiDichVu: "Service Type", danhMuc: "Service Name", tenDichVu: "Service Name",
+      kenhLienHe: "Channel", coSo: "Branch", diaChiNhan: "Receiving Address", noiTiepNhanHoSo: "Receiving Office", loaiDichVu: "Service Type", danhMuc: "Service Name", tenDichVu: "Service Name",
       maDichVu: "Service Code", ghiChuDichVu: "Service Note", nguoiPhuTrach: "Assignee", ngayHen: "Result Appointment", ngayBatDau: "Submission Date",
       ngayKetThuc: "Completion Date", trangThai: "Status", goi: "Package", invoiceYN: "Invoice Y/N", invoice: "Invoice",
       gio: "Time", noiDung: "Content", ghiChu: "Note", ngayTao: "Created",
@@ -2392,7 +2427,7 @@ const B2CPage = () => {
     },
     ko: {
       stt: "번호", khachHang: "고객", maVung: "지역번호", soDienThoai: "전화번호", email: "이메일",
-      kenhLienHe: "채널", coSo: "지점", diaChiNhan: "수령 주소", loaiDichVu: "서비스 유형", danhMuc: "서비스명", tenDichVu: "서비스명",
+      kenhLienHe: "채널", coSo: "지점", diaChiNhan: "수령 주소", noiTiepNhanHoSo: "접수 기관", loaiDichVu: "서비스 유형", danhMuc: "서비스명", tenDichVu: "서비스명",
       maDichVu: "서비스 코드", ghiChuDichVu: "서비스 비고", nguoiPhuTrach: "담당자", ngayHen: "결과 수령 예약일", ngayBatDau: "접수일",
       ngayKetThuc: "완료일", trangThai: "상태", goi: "패키지", invoiceYN: "청구서 Y/N", invoice: "청구서",
       gio: "시간", noiDung: "내용", ghiChu: "비고", ngayTao: "생성일",
@@ -2432,6 +2467,7 @@ const initialColumnKeys = [
     { key: "hinhThuc", label: tHeaders.kenhLienHe },
     { key: "coSo", label: tHeaders.coSo },
     { key: "diaChiNhan", label: tHeaders.diaChiNhan },
+    { key: "noiTiepNhanHoSo", label: tHeaders.noiTiepNhanHoSo },
     { key: "loaiDichVu", label: tHeaders.loaiDichVu },
     { key: "danhMuc", label: tHeaders.danhMuc },
     { key: "maDichVu", label: tHeaders.maDichVu },
@@ -2519,7 +2555,7 @@ const handleApproveClick = (item) => {
 
 const tableHeaders = [
     tHeaders.stt, tHeaders.khachHang, tHeaders.maVung, tHeaders.soDienThoai, tHeaders.email, 
-  tHeaders.kenhLienHe, tHeaders.coSo, tHeaders.diaChiNhan, tHeaders.loaiDichVu, tHeaders.danhMuc, tHeaders.maDichVu,
+  tHeaders.kenhLienHe, tHeaders.coSo, tHeaders.diaChiNhan, tHeaders.noiTiepNhanHoSo, tHeaders.loaiDichVu, tHeaders.danhMuc, tHeaders.maDichVu,
   tHeaders.ghiChuDichVu,
     ...((currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) ? [tHeaders.nguoiPhuTrach] : []),
     tHeaders.ngayTao, tHeaders.ngayBatDau,
@@ -2590,10 +2626,55 @@ const fetchData = async () => {
   useEffect(() => { fetchData(); }, [currentPage, currentUser]);
 
   const handleEditClick = (item) => { setEditingRequest(item); };
-  const handleViewDetailClick = (item, serviceCode) => {
+  const handleViewDetailClick = (item, serviceCode, clickedRow) => {
+    const receivingInfo = extractReceivingInfoFromDetails(item?.ChiTietDichVu);
+    const clickedServiceName = String(clickedRow?.name || "").trim();
+
+    let filteredDetails = item?.ChiTietDichVu;
+    try {
+      const detailsObj = typeof item?.ChiTietDichVu === "string"
+        ? JSON.parse(item?.ChiTietDichVu)
+        : (item?.ChiTietDichVu || {});
+
+      if (Array.isArray(detailsObj?.services) && clickedServiceName) {
+        const matchedServices = detailsObj.services.filter(
+          (service) => String(service?.name || "").trim() === clickedServiceName
+        );
+        filteredDetails = {
+          ...detailsObj,
+          services: matchedServices.length > 0 ? matchedServices : detailsObj.services
+        };
+      } else if (Array.isArray(detailsObj?.sub) && clickedServiceName) {
+        const matchedSub = detailsObj.sub.filter(
+          (service) => String(service?.name || "").trim() === clickedServiceName
+        );
+        filteredDetails = {
+          ...detailsObj,
+          sub: matchedSub.length > 0 ? matchedSub : detailsObj.sub
+        };
+      }
+    } catch {
+      filteredDetails = item?.ChiTietDichVu;
+    }
+
     setViewingRequest({
       ...item,
-      __viewServiceCode: serviceCode || item?.MaHoSo || ""
+      ChiTietDichVu: filteredDetails,
+      DanhMuc: clickedServiceName || item?.DanhMuc,
+      TenDichVu: clickedServiceName || item?.TenDichVu,
+      LoaiDichVu: clickedRow?.serviceType || item?.LoaiDichVu,
+      NoiTiepNhanHoSo:
+        item?.NoiTiepNhanHoSo ||
+        receivingInfo.receivingOffice ||
+        "",
+      DiaChiNhan:
+        item?.DiaChiNhan ||
+        receivingInfo.receivingAddress ||
+        item?.NoiTiepNhanHoSo ||
+        receivingInfo.receivingOffice ||
+        "",
+      __viewServiceCode: serviceCode || item?.MaHoSo || "",
+      __viewServiceName: clickedServiceName
     });
   };
   

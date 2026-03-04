@@ -262,6 +262,66 @@ export default function B2BPage() {
     
     setShowAddServiceModal(true);
   };
+
+  const handleViewServiceDetail = (rec, clickedServiceName = "", clickedServiceRow = null, clickedSubIdx = 0) => {
+    const cloned = { ...rec };
+    const details = rec?.ChiTietDichVu;
+
+    if (details && typeof details === "object") {
+      if (Array.isArray(details.services) && details.services.length > 0) {
+        const targetName = String(clickedServiceName || clickedServiceRow?.name || "").trim().toLowerCase();
+        const targetCode = String(clickedServiceRow?.code || "").trim().toLowerCase();
+
+        let filteredServices = details.services.filter((s) => {
+          const serviceName = String(s?.name || "").trim().toLowerCase();
+          const serviceCode = String(s?.code || s?.MaDichVu || "").trim().toLowerCase();
+          return (targetName && serviceName === targetName) || (targetCode && serviceCode === targetCode);
+        });
+
+        if (filteredServices.length === 0 && details.services[clickedSubIdx]) {
+          filteredServices = [details.services[clickedSubIdx]];
+        }
+
+        if (filteredServices.length > 0) {
+          cloned.ChiTietDichVu = {
+            ...details,
+            services: filteredServices
+          };
+
+          const selectedService = filteredServices[0] || {};
+          const selectedName = selectedService.name || clickedServiceName;
+          cloned.DanhMuc = selectedName || cloned.DanhMuc;
+          cloned.TenDichVu = selectedName || cloned.TenDichVu;
+          cloned.LoaiDichVu = selectedService.serviceType || clickedServiceRow?.serviceType || cloned.LoaiDichVu;
+          cloned.serviceType = selectedService.serviceType || clickedServiceRow?.serviceType || cloned.serviceType;
+          cloned.__viewServiceCode = selectedService.code || selectedService.MaDichVu || clickedServiceRow?.code || cloned.code;
+        }
+      } else if (Array.isArray(details.sub) && details.sub.length > 0) {
+        const targetName = String(clickedServiceName || clickedServiceRow?.name || "").trim().toLowerCase();
+        let filteredSub = details.sub.filter((s) => String(s?.name || "").trim().toLowerCase() === targetName);
+
+        if (filteredSub.length === 0 && details.sub[clickedSubIdx]) {
+          filteredSub = [details.sub[clickedSubIdx]];
+        }
+
+        if (filteredSub.length > 0) {
+          cloned.ChiTietDichVu = {
+            ...details,
+            sub: filteredSub
+          };
+
+          const selectedName = filteredSub[0]?.name || clickedServiceName;
+          cloned.DanhMuc = selectedName || cloned.DanhMuc;
+          cloned.TenDichVu = selectedName || cloned.TenDichVu;
+          cloned.__viewServiceCode = clickedServiceRow?.code || cloned.code;
+        }
+      }
+    }
+
+    setEditingServiceData(cloned);
+    setServiceModalMode("view");
+    setShowAddServiceModal(true);
+  };
   
   const handleModalChange = (e) => {
     const { name, value } = e.target;
@@ -1645,11 +1705,18 @@ export default function B2BPage() {
                         // Cấu trúc MỚI: lấy từ services array
                         serviceRows = details.services.map((s) => ({
                           name: s.name || "",
-                          note: String(s.note || s.ghiChu || s.serviceNote || "").trim()
+                          note: String(s.note || s.ghiChu || s.serviceNote || "").trim(),
+                          code: s.code || s.MaDichVu || rec.code || "",
+                          serviceType: s.serviceType || rec.serviceType || ""
                         }));
                       } else {
                         // Cấu trúc CŨ: lấy từ DanhMuc string
-                        serviceRows = (rec.DanhMuc || "").split(" + ").map((name) => ({ name, note: "" }));
+                        serviceRows = (rec.DanhMuc || "").split(" + ").map((name) => ({
+                          name,
+                          note: "",
+                          code: rec.code || "",
+                          serviceType: rec.serviceType || ""
+                        }));
                       }
                       const servicesList = serviceRows.map((s) => s.name || "");
                       
@@ -1697,6 +1764,7 @@ export default function B2BPage() {
                         const serviceRow = serviceRows[subIdx] || {};
                         const svcName = serviceRow.name || "";
                         const serviceNote = serviceRow.note || "";
+                        const rowServiceCode = serviceRow.code || rec.code || "";
 
                         return (
                           <tr key={`${rec.uiId}_${subIdx}`} className={rec.isNew ? "" : "bg-white hover:bg-gray-50"}>
@@ -1744,11 +1812,28 @@ export default function B2BPage() {
                               <div className="px-1" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{svcName}</div>
                             </td>
 
-                            {isFirstSubRow && (
-                              <>
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, width: 170 }}><span className="fw-bold text-dark">{rec.code}</span></td>
-                              </>
-                            )}
+                            <td className="border" style={{ ...mergedStyle, width: 170 }}>
+                              {rowServiceCode ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleViewServiceDetail(rec, svcName, serviceRow, subIdx)}
+                                  style={{
+                                    border: "none",
+                                    background: "transparent",
+                                    color: "#1d4ed8",
+                                    fontWeight: 700,
+                                    textDecoration: "underline",
+                                    cursor: "pointer",
+                                    padding: 0
+                                  }}
+                                  title="Xem chi tiết"
+                                >
+                                  {rowServiceCode}
+                                </button>
+                              ) : (
+                                <span className="fw-bold text-dark">{rowServiceCode}</span>
+                              )}
+                            </td>
 
                             <td className="border" style={{ ...danhMucStyle, minWidth: 140, maxWidth: 220 }}>
                               <div className="px-1" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
