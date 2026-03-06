@@ -6,7 +6,7 @@ import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import EditProfileModal from "./EditProfileModal";
 import { showToast } from "../utils/toast";
 import useDashboardData from "./CMSDashboard/hooks/useDashboardData";
-import { LayoutGrid, Edit, Trash2, X, Pin, PinOff, PlusCircle, Check, ChevronDown, Eye, EyeOff, Plus, Ban, RotateCcw } from "lucide-react";
+import { LayoutGrid, Edit, Trash2, X, Pin, PinOff, PlusCircle, Check, ChevronDown, Eye, EyeOff, Plus } from "lucide-react";
 import Swal from "sweetalert2";
 import "../styles/DashboardList.css";
 import { authenticatedFetch } from "../utils/api";
@@ -171,7 +171,46 @@ const normalizeServiceCodeForRow = (item) => {
   const codeMatch = currentCode.match(/^[^-]+-(\d{6})-([YNyn])-([0-9]{3})$/);
   if (!codeMatch) return currentCode;
 
-  const normalizedCode = `${expectedPrefix}-${codeMatch[1]}-${codeMatch[2].toUpperCase()}-${codeMatch[3]}`;
+  const submissionRaw =
+    item?.NgayBatDau ||
+    item?.ChonNgay ||
+    item?.NgayNopHoSo ||
+    item?.CreatedAt ||
+    "";
+
+  const formatCodeDate = (value) => {
+    const raw = String(value || "").trim();
+    const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      const [, yyyy, mm, dd] = isoMatch;
+      return `${yyyy.slice(-2)}${mm}${dd}`;
+    }
+
+    const dayFirstMatch = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+    if (dayFirstMatch) {
+      const [, dd, mm, yyyy] = dayFirstMatch;
+      return `${String(yyyy).slice(-2)}${String(mm).padStart(2, "0")}${String(dd).padStart(2, "0")}`;
+    }
+
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) {
+      const yy = String(parsed.getUTCFullYear()).slice(-2);
+      const mm = String(parsed.getUTCMonth() + 1).padStart(2, "0");
+      const dd = String(parsed.getUTCDate()).padStart(2, "0");
+      return `${yy}${mm}${dd}`;
+    }
+
+    return codeMatch[1];
+  };
+
+  const expectedDate = formatCodeDate(submissionRaw);
+  const expectedInvoiceCode = ["yes", "có", "true", "y"].includes(
+    String(item?.Invoice ?? item?.YeuCauXuatHoaDon ?? item?.YeuCauHoaDon ?? "").toLowerCase()
+  )
+    ? "Y"
+    : "N";
+
+  const normalizedCode = `${expectedPrefix}-${expectedDate}-${expectedInvoiceCode}-${codeMatch[3]}`;
   return normalizedCode;
 };
 
@@ -619,6 +658,8 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     const section = { ...nextSections[sectionIndex] };
     const rows = [...section.rows];
 
+    const safeValue = value ?? "";
+
     if (field === "name") {
       if (value === CUSTOM_SERVICE_OPTION_VALUE) {
         rows[rowIndex] = {
@@ -629,12 +670,12 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
       } else {
         rows[rowIndex] = {
           ...rows[rowIndex],
-          [field]: value,
+          [field]: safeValue,
           isCustomService: rows[rowIndex].isCustomService
         };
       }
     } else {
-      rows[rowIndex] = { ...rows[rowIndex], [field]: value };
+      rows[rowIndex] = { ...rows[rowIndex], [field]: safeValue };
     }
 
     // Tự động tính thành tiền khi có đủ dữ liệu
@@ -655,7 +696,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
 
     // Format số cho đơn giá
     if (field === "dongia") {
-      const raw = value.replace(/\./g, "");
+      const raw = safeValue.replace(/\./g, "");
       if (!isNaN(raw)) {
         rows[rowIndex][field] = raw.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
       }
@@ -808,6 +849,9 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           DonViTienTe: 0,
           Invoice: "No", InvoiceUrl: "", ConfirmPassword: "",
           YeuCauXuatHoaDon: "No",
+          NgayTao: "",
+          NgayBatDau: "",
+          NgayKetThuc: "",
           DoanhThuTruocChietKhau: "0", // String format
           MucChietKhau: 0,
         }
@@ -836,7 +880,9 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           NoiTiepNhanHoSo: request.NoiTiepNhanHoSo || requestDetailMeta.receivingOffice || "",
           DiaChiNhan: request.DiaChiNhan || requestDetailMeta.receivingAddress || request.NoiTiepNhanHoSo || requestDetailMeta.receivingOffice || "",
           DoanhThuTruocChietKhau: formatNumber(request.DoanhThuTruocChietKhau),
+          NgayTao: request.NgayTao ? new Date(request.NgayTao).toISOString().split("T")[0] : "",
           NgayBatDau: request.NgayBatDau ? new Date(request.NgayBatDau).toISOString().split("T")[0] : "",
+          ChonNgay: request.ChonNgay ? new Date(request.ChonNgay).toISOString().split("T")[0] : "",
           NgayKetThuc: request.NgayKetThuc ? new Date(request.NgayKetThuc).toISOString().split("T")[0] : "",
         }
   );
@@ -854,7 +900,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     else { name = eOrName.target.name; val = eOrName.target.value; }
     setFormData((prev) => {
       const next = { ...prev, [name]: val };
-      if (name === "TrangThai" && isCompletedStatus(val)) {
+      if (name === "TrangThai" && isCompletedStatus(val) && !next.NgayKetThuc) {
         next.NgayKetThuc = getTodayDateString();
       }
       return next;
@@ -1007,7 +1053,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
       }
     };
 
-    if (isCompletedStatus(payload.TrangThai)) {
+    if (isCompletedStatus(payload.TrangThai) && !payload.NgayKetThuc) {
       payload.NgayKetThuc = getTodayDateString();
     }
 
@@ -1108,7 +1154,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                 <input 
                   type="text" 
                   name="HoTen" 
-                  value={formData.HoTen} 
+                  value={formData.HoTen ?? ""} 
                   onChange={handleInputChange}
                   placeholder={t.enterName}
                   style={{...inputStyle, height: "44px"}} 
@@ -1130,7 +1176,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                   <ModernSelect
                     name="MaVung"
                     height="44px"
-                    value={formData.MaVung}
+                    value={formData.MaVung ?? ""}
                     placeholder="+84"
                     options={areaCodes}
                     onChange={handleInputChange}
@@ -1139,7 +1185,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                 <input
                   type="text"
                   name="SoDienThoai"
-                  value={formData.SoDienThoai}
+                  value={formData.SoDienThoai ?? ""}
                   onChange={handleInputChange}
                   placeholder={t.enterPhone}
                   style={{...inputStyle, height: "44px"}}
@@ -1160,7 +1206,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                 <input
                   type="email"
                   name="Email"
-                  value={formData.Email}
+                  value={formData.Email ?? ""}
                   onChange={handleInputChange}
                   placeholder={t.enterEmail}
                   style={{...inputStyle, height: "44px"}}
@@ -1171,6 +1217,36 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           
           <div className="col-md-7" style={{ paddingLeft: "30px" }}>
             <div className="row g-3">
+              {!isNew && (
+                <div className="col-12">
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ minWidth: "110px", flexShrink: 0 }}>
+                      <label style={{...labelStyle, marginBottom: "0", display: "block"}}>
+                        Ngày tạo
+                      </label>
+                      <p style={{ fontSize: "11px", color: "#9ca3af", margin: "3px 0 0 0", fontStyle: "italic", lineHeight: "1.3" }}>
+                        Ngày hệ thống tạo hồ sơ
+                      </p>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div 
+                        onClick={(e) => e.currentTarget.querySelector('input').showPicker?.()}
+                        style={{ cursor: "pointer" }}
+                      >
+                        <input 
+                          type="date" 
+                          name="NgayTao" 
+                          style={{...inputStyle, height: "44px", cursor: "pointer"}}
+                          value={formData.NgayTao || ""}
+                          onChange={handleInputChange}
+                          placeholder="Chọn ngày"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="col-12">
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                   <div style={{ minWidth: "110px", flexShrink: 0 }}>
@@ -1218,7 +1294,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                         type="date" 
                         name="ChonNgay" 
                         style={{...inputStyle, height: "44px", cursor: "pointer"}}
-                        value={formData.ChonNgay ? new Date(formData.ChonNgay).toISOString().split("T")[0] : ""}
+                        value={formData.ChonNgay || ""}
                         onChange={handleInputChange}
                         placeholder="2025-01-20"
                       />
@@ -1226,6 +1302,38 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                   </div>
                 </div>
               </div>
+
+              {!isNew && (
+                <>
+                  <div className="col-12">
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <div style={{ minWidth: "110px", flexShrink: 0 }}>
+                        <label style={{...labelStyle, marginBottom: "0", display: "block"}}>
+                          Ngày hoàn thành
+                        </label>
+                        <p style={{ fontSize: "11px", color: "#9ca3af", margin: "3px 0 0 0", fontStyle: "italic", lineHeight: "1.3" }}>
+                          Ngày hồ sơ hoàn thành
+                        </p>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div 
+                          onClick={(e) => e.currentTarget.querySelector('input').showPicker?.()}
+                          style={{ cursor: "pointer" }}
+                        >
+                          <input 
+                            type="date" 
+                            name="NgayKetThuc" 
+                            style={{...inputStyle, height: "44px", cursor: "pointer"}}
+                            value={formData.NgayKetThuc || ""}
+                            onChange={handleInputChange}
+                            placeholder="Chọn ngày"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div className="col-12">
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -1241,7 +1349,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                     <ModernSelect
                       name="TrangThai"
                       height="44px"
-                      value={formData.TrangThai}
+                      value={formData.TrangThai ?? ""}
                       placeholder={t.selectStatus}
                       options={statusOptions.map((status) => ({ value: status, label: status }))}
                       onChange={handleInputChange}
@@ -1250,8 +1358,6 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                 </div>
               </div>
 
-              {/* Hidden field for NgayKetThuc */}
-              <input type="hidden" name="NgayKetThuc" value={formData.NgayKetThuc || ""} />
             </div>
           </div>
 
@@ -1287,7 +1393,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                            <ModernSelect
                              name={`LoaiDichVu-${sectionIndex}`}
                              height="32px"
-                             value={section.serviceType}
+                             value={section.serviceType ?? ""}
                              placeholder="Chọn loại dịch vụ"
                              noBorder={true}
                              backgroundColor="#f3f4f6"
@@ -1318,7 +1424,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                                  <input
                                    type="text"
-                                   value={row.name}
+                                   value={row.name ?? ""}
                                    onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "name", e.target.value)}
                                    placeholder="Gõ dịch vụ"
                                    style={{
@@ -1353,7 +1459,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                                <ModernSelect
                                  name={`service-${sectionIndex}-${rowIndex}`}
                                  height="32px"
-                                 value={row.name}
+                                 value={row.name ?? ""}
                                  placeholder={rowIndex === 0 ? "Nhập dịch vụ" : "Chọn"}
                                  noBorder={true}
                                  backgroundColor="white"
@@ -1391,7 +1497,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                              <ModernSelect
                                name={`donvi-${sectionIndex}-${rowIndex}`}
                                height="32px"
-                               value={row.donvi}
+                               value={row.donvi ?? ""}
                                placeholder="Chọn"
                                noBorder={true}
                                backgroundColor="white"
@@ -1407,7 +1513,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                            <td style={{ padding: "8px" }}>
                              <input
                                type="number"
-                               value={row.soluong}
+                               value={row.soluong ?? ""}
                                onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "soluong", e.target.value)}
                                style={{ width: "100%", height: "32px", textAlign: "center", padding: "4px", border: "none", borderRadius: "0", fontSize: "13px", color: "#111827", backgroundColor: "white", outline: "none" }}
                              />
@@ -1416,7 +1522,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                              <ModernSelect
                                name={`loaigoi-${sectionIndex}-${rowIndex}`}
                                height="32px"
-                               value={row.loaigoi}
+                               value={row.loaigoi ?? ""}
                                placeholder="Chọn"
                                noBorder={true}
                                backgroundColor="white"
@@ -1432,7 +1538,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                            <td style={{ padding: "8px" }}>
                              <input
                                type="text"
-                               value={row.dongia}
+                               value={row.dongia ?? ""}
                                onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "dongia", e.target.value)}
                                placeholder="Nhập vào"
                                style={{ width: "100%", height: "32px", textAlign: "right", padding: "4px 8px", border: "none", borderRadius: "0", fontSize: "13px", color: "#111827", backgroundColor: "white", outline: "none" }}
@@ -1442,7 +1548,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                              <ModernSelect
                                name={`thue-${sectionIndex}-${rowIndex}`}
                                height="32px"
-                               value={row.thue}
+                               value={row.thue ?? ""}
                                placeholder="Chọn"
                                noBorder={true}
                                backgroundColor="white"
@@ -1458,7 +1564,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                              <ModernSelect
                                name={`chietkhau-${sectionIndex}-${rowIndex}`}
                                height="32px"
-                               value={row.chietkhau}
+                               value={row.chietkhau ?? ""}
                                placeholder="Chọn"
                                noBorder={true}
                                backgroundColor="white"
@@ -1475,7 +1581,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                            <td style={{ padding: "8px" }}>
                              <input
                                type="text"
-                               value={row.thanhtien}
+                               value={row.thanhtien ?? ""}
                                readOnly
                                style={{ width: "100%", height: "32px", textAlign: "right", padding: "4px 8px", border: "none", borderRadius: "0", fontSize: "13px", color: "#111827", backgroundColor: "white", outline: "none" }}
                              />
@@ -1617,7 +1723,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
               <ModernSelect
                 name="TenHinhThuc"
                 height="36px"
-                value={formData.TenHinhThuc}
+                value={formData.TenHinhThuc ?? ""}
                 placeholder={t.selectForm}
                 options={formOptions.map((form) => ({ value: form, label: form }))}
                 onChange={handleInputChange}
@@ -1742,7 +1848,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
               <textarea 
                 rows={3}
                 name="GhiChu"
-                value={formData.GhiChu}
+                value={formData.GhiChu ?? ""}
                 onChange={handleInputChange}
                 placeholder="Nhập ghi chú..."
                 style={{
@@ -1794,7 +1900,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                 <ModernSelect 
                   name="NguoiPhuTrachId" 
                   height="38px" 
-                  value={formData.NguoiPhuTrachId} 
+                  value={formData.NguoiPhuTrachId ?? ""} 
                   placeholder="Chọn tên người phụ trách" 
                   options={users.map(u => ({ value: String(u.id), label: u.name }))} 
                   onChange={handleInputChange} 
@@ -1814,7 +1920,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                 <input
                   type={showConfirmPassword ? "text" : "password"}
                   name="ConfirmPassword"
-                  value={formData.ConfirmPassword}
+                  value={formData.ConfirmPassword ?? ""}
                   onChange={handleInputChange}
                   placeholder="Mật khẩu xác nhận"
                   style={{...inputStyle, paddingRight: "35px"}}
@@ -1906,7 +2012,6 @@ const RowItem = ({
   onViewDetail,
   onDelete,
   onApprove,
-  onDisable,
   currentLanguage,
   visibleColumns,
   pinnedColumns,
@@ -1914,9 +2019,6 @@ const RowItem = ({
   const canApprove = currentUser?.is_director || currentUser?.perm_approve_b2c;
   const canViewFinance = currentUser?.is_accountant || currentUser?.is_director;
   const hasServiceCode = item.MaHoSo && item.MaHoSo.length > 5;
-  const isDisabledStatus = ["vô hiệu hóa", "vo hieu hoa", "disabled"].includes(
-    String(item.TrangThai || "").trim().toLowerCase()
-  );
 
   // --- [ĐÃ SỬA] THÊM HÀM XỬ LÝ XÓA ---
   const handleDeleteClick = () => {
@@ -1932,35 +2034,6 @@ const RowItem = ({
     }).then((result) => {
       if (result.isConfirmed) {
         onDelete(item.YeuCauID);
-      }
-    });
-  };
-
-  const handleDisableClick = () => {
-    const nextStatus = isDisabledStatus ? "Tư vấn" : "Vô hiệu hóa";
-    const titleText = isDisabledStatus
-      ? (currentLanguage === "vi" ? "Bỏ vô hiệu hóa hồ sơ này?" : "Re-enable this request?")
-      : (currentLanguage === "vi" ? "Vô hiệu hóa hồ sơ này?" : "Disable this request?");
-    const bodyText = isDisabledStatus
-      ? (currentLanguage === "vi" ? "Hồ sơ sẽ chuyển về trạng thái Tư vấn." : "This request will be moved to Consultation.")
-      : (currentLanguage === "vi" ? "Hồ sơ sẽ được chuyển sang trạng thái Vô hiệu hóa." : "This request will be moved to Disabled status.");
-    const confirmText = isDisabledStatus
-      ? (currentLanguage === "vi" ? "Bỏ vô hiệu hóa" : "Re-enable")
-      : (currentLanguage === "vi" ? "Vô hiệu hóa" : "Disable");
-    const confirmColor = isDisabledStatus ? "#10b981" : "#f59e0b";
-
-    Swal.fire({
-      title: titleText,
-      text: bodyText,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: confirmColor,
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: confirmText,
-      cancelButtonText: currentLanguage === "vi" ? "Hủy" : "Cancel",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        onDisable(item, nextStatus);
       }
     });
   };
@@ -2102,11 +2175,16 @@ const RowItem = ({
   }, 0);
 
   function normalizePackageForDisplay(value) {
-      const normalized = String(value || "").trim().toLowerCase();
+      const normalized = String(value || "")
+        .trim()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
       if (!normalized) return "";
-      if (normalized === "thong thuong") return "thường";
-      if (normalized === "cap toc") return "gấp 1";
-      return normalized;
+      if (normalized === "thong thuong" || normalized === "thuong") return "Thường";
+      if (normalized === "cap toc" || normalized === "gap 1") return "Gấp 1";
+      if (normalized === "gap 0") return "Gấp 0";
+      return String(value || "").trim();
   }
 
   const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
@@ -2312,22 +2390,6 @@ const RowItem = ({
                         <Trash2 size={16} />
                       </button>
 
-                      <button
-                        className="btn btn-sm shadow-sm d-flex align-items-center justify-content-center"
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "6px",
-                          padding: "6px",
-                          backgroundColor: isDisabledStatus ? "#10b981" : "#f59e0b",
-                          borderColor: isDisabledStatus ? "#10b981" : "#f59e0b",
-                          color: "#ffffff"
-                        }}
-                        onClick={handleDisableClick}
-                        title={isDisabledStatus ? (currentLanguage === "vi" ? "Bỏ vô hiệu hóa" : "Re-enable") : (currentLanguage === "vi" ? "Vô hiệu hóa" : "Disable")}
-                      >
-                        {isDisabledStatus ? <RotateCcw size={16} /> : <Ban size={16} />}
-                      </button>
                     </>
                   )}
 
@@ -2351,22 +2413,6 @@ const RowItem = ({
                         <Trash2 size={16} />
                       </button>
 
-                      <button
-                        className="btn btn-sm shadow-sm d-flex align-items-center justify-content-center"
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "6px",
-                          padding: "6px",
-                          backgroundColor: isDisabledStatus ? "#10b981" : "#f59e0b",
-                          borderColor: isDisabledStatus ? "#10b981" : "#f59e0b",
-                          color: "#ffffff"
-                        }}
-                        onClick={handleDisableClick}
-                        title={isDisabledStatus ? (currentLanguage === "vi" ? "Bỏ vô hiệu hóa" : "Re-enable") : (currentLanguage === "vi" ? "Vô hiệu hóa" : "Disable")}
-                      >
-                        {isDisabledStatus ? <RotateCcw size={16} /> : <Ban size={16} />}
-                      </button>
                     </>
                   )}
                 </div>
@@ -2406,14 +2452,14 @@ const B2CPage = () => {
   // Translations for table headers
   const tableHeadersTranslations = {
     vi: {
-      stt: "STT", khachHang: "Khách hàng", maVung: "Mã vùng", soDienThoai: "Số Điện Thoại", email: "Email",
-      kenhLienHe: "Kênh Liên Hệ", coSo: "Cơ sở", diaChiNhan: "Địa chỉ nhận", noiTiepNhanHoSo: "Nơi tiếp nhận hồ sơ", loaiDichVu: "Loại Dịch Vụ", danhMuc: "Tên Dịch Vụ", tenDichVu: "Tên Dịch Vụ",
-      maDichVu: "Mã Dịch Vụ", ghiChuDichVu: "Ghi chú DV", nguoiPhuTrach: "Người phụ trách", ngayHen: "Ngày hẹn trả kết quả", ngayBatDau: "Ngày nộp hồ sơ",
-      ngayKetThuc: "Ngày hoàn thành", trangThai: "Trạng thái", goi: "Gói", invoiceYN: "Invoice Y/N", invoice: "Invoice",
-      gio: "Giờ", noiDung: "Nội dung", ghiChu: "Ghi chú", ngayTao: "Ngày tạo",
+      stt: "STT", khachHang: "Khách Hàng", maVung: "Mã Vùng", soDienThoai: "Số Điện Thoại", email: "Email",
+      kenhLienHe: "Kênh Liên Hệ", coSo: "Cơ Sở", diaChiNhan: "Địa Chỉ Nhận", noiTiepNhanHoSo: "Nơi Tiếp Nhận Hồ Sơ", loaiDichVu: "Loại Dịch Vụ", danhMuc: "Tên Dịch Vụ", tenDichVu: "Tên Dịch Vụ",
+      maDichVu: "Mã Dịch Vụ", ghiChuDichVu: "Ghi Chú DV", nguoiPhuTrach: "Người Phụ Trách", ngayHen: "Ngày Hẹn Trả Kết Quả", ngayBatDau: "Ngày Nộp Hồ Sơ",
+      ngayKetThuc: "Ngày Hoàn Thành", trangThai: "Trạng Thái", goi: "Gói", invoiceYN: "Invoice Y/N", invoice: "Invoice",
+      gio: "Giờ", noiDung: "Nội Dung", ghiChu: "Ghi Chú", ngayTao: "Ngày Tạo",
       doanhThuTruoc: "Doanh Thu Trước CK", mucChietKhau: "% CK", soTienChietKhau: "Tiền Chiết Khấu",
-      doanhThuSau: "Doanh Thu Sau CK", tongDoanhThuTichLuy: "Tổng Doanh Thu Sau CK", hanhDong: "Hành động",
-      dangKyDichVuMoi: "Đăng ký dịch vụ mới"
+      doanhThuSau: "Doanh Thu Sau CK", tongDoanhThuTichLuy: "Tổng Doanh Thu Sau CK", hanhDong: "Hành Động",
+      dangKyDichVuMoi: "Đăng Ký Dịch Vụ Mới"
     },
     en: {
       stt: "No.", khachHang: "Customer", maVung: "Area Code", soDienThoai: "Phone", email: "Email",
@@ -2628,41 +2674,9 @@ const fetchData = async () => {
   const handleEditClick = (item) => { setEditingRequest(item); };
   const handleViewDetailClick = (item, serviceCode, clickedRow) => {
     const receivingInfo = extractReceivingInfoFromDetails(item?.ChiTietDichVu);
-    const clickedServiceName = String(clickedRow?.name || "").trim();
-
-    let filteredDetails = item?.ChiTietDichVu;
-    try {
-      const detailsObj = typeof item?.ChiTietDichVu === "string"
-        ? JSON.parse(item?.ChiTietDichVu)
-        : (item?.ChiTietDichVu || {});
-
-      if (Array.isArray(detailsObj?.services) && clickedServiceName) {
-        const matchedServices = detailsObj.services.filter(
-          (service) => String(service?.name || "").trim() === clickedServiceName
-        );
-        filteredDetails = {
-          ...detailsObj,
-          services: matchedServices.length > 0 ? matchedServices : detailsObj.services
-        };
-      } else if (Array.isArray(detailsObj?.sub) && clickedServiceName) {
-        const matchedSub = detailsObj.sub.filter(
-          (service) => String(service?.name || "").trim() === clickedServiceName
-        );
-        filteredDetails = {
-          ...detailsObj,
-          sub: matchedSub.length > 0 ? matchedSub : detailsObj.sub
-        };
-      }
-    } catch {
-      filteredDetails = item?.ChiTietDichVu;
-    }
 
     setViewingRequest({
       ...item,
-      ChiTietDichVu: filteredDetails,
-      DanhMuc: clickedServiceName || item?.DanhMuc,
-      TenDichVu: clickedServiceName || item?.TenDichVu,
-      LoaiDichVu: clickedRow?.serviceType || item?.LoaiDichVu,
       NoiTiepNhanHoSo:
         item?.NoiTiepNhanHoSo ||
         receivingInfo.receivingOffice ||
@@ -2674,7 +2688,7 @@ const fetchData = async () => {
         receivingInfo.receivingOffice ||
         "",
       __viewServiceCode: serviceCode || item?.MaHoSo || "",
-      __viewServiceName: clickedServiceName
+      __viewServiceName: String(clickedRow?.name || "").trim()
     });
   };
   
@@ -3406,41 +3420,6 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
     } catch { showToast("Lỗi kết nối", "error"); }
   };
 
-  const handleDisable = async (item, nextStatus = "Vô hiệu hóa") => {
-    try {
-      const payload = {
-        ...item,
-        TrangThai: nextStatus,
-      };
-      delete payload.NguoiPhuTrach;
-      delete payload.User;
-      delete payload.DiaChiNhan;
-      delete payload.NoiTiepNhanHoSo;
-
-      const res = await fetch(`${API_BASE}/yeucau/${item.YeuCauID}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const json = await res.json();
-      if (json.success) {
-        const successMsg = nextStatus === "Vô hiệu hóa"
-          ? (currentLanguage === "vi" ? "Đã vô hiệu hóa hồ sơ" : "Request disabled successfully")
-          : (currentLanguage === "vi" ? "Đã bỏ vô hiệu hóa" : "Request re-enabled successfully");
-        showToast(successMsg, "success");
-        fetchData();
-      } else {
-        const errorMsg = nextStatus === "Vô hiệu hóa"
-          ? (currentLanguage === "vi" ? "Không thể vô hiệu hóa" : "Cannot disable request")
-          : (currentLanguage === "vi" ? "Không thể bỏ vô hiệu hóa" : "Cannot re-enable request");
-        showToast(json.message || errorMsg, "error");
-      }
-    } catch {
-      showToast(currentLanguage === "vi" ? "Lỗi kết nối" : "Connection error", "error");
-    }
-  };
-
   const filteredData = data.filter((i) => {
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
@@ -3678,7 +3657,6 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                         onViewDetail={handleViewDetailClick}
                         onDelete={handleDelete}
                         onApprove={handleApproveClick}
-                        onDisable={handleDisable}
                         currentLanguage={currentLanguage}
                         visibleColumns={visibleColumns}
                         pinnedColumns={pinnedColumns}

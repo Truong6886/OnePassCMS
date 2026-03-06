@@ -155,6 +155,63 @@ const toDateOnly = (value) => {
   return "";
 };
 
+const toServiceCodeDatePart = (value, fallback = "") => {
+  const raw = String(value || "").trim();
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const [, yyyy, mm, dd] = isoMatch;
+    return `${yyyy.slice(-2)}${mm}${dd}`;
+  }
+
+  const dayFirstMatch = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+  if (dayFirstMatch) {
+    const [, dd, mm, yyyy] = dayFirstMatch;
+    return `${String(yyyy).slice(-2)}${String(mm).padStart(2, "0")}${String(dd).padStart(2, "0")}`;
+  }
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    const yy = String(parsed.getUTCFullYear()).slice(-2);
+    const mm = String(parsed.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(parsed.getUTCDate()).padStart(2, "0");
+    return `${yy}${mm}${dd}`;
+  }
+
+  return fallback;
+};
+
+const normalizeB2BCodeBySubmissionDate = (item) => {
+  const currentCode = String(item?.MaDichVu || "").trim();
+  const match = currentCode.match(/^([^-]+)-(\d{6})-([YNyn])-([0-9]{3})$/);
+  if (!match) return currentCode;
+
+  const expectedDate = toServiceCodeDatePart(
+    item?.NgayBatDau || item?.NgayThucHien || item?.NgayTao || item?.CreatedAt,
+    match[2]
+  );
+  const expectedInvoiceCode = ["yes", "có", "true", "y"].includes(
+    String(item?.YeuCauHoaDon || "").toLowerCase()
+  )
+    ? "Y"
+    : "N";
+
+  return `${match[1]}-${expectedDate}-${expectedInvoiceCode}-${match[4]}`;
+};
+
+const normalizePackageLabel = (value) => {
+  const normalized = String(value || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  if (!normalized) return "";
+  if (normalized === "thuong" || normalized === "thong thuong") return "Thường";
+  if (normalized === "gap 1" || normalized === "cap toc") return "Gấp 1";
+  if (normalized === "gap 0") return "Gấp 0";
+  return String(value || "").trim();
+};
+
 export default function B2BPage() {
   const [expandedRowId, setExpandedRowId] = useState(null);
   const [showRegisterB2BModal, setShowRegisterB2BModal] = useState(false);
@@ -263,62 +320,8 @@ export default function B2BPage() {
     setShowAddServiceModal(true);
   };
 
-  const handleViewServiceDetail = (rec, clickedServiceName = "", clickedServiceRow = null, clickedSubIdx = 0) => {
-    const cloned = { ...rec };
-    const details = rec?.ChiTietDichVu;
-
-    if (details && typeof details === "object") {
-      if (Array.isArray(details.services) && details.services.length > 0) {
-        const targetName = String(clickedServiceName || clickedServiceRow?.name || "").trim().toLowerCase();
-        const targetCode = String(clickedServiceRow?.code || "").trim().toLowerCase();
-
-        let filteredServices = details.services.filter((s) => {
-          const serviceName = String(s?.name || "").trim().toLowerCase();
-          const serviceCode = String(s?.code || s?.MaDichVu || "").trim().toLowerCase();
-          return (targetName && serviceName === targetName) || (targetCode && serviceCode === targetCode);
-        });
-
-        if (filteredServices.length === 0 && details.services[clickedSubIdx]) {
-          filteredServices = [details.services[clickedSubIdx]];
-        }
-
-        if (filteredServices.length > 0) {
-          cloned.ChiTietDichVu = {
-            ...details,
-            services: filteredServices
-          };
-
-          const selectedService = filteredServices[0] || {};
-          const selectedName = selectedService.name || clickedServiceName;
-          cloned.DanhMuc = selectedName || cloned.DanhMuc;
-          cloned.TenDichVu = selectedName || cloned.TenDichVu;
-          cloned.LoaiDichVu = selectedService.serviceType || clickedServiceRow?.serviceType || cloned.LoaiDichVu;
-          cloned.serviceType = selectedService.serviceType || clickedServiceRow?.serviceType || cloned.serviceType;
-          cloned.__viewServiceCode = selectedService.code || selectedService.MaDichVu || clickedServiceRow?.code || cloned.code;
-        }
-      } else if (Array.isArray(details.sub) && details.sub.length > 0) {
-        const targetName = String(clickedServiceName || clickedServiceRow?.name || "").trim().toLowerCase();
-        let filteredSub = details.sub.filter((s) => String(s?.name || "").trim().toLowerCase() === targetName);
-
-        if (filteredSub.length === 0 && details.sub[clickedSubIdx]) {
-          filteredSub = [details.sub[clickedSubIdx]];
-        }
-
-        if (filteredSub.length > 0) {
-          cloned.ChiTietDichVu = {
-            ...details,
-            sub: filteredSub
-          };
-
-          const selectedName = filteredSub[0]?.name || clickedServiceName;
-          cloned.DanhMuc = selectedName || cloned.DanhMuc;
-          cloned.TenDichVu = selectedName || cloned.TenDichVu;
-          cloned.__viewServiceCode = clickedServiceRow?.code || cloned.code;
-        }
-      }
-    }
-
-    setEditingServiceData(cloned);
+  const handleViewServiceDetail = (rec) => {
+    setEditingServiceData(rec);
     setServiceModalMode("view");
     setShowAddServiceModal(true);
   };
@@ -763,19 +766,19 @@ export default function B2BPage() {
       nguoiDaiDien: "Người Đại Diện Pháp Luật",
       ngayDangKy: "Ngày Đăng Ký",
       tongDoanhThu: "Tổng Doanh Thu",
-      lyDoTuChoi: "Lý do từ chối",
+      lyDoTuChoi: "Lý Do Từ Chối",
       dichVu: "Dịch Vụ",
       giayPhep: "Giấy Phép ĐKKD",
       email: "Email",
       hoSo: "Hồ Sơ",
-      soDienThoai: "Số Điện Thoai",
+      soDienThoai: "Số Điện Thoại",
       nganhNgheChinh: "Ngành Nghề Chính",
       diaChi: "Địa Chỉ",
       chonDN: "Doanh Nghiệp",
       loaiDichVu: "Loại Dịch Vụ",
       tenDichVu: "Tên Dịch Vụ",
       maDichVu: "Mã Dịch Vụ",
-      ghiChuDichVu: "Ghi chú DV",
+      ghiChuDichVu: "Ghi Chú DV",
       danhMuc: "Danh Mục",
       nguoiPhuTrach: "Người Phụ Trách",
       goi: "Gói",
@@ -789,13 +792,13 @@ export default function B2BPage() {
       mucChietKhau: "Mức\nChiết Khấu",
       soTienChietKhau: "Số Tiền\nChiết Khấu",
       doanhThuSau: "Doanh Thu\nSau Chiết Khấu",
-      suDungVi: "Sử dụng\nví",
+      suDungVi: "Sử Dụng\nVí",
       tongDoanhThuTichLuy: "Tổng Doanh Thu",
-      hanhDong: "Hành động",
+      hanhDong: "Hành Động",
       msgWalletLimit: "Số tiền ví không được quá 2.000.000",
-      noiTiepNhanHoSo: "Nơi tiếp nhận hồ sơ",
-      diaChiNhan: "Địa chỉ nhận",
-      diaChiNhanPlaceholder: "Nhập địa chỉ nhận hồ sơ"
+      noiTiepNhanHoSo: "Nơi Tiếp Nhận Hồ Sơ",
+      diaChiNhan: "Địa Chỉ Nhận",
+      diaChiNhanPlaceholder: "Nhập Địa Chỉ Nhận Hồ Sơ"
     },
     en: {
       pendingTab: "Pending List",
@@ -1011,12 +1014,12 @@ export default function B2BPage() {
             serviceName: item.TenDichVu,
             NoiTiepNhanHoSo: parsedChiTietDichVu?.meta?.NoiTiepNhanHoSo || "",
             DiaChiNhan: item.DiaChiNhan || "",
-            package: item.GoiDichVu,
+            package: normalizePackageLabel(item.GoiDichVu),
             invoiceYN: item.YeuCauHoaDon,
             invoiceUrl: item.InvoiceUrl,
             picId: item.NguoiPhuTrachId,
             picName: item.NguoiPhuTrach ? (item.NguoiPhuTrach.username || item.NguoiPhuTrach.name) : "",
-            code: !isPendingServiceStatus(item.TrangThai) ? item.MaDichVu : "",
+            code: !isPendingServiceStatus(item.TrangThai) ? normalizeB2BCodeBySubmissionDate(item) : "",
             createdDate: toDateOnly(item.NgayTao) || toDateOnly(item.createdAt) || toDateOnly(item.CreatedAt) || toDateOnly(item.NgayDangKy) || toDateOnly(item.NgayDangKyB2B) || toDateOnly(item.NgayBatDau) || toDateOnly(item.NgayThucHien),
             startDate: toDateOnly(item.NgayBatDau) || toDateOnly(item.NgayThucHien),
             appointmentDate: toDateOnly(item.NgayKetThuc),
@@ -1705,18 +1708,11 @@ export default function B2BPage() {
                         // Cấu trúc MỚI: lấy từ services array
                         serviceRows = details.services.map((s) => ({
                           name: s.name || "",
-                          note: String(s.note || s.ghiChu || s.serviceNote || "").trim(),
-                          code: s.code || s.MaDichVu || rec.code || "",
-                          serviceType: s.serviceType || rec.serviceType || ""
+                          note: String(s.note || s.ghiChu || s.serviceNote || "").trim()
                         }));
                       } else {
                         // Cấu trúc CŨ: lấy từ DanhMuc string
-                        serviceRows = (rec.DanhMuc || "").split(" + ").map((name) => ({
-                          name,
-                          note: "",
-                          code: rec.code || "",
-                          serviceType: rec.serviceType || ""
-                        }));
+                        serviceRows = (rec.DanhMuc || "").split(" + ").map((name) => ({ name, note: "" }));
                       }
                       const servicesList = serviceRows.map((s) => s.name || "");
                       
@@ -1764,7 +1760,6 @@ export default function B2BPage() {
                         const serviceRow = serviceRows[subIdx] || {};
                         const svcName = serviceRow.name || "";
                         const serviceNote = serviceRow.note || "";
-                        const rowServiceCode = serviceRow.code || rec.code || "";
 
                         return (
                           <tr key={`${rec.uiId}_${subIdx}`} className={rec.isNew ? "" : "bg-white hover:bg-gray-50"}>
@@ -1812,28 +1807,32 @@ export default function B2BPage() {
                               <div className="px-1" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{svcName}</div>
                             </td>
 
-                            <td className="border" style={{ ...mergedStyle, width: 170 }}>
-                              {rowServiceCode ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleViewServiceDetail(rec, svcName, serviceRow, subIdx)}
-                                  style={{
-                                    border: "none",
-                                    background: "transparent",
-                                    color: "#1d4ed8",
-                                    fontWeight: 700,
-                                    textDecoration: "underline",
-                                    cursor: "pointer",
-                                    padding: 0
-                                  }}
-                                  title="Xem chi tiết"
-                                >
-                                  {rowServiceCode}
-                                </button>
-                              ) : (
-                                <span className="fw-bold text-dark">{rowServiceCode}</span>
-                              )}
-                            </td>
+                            {isFirstSubRow && (
+                              <>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, width: 170 }}>
+                                  {rec.code ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleViewServiceDetail(rec)}
+                                      style={{
+                                        border: "none",
+                                        background: "transparent",
+                                        color: "#1d4ed8",
+                                        fontWeight: 700,
+                                        textDecoration: "underline",
+                                        cursor: "pointer",
+                                        padding: 0
+                                      }}
+                                      title="Xem chi tiết"
+                                    >
+                                      {rec.code}
+                                    </button>
+                                  ) : (
+                                    <span className="fw-bold text-dark">{rec.code}</span>
+                                  )}
+                                </td>
+                              </>
+                            )}
 
                             <td className="border" style={{ ...danhMucStyle, minWidth: 140, maxWidth: 220 }}>
                               <div className="px-1" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
@@ -1848,7 +1847,7 @@ export default function B2BPage() {
                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.startDate}</td>
                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.appointmentDate}</td>
                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.completionDate}</td>
-                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}><span className={rec.package === "Cấp tốc" ? "text-danger fw-bold" : ""}>{rec.package}</span></td>
+                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}><span className={String(rec.package || "").startsWith("Gấp") ? "text-danger fw-bold" : ""}>{rec.package}</span></td>
                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.invoiceYN}</td>
                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.invoiceUrl ? (<a href={rec.invoiceUrl} target="_blank" rel="noreferrer" className="text-primary d-inline-block"><FileText size={16} /></a>) : ""}</td>
                                 <td className="border" rowSpan={subRowsCount} style={mergedStyle}>

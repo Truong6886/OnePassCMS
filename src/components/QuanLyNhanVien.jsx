@@ -8,7 +8,7 @@ import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import { showToast } from "../utils/toast"; 
 import useSocketListener from "./CMSDashboard/hooks/useSocketListener";
 import { authenticatedFetch } from "../utils/api";
-import { UploadCloud, Eye, EyeOff, X, FileText, Edit, Trash2 } from "lucide-react";
+import { UploadCloud, Eye, EyeOff, X, FileText, Edit, Trash2, Ban, RotateCcw } from "lucide-react";
 
 export default function QuanLyNhanVien() {
   const { showEditModal, setShowEditModal } = useDashboardData();
@@ -49,6 +49,13 @@ export default function QuanLyNhanVien() {
   const canManageStaff = isDirector || currentUser?.perm_view_staff;
   const canViewCV = isDirector;
   const canViewPermissions = isDirector;
+
+  const flagTrue = (value) => value === true || value === 1 || value === "1" || value === "true";
+  const isPrivilegedUser = (user) =>
+    flagTrue(user?.is_admin) || flagTrue(user?.is_director) || flagTrue(user?.is_accountant);
+
+  const isDisabledUser = (user) =>
+    !isPrivilegedUser(user) && !flagTrue(user?.is_staff);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
@@ -396,6 +403,87 @@ const handleSaveUser = async () => {
     }
   };
 
+  const handleToggleDisableUser = async (user) => {
+    const currentlyDisabled = isDisabledUser(user);
+    const targetDisable = !currentlyDisabled;
+
+    const confirm = await Swal.fire({
+      title: targetDisable ? "Vô hiệu hóa nhân viên này?" : "Bỏ vô hiệu hóa nhân viên này?",
+      text: targetDisable
+        ? "Tài khoản sẽ không còn quyền nhân viên cho đến khi bật lại."
+        : "Tài khoản sẽ được bật lại với vai trò nhân viên.",
+      icon: "warning",
+      input: "password",
+      inputLabel: "Nhập mật khẩu giám đốc để xác nhận",
+      inputPlaceholder: "Mật khẩu giám đốc",
+      inputAttributes: { autocapitalize: "off", autocorrect: "off" },
+      showCancelButton: true,
+      confirmButtonText: targetDisable ? "Vô hiệu hóa" : "Bật lại",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: targetDisable ? "#f59e0b" : "#10b981",
+      preConfirm: (value) => {
+        if (!value) {
+          Swal.showValidationMessage("Vui lòng nhập mật khẩu giám đốc");
+        }
+        return value;
+      }
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    try {
+      const verifyRes = await fetch("https://onepasscms-backend-tvdy.onrender.com/api/verify-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: currentUser.username,
+          password: confirm.value
+        })
+      });
+      const verifyJson = await verifyRes.json();
+      if (!verifyJson.success) {
+        showToast("Mật khẩu giám đốc không đúng!", "error");
+        return;
+      }
+
+      const payload = {
+        username: user.username,
+        name: user.name || "",
+        email: user.email || "",
+        is_admin: false,
+        is_director: false,
+        is_accountant: false,
+        is_staff: targetDisable ? false : true,
+        perm_approve_b2b: targetDisable ? false : Boolean(user.perm_approve_b2b),
+        perm_approve_b2c: targetDisable ? false : Boolean(user.perm_approve_b2c),
+        perm_view_revenue: targetDisable ? false : Boolean(user.perm_view_revenue),
+        perm_view_staff: targetDisable ? false : Boolean(user.perm_view_staff),
+        ChucDanh: user.ChucDanh || "",
+        PhongBan: user.PhongBan || "",
+        MaVung: user.MaVung || "+84",
+        SoDienThoai: user.SoDienThoai || "",
+        NgayVaoLam: user.NgayVaoLam || "",
+        LoaiHopDong: user.LoaiHopDong || "",
+        CV: user.CV || ""
+      };
+
+      const res = await authenticatedFetch(`https://onepasscms-backend-tvdy.onrender.com/api/User/${user.id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+
+      if (json.success) {
+        showToast(targetDisable ? "Đã vô hiệu hóa nhân viên" : "Đã bật lại nhân viên", "success");
+        fetchUsers();
+      } else {
+        showToast(json.message || "Không thể cập nhật trạng thái nhân viên", "error");
+      }
+    } catch (err) {
+      showToast("Lỗi kết nối", "error");
+    }
+  };
+
   const renderPermissions = (user) => {
     const perms = [];
     if (user.perm_approve_b2b || user.is_director) perms.push({ label: t.duyetB2B, color: "bg-primary" });
@@ -516,6 +604,7 @@ const handleSaveUser = async () => {
                 <tbody>
                   {users.map((u, i) => {
                     const isExpanded = expandedUserId === u.id;
+                    const userDisabled = isDisabledUser(u);
                     let totalCols = 9; 
                     if (canViewPermissions) totalCols++;
                     if (canViewCV) totalCols++;
@@ -526,7 +615,9 @@ const handleSaveUser = async () => {
                       <React.Fragment key={u.id}>
                         <tr className="bg-white hover:bg-gray-50 align-middle">
                           <td className="ps-3 fw-bold text-secondary text-center">{i + 1}</td>
-                          <td className="fw-semibold text-dark text-center">{u.name || u.username}</td>
+                          <td className="fw-semibold text-dark text-center">
+                            {u.name || u.username}
+                          </td>
                           <td className="text-center">{u.ChucDanh || "-"}</td>
                           <td className="text-center">{u.PhongBan || "-"}</td>
                           <td className="text-muted text-center">{u.email}</td>
@@ -556,6 +647,21 @@ const handleSaveUser = async () => {
                               <div className="d-flex justify-content-center align-items-center gap-2">
                                 <button className="btn btn-sm btn-primary d-flex align-items-center justify-content-center" style={{ width: 32, height: 32 }} onClick={() => handleOpenEdit(u)} title="Sửa">
                                   <Edit size={16} />
+                                </button>
+                                <button
+                                  className="btn btn-sm d-flex align-items-center justify-content-center"
+                                  style={{
+                                    width: 32,
+                                    height: 32,
+                                    backgroundColor: userDisabled ? "#10b981" : "#f59e0b",
+                                    color: "#fff",
+                                    cursor: "pointer",
+                                    opacity: 1
+                                  }}
+                                  onClick={() => handleToggleDisableUser(u)}
+                                  title={userDisabled ? "Bỏ vô hiệu hóa" : "Vô hiệu hóa"}
+                                >
+                                  {userDisabled ? <RotateCcw size={16} /> : <Ban size={16} />}
                                 </button>
                                 <button 
                                     className="btn btn-sm btn-danger d-flex align-items-center justify-content-center" 

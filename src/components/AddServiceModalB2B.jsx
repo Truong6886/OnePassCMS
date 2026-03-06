@@ -99,6 +99,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
   const unformatMoney = (val) => val ? parseFloat(val.toString().replace(/\./g, "")) : 0;
   const isApproveMode = actionMode === "approve";
   const isViewMode = actionMode === "view";
+  const isNewMode = !editingService?.id;
   
   const normalizeServiceType = (val) => {
     if (!val) return "";
@@ -193,8 +194,17 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
           MaVung: maVung,
           SoDienThoai: soDienThoai,
           Email: mergedEmail,
+          NgayTao:
+            editingService.createdDate ||
+            editingService.NgayTao?.split?.("T")?.[0] ||
+            editingService.CreatedAt?.split?.("T")?.[0] ||
+            "",
           NgayDangKy: editingService.startDate || new Date().toISOString().split('T')[0],
           NgayHen: editingService.appointmentDate || editingService.NgayKetThuc || "",
+          NgayHoanThanh:
+            editingService.completionDate ||
+            editingService.NgayHoanThanh?.split?.("T")?.[0] ||
+            "",
           TrangThai: isApproveMode ? "Đã duyệt" : (editingService.status || editingService.TrangThai || "Chờ duyệt"),
           GhiChu: editingService.GhiChu || "",
           NguoiPhuTrachId: editingService.picId ? String(editingService.picId) : (currentUser?.id ? String(currentUser.id) : ""),
@@ -284,8 +294,10 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
         MaVung: "+84",
         SoDienThoai: "",
         Email: "",
+        NgayTao: "",
         NgayDangKy: new Date().toISOString().split('T')[0],
         NgayHen: "",
+        NgayHoanThanh: "",
         TrangThai: "Chờ duyệt",
         GhiChu: "",
         NguoiPhuTrachId: "",
@@ -426,8 +438,10 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
     MaVung: "+84",
     SoDienThoai: "",
     Email: "",
+    NgayTao: "",
     NgayDangKy: new Date().toISOString().split('T')[0],
     NgayHen: "",
+    NgayHoanThanh: "",
     TrangThai: "Chờ duyệt",
     GhiChu: "",
     NguoiPhuTrachId: "",
@@ -502,26 +516,44 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
         const companyEmail = selectedCompany.Email || selectedCompany.email || "";
         const { maVung, soDienThoai } = parsePhoneWithAreaCode(companyPhone);
 
-        setFormData(prev => ({
-          ...prev,
-          [name]: value,
-          SoDKKD: selectedCompany.SoDKKD || "",
-          MaVung: maVung,
-          SoDienThoai: soDienThoai,
-          Email: companyEmail
-        }));
+        setFormData(prev => {
+          const next = {
+            ...prev,
+            [name]: value,
+            SoDKKD: selectedCompany.SoDKKD || "",
+            MaVung: maVung,
+            SoDienThoai: soDienThoai,
+            Email: companyEmail
+          };
+          if (name === "TrangThai" && isCompletedStatus(value) && !next.NgayHoanThanh) {
+            next.NgayHoanThanh = getTodayDateString();
+          }
+          return next;
+        });
       } else {
-        setFormData(prev => ({
-          ...prev,
-          [name]: value,
-          SoDKKD: "",
-          MaVung: "+84",
-          SoDienThoai: "",
-          Email: ""
-        }));
+        setFormData(prev => {
+          const next = {
+            ...prev,
+            [name]: value,
+            SoDKKD: "",
+            MaVung: "+84",
+            SoDienThoai: "",
+            Email: ""
+          };
+          if (name === "TrangThai" && isCompletedStatus(value) && !next.NgayHoanThanh) {
+            next.NgayHoanThanh = getTodayDateString();
+          }
+          return next;
+        });
       }
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData(prev => {
+        const next = { ...prev, [name]: value };
+        if (name === "TrangThai" && isCompletedStatus(value) && !next.NgayHoanThanh) {
+          next.NgayHoanThanh = getTodayDateString();
+        }
+        return next;
+      });
     }
   };
 
@@ -611,14 +643,14 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
       editingService?.NgayHoanThanh?.split?.("T")?.[0] ||
       "";
     const completionDate = nowCompleted
-      ? (previouslyCompleted && existingCompletionDate ? existingCompletionDate : getTodayDateString())
-      : existingCompletionDate;
+      ? (formData.NgayHoanThanh || (previouslyCompleted && existingCompletionDate ? existingCompletionDate : getTodayDateString()))
+      : (formData.NgayHoanThanh || existingCompletionDate);
     const existingCreatedDate =
       editingService?.createdDate ||
       editingService?.NgayTao?.split?.("T")?.[0] ||
       editingService?.CreatedAt?.split?.("T")?.[0] ||
       "";
-    const createdDate = existingCreatedDate || getTodayDateString();
+    const createdDate = formData.NgayTao || existingCreatedDate || getTodayDateString();
 
     const payload = {
       DoanhNghiepID: formData.DoanhNghiepID,
@@ -697,7 +729,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
     { value: "Gọi điện", label: "Gọi điện" },
     { value: "Trực tiếp", label: "Trực tiếp" }
   ];
-  const serviceCodeTitle = String(editingService?.__viewServiceCode || editingService?.code || editingService?.MaDichVu || "").trim();
+  const serviceCodeTitle = String(editingService?.code || editingService?.MaDichVu || "").trim();
   const modalTitle = isViewMode
     ? (serviceCodeTitle || "Chi tiết dịch vụ")
     : (isApproveMode ? "Duyệt cấp dịch vụ" : "Đăng ký dịch vụ mới (B2B)");
@@ -804,6 +836,33 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
 
           <div className="col-md-7" style={{ paddingLeft: "30px" }}>
             <div className="row g-3">
+              {!isNewMode && (
+                <div className="col-12">
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ minWidth: "110px", flexShrink: 0 }}>
+                      <label style={{...labelStyle, marginBottom: "0", display: "block"}}>
+                        Ngày tạo
+                      </label>
+                      <p style={{ fontSize: "11px", color: "#9ca3af", margin: "3px 0 0 0", fontStyle: "italic", lineHeight: "1.3" }}>
+                        Ngày hệ thống tạo hồ sơ
+                      </p>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div onClick={(e) => e.currentTarget.querySelector('input').showPicker?.()} style={{ cursor: "pointer" }}>
+                        <input
+                          type="date"
+                          name="NgayTao"
+                          style={{...inputStyle, height: "44px", cursor: "pointer"}}
+                          value={formData.NgayTao || ""}
+                          onChange={handleInputChange}
+                          placeholder="Chọn ngày"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="col-12">
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                   <div style={{ minWidth: "110px", flexShrink: 0 }}>
@@ -853,6 +912,33 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
                   </div>
                 </div>
               </div>
+
+              {!isNewMode && (
+                <div className="col-12">
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ minWidth: "110px", flexShrink: 0 }}>
+                      <label style={{...labelStyle, marginBottom: "0", display: "block"}}>
+                        Ngày hoàn thành
+                      </label>
+                      <p style={{ fontSize: "11px", color: "#9ca3af", margin: "3px 0 0 0", fontStyle: "italic", lineHeight: "1.3" }}>
+                        Ngày hồ sơ hoàn thành
+                      </p>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div onClick={(e) => e.currentTarget.querySelector('input').showPicker?.()} style={{ cursor: "pointer" }}>
+                        <input
+                          type="date"
+                          name="NgayHoanThanh"
+                          style={{...inputStyle, height: "44px", cursor: "pointer"}}
+                          value={formData.NgayHoanThanh || ""}
+                          onChange={handleInputChange}
+                          placeholder="Chọn ngày"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="col-12">
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
