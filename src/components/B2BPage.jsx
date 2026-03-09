@@ -7,7 +7,7 @@ import EditProfileModal from "./EditProfileModal";
 import RegisterB2BModal from "./RegisterB2BModal";
 import AddServiceModalB2B from "./AddServiceModalB2B";
 import { showToast } from "../utils/toast";
-import { Save, Trash2, XCircle, Check, FileText, Edit, Eye, EyeOff, Plus, X, ChevronDown, Paperclip } from "lucide-react";
+import { Save, Trash2, XCircle, Check, FileText, Edit, Eye, EyeOff, Plus, X, ChevronDown, Paperclip, Pin } from "lucide-react";
 import Swal from "sweetalert2";
 import { authenticatedFetch } from "../utils/api";
 import withReactContent from "sweetalert2-react-content";
@@ -459,20 +459,27 @@ export default function B2BPage() {
       const json = await res.json();
       console.log("Response from server:", json);
 
+      const extractServiceCode = (responseData, fallbackCode = "") => {
+        return String(
+          responseData?.newCode ||
+          responseData?.code ||
+          responseData?.MaDichVu ||
+          responseData?.data?.MaDichVu ||
+          responseData?.data?.code ||
+          fallbackCode ||
+          "CHUA_CAP_MA"
+        ).trim();
+      };
+
+      const serviceCode = extractServiceCode(json, editingServiceData?.code || editingServiceData?.MaDichVu || payload?.MaDichVu);
+
       if (json.success) {
-        if (json.newCode) {
-          await MySwal.fire({
-            icon: "success",
-            title: "Duyệt thành công!",
-            html: `Mã dịch vụ được cấp: <b>${json.newCode}</b>`,
-            confirmButtonColor: "#22c55e"
-          });
-        } else {
-          showToast(
-            editingServiceData ? "Cập nhật thành công!" : "Đã gửi yêu cầu đăng ký!",
-            "success"
-          );
-        }
+        showToast(
+          editingServiceData
+            ? `CHỈNH SỬA / CẬP NHẬT DỊCH VỤ THÀNH CÔNG - Mã dịch vụ: ${serviceCode}`
+            : `ĐĂNG KÝ DỊCH VỤ THÀNH CÔNG - Mã dịch vụ: ${serviceCode}`,
+          "success"
+        );
         setShowAddServiceModal(false);
         setEditingServiceData(null);
         setServiceModalMode("create");
@@ -619,19 +626,22 @@ export default function B2BPage() {
       const json = await res.json();
 
       if (json.success) {
-        if (approveAction === "accountant_approve" && json.newCode) {
-          await MySwal.fire({
-            icon: "success",
-            title: "Đã duyệt & Cấp mã!",
-            html: `Mã hệ thống: <b>${json.newCode}</b>`,
-            confirmButtonColor: "#22c55e"
-          });
-        } else {
-          showToast(
-            newServiceForm.id ? "Cập nhật thành công!" : "Đã gửi yêu cầu đăng ký!",
-            "success"
-          );
-        }
+        const serviceCode = String(
+          json.newCode ||
+          json.code ||
+          json.MaDichVu ||
+          json.data?.MaDichVu ||
+          json.data?.code ||
+          newServiceForm.MaDichVu ||
+          "CHUA_CAP_MA"
+        ).trim();
+
+        showToast(
+          newServiceForm.id
+            ? `CHỈNH SỬA / CẬP NHẬT DỊCH VỤ THÀNH CÔNG - Mã dịch vụ: ${serviceCode}`
+            : `ĐĂNG KÝ DỊCH VỤ THÀNH CÔNG - Mã dịch vụ: ${serviceCode}`,
+          "success"
+        );
 
         setShowAddServiceModal(false);
         loadServices(currentPage.services || 1);
@@ -897,6 +907,70 @@ export default function B2BPage() {
   };
 
   const t = translations[currentLanguage] || translations.en;
+
+  const [pinnedColumns, setPinnedColumns] = useState({
+    pending: [],
+    approved: [],
+    rejected: [],
+    services: []
+  });
+
+  const togglePinnedColumn = (tableKey, columnKey) => {
+    setPinnedColumns((prev) => {
+      const current = prev[tableKey] || [];
+      const next = current.includes(columnKey)
+        ? current.filter((key) => key !== columnKey)
+        : [...current, columnKey];
+      return { ...prev, [tableKey]: next };
+    });
+  };
+
+  const isColumnPinned = (tableKey, columnKey) =>
+    (pinnedColumns[tableKey] || []).includes(columnKey);
+
+  const getPinnedLeftOffset = (tableKey, columnKey, orderedColumns) => {
+    const pinnedSet = new Set(pinnedColumns[tableKey] || []);
+    let left = 0;
+
+    for (const col of orderedColumns) {
+      if (col.key === columnKey) break;
+      if (pinnedSet.has(col.key)) left += Number(col.width) || 0;
+    }
+
+    return left;
+  };
+
+  const getPinnedStyle = ({ tableKey, columnKey, orderedColumns, backgroundColor, zIndex = 12 }) => {
+    if (!isColumnPinned(tableKey, columnKey)) return {};
+
+    return {
+      position: "sticky",
+      left: `${getPinnedLeftOffset(tableKey, columnKey, orderedColumns)}px`,
+      zIndex,
+      backgroundColor,
+      boxShadow: "2px 0 6px rgba(15, 23, 42, 0.12)",
+      borderRight: "1px solid #cbd5e1"
+    };
+  };
+
+  const renderPinButton = (tableKey, columnKey) => {
+    const pinned = isColumnPinned(tableKey, columnKey);
+
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          togglePinnedColumn(tableKey, columnKey);
+        }}
+        title={pinned ? "Bỏ ghim cột" : "Ghim cột"}
+        className="btn btn-link p-0 border-0 d-inline-flex align-items-center"
+        style={{ color: "#ffffff", opacity: pinned ? 1 : 0.65, lineHeight: 1 }}
+      >
+        <Pin size={12} fill={pinned ? "currentColor" : "none"} />
+      </button>
+    );
+  };
 
   useSocketListener({ currentLanguage, setNotifications, setHasNewRequest, setShowNotification, currentUser: currentUser });
 
@@ -1217,12 +1291,17 @@ export default function B2BPage() {
 
       const json = await res.json();
       if (json.success) {
-        await MySwal.fire({
-          icon: "success",
-          title: "Duyệt thành công!",
-          html: `Mã dịch vụ được cấp: <b>${json.newCode || json.code}</b>`,
-          confirmButtonColor: "#22c55e"
-        });
+        const serviceCode = String(
+          json.newCode ||
+          json.code ||
+          json.MaDichVu ||
+          json.data?.MaDichVu ||
+          selectedService.code ||
+          selectedService.MaDichVu ||
+          "CHUA_CAP_MA"
+        ).trim();
+
+        showToast(`CHỈNH SỬA / CẬP NHẬT DỊCH VỤ THÀNH CÔNG - Mã dịch vụ: ${serviceCode}`, "success");
 
         setApproveModalOpen(false);
         setLoading(false);
@@ -1346,10 +1425,12 @@ export default function B2BPage() {
   };
 
 
-  const deleteServiceRow = async (id, isNew) => {
+  const deleteServiceRow = async (id, isNew, serviceCode = "") => {
     if (isNew) {
       setServiceData(prev => prev.filter(r => r.id !== id));
       setServiceTotal(prev => prev - 1);
+      const localDeletedCode = String(serviceCode || "CHUA_CAP_MA").trim();
+      showToast(`XÓA DỊCH VỤ THÀNH CÔNG - Mã dịch vụ: ${localDeletedCode}`, "success");
       return;
     }
 
@@ -1365,7 +1446,14 @@ export default function B2BPage() {
 
       const json = await res.json();
       if (json.success) {
-        showToast("Xóa thành công", "success");
+        const deletedCode = String(
+          json.code ||
+          json.MaDichVu ||
+          json.data?.MaDichVu ||
+          serviceCode ||
+          "CHUA_CAP_MA"
+        ).trim();
+        showToast(`XÓA DỊCH VỤ THÀNH CÔNG - Mã dịch vụ: ${deletedCode}`, "success");
         setServiceData(prev => prev.filter(r => r.id !== id));
         setServiceTotal(prev => prev - 1);
       } else { showToast("Lỗi xóa", "error"); }
@@ -1390,6 +1478,67 @@ export default function B2BPage() {
   const renderServicesTab = () => {
     const canApproveB2B = hasB2BApprovePermission(currentUser);
     const canViewRevenue = hasRevenueViewPermission(currentUser);
+
+    const tableKey = "services";
+    const servicesColumns = [
+      { key: "stt", width: 52 },
+      { key: "company", width: 120 },
+      { key: "soDKKD", width: 90 },
+      { key: "hoSo", width: 219 },
+      { key: "noiTiepNhan", width: 180 },
+      { key: "diaChiNhan", width: 180 },
+      { key: "loaiDichVu", width: 100 },
+      { key: "tenDichVu", width: 140 },
+      { key: "danhMuc", width: 180 },
+      { key: "maDichVu", width: 160 },
+      { key: "ghiChu", width: 180 },
+      { key: "nguoiPhuTrach", width: 110 },
+      { key: "ngayTao", width: 90 },
+      { key: "ngayBatDau", width: 90 },
+      { key: "ngayHen", width: 90 },
+      { key: "ngayKetThuc", width: 90 },
+      { key: "goi", width: 100 },
+      { key: "invoiceYN", width: 70 },
+      { key: "invoice", width: 60 },
+      { key: "trangThai", width: 120 }
+    ];
+
+    if (canViewRevenue) {
+      servicesColumns.push(
+        { key: "doanhThuTruoc", width: 100 },
+        { key: "suDungVi", width: 90 },
+        { key: "mucChietKhau", width: 60 },
+        { key: "soTienChietKhau", width: 80 },
+        { key: "doanhThuSau", width: 100 },
+        { key: "tongDoanhThu", width: 100 }
+      );
+    }
+
+    const serviceHeaderStyle = (columnKey, width) => ({
+      width: `${width}px`,
+      whiteSpace: "pre-wrap",
+      paddingTop: "2px",
+      paddingBottom: "2px",
+      paddingLeft: columnKey === "stt" ? "8px" : undefined,
+      paddingRight: columnKey === "stt" ? "8px" : undefined,
+      lineHeight: 1.05,
+      ...getPinnedStyle({
+        tableKey,
+        columnKey,
+        orderedColumns: servicesColumns,
+        backgroundColor: "#1e3a8a",
+        zIndex: 40
+      })
+    });
+
+    const serviceCellPinStyle = (columnKey, rowBg, zIndex = 12) =>
+      getPinnedStyle({
+        tableKey,
+        columnKey,
+        orderedColumns: servicesColumns,
+        backgroundColor: rowBg,
+        zIndex
+      });
 
     const getSubRowCount = (rec) => {
       if (!rec) return 1;
@@ -1548,6 +1697,8 @@ export default function B2BPage() {
       return (a.id || 0) - (b.id || 0);
     });
 
+    const totalAmount = displayData.reduce((sum, rec) => sum + getTotalRecordAfterDiscount(rec), 0);
+
     return (
       <div>
         <div
@@ -1640,44 +1791,47 @@ export default function B2BPage() {
           </div>
         ) : (
           <>
+            <div className="mb-2 text-muted" style={{ fontSize: "12px" }}>
+              Bấm biểu tượng ghim ở tiêu đề để cố định cột. Có thể ghim nhiều cột cùng lúc.
+            </div>
             <div className="table-responsive shadow-sm rounded">
               <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: "12px", borderCollapse: "separate", borderSpacing: 0, tableLayout: "fixed" }}>
                 <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a" }}>
                   <tr>
-                    <th className="py-2 border" style={{ width: "40px", whiteSpace: "pre-wrap" }}>{t.stt}</th>
-                    <th className="py-2 border" style={{ width: "120px", whiteSpace: "pre-wrap" }}>{t.chonDN}</th>
-                    <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>Số ĐKKD</th>
-                    <th className="py-2 border" style={{ width: "219px", whiteSpace: "pre-wrap" }}>{t.hoSo}</th>
-                    <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>{t.noiTiepNhanHoSo}</th>
-                    <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>{t.diaChiNhan}</th>
-                    <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.loaiDichVu}</th>
-                    <th className="py-2 border" style={{ width: "140px", whiteSpace: "pre-wrap" }}>{t.tenDichVu}</th>
+                    <th className="py-0 border" style={serviceHeaderStyle("stt", 52)}><div className="d-flex align-items-center justify-content-center gap-1" style={{ padding: "0 8px" }}><span>{t.stt}</span>{renderPinButton(tableKey, "stt")}</div></th>
+                    <th className="py-0 border" style={serviceHeaderStyle("company", 120)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.chonDN}</span>{renderPinButton(tableKey, "company")}</div></th>
+                    <th className="py-0 border" style={serviceHeaderStyle("soDKKD", 90)}><div className="d-flex align-items-center justify-content-center gap-1"><span>Số ĐKKD</span>{renderPinButton(tableKey, "soDKKD")}</div></th>
+                    <th className="py-0 border" style={serviceHeaderStyle("hoSo", 219)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.hoSo}</span>{renderPinButton(tableKey, "hoSo")}</div></th>
+                    <th className="py-0 border" style={serviceHeaderStyle("noiTiepNhan", 180)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.noiTiepNhanHoSo}</span>{renderPinButton(tableKey, "noiTiepNhan")}</div></th>
+                    <th className="py-0 border" style={serviceHeaderStyle("diaChiNhan", 180)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.diaChiNhan}</span>{renderPinButton(tableKey, "diaChiNhan")}</div></th>
+                    <th className="py-0 border" style={serviceHeaderStyle("loaiDichVu", 100)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.loaiDichVu}</span>{renderPinButton(tableKey, "loaiDichVu")}</div></th>
+                    <th className="py-0 border" style={serviceHeaderStyle("tenDichVu", 140)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.tenDichVu}</span>{renderPinButton(tableKey, "tenDichVu")}</div></th>
 
-                    <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>{t.danhMuc}</th>
-                    <th className="py-2 border" style={{ width: "160px", whiteSpace: "pre-wrap" }}>{t.maDichVu}</th>
-                    <th className="py-2 border" style={{ width: "180px", whiteSpace: "pre-wrap" }}>{t.ghiChuDichVu}</th>
-                    <th className="py-2 border" style={{ width: "110px", whiteSpace: "pre-wrap" }}>{t.nguoiPhuTrach}</th>
-                    <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayTao}</th>
-                    <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayBatDau}</th>
-                    <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayHen}</th>
-                    <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.ngayKetThuc}</th>
-                    <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>Gói</th>
-                    <th className="py-2 border" style={{ width: "70px", whiteSpace: "pre-wrap" }}>Invoice Y/N</th>
-                    <th className="py-2 border" style={{ width: "60px", whiteSpace: "pre-wrap" }}>Invoice</th>
-                    <th className="py-2 border" style={{ width: "120px", whiteSpace: "pre-wrap" }}>Trạng thái</th>
+                    <th className="py-0 border" style={serviceHeaderStyle("danhMuc", 180)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.danhMuc}</span>{renderPinButton(tableKey, "danhMuc")}</div></th>
+                    <th className="py-0 border" style={serviceHeaderStyle("maDichVu", 160)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.maDichVu}</span>{renderPinButton(tableKey, "maDichVu")}</div></th>
+                    <th className="py-0 border" style={serviceHeaderStyle("ghiChu", 180)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ghiChuDichVu}</span>{renderPinButton(tableKey, "ghiChu")}</div></th>
+                    <th className="py-0 border" style={serviceHeaderStyle("nguoiPhuTrach", 110)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.nguoiPhuTrach}</span>{renderPinButton(tableKey, "nguoiPhuTrach")}</div></th>
+                    <th className="py-0 border" style={serviceHeaderStyle("ngayTao", 90)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ngayTao}</span>{renderPinButton(tableKey, "ngayTao")}</div></th>
+                    <th className="py-0 border" style={serviceHeaderStyle("ngayBatDau", 90)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ngayBatDau}</span>{renderPinButton(tableKey, "ngayBatDau")}</div></th>
+                    <th className="py-0 border" style={serviceHeaderStyle("ngayHen", 90)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ngayHen}</span>{renderPinButton(tableKey, "ngayHen")}</div></th>
+                    <th className="py-0 border" style={serviceHeaderStyle("ngayKetThuc", 90)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ngayKetThuc}</span>{renderPinButton(tableKey, "ngayKetThuc")}</div></th>
+                    <th className="py-0 border" style={serviceHeaderStyle("goi", 100)}><div className="d-flex align-items-center justify-content-center gap-1"><span>Gói</span>{renderPinButton(tableKey, "goi")}</div></th>
+                    <th className="py-0 border" style={serviceHeaderStyle("invoiceYN", 70)}><div className="d-flex align-items-center justify-content-center gap-1"><span>Invoice Y/N</span>{renderPinButton(tableKey, "invoiceYN")}</div></th>
+                    <th className="py-0 border" style={serviceHeaderStyle("invoice", 60)}><div className="d-flex align-items-center justify-content-center gap-1"><span>Invoice</span>{renderPinButton(tableKey, "invoice")}</div></th>
+                    <th className="py-0 border" style={serviceHeaderStyle("trangThai", 120)}><div className="d-flex align-items-center justify-content-center gap-1"><span>Trạng thái</span>{renderPinButton(tableKey, "trangThai")}</div></th>
 
                     {canViewRevenue && (
                       <>
-                        <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.doanhThuTruoc}</th>
-                        <th className="py-2 border" style={{ width: "90px", whiteSpace: "pre-wrap" }}>{t.suDungVi}</th>
-                        <th className="py-2 border" style={{ width: "60px", whiteSpace: "pre-wrap" }}>{t.mucChietKhau}</th>
-                        <th className="py-2 border" style={{ width: "80px", whiteSpace: "pre-wrap" }}>{t.soTienChietKhau}</th>
-                        <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.doanhThuSau}</th>
-                        <th className="py-2 border" style={{ width: "100px", whiteSpace: "pre-wrap" }}>{t.tongDoanhThuTichLuy}</th>
+                        <th className="py-0 border" style={serviceHeaderStyle("doanhThuTruoc", 100)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.doanhThuTruoc}</span>{renderPinButton(tableKey, "doanhThuTruoc")}</div></th>
+                        <th className="py-0 border" style={serviceHeaderStyle("suDungVi", 90)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.suDungVi}</span>{renderPinButton(tableKey, "suDungVi")}</div></th>
+                        <th className="py-0 border" style={serviceHeaderStyle("mucChietKhau", 60)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.mucChietKhau}</span>{renderPinButton(tableKey, "mucChietKhau")}</div></th>
+                        <th className="py-0 border" style={serviceHeaderStyle("soTienChietKhau", 80)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.soTienChietKhau}</span>{renderPinButton(tableKey, "soTienChietKhau")}</div></th>
+                        <th className="py-0 border" style={serviceHeaderStyle("doanhThuSau", 100)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.doanhThuSau}</span>{renderPinButton(tableKey, "doanhThuSau")}</div></th>
+                        <th className="py-0 border" style={serviceHeaderStyle("tongDoanhThu", 100)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.tongDoanhThuTichLuy}</span>{renderPinButton(tableKey, "tongDoanhThu")}</div></th>
                       </>
                     )}
                     <th
-                      className="py-2 border"
+                      className="py-0 border"
                       style={{
                         width: "100px",
                         minWidth: "100px",
@@ -1733,8 +1887,10 @@ export default function B2BPage() {
                         }
                       }
 
+                      const rowBg = rec.isNew ? "#dcfce7" : "#fff";
+
                       const mergedStyle = {
-                        backgroundColor: rec.isNew ? "#dcfce7" : "#fff",
+                        backgroundColor: rowBg,
                         verticalAlign: "middle",
                         position: "relative",
                         zIndex: 1,
@@ -1748,7 +1904,7 @@ export default function B2BPage() {
                       };
 
                       const danhMucStyle = {
-                        backgroundColor: rec.isNew ? "#dcfce7" : "white",
+                        backgroundColor: rowBg,
                         verticalAlign: "middle",
                         padding: "4px 8px",
                         fontSize: "12px",
@@ -1763,17 +1919,17 @@ export default function B2BPage() {
 
                         return (
                           <tr key={`${rec.uiId}_${subIdx}`} className={rec.isNew ? "" : "bg-white hover:bg-gray-50"}>
-                            {isFirstSubRow && <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{globalIndex}</td>}
+                            {isFirstSubRow && <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("stt", rowBg, 14) }}>{globalIndex}</td>}
                             {isFirstSubRow && shouldRenderCompanyCell && (
                               <>
-                                <td className="border" rowSpan={companyRowSpan} style={mergedStyle} title={rec.companyName}>{rec.companyName || ""}</td>
-                                <td className="border" rowSpan={companyRowSpan} style={mergedStyle} title={rec.soDKKD}>{rec.soDKKD || ""}</td>
+                                <td className="border" rowSpan={companyRowSpan} style={{ ...mergedStyle, ...serviceCellPinStyle("company", rowBg, 13) }} title={rec.companyName}>{rec.companyName || ""}</td>
+                                <td className="border" rowSpan={companyRowSpan} style={{ ...mergedStyle, ...serviceCellPinStyle("soDKKD", rowBg, 13) }} title={rec.soDKKD}>{rec.soDKKD || ""}</td>
                               </>
                             )}
                             {isFirstSubRow && (
                               <>
 
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, maxWidth: '240px', textAlign: 'left', padding: '8px' }}>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, maxWidth: '240px', textAlign: 'left', padding: '8px', ...serviceCellPinStyle("hoSo", rowBg, 13) }}>
                                   {rec.ChiTietDichVu?.files?.length > 0 ? (
                                     <div className="d-flex flex-column gap-1">
                                       {rec.ChiTietDichVu.files.map((f, i) => (
@@ -1786,10 +1942,10 @@ export default function B2BPage() {
                                   ) : <div className="text-center text-muted">-</div>}
                                 </td>
 
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, textAlign: 'left' }} title={rec.NoiTiepNhanHoSo || "--"}>{rec.NoiTiepNhanHoSo || "--"}</td>
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, textAlign: 'left' }} title={rec.DiaChiNhan || "--"}>{rec.DiaChiNhan || "--"}</td>
-                                <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.serviceType}>{rec.serviceType}</td>
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, whiteSpace: 'normal', lineHeight: '1.5', overflow: 'visible', maxWidth: 'none', textAlign: 'center' }}>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, textAlign: 'left', ...serviceCellPinStyle("noiTiepNhan", rowBg, 13) }} title={rec.NoiTiepNhanHoSo || "--"}>{rec.NoiTiepNhanHoSo || "--"}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, textAlign: 'left', ...serviceCellPinStyle("diaChiNhan", rowBg, 13) }} title={rec.DiaChiNhan || "--"}>{rec.DiaChiNhan || "--"}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("loaiDichVu", rowBg, 13) }} title={rec.serviceType}>{rec.serviceType}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, whiteSpace: 'normal', lineHeight: '1.5', overflow: 'visible', maxWidth: 'none', textAlign: 'center', ...serviceCellPinStyle("tenDichVu", rowBg, 13) }}>
                                   {servicesList && servicesList.length > 1 ? (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                                       {servicesList.map((name, i) => (
@@ -1803,13 +1959,13 @@ export default function B2BPage() {
                               </>
                             )}
 
-                            <td className="border" style={danhMucStyle}>
+                            <td className="border" style={{ ...danhMucStyle, ...serviceCellPinStyle("danhMuc", rowBg, 12) }}>
                               <div className="px-1" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{svcName}</div>
                             </td>
 
                             {isFirstSubRow && (
                               <>
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, width: 170 }}>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, width: 170, ...serviceCellPinStyle("maDichVu", rowBg, 12) }}>
                                   {rec.code ? (
                                     <button
                                       type="button"
@@ -1834,7 +1990,7 @@ export default function B2BPage() {
                               </>
                             )}
 
-                            <td className="border" style={{ ...danhMucStyle, minWidth: 140, maxWidth: 220 }}>
+                            <td className="border" style={{ ...danhMucStyle, minWidth: 140, maxWidth: 220, ...serviceCellPinStyle("ghiChu", rowBg, 12) }}>
                               <div className="px-1" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                                 {serviceNote}
                               </div>
@@ -1842,15 +1998,15 @@ export default function B2BPage() {
 
                             {isFirstSubRow && (
                               <>
-                                <td className="border" rowSpan={subRowsCount} style={mergedStyle} title={rec.picName}>{rec.picName}</td>
-                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.createdDate}</td>
-                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.startDate}</td>
-                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.appointmentDate}</td>
-                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.completionDate}</td>
-                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}><span className={String(rec.package || "").startsWith("Gấp") ? "text-danger fw-bold" : ""}>{rec.package}</span></td>
-                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.invoiceYN}</td>
-                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}>{rec.invoiceUrl ? (<a href={rec.invoiceUrl} target="_blank" rel="noreferrer" className="text-primary d-inline-block"><FileText size={16} /></a>) : ""}</td>
-                                <td className="border" rowSpan={subRowsCount} style={mergedStyle}>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("nguoiPhuTrach", rowBg, 12) }} title={rec.picName}>{rec.picName}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("ngayTao", rowBg, 12) }}>{rec.createdDate}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("ngayBatDau", rowBg, 12) }}>{rec.startDate}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("ngayHen", rowBg, 12) }}>{rec.appointmentDate}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("ngayKetThuc", rowBg, 12) }}>{rec.completionDate}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("goi", rowBg, 12) }}><span className={String(rec.package || "").startsWith("Gấp") ? "text-danger fw-bold" : ""}>{rec.package}</span></td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("invoiceYN", rowBg, 12) }}>{rec.invoiceYN}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("invoice", rowBg, 12) }}>{rec.invoiceUrl ? (<a href={rec.invoiceUrl} target="_blank" rel="noreferrer" className="text-primary d-inline-block"><FileText size={16} /></a>) : ""}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("trangThai", rowBg, 12) }}>
                                   {rec.status}
                                 </td>
                               </>
@@ -1858,12 +2014,12 @@ export default function B2BPage() {
 
                             {canViewRevenue && (
                               <>
-                                <td className="border text-center pe-2" style={{ verticalAlign: "middle" }}>{formatNumber(getRowBeforeDiscount(rec, subIdx))}</td>
-                                {isFirstSubRow && (<td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, color: rec.walletUsage > 0 ? "red" : "inherit" }}>{formatNumber(rec.walletUsage || 0)}</td>)}
-                                <td className="border text-center" style={{ verticalAlign: "middle" }}>{getRowDiscountRate(rec, subIdx) ? getRowDiscountRate(rec, subIdx) + "%" : "0%"}</td>
-                                <td className="border text-center pe-2" style={{ verticalAlign: "middle" }}>{formatNumber(getRowDiscountAmount(rec, subIdx))}</td>
-                                <td className="border text-center pe-2" style={{ verticalAlign: "middle" }}>{formatNumber(getRowRevenue(rec, subIdx))}</td>
-                                {shouldRenderCompanyCell && isFirstSubRow && (<td className="border fw-bold text-primary text-center pe-2" rowSpan={companyRowSpan} style={mergedStyle}>{formatNumber(groupTotalRevenue)}</td>)}
+                                <td className="border text-center pe-2" style={{ verticalAlign: "middle", ...serviceCellPinStyle("doanhThuTruoc", rowBg, 12) }}>{formatNumber(getRowBeforeDiscount(rec, subIdx))}</td>
+                                {isFirstSubRow && (<td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, color: rec.walletUsage > 0 ? "red" : "inherit", ...serviceCellPinStyle("suDungVi", rowBg, 12) }}>{formatNumber(rec.walletUsage || 0)}</td>)}
+                                <td className="border text-center" style={{ verticalAlign: "middle", ...serviceCellPinStyle("mucChietKhau", rowBg, 12) }}>{getRowDiscountRate(rec, subIdx) ? getRowDiscountRate(rec, subIdx) + "%" : "0%"}</td>
+                                <td className="border text-center pe-2" style={{ verticalAlign: "middle", ...serviceCellPinStyle("soTienChietKhau", rowBg, 12) }}>{formatNumber(getRowDiscountAmount(rec, subIdx))}</td>
+                                <td className="border text-center pe-2" style={{ verticalAlign: "middle", ...serviceCellPinStyle("doanhThuSau", rowBg, 12) }}>{formatNumber(getRowRevenue(rec, subIdx))}</td>
+                                {shouldRenderCompanyCell && isFirstSubRow && (<td className="border fw-bold text-primary text-center pe-2" rowSpan={companyRowSpan} style={{ ...mergedStyle, ...serviceCellPinStyle("tongDoanhThu", rowBg, 12) }}>{formatNumber(groupTotalRevenue)}</td>)}
                               </>
                             )}
 
@@ -1890,7 +2046,7 @@ export default function B2BPage() {
                                   ) : (
                                     <button className="btn btn-sm shadow-sm p-0 d-flex align-items-center justify-content-center" style={{ backgroundColor: "#f59e0b", color: "#fff", width: 28, height: 28 }} onClick={() => handleEditService(rec)}><Edit size={14} /></button>
                                   )}
-                                  <button className="btn btn-sm shadow-sm p-0 d-flex align-items-center justify-content-center" style={{ backgroundColor: "#ef4444", color: "#fff", width: 28, height: 28 }} onClick={() => deleteServiceRow(rec.id, rec.isNew)}><Trash2 size={14} /></button>
+                                  <button className="btn btn-sm shadow-sm p-0 d-flex align-items-center justify-content-center" style={{ backgroundColor: "#ef4444", color: "#fff", width: 28, height: 28 }} onClick={() => deleteServiceRow(rec.id, rec.isNew, rec.code || rec.MaDichVu)}><Trash2 size={14} /></button>
                                 </div>
                               </td>
                             )}
@@ -1902,6 +2058,12 @@ export default function B2BPage() {
                 </tbody>
               </table>
             </div>
+            {canViewRevenue && (
+              <div className="d-flex justify-content-end align-items-center mt-2" style={{ fontSize: "16px", color: "#374151" }}>
+                <span>Tổng doanh thu tích lũy:&nbsp;</span>
+                <span style={{ color: "#2563eb", fontWeight: 700 }}>{formatNumber(totalAmount)} đ</span>
+              </div>
+            )}
             <Pagination current={currentPage.services} total={serviceTotal} pageSize={20} currentLanguage={currentLanguage} onChange={(page) => handlePageChange("services", page)} />
           </>
         )}
@@ -1909,34 +2071,88 @@ export default function B2BPage() {
     );
   };
 
-  const renderRejectedTab = () => (
-    <div className="table-responsive shadow-sm rounded overflow-hidden">
-      <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: '12px', tableLayout: 'auto' }}>
-        <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}>
-          <tr>
-            <th className="py-2 border">{t.stt}</th><th className="py-2 border" style={{ minWidth: '150px' }}>{t.tenDN}</th><th className="py-2 border">{t.soDKKD}</th><th className="py-2 border">{t.email}</th><th className="py-2 border">{t.soDienThoai}</th><th className="py-2 border">{t.nguoiDaiDien}</th><th className="py-2 border">{t.nganhNgheChinh}</th><th className="py-2 border" style={{ minWidth: '200px' }}>{t.lyDoTuChoi}</th><th className="py-2 border">{t.ngayDangKy}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rejectedData.map((item, idx) => (
-            <tr key={item.ID} className="bg-white hover:bg-gray-50">
-              <td className="text-center border align-middle" style={{ height: '30px' }}>{idx + 1 + (currentPage.rejected - 1) * 20}</td>
-              <td className="border align-middle"><div className="text-center" style={baseCellStyle}>{item.TenDoanhNghiep || ""}</div></td>
-              <td className="border align-middle"><div className="text-center" style={baseCellStyle}>{item.SoDKKD || ""}</div></td>
-              <td className="border align-middle"><div className="text-center" style={baseCellStyle}>{item.Email || ""}</div></td>
-              <td className="border align-middle"><div className="text-center" style={baseCellStyle}>{item.SoDienThoai || ""}</div></td>
-              <td className="border align-middle"><div className="text-center" style={baseCellStyle}>{item.NguoiDaiDien || ""}</div></td>
-              <td className="border align-middle"><div className="text-center" style={baseCellStyle}>{item.NganhNgheChinh || ""}</div></td>
-              <td className="border align-middle"><div className="text-center" style={baseCellStyle}>{item.LyDoTuChoi || ""}</div></td>
-              <td className="text-center border align-middle">{formatDateTimeReject(item.NgayTao)}</td>
-            </tr>
-          ))}
-          {rejectedData.length === 0 && (<tr><td colSpan="9" className="text-center py-3 text-muted">{currentLanguage === "vi" ? "Không có dữ liệu" : currentLanguage === "ko" ? "데이터가 없습니다" : "No data"}</td></tr>)}
-        </tbody>
-      </table>
-      <Pagination currentLanguage={currentLanguage} current={currentPage.rejected} total={rejectedTotal} pageSize={20} onChange={(page) => handlePageChange("rejected", page)} />
-    </div>
-  );
+  const renderRejectedTab = () => {
+    const tableKey = "rejected";
+    const rejectedColumns = [
+      { key: "stt", width: 52 },
+      { key: "tenDN", width: 150 },
+      { key: "soDKKD", width: 100 },
+      { key: "email", width: 150 },
+      { key: "soDienThoai", width: 120 },
+      { key: "nguoiDaiDien", width: 130 },
+      { key: "nganhNgheChinh", width: 160 },
+      { key: "lyDoTuChoi", width: 220 },
+      { key: "ngayDangKy", width: 120 }
+    ];
+
+    const rejectedHeaderStyle = (columnKey, width) => ({
+      width: `${width}px`,
+      minWidth: `${width}px`,
+      paddingTop: "2px",
+      paddingBottom: "2px",
+      paddingLeft: columnKey === "stt" ? "8px" : undefined,
+      paddingRight: columnKey === "stt" ? "8px" : undefined,
+      lineHeight: 1.05,
+      ...getPinnedStyle({
+        tableKey,
+        columnKey,
+        orderedColumns: rejectedColumns,
+        backgroundColor: "#1e3a8a",
+        zIndex: 40
+      })
+    });
+
+    const rejectedCellPinStyle = (columnKey, rowBg = "#fff", zIndex = 12) =>
+      getPinnedStyle({
+        tableKey,
+        columnKey,
+        orderedColumns: rejectedColumns,
+        backgroundColor: rowBg,
+        zIndex
+      });
+
+    return (
+      <>
+        <div className="mb-2 text-muted" style={{ fontSize: "12px" }}>
+          Bấm biểu tượng ghim ở tiêu đề để cố định cột. Có thể ghim nhiều cột cùng lúc.
+        </div>
+        <div className="table-responsive shadow-sm rounded overflow-hidden">
+          <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: "12px", tableLayout: "fixed" }}>
+            <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}>
+              <tr>
+                <th className="py-0 border" style={rejectedHeaderStyle("stt", 52)}><div className="d-flex align-items-center justify-content-center gap-1" style={{ padding: "0 8px" }}><span>{t.stt}</span>{renderPinButton(tableKey, "stt")}</div></th>
+                <th className="py-0 border" style={rejectedHeaderStyle("tenDN", 150)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.tenDN}</span>{renderPinButton(tableKey, "tenDN")}</div></th>
+                <th className="py-0 border" style={rejectedHeaderStyle("soDKKD", 100)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.soDKKD}</span>{renderPinButton(tableKey, "soDKKD")}</div></th>
+                <th className="py-0 border" style={rejectedHeaderStyle("email", 150)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.email}</span>{renderPinButton(tableKey, "email")}</div></th>
+                <th className="py-0 border" style={rejectedHeaderStyle("soDienThoai", 120)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.soDienThoai}</span>{renderPinButton(tableKey, "soDienThoai")}</div></th>
+                <th className="py-0 border" style={rejectedHeaderStyle("nguoiDaiDien", 130)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.nguoiDaiDien}</span>{renderPinButton(tableKey, "nguoiDaiDien")}</div></th>
+                <th className="py-0 border" style={rejectedHeaderStyle("nganhNgheChinh", 160)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.nganhNgheChinh}</span>{renderPinButton(tableKey, "nganhNgheChinh")}</div></th>
+                <th className="py-0 border" style={rejectedHeaderStyle("lyDoTuChoi", 220)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.lyDoTuChoi}</span>{renderPinButton(tableKey, "lyDoTuChoi")}</div></th>
+                <th className="py-0 border" style={rejectedHeaderStyle("ngayDangKy", 120)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ngayDangKy}</span>{renderPinButton(tableKey, "ngayDangKy")}</div></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rejectedData.map((item, idx) => (
+                <tr key={item.ID} className="bg-white hover:bg-gray-50">
+                  <td className="text-center border align-middle" style={{ height: "30px", ...rejectedCellPinStyle("stt", "#fff", 14) }}>{idx + 1 + (currentPage.rejected - 1) * 20}</td>
+                  <td className="border align-middle" style={rejectedCellPinStyle("tenDN", "#fff", 13)}><div className="text-center" style={baseCellStyle}>{item.TenDoanhNghiep || ""}</div></td>
+                  <td className="border align-middle" style={rejectedCellPinStyle("soDKKD", "#fff", 13)}><div className="text-center" style={baseCellStyle}>{item.SoDKKD || ""}</div></td>
+                  <td className="border align-middle" style={rejectedCellPinStyle("email", "#fff", 12)}><div className="text-center" style={baseCellStyle}>{item.Email || ""}</div></td>
+                  <td className="border align-middle" style={rejectedCellPinStyle("soDienThoai", "#fff", 12)}><div className="text-center" style={baseCellStyle}>{item.SoDienThoai || ""}</div></td>
+                  <td className="border align-middle" style={rejectedCellPinStyle("nguoiDaiDien", "#fff", 12)}><div className="text-center" style={baseCellStyle}>{item.NguoiDaiDien || ""}</div></td>
+                  <td className="border align-middle" style={rejectedCellPinStyle("nganhNgheChinh", "#fff", 12)}><div className="text-center" style={baseCellStyle}>{item.NganhNgheChinh || ""}</div></td>
+                  <td className="border align-middle" style={rejectedCellPinStyle("lyDoTuChoi", "#fff", 12)}><div className="text-center" style={baseCellStyle}>{item.LyDoTuChoi || ""}</div></td>
+                  <td className="text-center border align-middle" style={rejectedCellPinStyle("ngayDangKy", "#fff", 12)}>{formatDateTimeReject(item.NgayTao)}</td>
+                </tr>
+              ))}
+              {rejectedData.length === 0 && (<tr><td colSpan="9" className="text-center py-3 text-muted">{currentLanguage === "vi" ? "Không có dữ liệu" : currentLanguage === "ko" ? "데이터가 없습니다" : "No data"}</td></tr>)}
+            </tbody>
+          </table>
+          <Pagination currentLanguage={currentLanguage} current={currentPage.rejected} total={rejectedTotal} pageSize={20} onChange={(page) => handlePageChange("rejected", page)} />
+        </div>
+      </>
+    );
+  };
 
   const saveEditing = (item, tab) => {
     if (tab === "pending") return savePendingRow(item);
@@ -1954,6 +2170,52 @@ export default function B2BPage() {
 
 
     const totalColumns = activeTab === "pending" ? 8 : 9;
+    const tableKey = activeTab;
+    const pendingApprovedColumns = [
+      { key: "stt", width: 52 },
+      { key: "tenDN", width: 160 },
+      { key: "soDKKD", width: 90 },
+      { key: "nguoiDaiDien", width: 110 }
+    ];
+
+    if (activeTab === "pending") {
+      pendingApprovedColumns.push({ key: "dichVu", width: 100 }, { key: "giayPhep", width: 70 });
+    }
+
+    if (activeTab === "approved") {
+      pendingApprovedColumns.push({ key: "nganhNghe", width: 120 }, { key: "diaChi", width: 150 });
+    }
+
+    pendingApprovedColumns.push({ key: "ngayDangKy", width: 90 });
+
+    if (activeTab === "approved") {
+      pendingApprovedColumns.push({ key: "tongDoanhThu", width: 100 });
+    }
+
+    const paHeaderStyle = (columnKey, width) => ({
+      width: `${width}px`,
+      paddingTop: "2px",
+      paddingBottom: "2px",
+      paddingLeft: columnKey === "stt" ? "8px" : undefined,
+      paddingRight: columnKey === "stt" ? "8px" : undefined,
+      lineHeight: 1.05,
+      ...getPinnedStyle({
+        tableKey,
+        columnKey,
+        orderedColumns: pendingApprovedColumns,
+        backgroundColor: "#1e3a8a",
+        zIndex: 40
+      })
+    });
+
+    const paCellPinStyle = (columnKey, rowBg, zIndex = 12) =>
+      getPinnedStyle({
+        tableKey,
+        columnKey,
+        orderedColumns: pendingApprovedColumns,
+        backgroundColor: rowBg,
+        zIndex
+      });
     
     // Check permission to approve B2B
     const canApproveB2B = hasB2BApprovePermission(currentUser);
@@ -1978,6 +2240,9 @@ export default function B2BPage() {
             )}
           </div>
         )}
+        <div className="mb-2 text-muted" style={{ fontSize: "12px" }}>
+          Bấm biểu tượng ghim ở tiêu đề để cố định cột. Có thể ghim nhiều cột cùng lúc.
+        </div>
         <div className="table-responsive shadow-sm rounded overflow-hidden">
         <table
           className="table table-bordered table-sm mb-0 align-middle"
@@ -1988,34 +2253,36 @@ export default function B2BPage() {
             style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}
           >
             <tr>
-              <th style={{ width: "40px" }}>{t.stt}</th>
-              <th style={{ width: "160px" }}>{t.tenDN}</th>
-              <th style={{ width: "90px" }}>{t.soDKKD}</th>
-              <th style={{ width: "110px" }}>{t.nguoiDaiDien}</th>
+              <th style={paHeaderStyle("stt", 52)}><div className="d-flex align-items-center justify-content-center gap-1" style={{ padding: "0 8px" }}><span>{t.stt}</span>{renderPinButton(tableKey, "stt")}</div></th>
+              <th style={paHeaderStyle("tenDN", 160)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.tenDN}</span>{renderPinButton(tableKey, "tenDN")}</div></th>
+              <th style={paHeaderStyle("soDKKD", 90)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.soDKKD}</span>{renderPinButton(tableKey, "soDKKD")}</div></th>
+              <th style={paHeaderStyle("nguoiDaiDien", 110)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.nguoiDaiDien}</span>{renderPinButton(tableKey, "nguoiDaiDien")}</div></th>
 
               {activeTab === "pending" && (
                 <>
-                  <th style={{ width: "100px" }}>{t.dichVu}</th>
-                  <th style={{ width: "70px" }}>{t.giayPhep}</th>
+                  <th style={paHeaderStyle("dichVu", 100)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.dichVu}</span>{renderPinButton(tableKey, "dichVu")}</div></th>
+                  <th style={paHeaderStyle("giayPhep", 70)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.giayPhep}</span>{renderPinButton(tableKey, "giayPhep")}</div></th>
                 </>
               )}
 
               {activeTab === "approved" && (
                 <>
-                  <th style={{ width: "120px" }}>{t.nganhNgheChinh}</th>
-                  <th style={{ width: "150px" }}>{t.diaChi}</th>
+                  <th style={paHeaderStyle("nganhNghe", 120)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.nganhNgheChinh}</span>{renderPinButton(tableKey, "nganhNghe")}</div></th>
+                  <th style={paHeaderStyle("diaChi", 150)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.diaChi}</span>{renderPinButton(tableKey, "diaChi")}</div></th>
                 </>
               )}
 
-              <th style={{ width: "90px" }}>{t.ngayDangKy}</th>
+              <th style={paHeaderStyle("ngayDangKy", 90)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ngayDangKy}</span>{renderPinButton(tableKey, "ngayDangKy")}</div></th>
               {activeTab === "approved" && (
-                <th style={{ width: "100px" }}>{t.tongDoanhThuTichLuy}</th>
+                <th style={paHeaderStyle("tongDoanhThu", 100)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.tongDoanhThuTichLuy}</span>{renderPinButton(tableKey, "tongDoanhThu")}</div></th>
               )}
               <th
                 style={{
                   width: "90px",
                   minWidth: "90px",
                   maxWidth: "90px",
+                  paddingTop: "2px",
+                  paddingBottom: "2px",
                   position: "sticky",
                   right: 0,
                   zIndex: 30,
@@ -2037,6 +2304,7 @@ export default function B2BPage() {
                 const isExpanded = expandedRowId === item.ID;
 
                 const rowStyle = isEditing ? { backgroundColor: "#fff9c4" } : {};
+                const rowBg = isEditing ? "#fff9c4" : "#fff";
 
                 // Style cho input và view mode
                 const viewStyle = { fontSize: "12px", height: "30px", lineHeight: "30px", textAlign: "center", padding: "0 4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
@@ -2046,15 +2314,15 @@ export default function B2BPage() {
                   <React.Fragment key={item.ID}>
                     {/* DÒNG DỮ LIỆU CHÍNH */}
                     <tr style={{ height: "30px", ...rowStyle }} className={`bg-white hover:bg-gray-50 ${isExpanded ? "border-bottom-0" : ""}`}>
-                      <td className="text-center border">{globalIndex}</td>
-                      <td className="border">{isEditing ? <input style={inputStyle} value={item.TenDoanhNghiep} onChange={(e) => handleCellEdit("TenDoanhNghiep", item, e)} /> : <div style={viewStyle} title={item.TenDoanhNghiep}>{item.TenDoanhNghiep}</div>}</td>
-                      <td className="border">{isEditing ? <input style={inputStyle} value={item.SoDKKD} onChange={(e) => handleCellEdit("SoDKKD", item, e)} /> : <div style={viewStyle}>{item.SoDKKD}</div>}</td>
-                      <td className="border">{isEditing ? <input style={inputStyle} value={item.NguoiDaiDien} onChange={(e) => handleCellEdit("NguoiDaiDien", item, e)} /> : <div style={viewStyle}>{item.NguoiDaiDien}</div>}</td>
+                      <td className="text-center border" style={paCellPinStyle("stt", rowBg, 14)}>{globalIndex}</td>
+                      <td className="border" style={paCellPinStyle("tenDN", rowBg, 13)}>{isEditing ? <input style={inputStyle} value={item.TenDoanhNghiep} onChange={(e) => handleCellEdit("TenDoanhNghiep", item, e)} /> : <div style={viewStyle} title={item.TenDoanhNghiep}>{item.TenDoanhNghiep}</div>}</td>
+                      <td className="border" style={paCellPinStyle("soDKKD", rowBg, 13)}>{isEditing ? <input style={inputStyle} value={item.SoDKKD} onChange={(e) => handleCellEdit("SoDKKD", item, e)} /> : <div style={viewStyle}>{item.SoDKKD}</div>}</td>
+                      <td className="border" style={paCellPinStyle("nguoiDaiDien", rowBg, 13)}>{isEditing ? <input style={inputStyle} value={item.NguoiDaiDien} onChange={(e) => handleCellEdit("NguoiDaiDien", item, e)} /> : <div style={viewStyle}>{item.NguoiDaiDien}</div>}</td>
 
                       {/* Cột riêng cho Pending */}
                       {activeTab === "pending" && (
                         <>
-                          <td className="border">
+                          <td className="border" style={paCellPinStyle("dichVu", rowBg, 12)}>
                             {isEditing ? (
                               <input
                                 style={inputStyle}
@@ -2079,7 +2347,7 @@ export default function B2BPage() {
                           </td>
 
                           {/* [SỬA 2] Cột Giấy Phép: Nút Mắt để mở rộng */}
-                          <td className="border text-center p-0 align-middle">
+                          <td className="border text-center p-0 align-middle" style={paCellPinStyle("giayPhep", rowBg, 12)}>
                             {item.PdfPath ? (
                               <div className="d-flex justify-content-center align-items-center gap-2 h-100">
                                 {/* Nút xem nhanh (Expand) */}
@@ -2107,13 +2375,13 @@ export default function B2BPage() {
                       {/* Cột riêng cho Approved */}
                       {activeTab === "approved" && (
                         <>
-                          <td className="border">{isEditing ? <input style={inputStyle} value={item.NganhNgheChinh || ""} onChange={(e) => handleApprovedChange(item.ID, "NganhNgheChinh", e.target.value)} /> : <div style={viewStyle}>{item.NganhNgheChinh || ""}</div>}</td>
-                          <td className="border">{isEditing ? <input style={inputStyle} value={item.DiaChi || ""} onChange={(e) => handleApprovedChange(item.ID, "DiaChi", e.target.value)} /> : <div style={viewStyle}>{item.DiaChi || ""}</div>}</td>
+                          <td className="border" style={paCellPinStyle("nganhNghe", rowBg, 12)}>{isEditing ? <input style={inputStyle} value={item.NganhNgheChinh || ""} onChange={(e) => handleApprovedChange(item.ID, "NganhNgheChinh", e.target.value)} /> : <div style={viewStyle}>{item.NganhNgheChinh || ""}</div>}</td>
+                          <td className="border" style={paCellPinStyle("diaChi", rowBg, 12)}>{isEditing ? <input style={inputStyle} value={item.DiaChi || ""} onChange={(e) => handleApprovedChange(item.ID, "DiaChi", e.target.value)} /> : <div style={viewStyle}>{item.DiaChi || ""}</div>}</td>
                         </>
                       )}
 
-                      <td className="text-center border">{formatDateTime(item.NgayTao || item.NgayDangKyB2B)}</td>
-                      {activeTab === "approved" && <td className="text-center border fw-bold text-primary">{formatNumber(calculateCompanyTotalRevenue(item.ID))}</td>}
+                      <td className="text-center border" style={paCellPinStyle("ngayDangKy", rowBg, 12)}>{formatDateTime(item.NgayTao || item.NgayDangKyB2B)}</td>
+                      {activeTab === "approved" && <td className="text-center border fw-bold text-primary" style={paCellPinStyle("tongDoanhThu", rowBg, 12)}>{formatNumber(calculateCompanyTotalRevenue(item.ID))}</td>}
 
                       {/* Cột Hành Động */}
                       <td
@@ -2711,9 +2979,9 @@ export default function B2BPage() {
                         onChange={handleApproveModalChange}
                         placeholder="Chọn gói"
                         options={[
-                          { value: "thường", label: "thường" },
-                          { value: "gấp 1", label: "gấp 1" },
-                          { value: "gấp 0", label: "gấp 0" }
+                          { value: "thường", label: "Thường" },
+                          { value: "gấp 1", label: "Gấp 1" },
+                          { value: "gấp 0", label: "Gấp 0" }
                         ]}
                       />
                       <div style={helperTextStyle}>

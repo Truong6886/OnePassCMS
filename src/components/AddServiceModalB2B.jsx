@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { X, Plus, Eye, EyeOff, ChevronDown } from "lucide-react";
+import { X, Plus, Eye, EyeOff, ChevronDown, Trash2 } from "lucide-react";
 import ReactDOM from "react-dom";
 import { showToast } from "../utils/toast";
 import { authenticatedFetch } from "../utils/api";
@@ -21,13 +21,55 @@ const isCompletedStatus = (value) => normalizeStatusText(value) === "hoan thanh"
 
 const getTodayDateString = () => new Date().toISOString().split("T")[0];
 
-const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, twoColumns = false, height = "38px", footerAction, width = "100%", noBorder = false, backgroundColor = "#ffffff" }) => {
+const ModernSelect = ({
+  name,
+  value,
+  options,
+  onChange,
+  placeholder,
+  disabled,
+  twoColumns = false,
+  height = "38px",
+  footerAction,
+  width = "100%",
+  noBorder = false,
+  backgroundColor = "#ffffff",
+  searchable = false,
+  searchPlaceholder = "Gõ để tìm..."
+}) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const containerRef = useRef(null);
   const dropdownRef = useRef(null);
+  const searchInputRef = useRef(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const selectedOption = options.find(opt => String(opt.value) === String(value));
   const displayLabel = selectedOption ? selectedOption.label : placeholder;
+
+  const normalizeText = (text) =>
+    String(text || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+
+  const filteredOptions = React.useMemo(() => {
+    if (!searchable) return options;
+
+    const keyword = normalizeText(searchTerm);
+    if (!keyword) return options;
+
+    return options
+      .filter((opt) => normalizeText(opt.label).includes(keyword))
+      .sort((a, b) => {
+        const aLabel = normalizeText(a.label);
+        const bLabel = normalizeText(b.label);
+        const aStarts = aLabel.startsWith(keyword) ? 0 : 1;
+        const bStarts = bLabel.startsWith(keyword) ? 0 : 1;
+        if (aStarts !== bStarts) return aStarts - bStarts;
+        return aLabel.localeCompare(bLabel);
+      });
+  }, [options, searchable, searchTerm]);
 
   const updatePosition = () => {
     if (containerRef.current) {
@@ -49,6 +91,13 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
   useEffect(() => {
     if (isOpen) updatePosition();
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && searchable) {
+      setSearchTerm("");
+      setTimeout(() => searchInputRef.current?.focus(), 0);
+    }
+  }, [isOpen, searchable]);
 
   return (
     <div className="position-relative" ref={containerRef} style={{ width, position: "relative" }}>
@@ -74,7 +123,29 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
           borderRadius: "8px", padding: "4px", boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
           border: "1px solid #e5e7eb", backgroundColor: "#ffffff"
         }}>
-          {options.map((opt, idx) => (
+          {searchable && (
+            <div style={{ padding: "6px" }}>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                placeholder={searchPlaceholder}
+                style={{
+                  width: "100%",
+                  height: "32px",
+                  borderRadius: "6px",
+                  border: "1px solid #d1d5db",
+                  padding: "0 10px",
+                  fontSize: "12px",
+                  outline: "none"
+                }}
+              />
+            </div>
+          )}
+
+          {filteredOptions.length > 0 ? filteredOptions.map((opt, idx) => (
             <div key={idx} onClick={() => { onChange({ target: { name, value: opt.value } }); setIsOpen(false); }}
               style={{
                 cursor: "pointer", fontSize: "12px", padding: "8px 12px",
@@ -86,7 +157,11 @@ const ModernSelect = ({ name, value, options, onChange, placeholder, disabled, t
             >
               {opt.label}
             </div>
-          ))}
+          )) : (
+            <div style={{ padding: "8px 12px", fontSize: "12px", color: "#6b7280", textAlign: "center" }}>
+              Không tìm thấy kết quả
+            </div>
+          )}
         </div>,
         document.body
       )}
@@ -321,6 +396,16 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
   const handleAddServiceRow = (sectionIndex) => {
     const newSections = [...serviceSections];
     newSections[sectionIndex].rows.push(createEmptyServiceRow());
+    setServiceSections(newSections);
+  };
+
+  const handleRemoveServiceSection = (sectionIndex) => {
+    if (serviceSections.length <= 1) {
+      return;
+    }
+
+    const newSections = [...serviceSections];
+    newSections.splice(sectionIndex, 1);
     setServiceSections(newSections);
   };
 
@@ -776,6 +861,8 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
                   placeholder="Chọn Khách hàng"
                   options={companiesList.map(c => ({ value: String(c.ID), label: c.TenDoanhNghiep }))}
                   onChange={handleInputChange}
+                  searchable={true}
+                  searchPlaceholder="Nhập tên khách hàng để tìm"
                 />
               </div>
             </div>
@@ -1017,7 +1104,19 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
                             onChange={(e) => handleServiceTypeChange(sectionIndex, e.target.value)}
                           />
                         </td>
-                        <td colSpan="8" style={{ padding: "8px" }}></td>
+                        <td colSpan="8" style={{ padding: "8px", textAlign: "right" }}>
+                          {serviceSections.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveServiceSection(sectionIndex)}
+                              style={{ width: "20px", height: "20px", border: "none", borderRadius: "0", backgroundColor: "transparent", color: "#ef4444", cursor: "pointer", fontSize: "14px", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0", lineHeight: "1" }}
+                              aria-label="Xóa phần dịch vụ"
+                              title="Xóa phần dịch vụ"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
+                        </td>
                       </tr>
 
                       {/* Service rows */}
@@ -1078,15 +1177,13 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
                                 onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "name", e.target.value)}
                               />
                             )}
-                            {rowIndex === 0 && (
-                              <input
-                                type="text"
-                                value={section.note}
-                                placeholder="Nhập ghi chú"
-                                onChange={(e) => handleServiceNoteChange(sectionIndex, e.target.value)}
-                                style={{ width: "100%", height: "28px", padding: "2px 4px", border: "1px solid #e5e7eb", borderRadius: "4px", fontSize: "11px", marginTop: "2px" }}
-                              />
-                            )}
+                            <input
+                              type="text"
+                              value={section.note}
+                              placeholder="Nhập ghi chú"
+                              onChange={(e) => handleServiceNoteChange(sectionIndex, e.target.value)}
+                              style={{ width: "100%", height: "28px", padding: "2px 4px", border: "1px solid #e5e7eb", borderRadius: "4px", fontSize: "11px", marginTop: "2px" }}
+                            />
                           </td>
                           <td style={{ padding: "8px" }}>
                             <ModernSelect
@@ -1121,9 +1218,9 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
                               backgroundColor="white"
                               options={[
                                 { value: "", label: "Chọn" },
-                                { value: "thường", label: "thường" },
-                                { value: "gấp 1", label: "gấp 1" },
-                                { value: "gấp 0", label: "gấp 0" }
+                                { value: "thường", label: "Thường" },
+                                { value: "gấp 1", label: "Gấp 1" },
+                                { value: "gấp 0", label: "Gấp 0" }
                               ]}
                               onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "loaigoi", e.target.value)}
                             />
@@ -1178,7 +1275,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
                             {rowIndex > 0 && (
                               <button type="button" onClick={() => handleRemoveServiceRow(sectionIndex, rowIndex)}
                                 style={{ width: "20px", height: "20px", border: "none", borderRadius: "0", backgroundColor: "transparent", color: "#ef4444", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center", padding: "0", lineHeight: "1" }}>
-                                −
+                                <Trash2 size={12} />
                               </button>
                             )}
                           </td>
@@ -1191,12 +1288,12 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
               
               {/* Buttons */}
               <div style={{ padding: "10px", borderTop: "1px solid #e5e7eb", display: "flex", gap: "10px" }}>
-                <button type="button" onClick={() => handleAddServiceRow(serviceSections.length - 1)}
+                <button type="button" onClick={handleAddServiceSection}
                   style={{ padding: "6px 0", fontSize: "13px", backgroundColor: "transparent", color: "#3b82f6", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", fontStyle: "italic" }}>
                   <Plus size={14} />
                   Thêm Dịch vụ
                 </button>
-                <button type="button" onClick={handleAddServiceSection}
+                <button type="button" onClick={() => handleAddServiceRow(serviceSections.length - 1)}
                   style={{ padding: "6px 0", fontSize: "13px", backgroundColor: "transparent", color: "#3b82f6", border: "none", cursor: "pointer", fontStyle: "italic" }}>
                   Thêm phần
                 </button>

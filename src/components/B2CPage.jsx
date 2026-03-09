@@ -15,6 +15,37 @@ import translateService from "../utils/translateService";
 const API_BASE = "https://onepasscms-backend-tvdy.onrender.com/api";
 const CUSTOM_SERVICE_OPTION_VALUE = "__ADD_CUSTOM_SERVICE__";
 const CUSTOM_SERVICE_TYPE_VALUE = "__ADD_CUSTOM_SERVICE_TYPE__";
+const B2C_COLUMN_WIDTHS = {
+  id: 64,
+  hoTen: 140,
+  maVung: 90,
+  sdt: 120,
+  email: 220,
+  hinhThuc: 120,
+  coSo: 90,
+  diaChiNhan: 180,
+  noiTiepNhanHoSo: 180,
+  loaiDichVu: 130,
+  danhMuc: 220,
+  maDichVu: 200,
+  ghiChuDichVu: 180,
+  nguoiPhuTrach: 130,
+  ngayTao: 110,
+  ngayBatDau: 110,
+  ngayHen: 110,
+  ngayKetThuc: 110,
+  trangThai: 120,
+  goiDichVu: 102,
+  invoice: 90,
+  invoiceUrl: 90,
+  ghiChu: 270,
+  doanhThuTruoc: 130,
+  mucChietKhau: 100,
+  soTienChietKhau: 120,
+  doanhThuSau: 130,
+  tongDoanhThuTichLuy: 160,
+  hanhDong: 132,
+};
 const B2C_CATEGORY_LIST = {
   "Hộ chiếu, Hộ tịch": [
     "Hộ chiếu cấp mới (Hợp pháp - Trẻ em)",
@@ -2193,7 +2224,7 @@ const RowItem = ({
 
   const isVisible = (key) => (visibleColumns ? visibleColumns[key] : true);
   const isPinned = (key) => pinnedColumns.includes(key);
-  const getStickyClass = (key) => isPinned(key) ? "sticky-col" : "";
+  const getStickyClass = (key) => (isPinned(key) ? `sticky-col sticky-col-${key}` : "");
 
   // Style cho ô gộp (Merged Cells)
   const mergedStyle = {
@@ -2227,7 +2258,11 @@ const RowItem = ({
             {/* === CÁC CỘT GỘP (CHỈ RENDER Ở DÒNG ĐẦU TIÊN) === */}
             
             {isVisible("id") && isFirst && (
-              <td rowSpan={rowSpanCount} className={`text-center fw-semibold border-target ${getStickyClass("id")}`} style={mergedStyle}>
+              <td
+                rowSpan={rowSpanCount}
+                className={`text-center fw-semibold border-target ${getStickyClass("id")}`}
+                style={{ ...mergedStyle, width: `${B2C_COLUMN_WIDTHS.id}px`, minWidth: `${B2C_COLUMN_WIDTHS.id}px`, paddingLeft: "8px", paddingRight: "8px" }}
+              >
                 {item.YeuCauID}
               </td>
             )}
@@ -3438,11 +3473,38 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
 
   const togglePinColumn = (key) => {
     if (!key || key === "hanhDong") return;
-    setPinnedColumns(prev => (prev.includes(key) ? [] : [key]));
+    setPinnedColumns(prev => (
+      prev.includes(key) ? prev.filter((colKey) => colKey !== key) : [...prev, key]
+    ));
   };
 
   const isVisible = (key) => visibleColumns[key];
   const isPinned = (key) => pinnedColumns.includes(key);
+
+  const availableColumnDefs = initialColumnKeys.filter((col) => {
+    if (col.key === "nguoiPhuTrach" && !currentUser?.is_admin && !currentUser?.is_director && !currentUser?.is_accountant) return false;
+    if (col.key === "invoiceUrl" && !canViewFinance) return false;
+    return true;
+  });
+
+  const visibleColumnDefs = availableColumnDefs.filter((col) => isVisible(col.key));
+
+  const pinnedLeftMap = visibleColumnDefs.reduce((acc, col) => {
+    if (!pinnedColumns.includes(col.key) || col.key === "hanhDong") return acc;
+    const prevWidth = acc.__runningLeft || 0;
+    acc[col.key] = prevWidth;
+    acc.__runningLeft = prevWidth + (B2C_COLUMN_WIDTHS[col.key] || 120);
+    return acc;
+  }, {});
+
+  delete pinnedLeftMap.__runningLeft;
+
+  const pinnedDynamicStyles = Object.entries(pinnedLeftMap)
+    .map(([key, left]) => `.sticky-col-${key} { left: ${left}px !important; }`)
+    .join("\n");
+
+  const getHeaderColumnWidth = (key, isActionColumn) =>
+    isActionColumn ? B2C_COLUMN_WIDTHS.hanhDong : (B2C_COLUMN_WIDTHS[key] || 120);
 
   return (
     <div className="d-flex h-100" style={{ background: "#ffffff" }}>
@@ -3594,27 +3656,25 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                 <thead>
                   <tr>
                     {tableHeaders.map((header, i) => {
-                      const availableKeys = initialColumnKeys.filter(k => {
-                        if (k.key === 'nguoiPhuTrach' && !currentUser?.is_admin && !currentUser?.is_director && !currentUser?.is_accountant) return false;
-                        if (k.key === 'invoiceUrl' && !canViewFinance) return false;
-                        return true;
-                      });
-                      const currentKey = availableKeys[i]?.key;
+                      const currentKey = availableColumnDefs[i]?.key;
                       const isActionColumn = currentKey === "hanhDong";
                       if (currentKey && !isVisible(currentKey)) return null;
 
+                      const columnWidth = getHeaderColumnWidth(currentKey, isActionColumn);
+                      const pinnedClass = isPinned(currentKey) ? `sticky-col sticky-col-${currentKey}` : "";
+
                       return (
-                        <th key={i} className={isPinned(currentKey) ? "sticky-col" : ""}
+                        <th key={i} className={pinnedClass}
                           style={{ 
                               
                               position: "sticky",        
                               top: 0,                    
-                              left: isPinned(currentKey) ? "0" : "auto", 
+                              left: isPinned(currentKey) ? `${pinnedLeftMap[currentKey] || 0}px` : "auto", 
                               right: isActionColumn ? 0 : "auto",
                               zIndex: isActionColumn ? 30 : (isPinned(currentKey) ? 20 : 10), 
-                              width: isActionColumn ? "132px" : "auto",
-                              minWidth: isActionColumn ? "132px" : "auto",
-                              maxWidth: isActionColumn ? "132px" : "auto",
+                              width: `${columnWidth}px`,
+                              minWidth: `${columnWidth}px`,
+                              maxWidth: `${columnWidth}px`,
                               backgroundColor: "#2c4d9e", 
                               color: "#ffffff",           
                               borderLeft: isActionColumn ? "1px solid #4a6fdc" : "none",
@@ -3624,20 +3684,35 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                               boxShadow: isActionColumn ? "-2px 0 6px rgba(0,0,0,0.2)" : "0 1px 2px rgba(0,0,0,0.2)" 
                           }}
                         >
-                          <div className="d-flex justify-content-center align-items-center position-relative w-100" style={{ minHeight: "24px", paddingRight: "28px" }}>
+                          <div
+                            className="d-flex justify-content-center align-items-center position-relative w-100"
+                            style={{
+                              minHeight: "24px",
+                              paddingRight: currentKey === "id" ? "34px" : "28px",
+                              paddingLeft: currentKey === "id" ? "8px" : "0"
+                            }}
+                          >
                             <span>{header}</span>
                             {currentKey && !isActionColumn && (
-                            <button 
-                              className={`btn btn-sm d-flex align-items-center justify-content-center text-white ${isPinned(currentKey) ? "btn-danger" : ""}`} 
-                              style={{ 
-                                  width: 24, height: 24, padding: 0, borderRadius: "3px", 
-                                  position: "absolute", right: "2px", top: "50%",
+                            <button
+                              className="btn btn-sm d-flex align-items-center justify-content-center"
+                              style={{
+                                  width: 24,
+                                  height: 24,
+                                  padding: 0,
+                                  borderRadius: "3px",
+                                  position: "absolute",
+                                  right: "2px",
+                                  top: "50%",
                                   transform: "translateY(-50%)",
-                                  opacity: isPinned(currentKey) ? 1 : 0.5 
-                              }} 
+                                  border: "none",
+                                  backgroundColor: isPinned(currentKey) ? "#2c4d9e" : "transparent",
+                                  color: "#ffffff",
+                                  opacity: isPinned(currentKey) ? 1 : 0.7
+                              }}
                               onClick={() => togglePinColumn(currentKey)}
                             >
-                            {isPinned(currentKey) ? (<PinOff size={12} color="#ffffff" />) : (<Pin size={12} color="#ffffff" />)}
+                            {isPinned(currentKey) ? (<PinOff size={12} color="currentColor" />) : (<Pin size={12} color="currentColor" />)}
                             </button>
                             )}
                           </div>
@@ -3734,7 +3809,6 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
         /* Cột dữ liệu (td) khi ghim thì nền trắng */
         td.sticky-col { 
             position: sticky !important; 
-            left: 0; 
             z-index: 5 !important; 
             background-color: #ffffff !important; 
             
@@ -3742,12 +3816,13 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
         
         th.sticky-col { 
             position: sticky !important; 
-            left: 0; 
             z-index: 15 !important; 
             background-color: #2c4d9e !important; 
             color: #ffffff !important;
           
         }
+
+        ${pinnedDynamicStyles}
         
         .table-responsive { scroll-behavior: smooth; }
       `}</style>
