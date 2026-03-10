@@ -312,7 +312,7 @@ export default function B2BPage() {
     setEditingServiceData(null); // Reset editing state
     setServiceModalMode("create");
     
-    // Load danh sách khách hàng đã duyệt nếu chưa có
+    // Load danh sách khách hàng đang hoạt động nếu chưa có
     if (approvedList.length === 0) {
       loadApproved(1);
     }
@@ -477,7 +477,7 @@ export default function B2BPage() {
         showToast(
           editingServiceData
             ? `CHỈNH SỬA / CẬP NHẬT DỊCH VỤ THÀNH CÔNG - Mã dịch vụ: ${serviceCode}`
-            : `ĐĂNG KÝ DỊCH VỤ THÀNH CÔNG - Mã dịch vụ: ${serviceCode}`,
+            : `ĐĂNG KÝ DỊCH VỤ THÀNH CÔNG - Đã cấp mã: ${serviceCode}`,
           "success"
         );
         setShowAddServiceModal(false);
@@ -639,7 +639,7 @@ export default function B2BPage() {
         showToast(
           newServiceForm.id
             ? `CHỈNH SỬA / CẬP NHẬT DỊCH VỤ THÀNH CÔNG - Mã dịch vụ: ${serviceCode}`
-            : `ĐĂNG KÝ DỊCH VỤ THÀNH CÔNG - Mã dịch vụ: ${serviceCode}`,
+            : `ĐĂNG KÝ DỊCH VỤ THÀNH CÔNG - Đã cấp mã: ${serviceCode}`,
           "success"
         );
 
@@ -2527,9 +2527,9 @@ export default function B2BPage() {
             {/* Header Modal */}
             <div className="text-center mb-4 mt-2">
               <h3 className="fw-bold m-0" style={{ color: "#333", fontSize: "20px" }}>
-                Duyệt dịch vụ (B2B)
+                Cập nhật dịch vụ (B2B)
               </h3>
-              <p className="text-muted small mt-1 mb-0">Chỉnh sửa thông tin trước khi duyệt</p>
+              <p className="text-muted small mt-1 mb-0">Chỉnh sửa thông tin dịch vụ</p>
             </div>
 
             <div className="row g-3 px-2">

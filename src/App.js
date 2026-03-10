@@ -11,6 +11,7 @@ import "../src/styles/CMSDashboard.css";
 import DoanhThu from "./components/DoanhThu";
 import Vendor from "./components/Vendor"
 import NewsPage from "./components/NewsPage";
+import ServiceManagement from "./components/ServiceManagement";
 
 
 const AuthGuard = ({ children, user, roles = [] }) => {
@@ -181,6 +182,15 @@ export default function App() {
             </AuthGuard>
           }
         />
+
+          <Route
+            path="/services"
+            element={
+              <AuthGuard user={currentUser}>
+                <ServiceManagement />
+              </AuthGuard>
+            }
+          />
 
           <Route
             path="/news"

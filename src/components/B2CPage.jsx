@@ -876,7 +876,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           CoSoTuVan: "", Gio: "", ChonNgay: "",
           LoaiDichVu: "", DanhMuc: "", TenDichVu: "",
           MaHoSo: "", NguoiPhuTrachId: currentUser?.id || "",
-          TrangThai: "Đăng ký mới", GoiDichVu: "",
+          TrangThai: "Đã tạo đơn", GoiDichVu: "",
           DonViTienTe: 0,
           Invoice: "No", InvoiceUrl: "", ConfirmPassword: "",
           YeuCauXuatHoaDon: "No",
@@ -899,7 +899,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           YeuCauXuatHoaDon: request.Invoice || "No",
           MaHoSo: request.MaHoSo || "",
           NguoiPhuTrachId: request.NguoiPhuTrachId || "",
-          TrangThai: request.TrangThai || "Đăng ký mới",
+          TrangThai: request.TrangThai || "Đã tạo đơn",
           ChonNgay: request.ChonNgay || "",
           Gio: request.Gio || "",
           DonViTienTe: request.DonViTienTe ?? 0,
@@ -1131,7 +1131,6 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   const formOptions = currentLanguage === "vi" ? ["Messenger","Kakao Talk", "Zalo","Naver Talk", "Email", "Gọi điện","Trực tiếp"] : ["Messenger","Kakao Talk", "Zalo","Naver Talk", "Email", "Phone", "Direct"];
   const branchOptions = [{ value: "Seoul", label: "Seoul" }, { value: "Busan", label: "Busan" }];
   const statusOptions = [
-    "Đăng ký mới",
     "Đang tư vấn",
     "Đã tạo đơn",
     "Đã thanh toán",
@@ -2841,7 +2840,17 @@ const fetchData = async () => {
       const json = await res.json();
       
       if (json.success) {
-        showToast(method === "POST" ? "Đăng ký thành công" : "Cập nhật thành công", "success");
+        const createdCode = String(json?.data?.MaHoSo || "").trim();
+        if (method === "POST") {
+          showToast(
+            createdCode
+              ? `Đăng ký thành công - Đã cấp mã: ${createdCode}`
+              : "Đăng ký thành công",
+            "success"
+          );
+        } else {
+          showToast("Cập nhật thành công", "success");
+        }
         fetchData();
         setEditingRequest(null);
       } else { 
@@ -3652,7 +3661,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
 
            <div className="table-wrapper mt-3" style={{marginLeft:90}}>
             <div className="table-responsive" style={{ paddingLeft: "0px", position: "relative", maxHeight: "calc(100vh - 340px)", overflow: "auto", borderBottom: "1px solid #dee2e6" }} ref={tableContainerRef}>
-              <table className="table table-bordered align-middle mb-0">
+              <table className="table table-bordered align-middle mb-0" style={{ tableLayout: "fixed", width: "100%" }}>
                 <thead>
                   <tr>
                     {tableHeaders.map((header, i) => {
@@ -3681,18 +3690,34 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                               borderRight: "1px solid #4a6fdc", 
                               textAlign: "center",
                               verticalAlign: "middle",
-                              boxShadow: isActionColumn ? "-2px 0 6px rgba(0,0,0,0.2)" : "0 1px 2px rgba(0,0,0,0.2)" 
+                              boxShadow: isActionColumn ? "-2px 0 6px rgba(0,0,0,0.2)" : "0 1px 2px rgba(0,0,0,0.2)",
+                              overflow: "hidden",
+                              padding: "4px 2px"
                           }}
                         >
                           <div
                             className="d-flex justify-content-center align-items-center position-relative w-100"
                             style={{
                               minHeight: "24px",
+                              minWidth: 0,
                               paddingRight: currentKey === "id" ? "34px" : "28px",
                               paddingLeft: currentKey === "id" ? "8px" : "0"
                             }}
                           >
-                            <span>{header}</span>
+                            <span
+                              style={{
+                                display: "block",
+                                minWidth: 0,
+                                whiteSpace: "normal",
+                                overflowWrap: "anywhere",
+                                wordBreak: "break-word",
+                                lineHeight: 1.15,
+                                textAlign: "center",
+                                fontSize: "12px"
+                              }}
+                            >
+                              {header}
+                            </span>
                             {currentKey && !isActionColumn && (
                             <button
                               className="btn btn-sm d-flex align-items-center justify-content-center"

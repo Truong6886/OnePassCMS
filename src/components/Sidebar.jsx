@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import logo from "../assets/logo.png";
 import { useNavigate, useLocation } from "react-router-dom";
-import { List, Search, DollarSign, UserRound, Handshake, Store, Newspaper } from "lucide-react";
+import { List, Search, DollarSign, UserRound, Handshake, Store, Newspaper, LayoutGrid } from "lucide-react";
 export default function Sidebar({ collapsed = false, user }) {
   const [hoveredItem, setHoveredItem] = useState(null);
   const navigate = useNavigate();
@@ -44,6 +44,7 @@ useEffect(() => {
     b2b: {vi:"Quản lý B2B", en: "B2B Management", ko: "B2B 관리"},
     b2c: {vi:"Quản lý B2C", en: "B2C Management", ko: "B2C 관리"},
     vendor: {vi:"Quản lý Vendor", en: "Vendor Management", ko: "벤더 관리"},
+    services: { vi: "Quản lý Dịch Vụ", en: "Service Management", ko: "서비스 관리" },
     news: {vi:"Quản lý Tin Tức", en: "News", ko: "뉴스"},
   };
 
@@ -89,6 +90,7 @@ useEffect(() => {
       (key === "nhanvien" && currentPath.startsWith("/nhanvien")) ||
       (key === "doanhthu" && currentPath.startsWith("/doanhthu"))||
       (key === "vendor" && currentPath.startsWith("/vendor")) ||
+      (key === "services" && currentPath.startsWith("/services")) ||
       (key === "news" && currentPath.startsWith("/news"));
 
 
@@ -201,6 +203,16 @@ useEffect(() => {
             {!collapsed && <span>{texts.vendor[currentLanguage]}</span>} 
           </li>
         )}
+
+          <li
+            style={getItemStyle("services")}
+            onMouseEnter={() => setHoveredItem("services")}
+            onMouseLeave={() => setHoveredItem(null)}
+            onClick={() => navigate("/services")}
+          >
+            <LayoutGrid size={22} />
+            {!collapsed && <span>{texts.services[currentLanguage]}</span>}
+          </li>
 
           <li
             style={getItemStyle("news")}
