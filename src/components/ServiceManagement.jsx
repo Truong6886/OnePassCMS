@@ -32,8 +32,8 @@ const SERVICE_TYPE_ALIAS_MAP = {
   "Kết hôn": "Kết hôn",
   "Hợp pháp hóa": "Hợp pháp hóa, công chứng",
   "Công chứng, chứng thực": "Hợp pháp hóa, công chứng",
-  "Xác minh": "Khác",
-  "Dịch": "Khác",
+  "Xác minh": "Dịch thuật",
+  "Dịch": "Dịch thuật",
 };
 
 const SERVICE_CATALOG = [
@@ -145,10 +145,25 @@ const formatDateTime = (isoValue) => {
     .replace(",", "");
 };
 
+const resolveServiceTypeForDisplay = (row) => {
+  const rawType = String(row.LoaiDichVu || "").trim();
+  const mappedType = SERVICE_TYPE_ALIAS_MAP[rawType] || rawType;
+
+  const serviceName = String(row.TenDichVu || "").trim().toLowerCase();
+  const serviceCode = String(row.MaDichVu || "").trim().toUpperCase();
+
+  // Một số bản ghi cũ lưu LoaiDichVu = "Khác" cho dịch BLX, ép hiển thị về Dịch thuật.
+  if (serviceCode === "DTBLX" || serviceName.includes("dịch blx")) {
+    return "Dịch thuật";
+  }
+
+  return mappedType;
+};
+
 // Chuyển đổi dữ liệu từ DB sang định dạng hiển thị
 const toService = (row) => ({
   id: row.DichVuID,
-  serviceType: SERVICE_TYPE_ALIAS_MAP[row.LoaiDichVu] || row.LoaiDichVu || "",
+  serviceType: resolveServiceTypeForDisplay(row),
   serviceName: row.TenDichVu || "",
   serviceCode: row.MaDichVu || "",
   serviceNote: row.GhiChu || "",
@@ -221,20 +236,51 @@ export default function ServiceManagement() {
 
       if (validRows.length === 0) return;
 
-      const seen = new Set(
-        defaults.map((item) => `${item.serviceType.trim().toLowerCase()}::${item.serviceName.trim().toLowerCase()}::${item.serviceCode.trim().toLowerCase()}`)
-      );
+      const normalize = (value) => String(value || "").trim().toLowerCase();
+      const merged = [...defaults];
 
-      const extraRows = validRows
-        .map(toService)
-        .filter((item) => {
-          const key = `${item.serviceType.trim().toLowerCase()}::${item.serviceName.trim().toLowerCase()}::${item.serviceCode.trim().toLowerCase()}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
+      validRows.map(toService).forEach((item) => {
+        const codeKey = normalize(item.serviceCode);
+        const nameKey = `${normalize(item.serviceType)}::${normalize(item.serviceName)}`;
 
-      setServices([...defaults, ...extraRows]);
+        let matchIndex = -1;
+        if (codeKey) {
+          matchIndex = merged.findIndex((row) => normalize(row.serviceCode) === codeKey);
+        }
+        if (matchIndex === -1) {
+          matchIndex = merged.findIndex(
+            (row) => `${normalize(row.serviceType)}::${normalize(row.serviceName)}` === nameKey
+          );
+        }
+
+        if (matchIndex >= 0) {
+          // Ghi đè dòng cũ thay vì tạo dòng mới khi service đã tồn tại theo mã/tên.
+          merged[matchIndex] = {
+            ...merged[matchIndex],
+            serviceType: item.serviceType,
+            serviceName: item.serviceName,
+            serviceCode: item.serviceCode,
+            serviceNote: item.serviceNote,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+            updatedBy: item.updatedBy,
+            _fromDB: true,
+          };
+        } else {
+          merged.push({ ...item, _fromDB: true });
+        }
+      });
+
+      const unique = [];
+      const seen = new Set();
+      merged.forEach((item) => {
+        const key = `${normalize(item.serviceType)}::${normalize(item.serviceName)}::${normalize(item.serviceCode)}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        unique.push(item);
+      });
+
+      setServices(unique);
     } catch (_) {
       // Lỗi mạng → giữ nguyên dữ liệu hardcode đang hiển thị
     }
@@ -402,6 +448,9 @@ export default function ServiceManagement() {
     border: "1px solid #8ea0ca",
     textAlign: "center",
     whiteSpace: "nowrap",
+    position: "sticky",
+    top: 0,
+    zIndex: 5,
   };
 
   const tableBodyCellStyle = {
@@ -472,7 +521,10 @@ export default function ServiceManagement() {
             </button>
           </div>
 
-          <div className="table-responsive shadow-sm rounded border bg-white">
+          <div
+            className="table-responsive shadow-sm rounded border bg-white"
+            style={{ maxHeight: "calc(100vh - 220px)", overflowY: "auto" }}
+          >
             <table
               style={{
                 width: "100%",

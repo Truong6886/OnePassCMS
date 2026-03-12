@@ -688,6 +688,8 @@ export default function B2BPage() {
   const [rejectedTotal, setRejectedTotal] = useState(0);
   const [serviceData, setServiceData] = useState([]);
   const [serviceTotal, setServiceTotal] = useState(0);
+  const [serviceCompanyRevenueMap, setServiceCompanyRevenueMap] = useState({});
+  const [overallB2BRevenue, setOverallB2BRevenue] = useState(0);
   const B2B_SERVICE_MAPPING_HARDCODED = {
     "Hộ chiếu, Hộ tịch": [
       "Hộ chiếu cấp mới (Hợp pháp - Trẻ em)",
@@ -1147,18 +1149,26 @@ export default function B2BPage() {
         });
         setServiceData(formattedData);
         setServiceTotal(json.total);
+        setServiceCompanyRevenueMap(json.companyRevenueMap || {});
+        setOverallB2BRevenue(parseMoney(json.overallRevenue));
       } else {
         setServiceData([]);
+        setServiceCompanyRevenueMap({});
+        setOverallB2BRevenue(0);
       }
     } catch (error) {
       console.error("Load services failed", error);
       setServiceData([]);
+      setServiceCompanyRevenueMap({});
+      setOverallB2BRevenue(0);
     } finally {
       setLoading(false);
     }
   };
 
   const calculateCompanyTotalRevenue = (companyId) => {
+    const mappedRevenue = serviceCompanyRevenueMap[String(companyId)];
+    if (mappedRevenue !== undefined) return parseMoney(mappedRevenue);
     if (!serviceData || serviceData.length === 0) return 0;
     return serviceData
       .filter(r => String(r.companyId) === String(companyId))
@@ -1525,7 +1535,6 @@ export default function B2BPage() {
       { key: "diaChiNhan", width: 180 },
       { key: "loaiDichVu", width: 100 },
       { key: "tenDichVu", width: 140 },
-      { key: "danhMuc", width: 180 },
       { key: "maDichVu", width: 160 },
       { key: "ghiChu", width: 180 },
       { key: "nguoiPhuTrach", width: 110 },
@@ -1733,8 +1742,6 @@ export default function B2BPage() {
       return (a.id || 0) - (b.id || 0);
     });
 
-    const totalAmount = displayData.reduce((sum, rec) => sum + getTotalRecordAfterDiscount(rec), 0);
-
     return (
       <div>
         <div
@@ -1842,8 +1849,6 @@ export default function B2BPage() {
                     <th className="py-0 border" style={serviceHeaderStyle("diaChiNhan", 180)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.diaChiNhan}</span>{renderPinButton(tableKey, "diaChiNhan")}</div></th>
                     <th className="py-0 border" style={serviceHeaderStyle("loaiDichVu", 100)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.loaiDichVu}</span>{renderPinButton(tableKey, "loaiDichVu")}</div></th>
                     <th className="py-0 border" style={serviceHeaderStyle("tenDichVu", 140)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.tenDichVu}</span>{renderPinButton(tableKey, "tenDichVu")}</div></th>
-
-                    <th className="py-0 border" style={serviceHeaderStyle("danhMuc", 180)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.danhMuc}</span>{renderPinButton(tableKey, "danhMuc")}</div></th>
                     <th className="py-0 border" style={serviceHeaderStyle("maDichVu", 160)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.maDichVu}</span>{renderPinButton(tableKey, "maDichVu")}</div></th>
                     <th className="py-0 border" style={serviceHeaderStyle("ghiChu", 180)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ghiChuDichVu}</span>{renderPinButton(tableKey, "ghiChu")}</div></th>
                     <th className="py-0 border" style={serviceHeaderStyle("nguoiPhuTrach", 110)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.nguoiPhuTrach}</span>{renderPinButton(tableKey, "nguoiPhuTrach")}</div></th>
@@ -1911,7 +1916,7 @@ export default function B2BPage() {
 
                       let shouldRenderCompanyCell = false;
                       let companyRowSpan = 0;
-                      let groupTotalRevenue = 0;
+                      const groupTotalRevenue = calculateCompanyTotalRevenue(currentCompanyId) || parseMoney(rec.totalRevenue);
 
                       if (!currentCompanyId || currentCompanyId !== prevCompanyId) {
                         shouldRenderCompanyCell = true;
@@ -1919,7 +1924,6 @@ export default function B2BPage() {
                           const nextRec = displayData[i];
                           if (String(nextRec.companyId || nextRec.DoanhNghiepID || "") !== currentCompanyId) break;
                           companyRowSpan += getSubRowCount(nextRec);
-                          groupTotalRevenue += getTotalRecordAfterDiscount(nextRec);
                         }
                       }
 
@@ -1950,7 +1954,6 @@ export default function B2BPage() {
                       return servicesList.map((_, subIdx) => {
                         const isFirstSubRow = subIdx === 0;
                         const serviceRow = serviceRows[subIdx] || {};
-                        const svcName = serviceRow.name || "";
                         const serviceNote = serviceRow.note || "";
 
                         return (
@@ -1982,22 +1985,10 @@ export default function B2BPage() {
                                 <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, textAlign: 'left', ...serviceCellPinStyle("diaChiNhan", rowBg, 13) }} title={rec.DiaChiNhan || "--"}>{rec.DiaChiNhan || "--"}</td>
                                 <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("loaiDichVu", rowBg, 13) }} title={rec.serviceType}>{rec.serviceType}</td>
                                 <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, whiteSpace: 'normal', lineHeight: '1.5', overflow: 'visible', maxWidth: 'none', textAlign: 'center', ...serviceCellPinStyle("tenDichVu", rowBg, 13) }}>
-                                  {servicesList && servicesList.length > 1 ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                                      {servicesList.map((name, i) => (
-                                        <div key={i}>{name.trim()}</div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    servicesList[0] || rec.serviceName
-                                  )}
+                                  {rec.serviceName}
                                 </td>
                               </>
                             )}
-
-                            <td className="border" style={{ ...danhMucStyle, ...serviceCellPinStyle("danhMuc", rowBg, 12) }}>
-                              <div className="px-1" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{svcName}</div>
-                            </td>
 
                             {isFirstSubRow && (
                               <>
@@ -2097,7 +2088,7 @@ export default function B2BPage() {
             {canViewRevenue && (
               <div className="d-flex justify-content-end align-items-center mt-2" style={{ fontSize: "16px", color: "#374151" }}>
                 <span>Tổng doanh thu tích lũy:&nbsp;</span>
-                <span style={{ color: "#2563eb", fontWeight: 700 }}>{formatNumber(totalAmount)} đ</span>
+                <span style={{ color: "#2563eb", fontWeight: 700 }}>{formatNumber(overallB2BRevenue)} đ</span>
               </div>
             )}
             <Pagination current={currentPage.services} total={serviceTotal} pageSize={20} currentLanguage={currentLanguage} onChange={(page) => handlePageChange("services", page)} />
@@ -2614,6 +2605,7 @@ export default function B2BPage() {
                 };
 
                 const company = approvedList.find(c => String(c.ID) === String(selectedService.companyId));
+                const CUSTOM_B2B_SERVICE_TYPE_VALUE = "__ADD_CUSTOM_B2B_SERVICE_TYPE__";
 
 
                 let availableServices = [];
@@ -2623,6 +2615,20 @@ export default function B2BPage() {
                   if (company.DichVuKhac) availableServices.push(...parseServices(company.DichVuKhac));
                   availableServices = [...new Set(availableServices)].filter(Boolean);
                 }
+                const currentServiceType = String(selectedService.serviceType || selectedService.LoaiDichVu || "").trim();
+                const hasCurrentServiceTypeInList = availableServices.some(
+                  (svc) => String(svc || "").trim().toLowerCase() === currentServiceType.toLowerCase()
+                );
+                const isCustomServiceTypeMode =
+                  Boolean(selectedService._customServiceTypeMode) ||
+                  (Boolean(currentServiceType) && !hasCurrentServiceTypeInList);
+                const serviceTypeSelectValue = isCustomServiceTypeMode
+                  ? CUSTOM_B2B_SERVICE_TYPE_VALUE
+                  : currentServiceType;
+                const serviceTypeOptions = [
+                  ...availableServices.map((svc) => ({ value: svc, label: svc })),
+                  { value: CUSTOM_B2B_SERVICE_TYPE_VALUE, label: "Thêm loại dịch vụ" },
+                ];
                 // Component ToggleButton
                 const ToggleButton = ({ name, value, onChange }) => (
                   <div className="d-flex gap-2 w-100">
@@ -2809,10 +2815,26 @@ export default function B2BPage() {
                     }
                   }
                   else if (name === "LoaiDichVu") {
+                    if (value === CUSTOM_B2B_SERVICE_TYPE_VALUE) {
+                      setSelectedService((prev) => ({
+                        ...prev,
+                        _customServiceTypeMode: true,
+                      }));
+                      return;
+                    }
                     setSelectedService(prev => ({
                       ...prev,
                       [name]: value,
-                      serviceType: value // Cập nhật cả serviceType
+                      serviceType: value, // Cập nhật cả serviceType
+                      _customServiceTypeMode: false,
+                    }));
+                  }
+                  else if (name === "CustomLoaiDichVu") {
+                    setSelectedService((prev) => ({
+                      ...prev,
+                      LoaiDichVu: value,
+                      serviceType: value,
+                      _customServiceTypeMode: true,
                     }));
                   }
                   else {
@@ -2853,11 +2875,21 @@ export default function B2BPage() {
                       </label>
                       <ModernSelect
                         name="LoaiDichVu"
-                        value={selectedService.serviceType || selectedService.LoaiDichVu || ""}
+                        value={serviceTypeSelectValue}
                         onChange={handleApproveModalChange}
                         placeholder="-- Chọn loại dịch vụ --"
-                        options={availableServices.map(svc => ({ value: svc, label: svc }))}
+                        options={serviceTypeOptions}
                       />
+                      {isCustomServiceTypeMode ? (
+                        <input
+                          type="text"
+                          name="CustomLoaiDichVu"
+                          placeholder="Nhập loại dịch vụ mới"
+                          value={selectedService.LoaiDichVu || selectedService.serviceType || ""}
+                          onChange={handleApproveModalChange}
+                          style={{ ...inputStyle, marginTop: "8px" }}
+                        />
+                      ) : null}
                     </div>
 
                     {/* Tên dịch vụ chi tiết (có thể sửa) */}
