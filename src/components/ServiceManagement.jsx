@@ -1,7 +1,40 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { Edit, Plus, Save, Search, Trash2, X } from "lucide-react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+
+const API_BASE =
+  window.location.hostname === "localhost"
+    ? "http://localhost:5000/api"
+    : "https://onepasscms-backend-tvdy.onrender.com/api";
+
+const CUSTOM_SERVICE_TYPE_VALUE = "__ADD_CUSTOM_SERVICE_TYPE__";
+const PRESET_SERVICE_TYPES = [
+  "Hộ chiếu, Hộ tịch",
+  "Quốc tịch",
+  "Nhận nuôi",
+  "Thị thực",
+  "Khai sinh, khai tử",
+  "Kết hôn",
+  "Hợp pháp hóa, công chứng",
+  "Khác",
+  "Dịch thuật",
+];
+
+const SERVICE_TYPE_ALIAS_MAP = {
+  "Hộ chiếu": "Hộ chiếu, Hộ tịch",
+  "Hộ tịch": "Hộ chiếu, Hộ tịch",
+  "Quốc tịch": "Quốc tịch",
+  "Con nuôi": "Nhận nuôi",
+  "Nhận cha mẹ": "Nhận nuôi",
+  "Miễn thị thực": "Thị thực",
+  "Khai sinh": "Khai sinh, khai tử",
+  "Kết hôn": "Kết hôn",
+  "Hợp pháp hóa": "Hợp pháp hóa, công chứng",
+  "Công chứng, chứng thực": "Hợp pháp hóa, công chứng",
+  "Xác minh": "Khác",
+  "Dịch": "Khác",
+};
 
 const SERVICE_CATALOG = [
   {
@@ -112,22 +145,23 @@ const formatDateTime = (isoValue) => {
     .replace(",", "");
 };
 
-const buildInitialServices = () => {
-  const createdAt = new Date().toISOString();
-  let idSeed = 1;
+// Chuyển đổi dữ liệu từ DB sang định dạng hiển thị
+const toService = (row) => ({
+  id: row.DichVuID,
+  serviceType: SERVICE_TYPE_ALIAS_MAP[row.LoaiDichVu] || row.LoaiDichVu || "",
+  serviceName: row.TenDichVu || "",
+  serviceCode: row.MaDichVu || "",
+  serviceNote: row.GhiChu || "",
+  createdAt: row.NgayTao || row.created_at || new Date().toISOString(),
+  updatedAt: row.NgayCapNhat || row.updated_at || new Date().toISOString(),
+  updatedBy: row.NguoiCapNhat || "System",
+});
 
-  return SERVICE_CATALOG.flatMap((group) =>
-    group.items.map((item) => ({
-      id: idSeed++,
-      serviceType: group.category,
-      serviceName: item.name,
-      serviceCode: item.code,
-      serviceNote: "",
-      createdAt,
-      updatedAt: createdAt,
-      updatedBy: "System",
-    }))
-  );
+const isPresetServiceType = (value) => PRESET_SERVICE_TYPES.includes(String(value || "").trim());
+const getServiceTypeOrder = (value) => {
+  const normalizedValue = String(value || "").trim();
+  const index = PRESET_SERVICE_TYPES.indexOf(normalizedValue);
+  return index === -1 ? PRESET_SERVICE_TYPES.length : index;
 };
 
 export default function ServiceManagement() {
@@ -135,7 +169,8 @@ export default function ServiceManagement() {
   const [currentUser] = useState(JSON.parse(localStorage.getItem("currentUser")) || null);
   const [currentLanguage, setCurrentLanguage] = useState(localStorage.getItem("language") || "vi");
   const [searchTerm, setSearchTerm] = useState("");
-  const [services, setServices] = useState(buildInitialServices);
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingService, setEditingService] = useState(null);
   const [formData, setFormData] = useState({
@@ -144,24 +179,92 @@ export default function ServiceManagement() {
     serviceCode: "",
     serviceNote: "",
   });
+  const [isCustomServiceTypeMode, setIsCustomServiceTypeMode] = useState(false);
 
   const editorName = currentUser?.name || currentUser?.username || "System";
+  const serviceTypeSelectValue = isCustomServiceTypeMode ? CUSTOM_SERVICE_TYPE_VALUE : formData.serviceType;
+  const showCustomServiceTypeInput = isCustomServiceTypeMode;
+
+  // Tạo dữ liệu gốc từ SERVICE_CATALOG (luôn có sẵn ngay cả khi DB lỗi)
+  const buildDefaultServices = useCallback(() => {
+    const createdAt = new Date().toISOString();
+    let idSeed = 1;
+    return SERVICE_CATALOG.flatMap((group) =>
+      group.items.map((item) => ({
+        id: idSeed++,
+        serviceType: SERVICE_TYPE_ALIAS_MAP[group.category] || group.category,
+        serviceName: item.name,
+        serviceCode: item.code,
+        serviceNote: "",
+        createdAt,
+        updatedAt: createdAt,
+        updatedBy: "System",
+        _fromDB: false,
+      }))
+    );
+  }, []);
+
+  // Tải dữ liệu: hiển thị ngay 34 dịch vụ hardcode, sau đó ghép thêm dịch vụ lưu từ backend
+  const fetchServices = useCallback(async () => {
+    const defaults = buildDefaultServices();
+    setServices(defaults);
+    setLoading(false);
+
+    try {
+      const res = await fetch(`${API_BASE}/dichvu`);
+      if (!res.ok) return;
+      const json = await res.json();
+      if (!json.success) return;
+
+      const rows = json.data || [];
+      const validRows = rows.filter((r) => r.TenDichVu && r.TenDichVu.trim());
+
+      if (validRows.length === 0) return;
+
+      const seen = new Set(
+        defaults.map((item) => `${item.serviceType.trim().toLowerCase()}::${item.serviceName.trim().toLowerCase()}::${item.serviceCode.trim().toLowerCase()}`)
+      );
+
+      const extraRows = validRows
+        .map(toService)
+        .filter((item) => {
+          const key = `${item.serviceType.trim().toLowerCase()}::${item.serviceName.trim().toLowerCase()}::${item.serviceCode.trim().toLowerCase()}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+      setServices([...defaults, ...extraRows]);
+    } catch (_) {
+      // Lỗi mạng → giữ nguyên dữ liệu hardcode đang hiển thị
+    }
+  }, [buildDefaultServices]);
+
+  useEffect(() => {
+    fetchServices();
+  }, [fetchServices]);
 
   const filteredServices = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
-    if (!keyword) return services;
+    const baseServices = keyword
+      ? services.filter((item) => {
+          const haystack = [
+            item.serviceType,
+            item.serviceName,
+            item.serviceCode,
+            item.serviceNote,
+            item.updatedBy,
+          ]
+            .join(" ")
+            .toLowerCase();
+          return haystack.includes(keyword);
+        })
+      : services;
 
-    return services.filter((item) => {
-      const haystack = [
-        item.serviceType,
-        item.serviceName,
-        item.serviceCode,
-        item.serviceNote,
-        item.updatedBy,
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(keyword);
+    return [...baseServices].sort((left, right) => {
+      const orderDiff = getServiceTypeOrder(left.serviceType) - getServiceTypeOrder(right.serviceType);
+      if (orderDiff !== 0) return orderDiff;
+      return left.id - right.id;
     });
   }, [searchTerm, services]);
 
@@ -194,6 +297,7 @@ export default function ServiceManagement() {
       serviceCode: "",
       serviceNote: "",
     });
+    setIsCustomServiceTypeMode(false);
   };
 
   const openAddModal = () => {
@@ -204,6 +308,7 @@ export default function ServiceManagement() {
 
   const openEditModal = (service) => {
     setEditingService(service);
+    setIsCustomServiceTypeMode(!isPresetServiceType(service.serviceType));
     setFormData({
       serviceType: service.serviceType,
       serviceName: service.serviceName,
@@ -213,7 +318,7 @@ export default function ServiceManagement() {
     setShowModal(true);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.serviceType.trim()) {
       window.alert("Vui lòng nhập Loại dịch vụ.");
       return;
@@ -227,50 +332,65 @@ export default function ServiceManagement() {
       return;
     }
 
-    const now = new Date().toISOString();
+    const payload = {
+      LoaiDichVu: formData.serviceType.trim(),
+      TenDichVu: formData.serviceName.trim(),
+      MaDichVu: formData.serviceCode.trim(),
+      GhiChu: formData.serviceNote.trim(),
+      NguoiCapNhat: editorName,
+    };
 
-    if (editingService) {
-      setServices((prev) =>
-        prev.map((item) =>
-          item.id === editingService.id
-            ? {
-                ...item,
-                serviceType: formData.serviceType.trim(),
-                serviceName: formData.serviceName.trim(),
-                serviceCode: formData.serviceCode.trim(),
-                serviceNote: formData.serviceNote.trim(),
-                updatedAt: now,
-                updatedBy: editorName,
-              }
-            : item
-        )
-      );
-    } else {
-      const nextId = services.length > 0 ? Math.max(...services.map((item) => item.id)) + 1 : 1;
-      setServices((prev) => [
-        ...prev,
-        {
-          id: nextId,
-          serviceType: formData.serviceType.trim(),
-          serviceName: formData.serviceName.trim(),
-          serviceCode: formData.serviceCode.trim(),
-          serviceNote: formData.serviceNote.trim(),
-          createdAt: now,
-          updatedAt: now,
-          updatedBy: editorName,
-        },
-      ]);
+    try {
+      let res;
+      if (editingService) {
+        // Cập nhật dịch vụ đã có
+        res = await fetch(`${API_BASE}/dichvu/${editingService.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        // Thêm dịch vụ mới
+        res = await fetch(`${API_BASE}/dichvu`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      const raw = await res.text();
+      let json = null;
+      try {
+        json = raw ? JSON.parse(raw) : {};
+      } catch (_) {
+        throw new Error(`HTTP ${res.status}: ${raw || res.statusText}`);
+      }
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || `HTTP ${res.status}`);
+      }
+
+      // Tải lại danh sách từ DB để đồng bộ
+      await fetchServices();
+      setShowModal(false);
+      setEditingService(null);
+      resetForm();
+    } catch (err) {
+      window.alert("Lỗi lưu dịch vụ: " + err.message);
     }
-
-    setShowModal(false);
-    setEditingService(null);
-    resetForm();
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     const confirmed = window.confirm("Bạn có chắc muốn xóa dịch vụ này?");
     if (!confirmed) return;
-    setServices((prev) => prev.filter((item) => item.id !== id));
+    try {
+      const res = await fetch(`${API_BASE}/dichvu/${id}`, { method: "DELETE" });
+      const raw = await res.text();
+      const json = raw ? JSON.parse(raw) : {};
+      if (!res.ok || !json.success) throw new Error(json.message || "Lỗi xóa dịch vụ");
+      setServices((prev) => prev.filter((item) => item.id !== id));
+    } catch (err) {
+      window.alert("Lỗi xóa dịch vụ: " + err.message);
+    }
   };
 
   const tableHeaderCellStyle = {
@@ -375,9 +495,14 @@ export default function ServiceManagement() {
                 </tr>
               </thead>
               <tbody>
-                {filteredServices.length > 0 ? (
-                  filteredServices.map((item, index) => (
-                    <tr key={item.id} style={{ backgroundColor: "#ffffff" }}>
+                {loading ? (
+                  <tr>
+                    <td colSpan={9} className="text-center py-4 text-muted" style={tableBodyCellStyle}>
+                      Đang tải dữ liệu...
+                    </td>
+                  </tr>
+                ) : filteredServices.length > 0 ? (
+                  filteredServices.map((item, index) => (                    <tr key={item.id} style={{ backgroundColor: "#ffffff" }}>
                       <td style={{ ...tableBodyCellStyle, textAlign: "center", fontWeight: 600 }}>
                         {index + 1}
                       </td>
@@ -462,22 +587,60 @@ export default function ServiceManagement() {
             <div className="row g-3">
               <div className="col-md-6">
                 <label className="form-label fw-semibold">Loại dịch vụ</label>
-                <input
+                <select
                   className="form-control"
-                  value={formData.serviceType}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, serviceType: e.target.value }))}
-                  placeholder="Ví dụ: Hộ chiếu"
-                />
+                  value={serviceTypeSelectValue}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    if (nextValue === CUSTOM_SERVICE_TYPE_VALUE) {
+                      setIsCustomServiceTypeMode(true);
+                      return;
+                    }
+                    setIsCustomServiceTypeMode(false);
+                    setFormData((prev) => ({ ...prev, serviceType: nextValue }));
+                  }}
+                >
+                  <option value="">Chọn loại dịch vụ</option>
+                  {PRESET_SERVICE_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                  <option value={CUSTOM_SERVICE_TYPE_VALUE}>Thêm</option>
+                </select>
               </div>
-              <div className="col-md-6">
-                <label className="form-label fw-semibold">Mã dịch vụ</label>
-                <input
-                  className="form-control"
-                  value={formData.serviceCode}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, serviceCode: e.target.value }))}
-                  placeholder="Ví dụ: HCCM"
-                />
-              </div>
+              {showCustomServiceTypeInput ? (
+                <div className="col-md-6">
+                  <label className="form-label fw-semibold">Loại dịch vụ mới</label>
+                  <input
+                    className="form-control"
+                    value={formData.serviceType}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, serviceType: e.target.value }))}
+                    placeholder="Nhập loại dịch vụ mới"
+                  />
+                </div>
+              ) : (
+                <div className="col-md-6">
+                  <label className="form-label fw-semibold">Mã dịch vụ</label>
+                  <input
+                    className="form-control"
+                    value={formData.serviceCode}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, serviceCode: e.target.value }))}
+                    placeholder="Ví dụ: HCCM"
+                  />
+                </div>
+              )}
+              {showCustomServiceTypeInput ? (
+                <div className="col-md-6">
+                  <label className="form-label fw-semibold">Mã dịch vụ</label>
+                  <input
+                    className="form-control"
+                    value={formData.serviceCode}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, serviceCode: e.target.value }))}
+                    placeholder="Ví dụ: HCCM"
+                  />
+                </div>
+              ) : null}
               <div className="col-12">
                 <label className="form-label fw-semibold">Tên dịch vụ</label>
                 <input

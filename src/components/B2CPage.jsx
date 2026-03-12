@@ -12,7 +12,10 @@ import "../styles/DashboardList.css";
 import { authenticatedFetch } from "../utils/api";
 import translateService from "../utils/translateService";
 
-const API_BASE = "https://onepasscms-backend-tvdy.onrender.com/api";
+const API_BASE =
+  window.location.hostname === "localhost"
+    ? "http://localhost:5000/api"
+    : "https://onepasscms-backend-tvdy.onrender.com/api";
 const CUSTOM_SERVICE_OPTION_VALUE = "__ADD_CUSTOM_SERVICE__";
 const CUSTOM_SERVICE_TYPE_VALUE = "__ADD_CUSTOM_SERVICE_TYPE__";
 const B2C_COLUMN_WIDTHS = {
@@ -101,6 +104,26 @@ const B2C_CATEGORY_LIST = {
     "Công chứng bản dịch",
     "Xin cấp hộ hồ sơ"
   ]
+};
+
+const B2C_SERVICE_TYPE_ALIAS_MAP = {
+  "hộ chiếu": "Hộ chiếu, Hộ tịch",
+  "hộ tịch": "Hộ chiếu, Hộ tịch",
+  "nhận cha mẹ": "Nhận nuôi",
+  "con nuôi": "Nhận nuôi",
+  "miễn thị thực": "Thị thực",
+  "khai sinh": "Khai sinh, khai tử",
+  "khai tử": "Khai sinh, khai tử",
+  "hợp pháp hóa": "Hợp pháp hóa, công chứng",
+  "công chứng, chứng thực": "Hợp pháp hóa, công chứng",
+  "xác minh": "Khác",
+  "dịch": "Khác"
+};
+
+const mapToB2CServiceType = (value) => {
+  const cleanValue = String(value || "").trim();
+  if (!cleanValue) return "";
+  return B2C_SERVICE_TYPE_ALIAS_MAP[cleanValue.toLowerCase()] || cleanValue;
 };
 
 const B2C_SERVICE_CODE_MAP = {
@@ -462,22 +485,41 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
 
   // Lấy danh sách dịch vụ từ API
   const canApprove = currentUser?.is_director || currentUser?.is_accountant || currentUser?.perm_approve_b2c;
-  
-  // Tạo list loại dịch vụ cho Select
-  const serviceTypeList = dichvuList && dichvuList.length > 0 
-    ? dichvuList.map(dv => dv.LoaiDichVu) 
-    : [];
 
-  // Tạo flat list tất cả dịch vụ từ B2C_CATEGORY_LIST để dùng trong dropdown
+  // Xây dựng bản đồ: luôn dùng hardcode làm nền, thêm dịch vụ hợp lệ từ DB vào
+  const dbCategoryMap = React.useMemo(() => {
+    // Bắt đầu từ bản sao hardcode
+    const merged = Object.entries(B2C_CATEGORY_LIST).reduce((acc, [cat, items]) => {
+      acc[cat] = [...items];
+      return acc;
+    }, {});
+    // Chỉ thêm dịch vụ từ DB nếu TenDichVu hợp lệ và chưa có trong hardcode
+    if (dichvuList && dichvuList.length > 0) {
+      dichvuList.forEach((dv) => {
+        const cat = mapToB2CServiceType(dv.LoaiDichVu);
+        const name = dv.TenDichVu;
+        if (!cat || !name || !name.trim()) return;
+        if (!merged[cat]) merged[cat] = [];
+        if (!merged[cat].includes(name)) merged[cat].push(name);
+      });
+    }
+    return merged;
+  }, [dichvuList]);
+
+  // Tạo flat list tất cả dịch vụ: hardcode + dịch vụ mới từ DB
   const allServiceOptions = React.useMemo(() => {
+    const seen = new Set();
     const services = [];
-    Object.entries(B2C_CATEGORY_LIST).forEach(([category, items]) => {
-      items.forEach(item => {
-        services.push({ value: item, label: item, category: category });
+    Object.entries(dbCategoryMap).forEach(([category, items]) => {
+      items.forEach((item) => {
+        if (!seen.has(item)) {
+          seen.add(item);
+          services.push({ value: item, label: item, category });
+        }
       });
     });
     return services;
-  }, []);
+  }, [dbCategoryMap]);
 
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -502,7 +544,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
         "여권 • 호적 대행": "Hộ chiếu, Hộ tịch", "입양 절차 대행": "Nhận nuôi", "비자 대행": "Thị thực", "법률 컨설팅": "Tư vấn pháp lý",
         "B2B 서비스": "Dịch vụ B2B", "기타": "Khác", "번역 공증": "Dịch thuật",
       };
-      return krMap[cleanVal] || cleanVal;
+      return mapToB2CServiceType(krMap[cleanVal] || cleanVal);
   };
 
   const createEmptyServiceRow = () => ({
@@ -534,7 +576,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                const type = s.serviceType || normalizeServiceType(request?.LoaiDichVu) || "";
                if (!acc[type]) acc[type] = { rows: [], note: "" };
                const normalizedType = normalizeServiceType(type);
-               const knownServices = B2C_CATEGORY_LIST[normalizedType] || [];
+               const knownServices = dbCategoryMap[normalizedType] || B2C_CATEGORY_LIST[normalizedType] || [];
                const serviceName = s.name || "";
                const isCustomService = Boolean(
                  s.isCustomService ||
@@ -805,8 +847,12 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   const getDanhMucOptions = (serviceType) => {
     if (!serviceType) return [];
     const normalized = normalizeServiceType(serviceType).trim().toLowerCase();
-    const match = Object.entries(B2C_CATEGORY_LIST).find(([key]) => key.trim().toLowerCase() === normalized);
-    return match ? match[1] : [];
+    // dbCategoryMap đã bao gồm cả hardcode + DB
+    const dbMatch = Object.entries(dbCategoryMap).find(([key]) => key.trim().toLowerCase() === normalized);
+    if (dbMatch && dbMatch[1].length > 0) return dbMatch[1];
+    // Fallback hardcode (phòng khi normalize ko khớp)
+    const hardMatch = Object.entries(B2C_CATEGORY_LIST).find(([key]) => key.trim().toLowerCase() === normalized);
+    return hardMatch ? hardMatch[1] : [];
   };
 
   const translations = {
@@ -1129,7 +1175,11 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   const labelStyle = { fontSize: "13px", fontWeight: "600", color: "#111827", marginBottom: "2px", display: "block" };
   const areaCodes = [{ value: "+82", label: "+82" }, { value: "+84", label: "+84" }];
   const formOptions = currentLanguage === "vi" ? ["Messenger","Kakao Talk", "Zalo","Naver Talk", "Email", "Gọi điện","Trực tiếp"] : ["Messenger","Kakao Talk", "Zalo","Naver Talk", "Email", "Phone", "Direct"];
-  const branchOptions = [{ value: "Seoul", label: "Seoul" }, { value: "Busan", label: "Busan" }];
+  const branchOptions = [
+    { value: "Seoul", label: "Seoul" },
+    { value: "Busan", label: "Busan" },
+    { value: "Hà Nội", label: "Hà Nội" }
+  ];
   const statusOptions = [
     "Đang tư vấn",
     "Đã tạo đơn",
@@ -1145,10 +1195,28 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     { value: "gấp 0", label: "Gấp 0" }
   ];
   const discountOptions = [{ value: 0, label: "0%" }, { value: 5, label: "5%" }, { value: 10, label: "10%" }, { value: 12, label: "12%" }, { value: 15, label: "15%" }, { value: 17, label: "17%" }, { value: 30, label: "30%" }];
-  const serviceTypeOptions = Object.keys(B2C_CATEGORY_LIST).map((serviceType) => ({
-    value: serviceType,
-    label: serviceType,
-  }));
+  // Luôn dùng hardcode làm base, thêm cả nhóm gộp lẫn tên loại gốc từ trang quản lý dịch vụ
+  const serviceTypeOptions = React.useMemo(() => {
+    const seen = new Set(Object.keys(B2C_CATEGORY_LIST));
+    const base = Object.keys(B2C_CATEGORY_LIST).map(st => ({ value: st, label: st }));
+    if (dichvuList && dichvuList.length > 0) {
+      dichvuList.forEach((dv) => {
+        const originalType = String(dv.LoaiDichVu || "").trim();
+        const mappedType = mapToB2CServiceType(originalType);
+
+        if (mappedType && dv.TenDichVu && !seen.has(mappedType)) {
+          seen.add(mappedType);
+          base.push({ value: mappedType, label: mappedType });
+        }
+
+        if (originalType && dv.TenDichVu && !seen.has(originalType)) {
+          seen.add(originalType);
+          base.push({ value: originalType, label: originalType });
+        }
+      });
+    }
+    return base;
+  }, [dichvuList]);
 
   return (
     <div className="modal-overlay" style={{
@@ -1761,6 +1829,27 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
             </div>
           </div>
 
+          <div className="col-12" style={{ display: "flex", gap: "30px", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ minWidth: "320px", width: "320px", flexShrink: 0, borderBottom: "1px solid #e5e7eb", paddingBottom: "6px" }}>
+              <label style={{...labelStyle, fontSize: "13px", marginBottom: "0"}}>
+                Cơ sở
+              </label>
+              <p style={{ fontSize: "11px", color: "#9ca3af", margin: "2px 0 0 0", fontStyle: "italic" }}>
+                Chọn cơ sở xử lý hồ sơ
+              </p>
+            </div>
+            <div style={{ width: "320px" }}>
+              <ModernSelect
+                name="CoSoTuVan"
+                height="36px"
+                value={formData.CoSoTuVan ?? ""}
+                placeholder={t.selectBranch}
+                options={branchOptions}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+
           {/* NƠI TIẾP NHẬN HỒ SƠ */}
           <div className="col-12" style={{ display: "flex", gap: "30px", alignItems: "center", justifyContent: "center" }}>
             <div style={{ minWidth: "320px", width: "320px", flexShrink: 0, borderBottom: "1px solid #e5e7eb", paddingBottom: "6px" }}>
@@ -2105,10 +2194,10 @@ const RowItem = ({
           const revenue = subtotal + taxAmount;
           const revenueAfterDiscount = revenue - discountAmount;
           
-          // Lấy serviceType từ tên dịch vụ (map với B2C_CATEGORY_LIST)
+            // Lấy serviceType từ tên dịch vụ (map với danh mục đã ghép từ backend)
           let serviceType = item.LoaiDichVu || "";
-          // Tìm loại dịch vụ từ B2C_CATEGORY_LIST dựa trên tên
-          Object.entries(B2C_CATEGORY_LIST).forEach(([category, items]) => {
+            // Tìm loại dịch vụ từ dbCategoryMap dựa trên tên
+            Object.entries(dbCategoryMap).forEach(([category, items]) => {
               if (items.includes(serviceName)) {
                   serviceType = category;
               }
@@ -2218,7 +2307,10 @@ const RowItem = ({
   }
 
   const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
-  const translateBranch = (branch) => { const map = { 서울: "Seoul", 부산: "Busan" }; return map[branch] || branch || ""; };
+  const translateBranch = (branch) => {
+    const map = { 서울: "Seoul", 부산: "Busan", 하노이: "Hà Nội" };
+    return map[branch] || branch || "";
+  };
   const currencySymbol = Number(item.DonViTienTe) === 1 ? " ₩" : " ₫";
 
   const isVisible = (key) => (visibleColumns ? visibleColumns[key] : true);
@@ -2398,57 +2490,23 @@ const RowItem = ({
             {isVisible("hanhDong") && isFirst && (
               <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("hanhDong")}`} style={{ ...mergedStyle, ...actionStickyCellStyle, padding: "10px 12px" }}>
                 <div className="d-flex justify-content-center align-items-center gap-2">
-                  {!hasServiceCode && canApprove && (
-                    <>
-                      <button
-                        className="btn btn-sm text-white shadow-sm d-flex align-items-center justify-content-center"
-                        style={{
-                          width: 32,
-                          height: 32,
-                          backgroundColor: "#06b6d4",
-                          borderColor: "#06b6d4",
-                          borderRadius: "6px"
-                        }}
-                        onClick={() => onApprove(item)}
-                        title={currentLanguage === "vi" ? "Duyệt" : "Approve"}
-                      >
-                        <Check size={18} strokeWidth={2.5} />
-                      </button>
+                  <button
+                    className="btn btn-sm btn-primary shadow-sm d-flex align-items-center justify-content-center"
+                    style={{ width: 32, height: 32, borderRadius: "6px", padding: "6px" }}
+                    onClick={() => onEdit(item)}
+                    title={currentLanguage === "vi" ? "Sửa" : "Edit"}
+                  >
+                    <Edit size={16} />
+                  </button>
 
-                      <button
-                        className="btn btn-sm btn-danger shadow-sm d-flex align-items-center justify-content-center"
-                        style={{ width: 32, height: 32, borderRadius: "6px" }}
-                        onClick={handleDeleteClick}
-                        title={currentLanguage === "vi" ? "Xóa" : "Delete"}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-
-                    </>
-                  )}
-
-                  {hasServiceCode && (
-                    <>
-                      <button
-                        className="btn btn-sm btn-primary shadow-sm d-flex align-items-center justify-content-center"
-                        style={{ width: 32, height: 32, borderRadius: "6px", padding: "6px" }}
-                        onClick={() => onEdit(item)}
-                        title={currentLanguage === "vi" ? "Sửa" : "Edit"}
-                      >
-                        <Edit size={16} />
-                      </button>
-
-                      <button
-                        className="btn btn-sm btn-danger shadow-sm d-flex align-items-center justify-content-center"
-                        style={{ width: 32, height: 32, borderRadius: "6px" }}
-                        onClick={handleDeleteClick}
-                        title={currentLanguage === "vi" ? "Xóa" : "Delete"}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-
-                    </>
-                  )}
+                  <button
+                    className="btn btn-sm btn-danger shadow-sm d-flex align-items-center justify-content-center"
+                    style={{ width: 32, height: 32, borderRadius: "6px" }}
+                    onClick={handleDeleteClick}
+                    title={currentLanguage === "vi" ? "Xóa" : "Delete"}
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               </td>
             )}
@@ -2517,27 +2575,24 @@ const B2CPage = () => {
     }
   };
   const tHeaders = tableHeadersTranslations[currentLanguage === "vi" ? "vi" : currentLanguage === "ko" ? "ko" : "en"];
-useEffect(() => {
-    const fetchDichVu = async () => {
-      try {
-       
-        const res = await fetch(`${API_BASE}/dichvu`);
-        
-        if (!res.ok) throw new Error("Kết nối thất bại");
 
-        const json = await res.json();
-
-        if (json.success) {
-
-          setDichvuList(json.data);
-        }
-      } catch (err) {
-        console.error("❌ Lỗi tải danh mục dịch vụ:", err);
+  const fetchDichVu = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/dichvu`);
+      if (!res.ok) throw new Error("Kết nối thất bại");
+      const json = await res.json();
+      if (json.success) {
+        setDichvuList(json.data);
       }
-    };
+    } catch (err) {
+      console.error("❌ Lỗi tải danh mục dịch vụ:", err);
+    }
+  };
 
+  useEffect(() => {
     fetchDichVu();
-  }, []); 
+  }, []);
+
 const initialColumnKeys = [
     { key: "id", label: tHeaders.stt },
     { key: "hoTen", label: tHeaders.khachHang },
@@ -2727,7 +2782,9 @@ const fetchData = async () => {
   };
   
   const handleCreateClick = () => {
-      setEditingRequest({});
+    // Tải lại danh sách dịch vụ mới nhất từ DB (để hiển thị dịch vụ vừa thêm)
+    fetchDichVu();
+    setEditingRequest({});
   };
 
   const handleModalSave = async (formData) => {
@@ -2840,12 +2897,33 @@ const fetchData = async () => {
       const json = await res.json();
       
       if (json.success) {
-        const createdCode = String(json?.data?.MaHoSo || "").trim();
+        let createdCode = String(json?.data?.MaHoSo || "").trim();
+
+        // Fallback cho backend cũ: nếu vừa tạo mới mà chưa có mã thì tự cấp mã ngay.
+        if (method === "POST" && !createdCode && json?.data?.YeuCauID) {
+          try {
+            const approveRes = await fetch(`${API_BASE}/yeucau/approve/${json.data.YeuCauID}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ userId: currentUser.id, ...safePayload }),
+            });
+
+            if (approveRes.ok) {
+              const approveJson = await approveRes.json();
+              if (approveJson?.success) {
+                createdCode = String(approveJson?.data?.MaHoSo || "").trim();
+              }
+            }
+          } catch (approveErr) {
+            console.warn("Fallback cấp mã tự động thất bại:", approveErr);
+          }
+        }
+
         if (method === "POST") {
           showToast(
             createdCode
               ? `Đăng ký thành công - Đã cấp mã: ${createdCode}`
-              : "Đăng ký thành công",
+              : "Đăng ký thành công (chưa lấy được mã, vui lòng F5)",
             "success"
           );
         } else {
@@ -3191,8 +3269,8 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
   const serviceTypeList = dichvuList?.map(dv => dv.LoaiDichVu) || [];
   const getDanhMucOptions = (serviceType) => {
     if (!serviceType) return [];
-    const normalizedType = normalizeServiceName(serviceType);
-    const match = Object.entries(B2C_CATEGORY_LIST).find(
+    const normalizedType = normalizeServiceName(mapToB2CServiceType(serviceType));
+    const match = Object.entries(dbCategoryMap).find(
       ([key]) => normalizeServiceName(key) === normalizedType
     );
     return match ? match[1] : [];
@@ -3202,7 +3280,11 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
     { value: "gấp 1", label: "Gấp 1" },
     { value: "gấp 0", label: "Gấp 0" }
   ];
-  const branchOptions = [{ value: "Seoul", label: "Seoul" }, { value: "Busan", label: "Busan" }];
+  const branchOptions = [
+    { value: "Seoul", label: "Seoul" },
+    { value: "Busan", label: "Busan" },
+    { value: "Hà Nội", label: "Hà Nội" }
+  ];
   const formOptions = [
   "Messenger",
   "Kakao Talk",
@@ -3708,9 +3790,9 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                               style={{
                                 display: "block",
                                 minWidth: 0,
-                                whiteSpace: "normal",
-                                overflowWrap: "anywhere",
-                                wordBreak: "break-word",
+                                whiteSpace: currentKey === "id" ? "nowrap" : "normal",
+                                overflowWrap: currentKey === "id" ? "normal" : "anywhere",
+                                wordBreak: currentKey === "id" ? "normal" : "break-word",
                                 lineHeight: 1.15,
                                 textAlign: "center",
                                 fontSize: "12px"

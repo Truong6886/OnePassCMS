@@ -819,10 +819,10 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
   const serviceCodeTitle = String(editingService?.code || editingService?.MaDichVu || "").trim();
   const modalTitle = isViewMode
     ? (serviceCodeTitle || "Chi tiết dịch vụ")
-    : (isApproveMode ? "Duyệt cấp dịch vụ" : "Đăng ký dịch vụ mới (B2B) - Cấp mã ngay");
+    : (isApproveMode ? "Duyệt cấp dịch vụ" : "Đăng ký dịch vụ mới (B2B)");
   const modalSubtitle = isViewMode
     ? "Thông tin đầy đủ (chỉ xem)"
-    : (isApproveMode ? "Kiểm tra thông tin trước khi cấp duyệt" : "Nhập thông tin khách hàng và dịch vụ. Hệ thống sẽ cấp mã ngay sau khi lưu.");
+    : (isApproveMode ? "Kiểm tra thông tin trước khi cấp duyệt" : "Nhập thông tin khách hàng và dịch vụ");
   const submitText = isApproveMode ? "Cấp duyệt" : "Đăng ký & Cấp mã";
   const submitBg = isApproveMode ? "#0ea5e9" : "#22c55e";
   const submitShadow = isApproveMode ? "0 6px 16px rgba(14, 165, 233, 0.35)" : "0 6px 16px rgba(34, 197, 94, 0.35)";
@@ -1040,38 +1040,23 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
                     </p>
                   </div>
                   <div style={{ flex: 1 }}>
-                    {isNewMode ? (
-                      <div style={{
-                        ...inputStyle,
-                        height: "44px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        borderColor: "#86efac",
-                        backgroundColor: "#f0fdf4"
-                      }}>
-                        <span style={{ color: "#166534", fontWeight: 600 }}>Đã duyệt</span>
-                        <span style={{ fontSize: "11px", color: "#15803d" }}>Cấp mã tự động</span>
-                      </div>
-                    ) : (
-                      <ModernSelect
-                        name="TrangThai"
-                        height="44px"
-                        value={formData.TrangThai}
-                        placeholder="Chọn trạng thái"
-                        options={[
-                          { value: "Đã tạo đơn", label: "Đã tạo đơn" },
-                          { value: "Đã thanh toán", label: "Đã thanh toán" },
-                          { value: "Nộp hồ sơ", label: "Nộp hồ sơ" },
-                          { value: "Trả kết quả", label: "Trả kết quả" },
-                          { value: "Hoàn thành", label: "Hoàn thành" },
-                          { value: "Đang xử lý", label: "Đang xử lý" },
-                          { value: "Đã duyệt", label: "Đã duyệt" },
-                          { value: "Từ chối", label: "Từ chối" }
-                        ]}
-                        onChange={handleInputChange}
-                      />
-                    )}
+                    <ModernSelect
+                      name="TrangThai"
+                      height="44px"
+                      value={formData.TrangThai}
+                      placeholder="Chọn trạng thái"
+                      options={[
+                        { value: "Đã tạo đơn", label: "Đã tạo đơn" },
+                        { value: "Đã thanh toán", label: "Đã thanh toán" },
+                        { value: "Nộp hồ sơ", label: "Nộp hồ sơ" },
+                        { value: "Trả kết quả", label: "Trả kết quả" },
+                        { value: "Hoàn thành", label: "Hoàn thành" },
+                        { value: "Đang xử lý", label: "Đang xử lý" },
+                        { value: "Đã duyệt", label: "Đã duyệt" },
+                        { value: "Từ chối", label: "Từ chối" }
+                      ]}
+                      onChange={handleInputChange}
+                    />
                   </div>
                 </div>
               </div>

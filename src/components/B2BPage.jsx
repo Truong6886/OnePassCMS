@@ -286,6 +286,7 @@ export default function B2BPage() {
 
   useEffect(() => {
     fetchUsers();
+    fetchDichVuList();
   }, []);
 
   const fetchUsers = async () => {
@@ -297,6 +298,17 @@ export default function B2BPage() {
       const json = await res.json();
       if (json.success) setUserList(json.data);
     } catch (e) { console.error("Lỗi lấy user list", e); }
+  };
+
+  const [dichvuList, setDichvuList] = useState([]);
+
+  const fetchDichVuList = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/dichvu`);
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json.success) setDichvuList(json.data || []);
+    } catch (e) { console.error("Lỗi tải danh sách dịch vụ B2B:", e); }
   };
 
 
@@ -316,7 +328,10 @@ export default function B2BPage() {
     if (approvedList.length === 0) {
       loadApproved(1);
     }
-    
+
+    // Tải lại danh sách dịch vụ mới nhất từ DB (để hiển thị dịch vụ vừa thêm)
+    fetchDichVuList();
+
     setShowAddServiceModal(true);
   };
 
@@ -673,7 +688,7 @@ export default function B2BPage() {
   const [rejectedTotal, setRejectedTotal] = useState(0);
   const [serviceData, setServiceData] = useState([]);
   const [serviceTotal, setServiceTotal] = useState(0);
-  const B2B_SERVICE_MAPPING = {
+  const B2B_SERVICE_MAPPING_HARDCODED = {
     "Hộ chiếu, Hộ tịch": [
       "Hộ chiếu cấp mới (Hợp pháp - Trẻ em)",
       "Hộ chiếu cấp đổi (Hợp pháp - Còn hạn)",
@@ -733,6 +748,27 @@ export default function B2BPage() {
       "Xin cấp hộ hồ sơ"
     ]
   };
+
+  // Luôn dùng hardcode làm nền, chỉ thêm dịch vụ hợp lệ từ DB vào
+  const B2B_SERVICE_MAPPING = React.useMemo(() => {
+    // Bắt đầu từ bản sao hardcode
+    const merged = Object.entries(B2B_SERVICE_MAPPING_HARDCODED).reduce((acc, [cat, items]) => {
+      acc[cat] = [...items];
+      return acc;
+    }, {});
+    // Chỉ thêm từ DB nếu TenDichVu hợp lệ và chưa có trong hardcode
+    if (dichvuList && dichvuList.length > 0) {
+      dichvuList.forEach((dv) => {
+        const cat = dv.LoaiDichVu;
+        const name = dv.TenDichVu;
+        if (!cat || !name || !name.trim()) return;
+        if (!merged[cat]) merged[cat] = [];
+        if (!merged[cat].includes(name)) merged[cat].push(name);
+      });
+    }
+    return merged;
+  }, [dichvuList]);
+
   const getDanhMucOptions = (serviceType) => {
     if (!serviceType) return [];
     const normalized = serviceType.trim().toLowerCase();
