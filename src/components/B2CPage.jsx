@@ -94,13 +94,11 @@ const B2C_CATEGORY_LIST = {
     "Chứng thực chữ ký",
     "Sao y bản chính"
   ],
-  "Khác": [
+  "Dịch thuật": [
     "Xác minh",
     "Dịch Việt - Hàn",
     "Dịch Hàn - Việt",
-    "Dịch BLX"
-  ],
-  "Dịch thuật": [
+    "Dịch BLX",
     "Công chứng bản dịch",
     "Xin cấp hộ hồ sơ"
   ]
@@ -116,8 +114,10 @@ const B2C_SERVICE_TYPE_ALIAS_MAP = {
   "khai tử": "Khai sinh, khai tử",
   "hợp pháp hóa": "Hợp pháp hóa, công chứng",
   "công chứng, chứng thực": "Hợp pháp hóa, công chứng",
-  "xác minh": "Khác",
-  "dịch": "Khác"
+  "xác minh": "Dịch thuật",
+  "dịch": "Dịch thuật",
+  "khác": "Dịch thuật",
+  "dịch thuật": "Dịch thuật"
 };
 
 const mapToB2CServiceType = (value) => {
@@ -1203,13 +1203,15 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
       dichvuList.forEach((dv) => {
         const originalType = String(dv.LoaiDichVu || "").trim();
         const mappedType = mapToB2CServiceType(originalType);
+        const normalizedOriginal = originalType.toLowerCase();
+        const skipLegacyType = normalizedOriginal === "khác" || normalizedOriginal === "dịch";
 
         if (mappedType && dv.TenDichVu && !seen.has(mappedType)) {
           seen.add(mappedType);
           base.push({ value: mappedType, label: mappedType });
         }
 
-        if (originalType && dv.TenDichVu && !seen.has(originalType)) {
+        if (originalType && dv.TenDichVu && !skipLegacyType && !seen.has(originalType)) {
           seen.add(originalType);
           base.push({ value: originalType, label: originalType });
         }

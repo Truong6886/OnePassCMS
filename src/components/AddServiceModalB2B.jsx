@@ -203,12 +203,11 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
 
   const createEmptyServiceRow = () => ({
     name: "", isCustomService: false, donvi: "", soluong: "1", loaigoi: "thường",
-    dongia: "", thue: "0", chietkhau: "0", thanhtien: ""
+    dongia: "", thue: "0", chietkhau: "0", thanhtien: "", note: ""
   });
 
   const createEmptyServiceSection = () => ({
     serviceType: "",
-    note: "",
     rows: [createEmptyServiceRow()]
   });
 
@@ -297,10 +296,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
           // Cấu trúc mới: Group services theo serviceType
           const grouped = details.services.reduce((acc, s) => {
             const type = s.serviceType || editingService.serviceType || "Khác";
-            if (!acc[type]) acc[type] = { rows: [], note: "" };
-            if (!acc[type].note) {
-              acc[type].note = String(s.note || s.ghiChu || s.serviceNote || "").trim();
-            }
+            if (!acc[type]) acc[type] = { rows: [] };
             acc[type].rows.push({
               name: s.name || "",
               isCustomService: Boolean(s.isCustomService || (s.codePrefix && String(s.codePrefix).trim().toUpperCase() === "ADD")),
@@ -310,21 +306,19 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
               dongia: s.dongia ? formatNumber(s.dongia) : "",
               thue: String(s.thue || "0"),
               chietkhau: String(s.chietkhau || "0"),
-              thanhtien: s.thanhtien ? formatNumber(s.thanhtien) : ""
+              thanhtien: s.thanhtien ? formatNumber(s.thanhtien) : "",
+              note: String(s.note || s.ghiChu || s.serviceNote || "").trim()
             });
             return acc;
           }, {});
-          
           setServiceSections(Object.entries(grouped).map(([serviceType, group]) => ({
             serviceType,
-            note: group.note || "",
             rows: group.rows
           })));
         } else if (details.sub && details.sub.length > 0) {
           // Cấu trúc cũ: Tạo 1 section với tất cả dịch vụ
           setServiceSections([{
             serviceType: editingService.serviceType || "Khác",
-            note: "",
             rows: details.sub.map(s => ({
               name: s.name || "",
               isCustomService: false,
@@ -334,7 +328,8 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
               dongia: s.revenue ? formatNumber(s.revenue) : "",
               thue: "0",
               chietkhau: String(s.discount || "0"),
-              thanhtien: ""
+              thanhtien: "",
+              note: ""
             }))
           }]);
         } else {
@@ -344,7 +339,6 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
           if (parts.length > 0) {
             setServiceSections([{
               serviceType: editingService.serviceType || "Khác",
-              note: "",
               rows: parts.map(name => ({
                 name: name.trim(),
                 isCustomService: false,
@@ -354,7 +348,8 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
                 dongia: "",
                 thue: "0",
                 chietkhau: "0",
-                thanhtien: ""
+                thanhtien: "",
+                note: ""
               }))
             }]);
           } else {
@@ -435,9 +430,9 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
     setServiceSections(newSections);
   };
 
-  const handleServiceNoteChange = (sectionIndex, value) => {
+  const handleServiceNoteChange = (sectionIndex, rowIndex, value) => {
     const newSections = [...serviceSections];
-    newSections[sectionIndex].note = value;
+    newSections[sectionIndex].rows[rowIndex].note = value;
     setServiceSections(newSections);
   };
 
@@ -699,7 +694,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
             chietkhau, 
             thanhtien: totalAmount,
             serviceType: section.serviceType === CUSTOM_SERVICE_TYPE_VALUE ? "Khác" : (section.serviceType || ""),
-            note: section.note || ""
+            note: row.note || ""
           });
           danhMucList.push(row.name);
         }
@@ -1180,9 +1175,9 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
                             )}
                             <input
                               type="text"
-                              value={section.note}
+                              value={row.note}
                               placeholder="Nhập ghi chú"
-                              onChange={(e) => handleServiceNoteChange(sectionIndex, e.target.value)}
+                              onChange={(e) => handleServiceNoteChange(sectionIndex, rowIndex, e.target.value)}
                               style={{ width: "100%", height: "28px", padding: "2px 4px", border: "1px solid #e5e7eb", borderRadius: "4px", fontSize: "11px", marginTop: "2px" }}
                             />
                           </td>

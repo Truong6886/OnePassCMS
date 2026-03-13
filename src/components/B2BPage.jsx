@@ -109,6 +109,17 @@ const unformatNumber = (value) => (value ? value.toString().replace(/\./g, "") :
 const API_BASE = window.location.hostname === "localhost"
   ? "http://localhost:5000/api"
   : "https://onepasscms-backend-tvdy.onrender.com/api";
+
+const mapToUnifiedB2BServiceType = (value) => {
+  const cleanValue = String(value || "").trim().toLowerCase();
+  if (!cleanValue) return "";
+
+  if (cleanValue === "khác" || cleanValue === "dịch" || cleanValue === "xác minh" || cleanValue === "dịch thuật") {
+    return "Dịch thuật";
+  }
+
+  return String(value || "").trim();
+};
 const parseMoney = (str) => {
   if (!str) return 0;
   return parseFloat(str.toString().replace(/\./g, "")) || 0;
@@ -739,13 +750,11 @@ export default function B2BPage() {
       "Chứng thực chữ ký",
       "Sao y bản chính"
     ],
-    "Khác": [
+    "Dịch thuật": [
       "Xác minh",
       "Dịch Việt - Hàn",
       "Dịch Hàn - Việt",
-      "Dịch BLX"
-    ],
-    "Dịch thuật": [
+      "Dịch BLX",
       "Công chứng bản dịch",
       "Xin cấp hộ hồ sơ"
     ]
@@ -761,7 +770,7 @@ export default function B2BPage() {
     // Chỉ thêm từ DB nếu TenDichVu hợp lệ và chưa có trong hardcode
     if (dichvuList && dichvuList.length > 0) {
       dichvuList.forEach((dv) => {
-        const cat = dv.LoaiDichVu;
+        const cat = mapToUnifiedB2BServiceType(dv.LoaiDichVu);
         const name = dv.TenDichVu;
         if (!cat || !name || !name.trim()) return;
         if (!merged[cat]) merged[cat] = [];
@@ -773,7 +782,7 @@ export default function B2BPage() {
 
   const getDanhMucOptions = (serviceType) => {
     if (!serviceType) return [];
-    const normalized = serviceType.trim().toLowerCase();
+    const normalized = mapToUnifiedB2BServiceType(serviceType).trim().toLowerCase();
     const match = Object.entries(B2B_SERVICE_MAPPING).find(([key]) => key.trim().toLowerCase() === normalized);
     return match ? match[1] : [];
   };
@@ -1934,13 +1943,14 @@ export default function B2BPage() {
                         verticalAlign: "middle",
                         position: "relative",
                         zIndex: 1,
-                        padding: "4px",
+                        padding: "10px 8px",
                         fontSize: "12px",
                         textAlign: "center",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        maxWidth: "150px"
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                        overflow: "visible",
+                        textOverflow: "unset",
+                        maxWidth: "300px"
                       };
 
                       const danhMucStyle = {
@@ -1982,7 +1992,19 @@ export default function B2BPage() {
                                 </td>
 
                                 <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, textAlign: 'left', ...serviceCellPinStyle("noiTiepNhan", rowBg, 13) }} title={rec.NoiTiepNhanHoSo || "--"}>{rec.NoiTiepNhanHoSo || "--"}</td>
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, textAlign: 'left', ...serviceCellPinStyle("diaChiNhan", rowBg, 13) }} title={rec.DiaChiNhan || "--"}>{rec.DiaChiNhan || "--"}</td>
+                                <td
+                                  className="border"
+                                  rowSpan={subRowsCount}
+                                  style={{
+                                    ...mergedStyle,
+                                    textAlign: 'left',
+                                    padding: '12px 14px', // padding đều các phía
+                                    ...serviceCellPinStyle("diaChiNhan", rowBg, 13)
+                                  }}
+                                  title={rec.DiaChiNhan || "--"}
+                                >
+                                  {rec.DiaChiNhan || "--"}
+                                </td>
                                 <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("loaiDichVu", rowBg, 13) }} title={rec.serviceType}>{rec.serviceType}</td>
                                 <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, whiteSpace: 'normal', lineHeight: '1.5', overflow: 'visible', maxWidth: 'none', textAlign: 'center', ...serviceCellPinStyle("tenDichVu", rowBg, 13) }}>
                                   {rec.serviceName}
@@ -2613,9 +2635,9 @@ export default function B2BPage() {
 
                   if (company.DichVu) availableServices.push(...parseServices(company.DichVu));
                   if (company.DichVuKhac) availableServices.push(...parseServices(company.DichVuKhac));
-                  availableServices = [...new Set(availableServices)].filter(Boolean);
+                  availableServices = [...new Set(availableServices.map(mapToUnifiedB2BServiceType))].filter(Boolean);
                 }
-                const currentServiceType = String(selectedService.serviceType || selectedService.LoaiDichVu || "").trim();
+                const currentServiceType = mapToUnifiedB2BServiceType(selectedService.serviceType || selectedService.LoaiDichVu || "");
                 const hasCurrentServiceTypeInList = availableServices.some(
                   (svc) => String(svc || "").trim().toLowerCase() === currentServiceType.toLowerCase()
                 );
