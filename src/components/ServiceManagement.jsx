@@ -200,91 +200,27 @@ export default function ServiceManagement() {
   const serviceTypeSelectValue = isCustomServiceTypeMode ? CUSTOM_SERVICE_TYPE_VALUE : formData.serviceType;
   const showCustomServiceTypeInput = isCustomServiceTypeMode;
 
-  // Tạo dữ liệu gốc từ SERVICE_CATALOG (luôn có sẵn ngay cả khi DB lỗi)
-  const buildDefaultServices = useCallback(() => {
-    const createdAt = new Date().toISOString();
-    let idSeed = 1;
-    return SERVICE_CATALOG.flatMap((group) =>
-      group.items.map((item) => ({
-        id: idSeed++,
-        serviceType: SERVICE_TYPE_ALIAS_MAP[group.category] || group.category,
-        serviceName: item.name,
-        serviceCode: item.code,
-        serviceNote: "",
-        createdAt,
-        updatedAt: createdAt,
-        updatedBy: "System",
-        _fromDB: false,
-      }))
-    );
-  }, []);
+  // Không còn dữ liệu gốc hardcode, chỉ lấy từ API
 
-  // Tải dữ liệu: hiển thị ngay 34 dịch vụ hardcode, sau đó ghép thêm dịch vụ lưu từ backend
+  // Tải dữ liệu: chỉ lấy từ backend, không còn hardcode
   const fetchServices = useCallback(async () => {
-    const defaults = buildDefaultServices();
-    setServices(defaults);
-    setLoading(false);
-
+    setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/dichvu`);
-      if (!res.ok) return;
+      if (!res.ok) throw new Error("Không thể tải dữ liệu dịch vụ");
       const json = await res.json();
-      if (!json.success) return;
+      if (!json.success) throw new Error(json.message || "Lỗi tải dịch vụ");
 
       const rows = json.data || [];
       const validRows = rows.filter((r) => r.TenDichVu && r.TenDichVu.trim());
-
-      if (validRows.length === 0) return;
-
-      const normalize = (value) => String(value || "").trim().toLowerCase();
-      const merged = [...defaults];
-
-      validRows.map(toService).forEach((item) => {
-        const codeKey = normalize(item.serviceCode);
-        const nameKey = `${normalize(item.serviceType)}::${normalize(item.serviceName)}`;
-
-        let matchIndex = -1;
-        if (codeKey) {
-          matchIndex = merged.findIndex((row) => normalize(row.serviceCode) === codeKey);
-        }
-        if (matchIndex === -1) {
-          matchIndex = merged.findIndex(
-            (row) => `${normalize(row.serviceType)}::${normalize(row.serviceName)}` === nameKey
-          );
-        }
-
-        if (matchIndex >= 0) {
-          // Ghi đè dòng cũ thay vì tạo dòng mới khi service đã tồn tại theo mã/tên.
-          merged[matchIndex] = {
-            ...merged[matchIndex],
-            serviceType: item.serviceType,
-            serviceName: item.serviceName,
-            serviceCode: item.serviceCode,
-            serviceNote: item.serviceNote,
-            createdAt: item.createdAt,
-            updatedAt: item.updatedAt,
-            updatedBy: item.updatedBy,
-            _fromDB: true,
-          };
-        } else {
-          merged.push({ ...item, _fromDB: true });
-        }
-      });
-
-      const unique = [];
-      const seen = new Set();
-      merged.forEach((item) => {
-        const key = `${normalize(item.serviceType)}::${normalize(item.serviceName)}::${normalize(item.serviceCode)}`;
-        if (seen.has(key)) return;
-        seen.add(key);
-        unique.push(item);
-      });
-
-      setServices(unique);
-    } catch (_) {
-      // Lỗi mạng → giữ nguyên dữ liệu hardcode đang hiển thị
+      setServices(validRows.map(toService));
+    } catch (err) {
+      setServices([]);
+      // Có thể hiển thị thông báo lỗi nếu muốn
+    } finally {
+      setLoading(false);
     }
-  }, [buildDefaultServices]);
+  }, []);
 
   useEffect(() => {
     fetchServices();

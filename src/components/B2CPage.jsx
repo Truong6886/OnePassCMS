@@ -98,8 +98,7 @@ const B2C_CATEGORY_LIST = {
     "Xác minh",
     "Dịch Việt - Hàn",
     "Dịch Hàn - Việt",
-    "Dịch BLX",
-    
+    "Dịch BLX"
   ]
 };
 
@@ -1196,27 +1195,19 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   const discountOptions = [{ value: 0, label: "0%" }, { value: 5, label: "5%" }, { value: 10, label: "10%" }, { value: 12, label: "12%" }, { value: 15, label: "15%" }, { value: 17, label: "17%" }, { value: 30, label: "30%" }];
   // Luôn dùng hardcode làm base, thêm cả nhóm gộp lẫn tên loại gốc từ trang quản lý dịch vụ
   const serviceTypeOptions = React.useMemo(() => {
-    const seen = new Set(Object.keys(B2C_CATEGORY_LIST));
-    const base = Object.keys(B2C_CATEGORY_LIST).map(st => ({ value: st, label: st }));
+    // Lấy tất cả loại dịch vụ duy nhất từ API
+    const seen = new Set();
+    const options = [];
     if (dichvuList && dichvuList.length > 0) {
       dichvuList.forEach((dv) => {
-        const originalType = String(dv.LoaiDichVu || "").trim();
-        const mappedType = mapToB2CServiceType(originalType);
-        const normalizedOriginal = originalType.toLowerCase();
-        const skipLegacyType = normalizedOriginal === "khác" || normalizedOriginal === "dịch";
-
-        if (mappedType && dv.TenDichVu && !seen.has(mappedType)) {
-          seen.add(mappedType);
-          base.push({ value: mappedType, label: mappedType });
-        }
-
-        if (originalType && dv.TenDichVu && !skipLegacyType && !seen.has(originalType)) {
-          seen.add(originalType);
-          base.push({ value: originalType, label: originalType });
+        const type = String(dv.LoaiDichVu || "").trim();
+        if (type && !seen.has(type)) {
+          seen.add(type);
+          options.push({ value: type, label: type });
         }
       });
     }
-    return base;
+    return options;
   }, [dichvuList]);
 
   return (

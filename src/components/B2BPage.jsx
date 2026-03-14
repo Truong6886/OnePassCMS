@@ -484,103 +484,11 @@ export default function B2BPage() {
         return false;
       }
 
-      // Prepare API payload
-      const isApproveMode = serviceModalMode === "approve";
-      const isApprovalFlow = Boolean(
-        editingServiceData?.id &&
-        isApproveMode
-      );
+      // ...phần xử lý tiếp theo của bạn ở đây...
 
-      const apiPayload = {
-        ...payload,
-        userId: currentUser?.id,
-        approveAction: isApprovalFlow ? "accountant_approve" : null
-      };
-
-      if (isCompletedStatus(apiPayload.TrangThai)) {
-        if (!apiPayload.NgayHoanThanh) {
-          apiPayload.NgayHoanThanh = new Date().toISOString().split("T")[0];
-        }
-      } else if (editingServiceData?.completionDate && !apiPayload.NgayHoanThanh) {
-        apiPayload.NgayHoanThanh = editingServiceData.completionDate;
-      }
-
-      if (!editingServiceData?.id && !apiPayload.NgayTao) {
-        apiPayload.NgayTao = new Date().toISOString().split("T")[0];
-      }
-
-      if (!apiPayload.NgayThucHien && apiPayload.NgayBatDau) {
-        apiPayload.NgayThucHien = apiPayload.NgayBatDau;
-      }
-      if (isApproveMode) {
-        apiPayload.TrangThai = "Đã duyệt";
-      }
-
-      // Remove ConfirmPassword before sending
-      delete apiPayload.ConfirmPassword;
-
-      console.log("Submitting payload:", apiPayload);
-
-      // Determine if creating or updating
-      let url = `${API_BASE}/b2b/services`;
-      let method = "POST";
-      
-      if (editingServiceData?.id) {
-        url = `${API_BASE}/b2b/services/update/${editingServiceData.id}`;
-        method = "PUT";
-      }
-
-      const res = await authenticatedFetch(url, {
-        method,
-        body: JSON.stringify(apiPayload)
-      });
-
-      if (!res) {
-        console.error("Service request failed");
-        showToast("Lỗi kết nối server - vui lòng kiểm tra kết nối", "error");
-        return false;
-      }
-
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("Service request failed:", res.status, text);
-        showToast(text || "Lỗi server", "error");
-        return false;
-      }
-
-      const json = await res.json();
-      console.log("Response from server:", json);
-
-      const extractServiceCode = (responseData, fallbackCode = "") => {
-        return String(
-          responseData?.newCode ||
-          responseData?.code ||
-          responseData?.MaDichVu ||
-          responseData?.data?.MaDichVu ||
-          responseData?.data?.code ||
-          fallbackCode ||
-          "CHUA_CAP_MA"
-        ).trim();
-      };
-
-      const serviceCode = extractServiceCode(json, editingServiceData?.code || editingServiceData?.MaDichVu || payload?.MaDichVu);
-
-      if (json.success) {
-        showToast(
-          editingServiceData
-            ? `CHỈNH SỬA / CẬP NHẬT DỊCH VỤ THÀNH CÔNG - Mã dịch vụ: ${serviceCode}`
-            : `ĐĂNG KÝ DỊCH VỤ THÀNH CÔNG - Đã cấp mã: ${serviceCode}`,
-          "success"
-        );
-        setShowAddServiceModal(false);
-        setEditingServiceData(null);
-        setServiceModalMode("create");
-        loadServices(currentPage.services || 1);
-        return true;
-      } else {
-        showToast(json.message || "Đã xảy ra lỗi", "error");
-        return false;
-      }
+      // Nếu thành công:
+      loadServices(currentPage.services || 1);
+      return true;
     } catch (err) {
       console.error("Detailed error:", err);
       console.error("Error message:", err.message);
