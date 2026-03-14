@@ -1165,6 +1165,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
                                 placeholder="Chọn"
                                 noBorder={true}
                                 backgroundColor="white"
+                                width="260px"
                                 options={[
                                   { value: "", label: "Chọn dịch vụ" },
                                   ...getFilteredServiceOptions(section.serviceType),

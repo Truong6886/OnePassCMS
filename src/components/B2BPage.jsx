@@ -7,7 +7,67 @@ import EditProfileModal from "./EditProfileModal";
 import RegisterB2BModal from "./RegisterB2BModal";
 import AddServiceModalB2B from "./AddServiceModalB2B";
 import { showToast } from "../utils/toast";
-import { Save, Trash2, XCircle, Check, FileText, Edit, Eye, EyeOff, Plus, X, ChevronDown, Paperclip, Pin } from "lucide-react";
+import { Save, Trash2, XCircle, Check, FileText, Edit, Eye, EyeOff, Plus, X, ChevronDown, Paperclip, Pin, Settings2 } from "lucide-react";
+// Danh sách cột cấu hình cho popup
+const COLUMN_CONFIGS = [
+  { key: "stt", label: "STT" },
+  { key: "company", label: "Khách Hàng" },
+  { key: "soDKKD", label: "Mã Vùng" },
+  { key: "phoneNumber", label: "Số Điện Thoại" },
+  { key: "email", label: "Email" },
+  { key: "kenhLienHe", label: "Kênh Liên Hệ" },
+  { key: "coSo", label: "Cơ Sở" },
+  { key: "diaChiNhan", label: "Địa Chỉ Nhận" },
+  { key: "noiTiepNhan", label: "Nơi Tiếp Nhận Hồ Sơ" },
+  { key: "loaiDichVu", label: "Loại Dịch Vụ" },
+  { key: "tenDichVu", label: "Tên Dịch Vụ" },
+  { key: "maDichVu", label: "Mã Dịch Vụ" },
+  { key: "ghiChu", label: "Ghi Chú DV" },
+  { key: "nguoiPhuTrach", label: "Người Phụ Trách" },
+  { key: "ngayTao", label: "Ngày Tạo" },
+  { key: "ngayBatDau", label: "Ngày Bắt Đầu" },
+  { key: "ngayHen", label: "Ngày Hẹn" },
+  { key: "ngayKetThuc", label: "Ngày Kết Thúc" },
+  { key: "goi", label: "Gói" },
+  { key: "invoiceYN", label: "Invoice Y/N" },
+  { key: "invoice", label: "Invoice" },
+  { key: "trangThai", label: "Trạng thái" },
+];
+// Popup cấu hình cột
+function ColumnConfigPopup({ show, onClose, columns, onChange }) {
+  if (!show) return null;
+  return (
+    <div style={{
+      position: 'absolute',
+      top: 50,
+      right: 0,
+      zIndex: 9999,
+      background: '#fff',
+      border: '1px solid #e5e7eb',
+      borderRadius: 12,
+      boxShadow: '0 4px 24px rgba(0,0,0,0.10)',
+      minWidth: 260,
+      maxHeight: 400,
+      overflowY: 'auto',
+      padding: 18
+    }}>
+      <div style={{ fontWeight: 700, marginBottom: 10 }}>Cấu hình cột:</div>
+      {COLUMN_CONFIGS.map(col => (
+        <div key={col.key} style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+          <input
+            type="checkbox"
+            checked={columns.includes(col.key)}
+            onChange={() => onChange(col.key)}
+            style={{ marginRight: 8 }}
+            id={"col-cfg-"+col.key}
+          />
+          <label htmlFor={"col-cfg-"+col.key} style={{ cursor: 'pointer', userSelect: 'none' }}>{col.label}</label>
+        </div>
+      ))}
+      <button className="btn btn-light mt-2 w-100" onClick={onClose}>Đóng</button>
+    </div>
+  );
+}
 import Swal from "sweetalert2";
 import { authenticatedFetch } from "../utils/api";
 import withReactContent from "sweetalert2-react-content";
@@ -223,7 +283,13 @@ const normalizePackageLabel = (value) => {
   return String(value || "").trim();
 };
 
+
 export default function B2BPage() {
+  // State cho popup cấu hình cột
+  const [showColumnConfig, setShowColumnConfig] = useState(false);
+  // State cho các cột hiển thị
+  const [visibleColumns, setVisibleColumns] = useState(COLUMN_CONFIGS.map(c => c.key));
+
   const [expandedRowId, setExpandedRowId] = useState(null);
   const [showRegisterB2BModal, setShowRegisterB2BModal] = useState(false);
 
@@ -754,9 +820,7 @@ export default function B2BPage() {
       "Xác minh",
       "Dịch Việt - Hàn",
       "Dịch Hàn - Việt",
-      "Dịch BLX",
-      "Công chứng bản dịch",
-      "Xin cấp hộ hồ sơ"
+      "Dịch BLX"
     ]
   };
 
@@ -1765,7 +1829,7 @@ export default function B2BPage() {
               Thông tin đăng ký dịch vụ trên hệ thống của ONE PASS
             </div>
           </div>
-          <div className="d-flex align-items-center" style={{ gap: 12, minWidth: 0 }}>
+          <div className="d-flex align-items-center position-relative" style={{ gap: 12, minWidth: 0 }}>
             <input
               type="text"
               className="form-control"
@@ -1818,7 +1882,8 @@ export default function B2BPage() {
                 transition: 'background 0.2s, box-shadow 0.2s',
                 cursor: 'pointer',
                 outline: 'none',
-                whiteSpace: 'nowrap'
+                whiteSpace: 'nowrap',
+                marginRight: 8
               }}
               onMouseEnter={e => {
                 e.currentTarget.style.background = '#15703a';
@@ -1832,8 +1897,45 @@ export default function B2BPage() {
               <Plus size={18} />
               {t.dangKyDichVuMoi}
             </button>
+            {/* Nút cấu hình cột đặt bên phải nút đăng ký dịch vụ mới */}
+            <button
+              className="btn btn-light border d-flex align-items-center justify-content-center"
+              style={{ height: 42, width: 42, borderRadius: 12, padding: 0 }}
+              onClick={() => setShowColumnConfig(s => !s)}
+              title="Cấu hình cột"
+              type="button"
+            >
+              <Settings2 size={22} />
+            </button>
+            <ColumnConfigPopup
+              show={showColumnConfig}
+              onClose={() => setShowColumnConfig(false)}
+              columns={visibleColumns}
+              onChange={key => {
+                setVisibleColumns(cols =>
+                  cols.includes(key)
+                    ? cols.filter(c => c !== key)
+                    : [...cols, key]
+                );
+              }}
+            />
           </div>
         </div>
+
+        {/* Tổng doanh thu tích lũy chuyển lên đây */}
+        {canViewRevenue && (
+          <div className="d-flex justify-content-end align-items-center mt-3 mb-2"
+            style={{
+              fontSize: "17px",
+              fontWeight: 600,
+              padding: "8px 0 8px 0",
+              minHeight: 36
+            }}
+          >
+            <span style={{ fontWeight: 700, fontSize: 17, marginRight: 8 }}>Tổng doanh thu tích lũy:</span>
+            <span style={{ fontWeight: 700, fontSize: 20, color: '#2563eb' }}>{formatNumber(overallB2BRevenue)} đ</span>
+          </div>
+        )}
 
         {loading ? (
           <div className="text-center py-4">
@@ -2107,12 +2209,6 @@ export default function B2BPage() {
                 </tbody>
               </table>
             </div>
-            {canViewRevenue && (
-              <div className="d-flex justify-content-end align-items-center mt-2" style={{ fontSize: "16px", color: "#374151" }}>
-                <span>Tổng doanh thu tích lũy:&nbsp;</span>
-                <span style={{ color: "#2563eb", fontWeight: 700 }}>{formatNumber(overallB2BRevenue)} đ</span>
-              </div>
-            )}
             <Pagination current={currentPage.services} total={serviceTotal} pageSize={20} currentLanguage={currentLanguage} onChange={(page) => handlePageChange("services", page)} />
           </>
         )}

@@ -99,8 +99,7 @@ const B2C_CATEGORY_LIST = {
     "Dịch Việt - Hàn",
     "Dịch Hàn - Việt",
     "Dịch BLX",
-    "Công chứng bản dịch",
-    "Xin cấp hộ hồ sơ"
+    
   ]
 };
 
@@ -1497,6 +1496,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                              placeholder="Chọn loại dịch vụ"
                              noBorder={true}
                              backgroundColor="#f3f4f6"
+                             width="260px"
                              options={[
                                { value: "", label: "Chọn loại dịch vụ" },
                                { value: CUSTOM_SERVICE_TYPE_VALUE, label: "Dịch vụ thêm" },
@@ -1563,6 +1563,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                                  placeholder={rowIndex === 0 ? "Nhập dịch vụ" : "Chọn"}
                                  noBorder={true}
                                  backgroundColor="white"
+                                 width="260px"
                                  options={[
                                    { value: "", label: "Chọn dịch vụ" },
                                    ...getFilteredServiceOptions(section.serviceType),
