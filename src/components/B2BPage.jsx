@@ -732,24 +732,19 @@ export default function B2BPage() {
     ]
   };
 
-  // Luôn dùng hardcode làm nền, chỉ thêm dịch vụ hợp lệ từ DB vào
+  // Chỉ lấy loại dịch vụ và dịch vụ từ API quản lý dịch vụ
   const B2B_SERVICE_MAPPING = React.useMemo(() => {
-    // Bắt đầu từ bản sao hardcode
-    const merged = Object.entries(B2B_SERVICE_MAPPING_HARDCODED).reduce((acc, [cat, items]) => {
-      acc[cat] = [...items];
-      return acc;
-    }, {});
-    // Chỉ thêm từ DB nếu TenDichVu hợp lệ và chưa có trong hardcode
+    const mapping = {};
     if (dichvuList && dichvuList.length > 0) {
       dichvuList.forEach((dv) => {
         const cat = mapToUnifiedB2BServiceType(dv.LoaiDichVu);
         const name = dv.TenDichVu;
         if (!cat || !name || !name.trim()) return;
-        if (!merged[cat]) merged[cat] = [];
-        if (!merged[cat].includes(name)) merged[cat].push(name);
+        if (!mapping[cat]) mapping[cat] = [];
+        if (!mapping[cat].includes(name)) mapping[cat].push(name);
       });
     }
-    return merged;
+    return mapping;
   }, [dichvuList]);
 
   const getDanhMucOptions = (serviceType) => {

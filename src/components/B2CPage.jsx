@@ -49,140 +49,6 @@ const B2C_COLUMN_WIDTHS = {
   tongDoanhThuTichLuy: 160,
   hanhDong: 132,
 };
-const B2C_CATEGORY_LIST = {
-  "Hộ chiếu, Hộ tịch": [
-    "Hộ chiếu cấp mới (Hợp pháp - Trẻ em)",
-    "Hộ chiếu cấp đổi (Hợp pháp - Còn hạn)",
-    "Hộ chiếu cấp đổi (Hợp pháp - Hết hạn)",
-    "Hộ chiếu cấp đổi (Bất hợp pháp - Còn hạn)",
-    "Hộ chiếu cấp đổi (Bất hợp pháp - Hết hạn)",
-    "Hộ chiếu cấp đổi rút gọn (công tác ngắn hạn, du lịch, trục xuất)",
-    "Hộ chiếu bị chú",
-    "Dán ảnh trẻ em",
-    "Cải chính hộ tịch",
-    "Trích lục khai sinh (sao)",
-    "Ghi chú kết hôn (Ghi vào sổ hộ tịch việc kết hôn)",
-    "Ghi chú ly hôn",
-    "Ghi chú khai sinh"
-  ],
-  "Quốc tịch": [
-    "Thôi quốc tịch Việt Nam",
-    "Giấy xác nhận có quốc tịch Việt Nam",
-    "Cấp giấy xác nhận người gốc Việt"
-  ],
-  "Nhận nuôi": [
-    "Đăng ký việc nuôi con nuôi",
-    "Đăng ký việc nhận cha, mẹ, con"
-  ],
-  "Thị thực": [
-    "Giấy miễn thị thực"
-  ],
-  "Khai sinh, khai tử": [
-    "Đăng ký khai sinh"
-  ],
-  "Kết hôn": [
-    "Đăng ký kết hôn Việt - Việt",
-    "Giấy xác nhận tình trạng hôn nhân",
-    "Giấy chứng nhận đủ điều kiện kết hôn Việt - Hàn"
-  ],
-  "Hợp pháp hóa, công chứng": [
-    "Hợp pháp hoá lãnh sự/Chứng nhận lãnh sự",
-    "Công chứng, chứng thực hợp đồng giao dịch",
-    "Hợp đồng ủy quyền",
-    "Ủy quyền",
-    "Ủy quyền đưa con về nước",
-    "Chứng thực chữ ký",
-    "Sao y bản chính"
-  ],
-  "Dịch thuật": [
-    "Xác minh",
-    "Dịch Việt - Hàn",
-    "Dịch Hàn - Việt",
-    "Dịch BLX"
-  ]
-};
-
-const B2C_SERVICE_TYPE_ALIAS_MAP = {
-  "hộ chiếu": "Hộ chiếu, Hộ tịch",
-  "hộ tịch": "Hộ chiếu, Hộ tịch",
-  "nhận cha mẹ": "Nhận nuôi",
-  "con nuôi": "Nhận nuôi",
-  "miễn thị thực": "Thị thực",
-  "khai sinh": "Khai sinh, khai tử",
-  "khai tử": "Khai sinh, khai tử",
-  "hợp pháp hóa": "Hợp pháp hóa, công chứng",
-  "công chứng, chứng thực": "Hợp pháp hóa, công chứng",
-  "xác minh": "Dịch thuật",
-  "dịch": "Dịch thuật",
-  "khác": "Dịch thuật",
-  "dịch thuật": "Dịch thuật"
-};
-
-const mapToB2CServiceType = (value) => {
-  const cleanValue = String(value || "").trim();
-  if (!cleanValue) return "";
-  return B2C_SERVICE_TYPE_ALIAS_MAP[cleanValue.toLowerCase()] || cleanValue;
-};
-
-const B2C_SERVICE_CODE_MAP = {
-  "Hộ chiếu cấp mới (Hợp pháp - Trẻ em)": "HCCM",
-  "Hộ chiếu cấp đổi (Hợp pháp - Còn hạn)": "HCCL A1",
-  "Hộ chiếu cấp đổi (Hợp pháp - Hết hạn)": "HCCL A2",
-  "Hộ chiếu cấp đổi (Bất hợp pháp - Còn hạn)": "HCCL B1",
-  "Hộ chiếu cấp đổi (Bất hợp pháp - Hết hạn)": "HCCL B2",
-  "Hộ chiếu cấp đổi rút gọn (công tác ngắn hạn, du lịch, trục xuất)": "HCRG",
-  "Hộ chiếu bị chú": "BCHC",
-  "Dán ảnh trẻ em": "DCDA",
-  "Xác minh": "XM",
-  "Thôi quốc tịch Việt Nam": "TQT",
-  "Giấy xác nhận có quốc tịch Việt Nam": "XNQT",
-  "Cấp giấy xác nhận người gốc Việt": "XNQT",
-  "Đăng ký việc nuôi con nuôi": "NCN",
-  "Giấy miễn thị thực": "MTT",
-  "Đăng ký khai sinh": "KS",
-  "Đăng ký kết hôn Việt - Việt": "KHV-V",
-  "Giấy xác nhận tình trạng hôn nhân": "TTHN",
-  "Giấy chứng nhận đủ điều kiện kết hôn Việt - Hàn": "KHV-H",
-  "Đăng ký việc nhận cha, mẹ, con": "CNC",
-  "Cải chính hộ tịch": "CCHT",
-  "Trích lục khai sinh (sao)": "TLKS",
-  "Ghi chú kết hôn (Ghi vào sổ hộ tịch việc kết hôn)": "GCKH",
-  "Ghi chú ly hôn": "GCLH",
-  "Ghi chú khai sinh": "GCKS",
-  "Hợp pháp hoá lãnh sự/Chứng nhận lãnh sự": "HPH",
-  "Công chứng, chứng thực hợp đồng giao dịch": "CCHD",
-  "Hợp đồng ủy quyền": "HDUQ",
-  "Ủy quyền": "UQ",
-  "Ủy quyền đưa con về nước": "UQĐTE",
-  "Chứng thực chữ ký": "CTCK",
-  "Sao y bản chính": "SYBC",
-  "Dịch Việt - Hàn": "DTVH",
-  "Dịch Hàn - Việt": "DTHV",
-  "Dịch BLX": "DTBLX",
-  "Thêm": "ADD"
-};
-
-const normalizeServiceName = (value) =>
-  String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d").replace(/Đ/g, "D")
-    .replace(/[\s_]+/g, " ")
-    .replace(/[–—-]/g, "-")
-    .replace(/\s*\/\s*/g, "/")
-    .trim()
-    .toLowerCase();
-
-const B2C_KNOWN_SERVICE_NAMES = new Set(
-  Object.values(B2C_CATEGORY_LIST)
-    .flat()
-    .map((name) => normalizeServiceName(name))
-);
-
-const B2C_SERVICE_CODE_MAP_NORMALIZED = Object.entries(B2C_SERVICE_CODE_MAP).reduce((acc, [name, code]) => {
-  acc[normalizeServiceName(name)] = code;
-  return acc;
-}, {});
 
 const getPrimaryServiceName = (item) => {
   const tenDichVu = String(item?.TenDichVu || "").trim();
@@ -484,40 +350,46 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   // Lấy danh sách dịch vụ từ API
   const canApprove = currentUser?.is_director || currentUser?.is_accountant || currentUser?.perm_approve_b2c;
 
-  // Xây dựng bản đồ: luôn dùng hardcode làm nền, thêm dịch vụ hợp lệ từ DB vào
-  const dbCategoryMap = React.useMemo(() => {
-    // Bắt đầu từ bản sao hardcode
-    const merged = Object.entries(B2C_CATEGORY_LIST).reduce((acc, [cat, items]) => {
-      acc[cat] = [...items];
-      return acc;
-    }, {});
-    // Chỉ thêm dịch vụ từ DB nếu TenDichVu hợp lệ và chưa có trong hardcode
-    if (dichvuList && dichvuList.length > 0) {
-      dichvuList.forEach((dv) => {
-        const cat = mapToB2CServiceType(dv.LoaiDichVu);
-        const name = dv.TenDichVu;
-        if (!cat || !name || !name.trim()) return;
-        if (!merged[cat]) merged[cat] = [];
-        if (!merged[cat].includes(name)) merged[cat].push(name);
-      });
+  // Chỉ lấy loại dịch vụ từ API quản lý dịch vụ
+  // Chỉ hiển thị loại dịch vụ có ít nhất một dịch vụ thực tế
+  const mapToUnifiedB2CServiceType = (value) => {
+    const cleanValue = String(value || "").trim().toLowerCase();
+    if (!cleanValue) return "";
+    if (cleanValue === "khác" || cleanValue === "dịch" || cleanValue === "xác minh" || cleanValue === "dịch thuật") {
+      return "Dịch thuật";
     }
-    return merged;
-  }, [dichvuList]);
+    if (cleanValue === "hộ tịch" || cleanValue === "h? chi?u" || cleanValue === "hộ chiếu") {
+      return "Hộ chiếu, Hộ tịch";
+    }
+    if (cleanValue === "khai sinh") return "Khai sinh, khai tử";
+    return String(value || "").trim();
+  };
 
-  // Tạo flat list tất cả dịch vụ: hardcode + dịch vụ mới từ DB
-  const allServiceOptions = React.useMemo(() => {
-    const seen = new Set();
-    const services = [];
-    Object.entries(dbCategoryMap).forEach(([category, items]) => {
-      items.forEach((item) => {
-        if (!seen.has(item)) {
-          seen.add(item);
-          services.push({ value: item, label: item, category });
-        }
-      });
-    });
-    return services;
-  }, [dbCategoryMap]);
+  const serviceTypeOptions = React.useMemo(() => {
+    // Lấy loại dịch vụ đã chuẩn hóa, loại bỏ trùng lặp
+    const validTypes = Array.from(
+      new Set(
+        (dichvuList || [])
+          .map((dv) => mapToUnifiedB2CServiceType(dv.LoaiDichVu))
+          .filter(Boolean)
+      )
+    );
+    if (validTypes.length === 1) {
+      return [{ value: validTypes[0], label: validTypes[0] }];
+    }
+    return validTypes.map((type) => ({ value: type, label: type }));
+  }, [dichvuList]);
+// ...existing code...
+
+  // Lấy danh sách dịch vụ theo loại dịch vụ
+  const getFilteredServiceOptions = (serviceType) => {
+    if (!serviceType) return [];
+    return (
+      dichvuList
+        ?.filter((dv) => mapToUnifiedB2CServiceType(dv.LoaiDichVu) === serviceType)
+        .map((dv) => ({ value: dv.TenDichVu, label: dv.TenDichVu })) || []
+    );
+  };
 
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -962,12 +834,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
         }
   );
 
-  const getFilteredServiceOptions = (serviceType) => {
-    if (serviceType === CUSTOM_SERVICE_TYPE_VALUE) return allServiceOptions;
-    if (!serviceType) return allServiceOptions;
-    const selectedType = normalizeServiceType(serviceType);
-    return allServiceOptions.filter((opt) => opt.category === selectedType);
-  };
+  // Đã có getFilteredServiceOptions phía trên, xóa bản này để tránh trùng lặp.
 
   const handleInputChange = (eOrName, value) => {
     let name, val;
@@ -1194,21 +1061,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   ];
   const discountOptions = [{ value: 0, label: "0%" }, { value: 5, label: "5%" }, { value: 10, label: "10%" }, { value: 12, label: "12%" }, { value: 15, label: "15%" }, { value: 17, label: "17%" }, { value: 30, label: "30%" }];
   // Luôn dùng hardcode làm base, thêm cả nhóm gộp lẫn tên loại gốc từ trang quản lý dịch vụ
-  const serviceTypeOptions = React.useMemo(() => {
-    // Lấy tất cả loại dịch vụ duy nhất từ API
-    const seen = new Set();
-    const options = [];
-    if (dichvuList && dichvuList.length > 0) {
-      dichvuList.forEach((dv) => {
-        const type = String(dv.LoaiDichVu || "").trim();
-        if (type && !seen.has(type)) {
-          seen.add(type);
-          options.push({ value: type, label: type });
-        }
-      });
-    }
-    return options;
-  }, [dichvuList]);
+  // Đã có serviceTypeOptions phía trên, xóa bản này để tránh trùng lặp.
 
   return (
     <div className="modal-overlay" style={{
