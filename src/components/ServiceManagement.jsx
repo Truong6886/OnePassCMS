@@ -13,20 +13,7 @@ const CUSTOM_SERVICE_TYPE_VALUE = "__ADD_CUSTOM_SERVICE_TYPE__";
 // Nếu muốn lấy động, cần fetch từ backend và lưu vào state, ở đây giữ nguyên biến để dễ chỉnh sửa
 const PRESET_SERVICE_TYPES = [];
 
-const SERVICE_TYPE_ALIAS_MAP = {
-  "Hộ chiếu": "Hộ chiếu, Hộ tịch",
-  "Hộ tịch": "Hộ chiếu, Hộ tịch",
-  "Quốc tịch": "Quốc tịch",
-  "Con nuôi": "Nhận nuôi",
-  "Nhận cha mẹ": "Nhận nuôi",
-  "Miễn thị thực": "Thị thực",
-  "Khai sinh": "Khai sinh, khai tử",
-  "Kết hôn": "Kết hôn",
-  "Hợp pháp hóa": "Hợp pháp hóa, công chứng",
-  "Công chứng, chứng thực": "Hợp pháp hóa, công chứng",
-  "Xác minh": "Dịch thuật",
-  "Dịch": "Dịch thuật",
-};
+
 
 const SERVICE_CATALOG = [
   {
@@ -138,18 +125,8 @@ const formatDateTime = (isoValue) => {
 };
 
 const resolveServiceTypeForDisplay = (row) => {
-  const rawType = String(row.LoaiDichVu || "").trim();
-  const mappedType = SERVICE_TYPE_ALIAS_MAP[rawType] || rawType;
-
-  const serviceName = String(row.TenDichVu || "").trim().toLowerCase();
-  const serviceCode = String(row.MaDichVu || "").trim().toUpperCase();
-
-  // Một số bản ghi cũ lưu LoaiDichVu = "Khác" cho dịch BLX, ép hiển thị về Dịch thuật.
-  if (serviceCode === "DTBLX" || serviceName.includes("dịch blx")) {
-    return "Dịch thuật";
-  }
-
-  return mappedType;
+  // Không còn mapping, chỉ trả về đúng loại dịch vụ người dùng nhập
+  return String(row.LoaiDichVu || "").trim();
 };
 
 // Chuyển đổi dữ liệu từ DB sang định dạng hiển thị
