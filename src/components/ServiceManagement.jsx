@@ -13,8 +13,6 @@ const CUSTOM_SERVICE_TYPE_VALUE = "__ADD_CUSTOM_SERVICE_TYPE__";
 // Nếu muốn lấy động, cần fetch từ backend và lưu vào state, ở đây giữ nguyên biến để dễ chỉnh sửa
 const PRESET_SERVICE_TYPES = [];
 
-
-
 const SERVICE_CATALOG = [
   {
     category: "Hộ chiếu",
@@ -141,7 +139,6 @@ const toService = (row) => ({
   updatedBy: row.NguoiCapNhat || "System",
 });
 
-const isPresetServiceType = (value) => PRESET_SERVICE_TYPES.includes(String(value || "").trim());
 const getServiceTypeOrder = (value) => {
   const normalizedValue = String(value || "").trim();
   const index = PRESET_SERVICE_TYPES.indexOf(normalizedValue);
@@ -164,14 +161,21 @@ export default function ServiceManagement() {
     serviceNote: "",
   });
   const [isCustomServiceTypeMode, setIsCustomServiceTypeMode] = useState(false);
-  // Giả sử PRESET_SERVICE_TYPES sẽ được cập nhật động, ở đây dùng biến tạm
-  // Nếu muốn lấy từ backend, cần fetch và set vào state
-  const presetServiceTypes = PRESET_SERVICE_TYPES;
+
+  const presetServiceTypes = useMemo(() => {
+    const uniqueTypes = Array.from(
+      new Set(
+        services
+          .map((item) => String(item.serviceType || "").trim())
+          .filter(Boolean)
+      )
+    );
+    return uniqueTypes.sort((a, b) => a.localeCompare(b, "vi"));
+  }, [services]);
 
   const editorName = currentUser?.name || currentUser?.username || "System";
   const serviceTypeSelectValue = isCustomServiceTypeMode ? CUSTOM_SERVICE_TYPE_VALUE : formData.serviceType;
-  // Nếu không có loại dịch vụ nào thì luôn show input
-  const showCustomServiceTypeInput = isCustomServiceTypeMode || presetServiceTypes.length === 0;
+  const shouldUseSelectForServiceType = presetServiceTypes.length > 2;
 
   // Không còn dữ liệu gốc hardcode, chỉ lấy từ API
 
@@ -223,27 +227,31 @@ export default function ServiceManagement() {
     });
   }, [searchTerm, services]);
 
+  const sortedServices = useMemo(() => {
+    return [...filteredServices].sort((a, b) => {
+      if (a.serviceType < b.serviceType) return -1;
+      if (a.serviceType > b.serviceType) return 1;
+      return a.id - b.id;
+    });
+  }, [filteredServices]);
+
   const serviceTypeRowSpans = useMemo(() => {
     const spans = {};
     let index = 0;
-
-    while (index < filteredServices.length) {
-      const currentType = filteredServices[index].serviceType;
+    while (index < sortedServices.length) {
+      const currentType = sortedServices[index].serviceType;
       let count = 1;
-
       while (
-        index + count < filteredServices.length &&
-        filteredServices[index + count].serviceType === currentType
+        index + count < sortedServices.length &&
+        sortedServices[index + count].serviceType === currentType
       ) {
         count += 1;
       }
-
       spans[index] = count;
       index += count;
     }
-
     return spans;
-  }, [filteredServices]);
+  }, [sortedServices]);
 
   const resetForm = () => {
     setFormData({
@@ -263,7 +271,7 @@ export default function ServiceManagement() {
 
   const openEditModal = (service) => {
     setEditingService(service);
-    setIsCustomServiceTypeMode(!isPresetServiceType(service.serviceType));
+    setIsCustomServiceTypeMode(false);
     setFormData({
       serviceType: service.serviceType,
       serviceName: service.serviceName,
@@ -462,8 +470,9 @@ export default function ServiceManagement() {
                       Đang tải dữ liệu...
                     </td>
                   </tr>
-                ) : filteredServices.length > 0 ? (
-                  filteredServices.map((item, index) => (                    <tr key={item.id} style={{ backgroundColor: "#ffffff" }}>
+                ) : sortedServices.length > 0 ? (
+                  sortedServices.map((item, index) => (
+                    <tr key={item.id} style={{ backgroundColor: "#ffffff" }}>
                       <td style={{ ...tableBodyCellStyle, textAlign: "center", fontWeight: 600 }}>
                         {index + 1}
                       </td>
@@ -546,24 +555,12 @@ export default function ServiceManagement() {
             </div>
 
             <div className="row g-3">
-              <div className="col-md-6 d-flex align-items-center gap-2">
+              <div
+                className={`${shouldUseSelectForServiceType && isCustomServiceTypeMode ? "col-12" : "col-md-6"} d-flex align-items-center gap-2`}
+              >
                 <div style={{ flex: 1 }}>
                   <label className="form-label fw-semibold">Loại dịch vụ</label>
-                  {presetServiceTypes.length === 0 ? (
-                    <input
-                      className="form-control"
-                      value={formData.serviceType}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, serviceType: e.target.value }))}
-                      placeholder="Nhập loại dịch vụ mới"
-                    />
-                  ) : presetServiceTypes.length < 2 ? (
-                    <input
-                      className="form-control"
-                      value={formData.serviceType}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, serviceType: e.target.value }))}
-                      placeholder="Nhập loại dịch vụ mới"
-                    />
-                  ) : (
+                  {shouldUseSelectForServiceType ? (
                     <select
                       className="form-control"
                       value={serviceTypeSelectValue}
@@ -578,6 +575,9 @@ export default function ServiceManagement() {
                         setFormData((prev) => ({ ...prev, serviceType: nextValue }));
                       }}
                     >
+                      <option value="" disabled>
+                        Chọn loại dịch vụ
+                      </option>
                       {presetServiceTypes.map((type) => (
                         <option key={type} value={type}>
                           {type}
@@ -585,11 +585,18 @@ export default function ServiceManagement() {
                       ))}
                       <option value={CUSTOM_SERVICE_TYPE_VALUE}>Thêm dịch vụ</option>
                     </select>
+                  ) : (
+                    <input
+                      className="form-control"
+                      value={formData.serviceType}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, serviceType: e.target.value }))}
+                      placeholder="Nhập loại dịch vụ mới"
+                    />
                   )}
                 </div>
-                {/* Nếu đang ở chế độ thêm loại dịch vụ mới và có nhiều hơn 2 loại thì mới hiện ô input bên cạnh */}
-                {presetServiceTypes.length > 1 && isCustomServiceTypeMode && (
-                  <div style={{ flex: 1 }}>
+                {/* Khi chọn Thêm dịch vụ trong select mới hiện ô input */}
+                {shouldUseSelectForServiceType && isCustomServiceTypeMode && (
+                  <div style={{ flex: 1.6, minWidth: "320px" }}>
                     <label className="form-label fw-semibold" style={{ visibility: "hidden" }}>Loại dịch vụ mới</label>
                     <input
                       className="form-control"
