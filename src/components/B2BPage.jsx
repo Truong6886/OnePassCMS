@@ -761,6 +761,15 @@ export default function B2BPage() {
   const [notifications, setNotifications] = useState([]);
   const [showNotification, setShowNotification] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showEditCompanyModal, setShowEditCompanyModal] = useState(false);
+  const [editingApprovedCompany, setEditingApprovedCompany] = useState(null);
+  const [editCompanyForm, setEditCompanyForm] = useState({
+    TenDoanhNghiep: "",
+    SoDKKD: "",
+    NguoiDaiDien: "",
+    NganhNgheChinh: "",
+    DiaChi: ""
+  });
 
   // Vẫn giữ editingRows cho pending/approved
   const [editingRows, setEditingRows] = useState({
@@ -1359,6 +1368,95 @@ export default function B2BPage() {
         loadServices(currentPage.services);
       } else { showToast(json.message, "error"); }
     } catch (e) { showToast("Lỗi server", "error"); }
+  };
+
+  const openEditApprovedCompanyModal = (item) => {
+    if (!item) return;
+    setEditingApprovedCompany(item);
+    setEditCompanyForm({
+      TenDoanhNghiep: item.TenDoanhNghiep || "",
+      SoDKKD: item.SoDKKD || "",
+      NguoiDaiDien: item.NguoiDaiDien || "",
+      NganhNgheChinh: item.NganhNgheChinh || "",
+      DiaChi: item.DiaChi || ""
+    });
+    setShowEditCompanyModal(true);
+  };
+
+  const closeEditApprovedCompanyModal = () => {
+    setShowEditCompanyModal(false);
+    setEditingApprovedCompany(null);
+    setEditCompanyForm({
+      TenDoanhNghiep: "",
+      SoDKKD: "",
+      NguoiDaiDien: "",
+      NganhNgheChinh: "",
+      DiaChi: ""
+    });
+  };
+
+  const handleEditCompanyFormChange = (e) => {
+    const { name, value } = e.target;
+    setEditCompanyForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const submitEditApprovedCompany = async () => {
+    if (!editingApprovedCompany?.ID) return;
+
+    const payload = {
+      TenDoanhNghiep: String(editCompanyForm.TenDoanhNghiep || "").trim(),
+      SoDKKD: String(editCompanyForm.SoDKKD || "").trim(),
+      NguoiDaiDien: String(editCompanyForm.NguoiDaiDien || "").trim(),
+      NganhNgheChinh: String(editCompanyForm.NganhNgheChinh || "").trim(),
+      DiaChi: String(editCompanyForm.DiaChi || "").trim()
+    };
+
+    if (!payload.TenDoanhNghiep || !payload.SoDKKD) {
+      showToast("Vui lòng nhập Tên doanh nghiệp và Số ĐKKD", "warning");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const res = await authenticatedFetch(`${API_BASE}/b2b/approved/${editingApprovedCompany.ID}`, {
+        method: "PUT",
+        body: JSON.stringify(payload)
+      });
+      if (!res) return;
+
+      const json = await res.json();
+      if (json.success) {
+        const updatedCompany = {
+          ...(editingApprovedCompany || {}),
+          ...payload,
+          ...(json.data || {})
+        };
+
+        setApprovedData((prev) =>
+          prev.map((row) =>
+            row.ID === editingApprovedCompany.ID ? { ...row, ...updatedCompany } : row
+          )
+        );
+        setApprovedList((prev) =>
+          prev.map((row) =>
+            row.ID === editingApprovedCompany.ID ? { ...row, ...updatedCompany } : row
+          )
+        );
+
+        showToast("Cập nhật doanh nghiệp thành công!", "success");
+        closeEditApprovedCompanyModal();
+        loadApproved(currentPage.approved || 1);
+        loadServices(currentPage.services || 1);
+      } else {
+        showToast(json.message || "Cập nhật thất bại", "error");
+      }
+    } catch (error) {
+      console.error(error);
+      showToast("Lỗi server", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const isApprover = currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant;
@@ -2454,7 +2552,17 @@ export default function B2BPage() {
                             </>
                           ) : (
                             <>
-                              <button className="btn btn-sm p-1" style={{ backgroundColor: "#f59e0b", color: "#fff" }} onClick={() => startEditing(activeTab, item.ID)}><Edit size={14} /></button>
+                              <button
+                                className="btn btn-sm p-1"
+                                style={{ backgroundColor: "#f59e0b", color: "#fff" }}
+                                onClick={() =>
+                                  activeTab === "approved"
+                                    ? openEditApprovedCompanyModal(item)
+                                    : startEditing(activeTab, item.ID)
+                                }
+                              >
+                                <Edit size={14} />
+                              </button>
                               {activeTab === "pending" ? (
                                 <>
                                   <button className="btn btn-sm p-1" style={{ backgroundColor: "#22c55e", color: "#fff" }} onClick={() => approve(item.ID)}><Check size={14} /></button>
@@ -2541,6 +2649,101 @@ export default function B2BPage() {
         </div>
         <div className="px-4 pb-5">{renderTabContent()}</div>
       </div>
+
+      {showEditCompanyModal && editingApprovedCompany && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.45)", zIndex: 1060 }}
+        >
+          <div
+            className="bg-white rounded-4 p-4 shadow"
+            style={{ width: "680px", maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto" }}
+          >
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h5 className="mb-0 fw-bold">Sửa doanh nghiệp đã duyệt</h5>
+              <button
+                type="button"
+                className="btn btn-sm btn-light border"
+                onClick={closeEditApprovedCompanyModal}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="row g-3">
+              <div className="col-md-6">
+                <label className="form-label fw-semibold">Tên doanh nghiệp</label>
+                <input
+                  type="text"
+                  name="TenDoanhNghiep"
+                  className="form-control"
+                  value={editCompanyForm.TenDoanhNghiep}
+                  onChange={handleEditCompanyFormChange}
+                />
+              </div>
+              <div className="col-md-6">
+                <label className="form-label fw-semibold">Số ĐKKD</label>
+                <input
+                  type="text"
+                  name="SoDKKD"
+                  className="form-control"
+                  value={editCompanyForm.SoDKKD}
+                  onChange={handleEditCompanyFormChange}
+                />
+              </div>
+              <div className="col-md-6">
+                <label className="form-label fw-semibold">Người đại diện pháp luật</label>
+                <input
+                  type="text"
+                  name="NguoiDaiDien"
+                  className="form-control"
+                  value={editCompanyForm.NguoiDaiDien}
+                  onChange={handleEditCompanyFormChange}
+                />
+              </div>
+              <div className="col-md-6">
+                <label className="form-label fw-semibold">Ngành nghề chính</label>
+                <input
+                  type="text"
+                  name="NganhNgheChinh"
+                  className="form-control"
+                  value={editCompanyForm.NganhNgheChinh}
+                  onChange={handleEditCompanyFormChange}
+                />
+              </div>
+              <div className="col-12">
+                <label className="form-label fw-semibold">Địa chỉ</label>
+                <textarea
+                  name="DiaChi"
+                  className="form-control"
+                  rows={3}
+                  value={editCompanyForm.DiaChi}
+                  onChange={handleEditCompanyFormChange}
+                />
+              </div>
+            </div>
+
+            <div className="d-flex justify-content-end gap-2 mt-4">
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={closeEditApprovedCompanyModal}
+                disabled={loading}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={submitEditApprovedCompany}
+                disabled={loading}
+              >
+                {loading ? "Đang lưu..." : "Lưu thay đổi"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {approveModalOpen && selectedService && (
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style={{ backgroundColor: "rgba(0,0,0,0.6)", zIndex: 1050, backdropFilter: "blur(2px)" }}>
