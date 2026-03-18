@@ -3445,19 +3445,22 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
   const getHeaderColumnWidth = (key, isActionColumn) =>
     isActionColumn ? B2C_COLUMN_WIDTHS.hanhDong : (B2C_COLUMN_WIDTHS[key] || 120);
 
+  // Tính chiều rộng sidebar để marginLeft cho bảng
+  const sidebarWidth = showSidebar
+    ? (currentUser?.is_director || currentUser?.is_accountant ? 340 : 290)
+    : 70;
+
   return (
     <div className="d-flex h-100" style={{ background: "#ffffff" }}>
       <div style={{ 
-        width: showSidebar 
-          ? (currentUser?.is_director || currentUser?.is_accountant ? "340px" : "290px") 
-          : "70px", 
+        width: sidebarWidth, 
         transition: "0.3s", 
         zIndex: 100 
       }}>
         <Sidebar collapsed={!showSidebar} user={currentUser} />
       </div>
 
-      <div className="flex-grow-1 p-3" style={{ height: "100vh", overflowY: "auto" }}>
+      <div className="flex-grow-1 p-3" style={{ height: "100vh", overflowY: "auto", marginLeft: showSidebar ? sidebarWidth - 120 : 0 }}>
         <Header
           currentUser={currentUser}
           showSidebar={showSidebar}

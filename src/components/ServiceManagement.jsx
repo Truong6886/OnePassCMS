@@ -9,17 +9,9 @@ const API_BASE =
     : "https://onepasscms-backend-tvdy.onrender.com/api";
 
 const CUSTOM_SERVICE_TYPE_VALUE = "__ADD_CUSTOM_SERVICE_TYPE__";
-const PRESET_SERVICE_TYPES = [
-  "Hộ chiếu, Hộ tịch",
-  "Quốc tịch",
-  "Nhận nuôi",
-  "Thị thực",
-  "Khai sinh, khai tử",
-  "Kết hôn",
-  "Hợp pháp hóa, công chứng",
-  "Khác",
-  "Dịch thuật",
-];
+// Danh sách loại dịch vụ sẽ lấy từ API hoặc props, ở đây giả sử lấy từ state (hoặc backend)
+// Nếu muốn lấy động, cần fetch từ backend và lưu vào state, ở đây giữ nguyên biến để dễ chỉnh sửa
+const PRESET_SERVICE_TYPES = [];
 
 const SERVICE_TYPE_ALIAS_MAP = {
   "Hộ chiếu": "Hộ chiếu, Hộ tịch",
@@ -195,10 +187,14 @@ export default function ServiceManagement() {
     serviceNote: "",
   });
   const [isCustomServiceTypeMode, setIsCustomServiceTypeMode] = useState(false);
+  // Giả sử PRESET_SERVICE_TYPES sẽ được cập nhật động, ở đây dùng biến tạm
+  // Nếu muốn lấy từ backend, cần fetch và set vào state
+  const presetServiceTypes = PRESET_SERVICE_TYPES;
 
   const editorName = currentUser?.name || currentUser?.username || "System";
   const serviceTypeSelectValue = isCustomServiceTypeMode ? CUSTOM_SERVICE_TYPE_VALUE : formData.serviceType;
-  const showCustomServiceTypeInput = isCustomServiceTypeMode;
+  // Nếu không có loại dịch vụ nào thì luôn show input
+  const showCustomServiceTypeInput = isCustomServiceTypeMode || presetServiceTypes.length === 0;
 
   // Không còn dữ liệu gốc hardcode, chỉ lấy từ API
 
@@ -573,62 +569,72 @@ export default function ServiceManagement() {
             </div>
 
             <div className="row g-3">
-              <div className="col-md-6">
-                <label className="form-label fw-semibold">Loại dịch vụ</label>
-                <select
-                  className="form-control"
-                  value={serviceTypeSelectValue}
-                  onChange={(e) => {
-                    const nextValue = e.target.value;
-                    if (nextValue === CUSTOM_SERVICE_TYPE_VALUE) {
-                      setIsCustomServiceTypeMode(true);
-                      return;
-                    }
-                    setIsCustomServiceTypeMode(false);
-                    setFormData((prev) => ({ ...prev, serviceType: nextValue }));
-                  }}
-                >
-                  <option value="">Chọn loại dịch vụ</option>
-                  {PRESET_SERVICE_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                  <option value={CUSTOM_SERVICE_TYPE_VALUE}>Thêm</option>
-                </select>
+              <div className="col-md-6 d-flex align-items-center gap-2">
+                <div style={{ flex: 1 }}>
+                  <label className="form-label fw-semibold">Loại dịch vụ</label>
+                  {presetServiceTypes.length === 0 ? (
+                    <input
+                      className="form-control"
+                      value={formData.serviceType}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, serviceType: e.target.value }))}
+                      placeholder="Nhập loại dịch vụ mới"
+                    />
+                  ) : presetServiceTypes.length < 2 ? (
+                    <input
+                      className="form-control"
+                      value={formData.serviceType}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, serviceType: e.target.value }))}
+                      placeholder="Nhập loại dịch vụ mới"
+                    />
+                  ) : (
+                    <select
+                      className="form-control"
+                      value={serviceTypeSelectValue}
+                      onChange={(e) => {
+                        const nextValue = e.target.value;
+                        if (nextValue === CUSTOM_SERVICE_TYPE_VALUE) {
+                          setIsCustomServiceTypeMode(true);
+                          setFormData((prev) => ({ ...prev, serviceType: "" }));
+                          return;
+                        }
+                        setIsCustomServiceTypeMode(false);
+                        setFormData((prev) => ({ ...prev, serviceType: nextValue }));
+                      }}
+                    >
+                      {presetServiceTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                      <option value={CUSTOM_SERVICE_TYPE_VALUE}>Thêm dịch vụ</option>
+                    </select>
+                  )}
+                </div>
+                {/* Nếu đang ở chế độ thêm loại dịch vụ mới và có nhiều hơn 2 loại thì mới hiện ô input bên cạnh */}
+                {presetServiceTypes.length > 1 && isCustomServiceTypeMode && (
+                  <div style={{ flex: 1 }}>
+                    <label className="form-label fw-semibold" style={{ visibility: "hidden" }}>Loại dịch vụ mới</label>
+                    <input
+                      className="form-control"
+                      value={formData.serviceType}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, serviceType: e.target.value }))}
+                      placeholder="Nhập loại dịch vụ mới"
+                    />
+                  </div>
+                )}
               </div>
-              {showCustomServiceTypeInput ? (
-                <div className="col-md-6">
-                  <label className="form-label fw-semibold">Loại dịch vụ mới</label>
-                  <input
-                    className="form-control"
-                    value={formData.serviceType}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, serviceType: e.target.value }))}
-                    placeholder="Nhập loại dịch vụ mới"
-                  />
-                </div>
-              ) : (
-                <div className="col-md-6">
-                  <label className="form-label fw-semibold">Mã dịch vụ</label>
-                  <input
-                    className="form-control"
-                    value={formData.serviceCode}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, serviceCode: e.target.value }))}
-                    placeholder="Ví dụ: HCCM"
-                  />
-                </div>
-              )}
-              {showCustomServiceTypeInput ? (
-                <div className="col-md-6">
-                  <label className="form-label fw-semibold">Mã dịch vụ</label>
-                  <input
-                    className="form-control"
-                    value={formData.serviceCode}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, serviceCode: e.target.value }))}
-                    placeholder="Ví dụ: HCCM"
-                  />
-                </div>
-              ) : null}
+
+                            {/* Ô mã dịch vụ chỉ xuất hiện 1 lần ở dưới */}
+                            <div className="col-12">
+                              <label className="form-label fw-semibold">Mã dịch vụ</label>
+                              <input
+                                className="form-control"
+                                value={formData.serviceCode}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, serviceCode: e.target.value }))}
+                                placeholder="Ví dụ: HCCM"
+                              />
+                            </div>
+              {/* Đã loại bỏ ô mã dịch vụ thừa, chỉ còn 1 ô duy nhất phía dưới */}
               <div className="col-12">
                 <label className="form-label fw-semibold">Tên dịch vụ</label>
                 <input
