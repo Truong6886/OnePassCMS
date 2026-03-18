@@ -350,43 +350,26 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   // Lấy danh sách dịch vụ từ API
   const canApprove = currentUser?.is_director || currentUser?.is_accountant || currentUser?.perm_approve_b2c;
 
-  // Chỉ lấy loại dịch vụ từ API quản lý dịch vụ
-  // Chỉ hiển thị loại dịch vụ có ít nhất một dịch vụ thực tế
-  const mapToUnifiedB2CServiceType = (value) => {
-    const cleanValue = String(value || "").trim().toLowerCase();
-    if (!cleanValue) return "";
-    if (cleanValue === "khác" || cleanValue === "dịch" || cleanValue === "xác minh" || cleanValue === "dịch thuật") {
-      return "Dịch thuật";
-    }
-    if (cleanValue === "hộ tịch" || cleanValue === "h? chi?u" || cleanValue === "hộ chiếu") {
-      return "Hộ chiếu, Hộ tịch";
-    }
-    if (cleanValue === "khai sinh") return "Khai sinh, khai tử";
-    return String(value || "").trim();
-  };
-
-  const serviceTypeOptions = React.useMemo(() => {
-    // Lấy loại dịch vụ đã chuẩn hóa, loại bỏ trùng lặp
-    const validTypes = Array.from(
-      new Set(
-        (dichvuList || [])
-          .map((dv) => mapToUnifiedB2CServiceType(dv.LoaiDichVu))
-          .filter(Boolean)
-      )
-    );
-    if (validTypes.length === 1) {
-      return [{ value: validTypes[0], label: validTypes[0] }];
-    }
-    return validTypes.map((type) => ({ value: type, label: type }));
-  }, [dichvuList]);
+    // Chỉ lấy đúng các loại dịch vụ đang có bản ghi thực tế từ API (giống bảng quản lý dịch vụ)
+    const serviceTypeOptions = React.useMemo(() => {
+      if (!Array.isArray(dichvuList)) return [];
+      // Lấy tất cả LoaiDichVu duy nhất từ các bản ghi dịch vụ thực tế (không alias, không hardcode)
+      const types = Array.from(new Set(
+        dichvuList
+          .map((dv) => (dv.LoaiDichVu || "").trim())
+          .filter((v) => v)
+      ));
+      return types.map((type) => ({ value: type, label: type }));
+    }, [dichvuList]);
 // ...existing code...
 
-  // Lấy danh sách dịch vụ theo loại dịch vụ
+  // Lấy danh sách dịch vụ theo loại dịch vụ (so sánh trực tiếp LoaiDichVu, không dùng alias)
   const getFilteredServiceOptions = (serviceType) => {
     if (!serviceType) return [];
+    // Chỉ lấy dịch vụ con đúng loại dịch vụ thực tế từ API
     return (
       dichvuList
-        ?.filter((dv) => mapToUnifiedB2CServiceType(dv.LoaiDichVu) === serviceType)
+        ?.filter((dv) => (dv.LoaiDichVu || "").trim() === serviceType)
         .map((dv) => ({ value: dv.TenDichVu, label: dv.TenDichVu })) || []
     );
   };
@@ -908,12 +891,30 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     }
 
     // 3. XỬ LÝ DỮ LIỆU TỪ BẢNG DỊCH VỤ
-    // Lọc các dịch vụ hợp lệ (có tên)
-    const validServices = serviceSections.flatMap((section) =>
-      section.rows
-        .filter((row) => row.name && row.name.trim() !== "")
-        .map((row) => ({ ...row, serviceType: section.serviceType || "", note: section.note || "" }))
-    );
+    // Lọc các loại dịch vụ hợp lệ (chỉ lấy loại có trong API)
+    const validServiceTypes = new Set((dichvuList || []).map(dv => (dv.LoaiDichVu || "").trim()).filter(Boolean));
+    // Lọc các dịch vụ hợp lệ (chỉ lấy dịch vụ có trong API)
+    const validServiceNamesByType = {};
+    (dichvuList || []).forEach(dv => {
+      const type = (dv.LoaiDichVu || "").trim();
+      if (!type) return;
+      if (!validServiceNamesByType[type]) validServiceNamesByType[type] = new Set();
+      validServiceNamesByType[type].add(dv.TenDichVu);
+    });
+
+    const validServices = serviceSections.flatMap((section) => {
+      // Nếu là custom service thì vẫn cho phép
+      if (!section.serviceType || (!validServiceTypes.has(section.serviceType) && section.serviceType !== CUSTOM_SERVICE_TYPE_VALUE)) return [];
+      return section.rows
+        .filter((row) => {
+          if (!row.name || !row.name.trim()) return false;
+          // Nếu là custom service thì vẫn cho phép
+          if (row.isCustomService || section.serviceType === CUSTOM_SERVICE_TYPE_VALUE) return true;
+          // Chỉ lấy dịch vụ có trong API
+          return validServiceNamesByType[section.serviceType]?.has(row.name);
+        })
+        .map((row) => ({ ...row, serviceType: section.serviceType || "", note: section.note || "" }));
+    });
     const hasCustomService = validServices.some((row) => row.isCustomService);
     const firstSelectedServiceType = serviceSections.find((section) => section.serviceType)?.serviceType || "";
     
@@ -3113,7 +3114,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
     backgroundColor: "#F9FAFB", outline: "none", transition: "border-color 0.2s"
   };
 
-  const serviceTypeList = dichvuList?.map(dv => dv.LoaiDichVu) || [];
+  // Đảm bảo không dùng serviceTypeList hardcode/thêm ngoài, chỉ lấy đúng các loại dịch vụ từ serviceTypeOptions
   const getDanhMucOptions = (serviceType) => {
     if (!serviceType) return [];
     const normalizedType = normalizeServiceName(mapToB2CServiceType(serviceType));
@@ -3191,7 +3192,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
             {/* DỊCH VỤ & DANH MỤC */}
             <div className="col-md-4">
                 <label style={labelStyle}>Loại Dịch Vụ <span className="text-danger">*</span></label>
-                <ModernSelect name="LoaiDichVu" height={inputHeight} value={formData.LoaiDichVu} options={serviceTypeList.map(s => ({ value: s, label: s }))} onChange={handleChange} />
+                <ModernSelect name="LoaiDichVu" height={inputHeight} value={formData.LoaiDichVu} options={serviceTypeOptions} onChange={handleChange} />
             </div>
             <div className="col-md-4">
                 <label style={labelStyle}>Tên Dịch Vụ</label>
