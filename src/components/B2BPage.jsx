@@ -1733,7 +1733,6 @@ export default function B2BPage() {
     if (canViewRevenue) {
       servicesColumns.push(
         { key: "doanhThuTruoc", width: 100 },
-        { key: "suDungVi", width: 90 },
         { key: "mucChietKhau", width: 60 },
         { key: "soTienChietKhau", width: 80 },
         { key: "doanhThuSau", width: 100 },
@@ -1772,12 +1771,26 @@ export default function B2BPage() {
       const details = rec.ChiTietDichVu || {};
       // Cấu trúc MỚI: đếm services array
       if (details.services && Array.isArray(details.services)) {
-        return Math.max(1, details.services.length);
+        const totalRows = details.services.reduce((count, service) => {
+          const rawName = String(service?.name || "");
+          const normalized = rawName
+            .replace(/\r\n?/g, "\n")
+            .replace(/\s*[+＋﹢➕;；]\s*/g, "\n");
+          const items = normalized
+            .split("\n")
+            .map((item) => item.trim())
+            .filter(Boolean);
+          return count + Math.max(1, items.length);
+        }, 0);
+        return Math.max(1, totalRows);
       }
       // Cấu trúc CŨ: đếm từ DanhMuc string
       const danhMucStr = rec.DanhMuc || "";
-      if (!danhMucStr) return 1;
-      return danhMucStr.split(" + ").length;
+      if (danhMucStr) return danhMucStr.split(/\s*[+＋﹢➕;；]\s*/).filter(Boolean).length || 1;
+
+      // Fallback: tách trực tiếp từ tên dịch vụ nếu dữ liệu cũ không có DanhMuc.
+      const serviceNameStr = String(rec.serviceName || rec.TenDichVu || "");
+      return serviceNameStr.split(/\s*[+＋﹢➕;；]\s*/).filter(Boolean).length || 1;
     };
 
     const getRowBeforeDiscount = (rec, subIdx) => {
@@ -2084,7 +2097,6 @@ export default function B2BPage() {
                     {canViewRevenue && (
                       <>
                         <th className="py-0 border" style={serviceHeaderStyle("doanhThuTruoc", 100)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.doanhThuTruoc}</span>{renderPinButton(tableKey, "doanhThuTruoc")}</div></th>
-                        <th className="py-0 border" style={serviceHeaderStyle("suDungVi", 90)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.suDungVi}</span>{renderPinButton(tableKey, "suDungVi")}</div></th>
                         <th className="py-0 border" style={serviceHeaderStyle("mucChietKhau", 60)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.mucChietKhau}</span>{renderPinButton(tableKey, "mucChietKhau")}</div></th>
                         <th className="py-0 border" style={serviceHeaderStyle("soTienChietKhau", 80)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.soTienChietKhau}</span>{renderPinButton(tableKey, "soTienChietKhau")}</div></th>
                         <th className="py-0 border" style={serviceHeaderStyle("doanhThuSau", 100)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.doanhThuSau}</span>{renderPinButton(tableKey, "doanhThuSau")}</div></th>
@@ -2120,14 +2132,42 @@ export default function B2BPage() {
                       const details = rec.ChiTietDichVu || {};
                       let serviceRows = [];
                       if (details.services && Array.isArray(details.services)) {
-                        // Cấu trúc MỚI: lấy từ services array
-                        serviceRows = details.services.map((s) => ({
-                          name: s.name || "",
-                          note: String(s.note || s.ghiChu || s.serviceNote || "").trim()
-                        }));
+                        // Cấu trúc MỚI: tách 1 dòng/1 ô/1 dịch vụ.
+                        serviceRows = details.services.flatMap((s, sourceIndex) => {
+                          const rawName = String(s?.name || "");
+                          const normalized = rawName
+                            .replace(/\r\n?/g, "\n")
+                            .replace(/\s*[+＋﹢➕;；]\s*/g, "\n");
+
+                          const items = normalized
+                            .split("\n")
+                            .map((item) => item.trim())
+                            .filter(Boolean);
+
+                          const noteValue = String(s?.note || s?.ghiChu || s?.serviceNote || "").trim();
+
+                          if (items.length === 0) {
+                            return [{ name: rawName, note: noteValue, sourceIndex }];
+                          }
+
+                          return items.map((item) => ({
+                            name: item,
+                            note: noteValue,
+                            sourceIndex
+                          }));
+                        });
                       } else {
                         // Cấu trúc CŨ: lấy từ DanhMuc string
-                        serviceRows = (rec.DanhMuc || "").split(" + ").map((name) => ({ name, note: "" }));
+                        const legacySource = String(rec.DanhMuc || rec.serviceName || rec.TenDichVu || "");
+                        serviceRows = legacySource
+                          .split(/\s*[+＋﹢➕;；]\s*/)
+                          .map((name) => ({ name: String(name || "").trim(), note: "" }))
+                          .filter((s) => s.name);
+                      }
+
+                      if (serviceRows.length === 0) {
+                        const fallbackName = String(rec.serviceName || rec.TenDichVu || "").trim();
+                        serviceRows = fallbackName ? [{ name: fallbackName, note: "" }] : [{ name: "", note: "" }];
                       }
                       const servicesList = serviceRows.map((s) => s.name || "");
                       
@@ -2175,7 +2215,7 @@ export default function B2BPage() {
                       return servicesList.map((_, subIdx) => {
                         const isFirstSubRow = subIdx === 0;
                         const serviceRow = serviceRows[subIdx] || {};
-                        const serviceNote = serviceRow.note || "";
+                        const financialSubIdx = Number.isInteger(serviceRow.sourceIndex) ? serviceRow.sourceIndex : subIdx;
 
                         return (
                           <tr key={`${rec.uiId}_${subIdx}`} className={rec.isNew ? "" : "bg-white hover:bg-gray-50"}>
@@ -2217,11 +2257,12 @@ export default function B2BPage() {
                                   {rec.DiaChiNhan || "--"}
                                 </td>
                                 <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("loaiDichVu", rowBg, 13) }} title={rec.serviceType}>{rec.serviceType}</td>
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, whiteSpace: 'normal', lineHeight: '1.5', overflow: 'visible', maxWidth: 'none', textAlign: 'center', ...serviceCellPinStyle("tenDichVu", rowBg, 13) }}>
-                                  {rec.serviceName}
-                                </td>
                               </>
                             )}
+
+                            <td className="border" style={{ ...mergedStyle, whiteSpace: 'normal', lineHeight: '1.5', overflow: 'visible', maxWidth: 'none', textAlign: 'center', ...serviceCellPinStyle("tenDichVu", rowBg, 13) }} title={serviceRow.name || rec.serviceName || ""}>
+                              {serviceRow.name || rec.serviceName || ""}
+                            </td>
 
                             {isFirstSubRow && (
                               <>
@@ -2252,7 +2293,7 @@ export default function B2BPage() {
 
                             <td className="border" style={{ ...danhMucStyle, minWidth: 140, maxWidth: 220, ...serviceCellPinStyle("ghiChu", rowBg, 12) }}>
                               <div className="px-1" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                                {serviceNote}
+                                {serviceRow.note || serviceRow.name || ""}
                               </div>
                             </td>
 
@@ -2274,11 +2315,18 @@ export default function B2BPage() {
 
                             {canViewRevenue && (
                               <>
-                                <td className="border text-center pe-2" style={{ verticalAlign: "middle", ...serviceCellPinStyle("doanhThuTruoc", rowBg, 12) }}>{formatNumber(getRowBeforeDiscount(rec, subIdx))}</td>
-                                {isFirstSubRow && (<td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, color: rec.walletUsage > 0 ? "red" : "inherit", ...serviceCellPinStyle("suDungVi", rowBg, 12) }}>{formatNumber(rec.walletUsage || 0)}</td>)}
-                                <td className="border text-center" style={{ verticalAlign: "middle", ...serviceCellPinStyle("mucChietKhau", rowBg, 12) }}>{getRowDiscountRate(rec, subIdx) ? getRowDiscountRate(rec, subIdx) + "%" : "0%"}</td>
-                                <td className="border text-center pe-2" style={{ verticalAlign: "middle", ...serviceCellPinStyle("soTienChietKhau", rowBg, 12) }}>{formatNumber(getRowDiscountAmount(rec, subIdx))}</td>
-                                <td className="border text-center pe-2" style={{ verticalAlign: "middle", ...serviceCellPinStyle("doanhThuSau", rowBg, 12) }}>{formatNumber(getRowRevenue(rec, subIdx))}</td>
+                                <td className="border text-center pe-2" style={{ verticalAlign: "middle", ...serviceCellPinStyle("doanhThuTruoc", rowBg, 12) }}>{formatNumber(getRowBeforeDiscount(rec, financialSubIdx))}</td>
+                                <td className="border text-center" style={{ verticalAlign: "middle", ...serviceCellPinStyle("mucChietKhau", rowBg, 12) }}>{getRowDiscountRate(rec, financialSubIdx) ? getRowDiscountRate(rec, financialSubIdx) + "%" : "0%"}</td>
+                                <td className="border text-center pe-2" style={{ verticalAlign: "middle", ...serviceCellPinStyle("soTienChietKhau", rowBg, 12) }}>{formatNumber(getRowDiscountAmount(rec, financialSubIdx))}</td>
+                                {isFirstSubRow && (
+                                  <td
+                                    className="border text-center pe-2"
+                                    rowSpan={subRowsCount}
+                                    style={{ ...mergedStyle, ...serviceCellPinStyle("doanhThuSau", rowBg, 12) }}
+                                  >
+                                    {formatNumber(getTotalRecordAfterDiscount(rec))}
+                                  </td>
+                                )}
                                 {shouldRenderCompanyCell && isFirstSubRow && (<td className="border fw-bold text-primary text-center pe-2" rowSpan={companyRowSpan} style={{ ...mergedStyle, ...serviceCellPinStyle("tongDoanhThu", rowBg, 12) }}>{formatNumber(groupTotalRevenue)}</td>)}
                               </>
                             )}
