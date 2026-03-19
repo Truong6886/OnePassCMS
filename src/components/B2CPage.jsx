@@ -453,6 +453,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
   const createEmptyServiceRow = () => ({
     name: "",
     isCustomService: false,
+    note: "",
     donvi: "",
     soluong: "1",
     loaigoi: "",
@@ -492,6 +493,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                acc[type].rows.push({
                  name: serviceName,
                  isCustomService,
+                 note: String(s.note || s.ghiChu || s.serviceNote || "").trim(),
                  donvi: s.donvi || "",
                  soluong: String(s.soluong || "1"),
                  loaigoi: normalizePackageOption(s.loaigoi) || "",
@@ -517,6 +519,7 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                rows: details.sub.map(s => ({
                  name: s.name || "",
                  isCustomService: false,
+                 note: String(s.note || s.ghiChu || s.serviceNote || "").trim(),
                  donvi: s.donvi || "",
                  soluong: String(s.soluong || "1"),
                  loaigoi: normalizePackageOption(s.loaigoi) || "",
@@ -617,14 +620,6 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           isCustomService: isCustomServiceType
         }))
       };
-      return next;
-    });
-  };
-
-  const handleServiceNoteChange = (sectionIndex, value) => {
-    setServiceSections((prev) => {
-      const next = [...prev];
-      next[sectionIndex] = { ...next[sectionIndex], note: value };
       return next;
     });
   };
@@ -963,7 +958,11 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
           // Chỉ lấy dịch vụ có trong API
           return validServiceNamesByType[section.serviceType]?.has(row.name);
         })
-        .map((row) => ({ ...row, serviceType: section.serviceType || "", note: section.note || "" }));
+        .map((row) => ({
+          ...row,
+          serviceType: section.serviceType || "",
+          note: (row.note || "").trim() || section.note || ""
+        }));
     });
     const hasCustomService = validServices.some((row) => row.isCustomService);
     const firstSelectedServiceType = serviceSections.find((section) => section.serviceType)?.serviceType || "";
@@ -1467,27 +1466,25 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                                  onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "name", e.target.value)}
                                />
                              )}
-                             {rowIndex === 0 && (
-                               <input
-                                 type="text"
-                                 value={section.note || ""}
-                                 onChange={(e) => handleServiceNoteChange(sectionIndex, e.target.value)}
-                                 placeholder="Nhập ghi chú"
-                                 style={{
-                                   width: "100%",
-                                   height: "20px",
-                                   marginTop: "4px",
-                                   padding: "2px 4px",
-                                   fontSize: "11px",
-                                   color: "#374151",
-                                   border: "none",
-                                   borderRadius: "0",
-                                   backgroundColor: "transparent",
-                                   outline: "none",
-                                   fontStyle: "italic"
-                                 }}
-                               />
-                             )}
+                             <input
+                               type="text"
+                               value={row.note || ""}
+                               onChange={(e) => handleServiceRowChange(sectionIndex, rowIndex, "note", e.target.value)}
+                               placeholder="Nhập ghi chú"
+                               style={{
+                                 width: "100%",
+                                 height: "20px",
+                                 marginTop: "4px",
+                                 padding: "2px 4px",
+                                 fontSize: "11px",
+                                 color: "#374151",
+                                 border: "none",
+                                 borderRadius: "0",
+                                 backgroundColor: "transparent",
+                                 outline: "none",
+                                 fontStyle: "italic"
+                               }}
+                             />
                            </td>
                            <td style={{ padding: "8px" }}>
                              <ModernSelect
