@@ -12,11 +12,8 @@ import { Save, Trash2, XCircle, Check, FileText, Edit, Eye, EyeOff, Plus, X, Che
 const COLUMN_CONFIGS = [
   { key: "stt", label: "STT" },
   { key: "company", label: "Khách Hàng" },
-  { key: "soDKKD", label: "Mã Vùng" },
-  { key: "phoneNumber", label: "Số Điện Thoại" },
-  { key: "email", label: "Email" },
-  { key: "kenhLienHe", label: "Kênh Liên Hệ" },
-  { key: "coSo", label: "Cơ Sở" },
+  { key: "soDKKD", label: "Số ĐKKD" },
+  { key: "hoSo", label: "Hồ Sơ" },
   { key: "diaChiNhan", label: "Địa Chỉ Nhận" },
   { key: "noiTiepNhan", label: "Nơi Tiếp Nhận Hồ Sơ" },
   { key: "loaiDichVu", label: "Loại Dịch Vụ" },
@@ -32,9 +29,16 @@ const COLUMN_CONFIGS = [
   { key: "invoiceYN", label: "Invoice Y/N" },
   { key: "invoice", label: "Invoice" },
   { key: "trangThai", label: "Trạng thái" },
+  { key: "doanhThuTruoc", label: "Doanh Thu Trước Chiết Khấu" },
+  { key: "mucChietKhau", label: "Mức Chiết Khấu" },
+  { key: "soTienChietKhau", label: "Số Tiền Chiết Khấu" },
+  { key: "doanhThuSau", label: "Doanh Thu Sau Chiết Khấu" },
+  { key: "tongDoanhThu", label: "Tổng Doanh Thu" },
+  { key: "hanhDong", label: "Hành Động" },
 ];
+const REVENUE_COLUMN_KEYS = ["doanhThuTruoc", "mucChietKhau", "soTienChietKhau", "doanhThuSau", "tongDoanhThu"];
 // Popup cấu hình cột
-function ColumnConfigPopup({ show, onClose, columns, onChange }) {
+function ColumnConfigPopup({ show, onClose, columns, onChange, columnConfigs = [] }) {
   if (!show) return null;
   return (
     <div style={{
@@ -52,7 +56,7 @@ function ColumnConfigPopup({ show, onClose, columns, onChange }) {
       padding: 18
     }}>
       <div style={{ fontWeight: 700, marginBottom: 10 }}>Cấu hình cột:</div>
-      {COLUMN_CONFIGS.map(col => (
+      {columnConfigs.map(col => (
         <div key={col.key} style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
           <input
             type="checkbox"
@@ -1706,6 +1710,11 @@ export default function B2BPage() {
   const renderServicesTab = () => {
     const canApproveB2B = hasB2BApprovePermission(currentUser);
     const canViewRevenue = hasRevenueViewPermission(currentUser);
+    const serviceColumnConfigs = COLUMN_CONFIGS.filter(
+      (col) => canViewRevenue || !REVENUE_COLUMN_KEYS.includes(col.key)
+    );
+    const getColumnVisibilityStyle = (columnKey) =>
+      visibleColumns.includes(columnKey) ? {} : { display: "none" };
 
     const tableKey = "services";
     const servicesColumns = [
@@ -2033,6 +2042,7 @@ export default function B2BPage() {
               show={showColumnConfig}
               onClose={() => setShowColumnConfig(false)}
               columns={visibleColumns}
+              columnConfigs={serviceColumnConfigs}
               onChange={key => {
                 setVisibleColumns(cols =>
                   cols.includes(key)
@@ -2074,33 +2084,33 @@ export default function B2BPage() {
               <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: "12px", borderCollapse: "separate", borderSpacing: 0, tableLayout: "fixed" }}>
                 <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a" }}>
                   <tr>
-                    <th className="py-0 border" style={serviceHeaderStyle("stt", 52)}><div className="d-flex align-items-center justify-content-center gap-1" style={{ padding: "0 8px" }}><span>{t.stt}</span>{renderPinButton(tableKey, "stt")}</div></th>
-                    <th className="py-0 border" style={serviceHeaderStyle("company", 120)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.chonDN}</span>{renderPinButton(tableKey, "company")}</div></th>
-                    <th className="py-0 border" style={serviceHeaderStyle("soDKKD", 90)}><div className="d-flex align-items-center justify-content-center gap-1"><span>Số ĐKKD</span>{renderPinButton(tableKey, "soDKKD")}</div></th>
-                    <th className="py-0 border" style={serviceHeaderStyle("hoSo", 219)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.hoSo}</span>{renderPinButton(tableKey, "hoSo")}</div></th>
-                    <th className="py-0 border" style={serviceHeaderStyle("noiTiepNhan", 180)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.noiTiepNhanHoSo}</span>{renderPinButton(tableKey, "noiTiepNhan")}</div></th>
-                    <th className="py-0 border" style={serviceHeaderStyle("diaChiNhan", 180)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.diaChiNhan}</span>{renderPinButton(tableKey, "diaChiNhan")}</div></th>
-                    <th className="py-0 border" style={serviceHeaderStyle("loaiDichVu", 100)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.loaiDichVu}</span>{renderPinButton(tableKey, "loaiDichVu")}</div></th>
-                    <th className="py-0 border" style={serviceHeaderStyle("tenDichVu", 140)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.tenDichVu}</span>{renderPinButton(tableKey, "tenDichVu")}</div></th>
-                    <th className="py-0 border" style={serviceHeaderStyle("maDichVu", 160)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.maDichVu}</span>{renderPinButton(tableKey, "maDichVu")}</div></th>
-                    <th className="py-0 border" style={serviceHeaderStyle("ghiChu", 180)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ghiChuDichVu}</span>{renderPinButton(tableKey, "ghiChu")}</div></th>
-                    <th className="py-0 border" style={serviceHeaderStyle("nguoiPhuTrach", 110)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.nguoiPhuTrach}</span>{renderPinButton(tableKey, "nguoiPhuTrach")}</div></th>
-                    <th className="py-0 border" style={serviceHeaderStyle("ngayTao", 90)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ngayTao}</span>{renderPinButton(tableKey, "ngayTao")}</div></th>
-                    <th className="py-0 border" style={serviceHeaderStyle("ngayBatDau", 90)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ngayBatDau}</span>{renderPinButton(tableKey, "ngayBatDau")}</div></th>
-                    <th className="py-0 border" style={serviceHeaderStyle("ngayHen", 90)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ngayHen}</span>{renderPinButton(tableKey, "ngayHen")}</div></th>
-                    <th className="py-0 border" style={serviceHeaderStyle("ngayKetThuc", 90)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ngayKetThuc}</span>{renderPinButton(tableKey, "ngayKetThuc")}</div></th>
-                    <th className="py-0 border" style={serviceHeaderStyle("goi", 100)}><div className="d-flex align-items-center justify-content-center gap-1"><span>Gói</span>{renderPinButton(tableKey, "goi")}</div></th>
-                    <th className="py-0 border" style={serviceHeaderStyle("invoiceYN", 70)}><div className="d-flex align-items-center justify-content-center gap-1"><span>Invoice Y/N</span>{renderPinButton(tableKey, "invoiceYN")}</div></th>
-                    <th className="py-0 border" style={serviceHeaderStyle("invoice", 60)}><div className="d-flex align-items-center justify-content-center gap-1"><span>Invoice</span>{renderPinButton(tableKey, "invoice")}</div></th>
-                    <th className="py-0 border" style={serviceHeaderStyle("trangThai", 120)}><div className="d-flex align-items-center justify-content-center gap-1"><span>Trạng thái</span>{renderPinButton(tableKey, "trangThai")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("stt", 52), ...getColumnVisibilityStyle("stt") }}><div className="d-flex align-items-center justify-content-center gap-1" style={{ padding: "0 8px" }}><span>{t.stt}</span>{renderPinButton(tableKey, "stt")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("company", 120), ...getColumnVisibilityStyle("company") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.chonDN}</span>{renderPinButton(tableKey, "company")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("soDKKD", 90), ...getColumnVisibilityStyle("soDKKD") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>Số ĐKKD</span>{renderPinButton(tableKey, "soDKKD")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("hoSo", 219), ...getColumnVisibilityStyle("hoSo") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.hoSo}</span>{renderPinButton(tableKey, "hoSo")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("noiTiepNhan", 180), ...getColumnVisibilityStyle("noiTiepNhan") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.noiTiepNhanHoSo}</span>{renderPinButton(tableKey, "noiTiepNhan")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("diaChiNhan", 180), ...getColumnVisibilityStyle("diaChiNhan") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.diaChiNhan}</span>{renderPinButton(tableKey, "diaChiNhan")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("loaiDichVu", 100), ...getColumnVisibilityStyle("loaiDichVu") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.loaiDichVu}</span>{renderPinButton(tableKey, "loaiDichVu")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("tenDichVu", 140), ...getColumnVisibilityStyle("tenDichVu") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.tenDichVu}</span>{renderPinButton(tableKey, "tenDichVu")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("maDichVu", 160), ...getColumnVisibilityStyle("maDichVu") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.maDichVu}</span>{renderPinButton(tableKey, "maDichVu")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("ghiChu", 180), ...getColumnVisibilityStyle("ghiChu") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ghiChuDichVu}</span>{renderPinButton(tableKey, "ghiChu")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("nguoiPhuTrach", 110), ...getColumnVisibilityStyle("nguoiPhuTrach") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.nguoiPhuTrach}</span>{renderPinButton(tableKey, "nguoiPhuTrach")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("ngayTao", 90), ...getColumnVisibilityStyle("ngayTao") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ngayTao}</span>{renderPinButton(tableKey, "ngayTao")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("ngayBatDau", 90), ...getColumnVisibilityStyle("ngayBatDau") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ngayBatDau}</span>{renderPinButton(tableKey, "ngayBatDau")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("ngayHen", 90), ...getColumnVisibilityStyle("ngayHen") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ngayHen}</span>{renderPinButton(tableKey, "ngayHen")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("ngayKetThuc", 90), ...getColumnVisibilityStyle("ngayKetThuc") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ngayKetThuc}</span>{renderPinButton(tableKey, "ngayKetThuc")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("goi", 100), ...getColumnVisibilityStyle("goi") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>Gói</span>{renderPinButton(tableKey, "goi")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("invoiceYN", 70), ...getColumnVisibilityStyle("invoiceYN") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>Invoice Y/N</span>{renderPinButton(tableKey, "invoiceYN")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("invoice", 60), ...getColumnVisibilityStyle("invoice") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>Invoice</span>{renderPinButton(tableKey, "invoice")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("trangThai", 120), ...getColumnVisibilityStyle("trangThai") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>Trạng thái</span>{renderPinButton(tableKey, "trangThai")}</div></th>
 
                     {canViewRevenue && (
                       <>
-                        <th className="py-0 border" style={serviceHeaderStyle("doanhThuTruoc", 100)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.doanhThuTruoc}</span>{renderPinButton(tableKey, "doanhThuTruoc")}</div></th>
-                        <th className="py-0 border" style={serviceHeaderStyle("mucChietKhau", 60)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.mucChietKhau}</span>{renderPinButton(tableKey, "mucChietKhau")}</div></th>
-                        <th className="py-0 border" style={serviceHeaderStyle("soTienChietKhau", 80)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.soTienChietKhau}</span>{renderPinButton(tableKey, "soTienChietKhau")}</div></th>
-                        <th className="py-0 border" style={serviceHeaderStyle("doanhThuSau", 100)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.doanhThuSau}</span>{renderPinButton(tableKey, "doanhThuSau")}</div></th>
-                        <th className="py-0 border" style={serviceHeaderStyle("tongDoanhThu", 100)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.tongDoanhThuTichLuy}</span>{renderPinButton(tableKey, "tongDoanhThu")}</div></th>
+                        <th className="py-0 border" style={{ ...serviceHeaderStyle("doanhThuTruoc", 100), ...getColumnVisibilityStyle("doanhThuTruoc") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.doanhThuTruoc}</span>{renderPinButton(tableKey, "doanhThuTruoc")}</div></th>
+                        <th className="py-0 border" style={{ ...serviceHeaderStyle("mucChietKhau", 60), ...getColumnVisibilityStyle("mucChietKhau") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.mucChietKhau}</span>{renderPinButton(tableKey, "mucChietKhau")}</div></th>
+                        <th className="py-0 border" style={{ ...serviceHeaderStyle("soTienChietKhau", 80), ...getColumnVisibilityStyle("soTienChietKhau") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.soTienChietKhau}</span>{renderPinButton(tableKey, "soTienChietKhau")}</div></th>
+                        <th className="py-0 border" style={{ ...serviceHeaderStyle("doanhThuSau", 100), ...getColumnVisibilityStyle("doanhThuSau") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.doanhThuSau}</span>{renderPinButton(tableKey, "doanhThuSau")}</div></th>
+                        <th className="py-0 border" style={{ ...serviceHeaderStyle("tongDoanhThu", 100), ...getColumnVisibilityStyle("tongDoanhThu") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.tongDoanhThuTichLuy}</span>{renderPinButton(tableKey, "tongDoanhThu")}</div></th>
                       </>
                     )}
                     <th
@@ -2115,7 +2125,8 @@ export default function B2BPage() {
                         zIndex: 30,
                         backgroundColor: "#1e3a8a",
                         boxShadow: "-2px 0 6px rgba(0,0,0,0.12)",
-                        borderLeft: "1px solid #2e4fa3"
+                        borderLeft: "1px solid #2e4fa3",
+                        ...getColumnVisibilityStyle("hanhDong")
                       }}
                     >
                       {t.hanhDong}
@@ -2219,17 +2230,17 @@ export default function B2BPage() {
 
                         return (
                           <tr key={`${rec.uiId}_${subIdx}`} className={rec.isNew ? "" : "bg-white hover:bg-gray-50"}>
-                            {isFirstSubRow && <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("stt", rowBg, 14) }}>{globalIndex}</td>}
+                            {isFirstSubRow && <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("stt", rowBg, 14), ...getColumnVisibilityStyle("stt") }}>{globalIndex}</td>}
                             {isFirstSubRow && shouldRenderCompanyCell && (
                               <>
-                                <td className="border" rowSpan={companyRowSpan} style={{ ...mergedStyle, ...serviceCellPinStyle("company", rowBg, 13) }} title={rec.companyName}>{rec.companyName || ""}</td>
-                                <td className="border" rowSpan={companyRowSpan} style={{ ...mergedStyle, ...serviceCellPinStyle("soDKKD", rowBg, 13) }} title={rec.soDKKD}>{rec.soDKKD || ""}</td>
+                                <td className="border" rowSpan={companyRowSpan} style={{ ...mergedStyle, ...serviceCellPinStyle("company", rowBg, 13), ...getColumnVisibilityStyle("company") }} title={rec.companyName}>{rec.companyName || ""}</td>
+                                <td className="border" rowSpan={companyRowSpan} style={{ ...mergedStyle, ...serviceCellPinStyle("soDKKD", rowBg, 13), ...getColumnVisibilityStyle("soDKKD") }} title={rec.soDKKD}>{rec.soDKKD || ""}</td>
                               </>
                             )}
                             {isFirstSubRow && (
                               <>
 
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, maxWidth: '240px', textAlign: 'left', padding: '8px', ...serviceCellPinStyle("hoSo", rowBg, 13) }}>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, maxWidth: '240px', textAlign: 'left', padding: '8px', ...serviceCellPinStyle("hoSo", rowBg, 13), ...getColumnVisibilityStyle("hoSo") }}>
                                   {rec.ChiTietDichVu?.files?.length > 0 ? (
                                     <div className="d-flex flex-column gap-1">
                                       {rec.ChiTietDichVu.files.map((f, i) => (
@@ -2242,7 +2253,7 @@ export default function B2BPage() {
                                   ) : <div className="text-center text-muted">-</div>}
                                 </td>
 
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, textAlign: 'left', ...serviceCellPinStyle("noiTiepNhan", rowBg, 13) }} title={rec.NoiTiepNhanHoSo || "--"}>{rec.NoiTiepNhanHoSo || "--"}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, textAlign: 'left', ...serviceCellPinStyle("noiTiepNhan", rowBg, 13), ...getColumnVisibilityStyle("noiTiepNhan") }} title={rec.NoiTiepNhanHoSo || "--"}>{rec.NoiTiepNhanHoSo || "--"}</td>
                                 <td
                                   className="border"
                                   rowSpan={subRowsCount}
@@ -2250,23 +2261,24 @@ export default function B2BPage() {
                                     ...mergedStyle,
                                     textAlign: 'left',
                                     padding: '12px 14px', // padding đều các phía
-                                    ...serviceCellPinStyle("diaChiNhan", rowBg, 13)
+                                    ...serviceCellPinStyle("diaChiNhan", rowBg, 13),
+                                    ...getColumnVisibilityStyle("diaChiNhan")
                                   }}
                                   title={rec.DiaChiNhan || "--"}
                                 >
                                   {rec.DiaChiNhan || "--"}
                                 </td>
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("loaiDichVu", rowBg, 13) }} title={rec.serviceType}>{rec.serviceType}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("loaiDichVu", rowBg, 13), ...getColumnVisibilityStyle("loaiDichVu") }} title={rec.serviceType}>{rec.serviceType}</td>
                               </>
                             )}
 
-                            <td className="border" style={{ ...mergedStyle, whiteSpace: 'normal', lineHeight: '1.5', overflow: 'visible', maxWidth: 'none', textAlign: 'center', ...serviceCellPinStyle("tenDichVu", rowBg, 13) }} title={serviceRow.name || rec.serviceName || ""}>
+                            <td className="border" style={{ ...mergedStyle, whiteSpace: 'normal', lineHeight: '1.5', overflow: 'visible', maxWidth: 'none', textAlign: 'center', ...serviceCellPinStyle("tenDichVu", rowBg, 13), ...getColumnVisibilityStyle("tenDichVu") }} title={serviceRow.name || rec.serviceName || ""}>
                               {serviceRow.name || rec.serviceName || ""}
                             </td>
 
                             {isFirstSubRow && (
                               <>
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, width: 170, ...serviceCellPinStyle("maDichVu", rowBg, 12) }}>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, width: 170, ...serviceCellPinStyle("maDichVu", rowBg, 12), ...getColumnVisibilityStyle("maDichVu") }}>
                                   {rec.code ? (
                                     <button
                                       type="button"
@@ -2291,7 +2303,7 @@ export default function B2BPage() {
                               </>
                             )}
 
-                            <td className="border" style={{ ...danhMucStyle, minWidth: 140, maxWidth: 220, ...serviceCellPinStyle("ghiChu", rowBg, 12) }}>
+                            <td className="border" style={{ ...danhMucStyle, minWidth: 140, maxWidth: 220, ...serviceCellPinStyle("ghiChu", rowBg, 12), ...getColumnVisibilityStyle("ghiChu") }}>
                               <div className="px-1" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                                 {serviceRow.note || serviceRow.name || ""}
                               </div>
@@ -2299,15 +2311,15 @@ export default function B2BPage() {
 
                             {isFirstSubRow && (
                               <>
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("nguoiPhuTrach", rowBg, 12) }} title={rec.picName}>{rec.picName}</td>
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("ngayTao", rowBg, 12) }}>{rec.createdDate}</td>
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("ngayBatDau", rowBg, 12) }}>{rec.startDate}</td>
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("ngayHen", rowBg, 12) }}>{rec.appointmentDate}</td>
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("ngayKetThuc", rowBg, 12) }}>{rec.completionDate}</td>
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("goi", rowBg, 12) }}><span className={String(rec.package || "").startsWith("Gấp") ? "text-danger fw-bold" : ""}>{rec.package}</span></td>
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("invoiceYN", rowBg, 12) }}>{rec.invoiceYN}</td>
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("invoice", rowBg, 12) }}>{rec.invoiceUrl ? (<a href={rec.invoiceUrl} target="_blank" rel="noreferrer" className="text-primary d-inline-block"><FileText size={16} /></a>) : ""}</td>
-                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("trangThai", rowBg, 12) }}>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("nguoiPhuTrach", rowBg, 12), ...getColumnVisibilityStyle("nguoiPhuTrach") }} title={rec.picName}>{rec.picName}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("ngayTao", rowBg, 12), ...getColumnVisibilityStyle("ngayTao") }}>{rec.createdDate}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("ngayBatDau", rowBg, 12), ...getColumnVisibilityStyle("ngayBatDau") }}>{rec.startDate}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("ngayHen", rowBg, 12), ...getColumnVisibilityStyle("ngayHen") }}>{rec.appointmentDate}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("ngayKetThuc", rowBg, 12), ...getColumnVisibilityStyle("ngayKetThuc") }}>{rec.completionDate}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("goi", rowBg, 12), ...getColumnVisibilityStyle("goi") }}><span className={String(rec.package || "").startsWith("Gấp") ? "text-danger fw-bold" : ""}>{rec.package}</span></td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("invoiceYN", rowBg, 12), ...getColumnVisibilityStyle("invoiceYN") }}>{rec.invoiceYN}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("invoice", rowBg, 12), ...getColumnVisibilityStyle("invoice") }}>{rec.invoiceUrl ? (<a href={rec.invoiceUrl} target="_blank" rel="noreferrer" className="text-primary d-inline-block"><FileText size={16} /></a>) : ""}</td>
+                                <td className="border" rowSpan={subRowsCount} style={{ ...mergedStyle, ...serviceCellPinStyle("trangThai", rowBg, 12), ...getColumnVisibilityStyle("trangThai") }}>
                                   {rec.status}
                                 </td>
                               </>
@@ -2315,19 +2327,19 @@ export default function B2BPage() {
 
                             {canViewRevenue && (
                               <>
-                                <td className="border text-center pe-2" style={{ verticalAlign: "middle", ...serviceCellPinStyle("doanhThuTruoc", rowBg, 12) }}>{formatNumber(getRowBeforeDiscount(rec, financialSubIdx))}</td>
-                                <td className="border text-center" style={{ verticalAlign: "middle", ...serviceCellPinStyle("mucChietKhau", rowBg, 12) }}>{getRowDiscountRate(rec, financialSubIdx) ? getRowDiscountRate(rec, financialSubIdx) + "%" : "0%"}</td>
-                                <td className="border text-center pe-2" style={{ verticalAlign: "middle", ...serviceCellPinStyle("soTienChietKhau", rowBg, 12) }}>{formatNumber(getRowDiscountAmount(rec, financialSubIdx))}</td>
+                                <td className="border text-center pe-2" style={{ verticalAlign: "middle", ...serviceCellPinStyle("doanhThuTruoc", rowBg, 12), ...getColumnVisibilityStyle("doanhThuTruoc") }}>{formatNumber(getRowBeforeDiscount(rec, financialSubIdx))}</td>
+                                <td className="border text-center" style={{ verticalAlign: "middle", ...serviceCellPinStyle("mucChietKhau", rowBg, 12), ...getColumnVisibilityStyle("mucChietKhau") }}>{getRowDiscountRate(rec, financialSubIdx) ? getRowDiscountRate(rec, financialSubIdx) + "%" : "0%"}</td>
+                                <td className="border text-center pe-2" style={{ verticalAlign: "middle", ...serviceCellPinStyle("soTienChietKhau", rowBg, 12), ...getColumnVisibilityStyle("soTienChietKhau") }}>{formatNumber(getRowDiscountAmount(rec, financialSubIdx))}</td>
                                 {isFirstSubRow && (
                                   <td
                                     className="border text-center pe-2"
                                     rowSpan={subRowsCount}
-                                    style={{ ...mergedStyle, ...serviceCellPinStyle("doanhThuSau", rowBg, 12) }}
+                                    style={{ ...mergedStyle, ...serviceCellPinStyle("doanhThuSau", rowBg, 12), ...getColumnVisibilityStyle("doanhThuSau") }}
                                   >
                                     {formatNumber(getTotalRecordAfterDiscount(rec))}
                                   </td>
                                 )}
-                                {shouldRenderCompanyCell && isFirstSubRow && (<td className="border fw-bold text-primary text-center pe-2" rowSpan={companyRowSpan} style={{ ...mergedStyle, ...serviceCellPinStyle("tongDoanhThu", rowBg, 12) }}>{formatNumber(groupTotalRevenue)}</td>)}
+                                {shouldRenderCompanyCell && isFirstSubRow && (<td className="border fw-bold text-primary text-center pe-2" rowSpan={companyRowSpan} style={{ ...mergedStyle, ...serviceCellPinStyle("tongDoanhThu", rowBg, 12), ...getColumnVisibilityStyle("tongDoanhThu") }}>{formatNumber(groupTotalRevenue)}</td>)}
                               </>
                             )}
 
@@ -2345,7 +2357,8 @@ export default function B2BPage() {
                                   zIndex: 20,
                                   backgroundColor: rec.isNew ? "#dcfce7" : "#fff",
                                   boxShadow: "-2px 0 6px rgba(0,0,0,0.08)",
-                                  borderLeft: "1px solid #dee2e6"
+                                  borderLeft: "1px solid #dee2e6",
+                                  ...getColumnVisibilityStyle("hanhDong")
                                 }}
                               >
                                 <div className="d-flex justify-content-center gap-1">
