@@ -1226,20 +1226,14 @@ export default function B2BPage() {
   };
 
   const calculateCompanyTotalRevenue = (companyId) => {
-    const mappedRevenue = serviceCompanyRevenueMap[String(companyId)];
-    if (mappedRevenue !== undefined) return parseMoney(mappedRevenue);
     if (!serviceData || serviceData.length === 0) return 0;
+
     return serviceData
       .filter(r => String(r.companyId) === String(companyId))
       .reduce((sum, r) => {
-        const val = r.revenueAfter;
-        if (!val) return sum;
-        try {
-          // Xử lý chuỗi tiền tệ (bỏ dấu chấm) hoặc số
-          const cleanStr = String(val).replace(/\./g, '');
-          const num = parseFloat(cleanStr);
-          return sum + (isNaN(num) ? 0 : num);
-        } catch (e) { return sum; }
+        // Tổng theo doanh thu sau chiết khấu (sau thuế) của từng dịch vụ.
+        const total = parseMoney(r.revenueAfter);
+        return sum + (Number.isFinite(total) ? total : 0);
       }, 0);
   };
 
@@ -2105,7 +2099,7 @@ export default function B2BPage() {
 
                       let shouldRenderCompanyCell = false;
                       let companyRowSpan = 0;
-                      const groupTotalRevenue = calculateCompanyTotalRevenue(currentCompanyId) || parseMoney(rec.totalRevenue);
+                      const groupTotalRevenue = calculateCompanyTotalRevenue(currentCompanyId);
 
                       if (!currentCompanyId || currentCompanyId !== prevCompanyId) {
                         shouldRenderCompanyCell = true;
