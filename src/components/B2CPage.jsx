@@ -2236,7 +2236,8 @@ const RowItem = ({
       {rowsToRender.map((row, idx) => {
         const isFirst = idx === 0;
         const stats = calculateRowStats(row);
-        const rowServiceCode = hasServiceCode ? buildCodeByServiceName(item.MaHoSo, row.name) : "";
+        const firstServiceCode = hasServiceCode ? normalizeServiceCodeForRow(item) : "";
+        const rowServiceCode = firstServiceCode;
 
         return (
           <tr key={`${item.YeuCauID}_${idx}`} className="hover-bg-gray">
@@ -2290,8 +2291,8 @@ const RowItem = ({
                     </div>
                 </td>
             )}
-            {isVisible("maDichVu") && (
-              <td className={`text-center ${getStickyClass("maDichVu")}`} style={{ width: 200, minWidth: 200, verticalAlign: "middle", backgroundColor: "#fff", borderBottom: "1px solid #dee2e6", whiteSpace: "nowrap" }}>
+            {isVisible("maDichVu") && isFirst && (
+              <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("maDichVu")}`} style={{ ...mergedStyle, width: 200, minWidth: 200, whiteSpace: "nowrap" }}>
                 {rowServiceCode ? (
                   <button
                     type="button"
@@ -2314,7 +2315,7 @@ const RowItem = ({
               </td>
             )}
             {isVisible("ghiChuDichVu") && (
-              <td className={`${getStickyClass("ghiChuDichVu")}`} style={{ minWidth: "150px", maxWidth: "220px", verticalAlign: "middle", backgroundColor: "#fff", borderBottom: "1px solid #dee2e6", whiteSpace: "normal", wordBreak: "break-word" }}>
+              <td className={`${getStickyClass("ghiChuDichVu")}`} style={{ minWidth: "150px", maxWidth: "220px", verticalAlign: "middle", backgroundColor: "#fff", borderBottom: "1px solid #dee2e6", whiteSpace: "pre-line", wordBreak: "break-word" }}>
                 {row.note || (isFirst ? (item.GhiChuDichVu || item.GhiChuDV || "") : "")}
               </td>
             )}
@@ -2350,9 +2351,9 @@ const RowItem = ({
             {isVisible("invoice") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("invoice")}`} style={mergedStyle}>{item.Invoice === "Yes" ? <span className="text-success fw-bold">Yes</span> : <span className="text-muted">No</span>}</td>}
             {canViewFinance && isVisible("invoiceUrl") && isFirst && <td rowSpan={rowSpanCount} className={`text-center ${getStickyClass("invoiceUrl")}`} style={mergedStyle}>{item.InvoiceUrl ? <a href={item.InvoiceUrl} target="_blank" rel="noreferrer">Link</a> : "-"}</td>}
             
-            {/* SỬA CỘT GHI CHÚ: Bỏ text-truncate, thêm whiteSpace: "normal" */}
+            {/* SỬA CỘT GHI CHÚ: Giữ xuống dòng theo nội dung người dùng nhập */}
             {isVisible("ghiChu") && isFirst && (
-                <td rowSpan={rowSpanCount} className={getStickyClass("ghiChu")} style={{...mergedStyle, maxWidth: "200px",width:270, whiteSpace: "normal", wordWrap: "break-word"}}>
+              <td rowSpan={rowSpanCount} className={getStickyClass("ghiChu")} style={{...mergedStyle, maxWidth: "200px",width:270, whiteSpace: "pre-line", wordWrap: "break-word"}}>
                     {item.GhiChu}
                 </td>
             )}
