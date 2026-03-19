@@ -569,6 +569,8 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
       }
       return request.DanhMuc.split(" + ").length > 1;
   });
+  const [draggingServiceRow, setDraggingServiceRow] = useState(null);
+  const [dragOverServiceRow, setDragOverServiceRow] = useState(null);
 
   // --- CÁC HÀM XỬ LÝ BẢNG DỊCH VỤ ---
   const handleAddServiceSection = () => {
@@ -676,6 +678,80 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
     section.rows = rows;
     nextSections[sectionIndex] = section;
     setServiceSections(nextSections);
+  };
+
+  const handleServiceRowDragStart = (sectionIndex, rowIndex, event) => {
+    setDraggingServiceRow({ sectionIndex, rowIndex });
+    setDragOverServiceRow({ sectionIndex, rowIndex });
+    if (event?.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", `${sectionIndex}:${rowIndex}`);
+    }
+  };
+
+  const handleServiceRowDragOver = (sectionIndex, rowIndex, event) => {
+    event.preventDefault();
+    if (!draggingServiceRow || draggingServiceRow.sectionIndex !== sectionIndex) return;
+    if (dragOverServiceRow?.sectionIndex !== sectionIndex || dragOverServiceRow?.rowIndex !== rowIndex) {
+      setDragOverServiceRow({ sectionIndex, rowIndex });
+    }
+    if (event?.dataTransfer) {
+      event.dataTransfer.dropEffect = "move";
+    }
+  };
+
+  const handleServiceRowDrop = (sectionIndex, rowIndex, event) => {
+    event.preventDefault();
+
+    let source = draggingServiceRow;
+    if (!source && event?.dataTransfer) {
+      const raw = event.dataTransfer.getData("text/plain");
+      const [sec, row] = String(raw || "").split(":");
+      const parsedSection = Number(sec);
+      const parsedRow = Number(row);
+      if (Number.isInteger(parsedSection) && Number.isInteger(parsedRow)) {
+        source = { sectionIndex: parsedSection, rowIndex: parsedRow };
+      }
+    }
+
+    if (!source || source.sectionIndex !== sectionIndex) {
+      setDraggingServiceRow(null);
+      setDragOverServiceRow(null);
+      return;
+    }
+
+    const fromIndex = source.rowIndex;
+    const toIndex = rowIndex;
+
+    if (fromIndex === toIndex) {
+      setDraggingServiceRow(null);
+      setDragOverServiceRow(null);
+      return;
+    }
+
+    setServiceSections((prev) => {
+      const next = [...prev];
+      const section = next[sectionIndex];
+      if (!section || !Array.isArray(section.rows)) return prev;
+
+      const rows = [...section.rows];
+      if (fromIndex < 0 || fromIndex >= rows.length || toIndex < 0 || toIndex >= rows.length) {
+        return prev;
+      }
+
+      const [moved] = rows.splice(fromIndex, 1);
+      rows.splice(toIndex, 0, moved);
+      next[sectionIndex] = { ...section, rows };
+      return next;
+    });
+
+    setDraggingServiceRow(null);
+    setDragOverServiceRow(null);
+  };
+
+  const handleServiceRowDragEnd = () => {
+    setDraggingServiceRow(null);
+    setDragOverServiceRow(null);
   };
 
   // Tính tổng các giá trị trong bảng
@@ -1409,9 +1485,59 @@ const RequestEditModal = ({ request, users, currentUser, onClose, onSave, curren
                          <td style={{ padding: "10px" }}></td>
                        </tr>
                        {section.rows.map((row, rowIndex) => (
-                         <tr key={`section-${sectionIndex}-row-${rowIndex}`} style={{ backgroundColor: "#ffffff" }}>
-                           <td style={{ padding: "8px", textAlign: "center", color: "#d1d5db" }}>
-                             <span style={{ fontSize: "14px", cursor: "grab" }}>⋮⋮</span>
+                         <tr
+                           key={`section-${sectionIndex}-row-${rowIndex}`}
+                           onDragOver={(e) => handleServiceRowDragOver(sectionIndex, rowIndex, e)}
+                           onDrop={(e) => handleServiceRowDrop(sectionIndex, rowIndex, e)}
+                           onDragEnd={handleServiceRowDragEnd}
+                           style={{
+                             transition: "background-color 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease",
+                             backgroundColor:
+                               draggingServiceRow?.sectionIndex === sectionIndex && draggingServiceRow?.rowIndex === rowIndex
+                                 ? "#e0ecff"
+                                 : (dragOverServiceRow?.sectionIndex === sectionIndex && dragOverServiceRow?.rowIndex === rowIndex
+                                   ? "#f3f8ff"
+                                   : "#ffffff"),
+                             opacity:
+                               draggingServiceRow?.sectionIndex === sectionIndex && draggingServiceRow?.rowIndex === rowIndex
+                                 ? 0.82
+                                 : 1,
+                             borderTop:
+                               dragOverServiceRow?.sectionIndex === sectionIndex && dragOverServiceRow?.rowIndex === rowIndex
+                                 ? "3px solid #1d4ed8"
+                                 : "none",
+                             boxShadow:
+                               draggingServiceRow?.sectionIndex === sectionIndex && draggingServiceRow?.rowIndex === rowIndex
+                                 ? "0 0 0 2px rgba(59,130,246,0.35) inset, 0 8px 16px rgba(37,99,235,0.15)"
+                                 : "none"
+                           }}
+                         >
+                           <td style={{
+                             padding: "8px",
+                             textAlign: "center",
+                             color:
+                               draggingServiceRow?.sectionIndex === sectionIndex && draggingServiceRow?.rowIndex === rowIndex
+                                 ? "#2563eb"
+                                 : "#9ca3af"
+                           }}>
+                             <span
+                               draggable
+                               onDragStart={(e) => handleServiceRowDragStart(sectionIndex, rowIndex, e)}
+                               onDragEnd={handleServiceRowDragEnd}
+                               style={{
+                                 fontSize: "14px",
+                                 fontWeight: 700,
+                                 letterSpacing: "1px",
+                                 userSelect: "none",
+                                 cursor:
+                                   draggingServiceRow?.sectionIndex === sectionIndex && draggingServiceRow?.rowIndex === rowIndex
+                                     ? "grabbing"
+                                     : "grab"
+                               }}
+                               title="Kéo để đổi thứ tự"
+                             >
+                               ⋮⋮
+                             </span>
                            </td>
                            <td style={{ padding: "8px" }}>
                              {row.isCustomService ? (

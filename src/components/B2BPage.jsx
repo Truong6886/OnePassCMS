@@ -185,6 +185,43 @@ const parseMoney = (str) => {
   return parseFloat(str.toString().replace(/\./g, "")) || 0;
 };
 
+const calculateRecordRevenueAfterTax = (record) => {
+  if (!record) return 0;
+
+  const details = record.ChiTietDichVu || {};
+  const walletUsage = parseMoney(record.walletUsage || record.Vi || 0);
+
+  if (Array.isArray(details.services) && details.services.length > 0) {
+    let total = 0;
+
+    details.services.forEach((service) => {
+      const quantity = Number(service?.soluong) || 1;
+      const unitPrice = parseMoney(service?.dongia);
+      const taxRate = Number(service?.thue) || 0;
+      const discountRate = Number(service?.chietkhau) || 0;
+
+      const subtotal = quantity * unitPrice;
+      const taxAmount = subtotal * (taxRate / 100);
+      const discountAmount = subtotal * (discountRate / 100);
+
+      total += subtotal + taxAmount - discountAmount;
+    });
+
+    return Math.max(0, total - walletUsage);
+  }
+
+  const revenueAfter = parseMoney(record.revenueAfter || record.DoanhThuSauChietKhau || 0);
+  if (revenueAfter > 0) {
+    return Math.max(0, revenueAfter - walletUsage);
+  }
+
+  const revenueBefore = parseMoney(record.revenueBefore || record.DoanhThuTruocChietKhau || 0);
+  const discountRate = Number(record.discountRate || record.MucChietKhau || 0);
+  const discountAmount = revenueBefore * (discountRate / 100);
+
+  return Math.max(0, revenueBefore - discountAmount - walletUsage);
+};
+
 const hasB2BApprovePermission = (user) =>
   Boolean(user?.is_admin || user?.is_director || user?.is_accountant || user?.perm_approve_b2b);
 
@@ -1231,8 +1268,8 @@ export default function B2BPage() {
     return serviceData
       .filter(r => String(r.companyId) === String(companyId))
       .reduce((sum, r) => {
-        // Tổng theo doanh thu sau chiết khấu (sau thuế) của từng dịch vụ.
-        const total = parseMoney(r.revenueAfter);
+        // Tính trực tiếp theo chi tiết dịch vụ để luôn lấy doanh thu sau thuế.
+        const total = calculateRecordRevenueAfterTax(r);
         return sum + (Number.isFinite(total) ? total : 0);
       }, 0);
   };
