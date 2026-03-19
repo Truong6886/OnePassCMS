@@ -73,8 +73,14 @@ const B2C_SERVICE_CODE_MAP_NORMALIZED = Object.entries(B2C_SERVICE_CODE_MAP).red
 );
 
 const B2C_KNOWN_SERVICE_NAMES = new Set(Object.keys(B2C_SERVICE_CODE_MAP_NORMALIZED));
+let b2cServiceCodeMapNormalized = { ...B2C_SERVICE_CODE_MAP_NORMALIZED };
 
 let dbCategoryMap = {};
+
+const getServiceCodePrefixByName = (serviceName) => {
+  const normalized = normalizeServiceName(serviceName);
+  return b2cServiceCodeMapNormalized[normalized] || "";
+};
 
 const buildCategoryMapFromList = (list) => {
   const map = {};
@@ -127,7 +133,7 @@ const normalizeServiceCodeForRow = (item) => {
   if (!currentCode) return currentCode;
 
   const serviceName = getPrimaryServiceName(item);
-  const expectedPrefix = B2C_SERVICE_CODE_MAP_NORMALIZED[normalizeServiceName(serviceName)];
+  const expectedPrefix = getServiceCodePrefixByName(serviceName);
   if (!expectedPrefix) return currentCode;
 
   const codeMatch = currentCode.match(/^[^-]+-(\d{6})-([YNyn])-([0-9]{3})$/);
@@ -180,7 +186,7 @@ const buildCodeByServiceName = (baseCode, serviceName) => {
   const currentCode = String(baseCode || "").trim();
   if (!currentCode) return "";
 
-  const expectedPrefix = B2C_SERVICE_CODE_MAP_NORMALIZED[normalizeServiceName(serviceName)];
+  const expectedPrefix = getServiceCodePrefixByName(serviceName);
   if (!expectedPrefix) return currentCode;
 
   const codeMatch = currentCode.match(/^[^-]+-(\d{6})-([YNyn])-([0-9]{3})$/);
@@ -2496,6 +2502,22 @@ const B2CPage = ({ currentUser: currentUserProp }) => {
 
   useEffect(() => {
     const dynamicMap = buildCategoryMapFromList(dichvuList);
+    const dynamicCodeMap = {};
+
+    if (Array.isArray(dichvuList)) {
+      dichvuList.forEach((item) => {
+        const serviceName = String(item?.TenDichVu || "").trim();
+        const serviceCode = String(item?.MaDichVu || "").trim();
+        if (!serviceName || !serviceCode) return;
+        dynamicCodeMap[normalizeServiceName(serviceName)] = serviceCode;
+      });
+    }
+
+    b2cServiceCodeMapNormalized = {
+      ...B2C_SERVICE_CODE_MAP_NORMALIZED,
+      ...dynamicCodeMap,
+    };
+
     dbCategoryMap = {
       ...B2C_CATEGORY_LIST,
       ...dynamicMap,
@@ -2923,7 +2945,7 @@ const fetchData = async () => {
           showToast(
             createdCode
               ? `Đăng ký thành công - Đã cấp mã: ${createdCode}`
-              : "Đăng ký thành công (chưa lấy được mã, vui lòng F5)",
+              : "Đăng ký thành công",
             "success"
           );
         } else {
