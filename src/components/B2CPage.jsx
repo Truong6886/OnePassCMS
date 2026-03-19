@@ -3572,6 +3572,68 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
     return ((i.HoTen || "").toLowerCase().includes(s) || (i.Email || "").toLowerCase().includes(s) || (i.SoDienThoai || "").toLowerCase().includes(s) || (i.MaHoSo || "").toLowerCase().includes(s));
   });
 
+  const parseNumericValue = (value) => {
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+    const raw = String(value ?? "").trim();
+    if (!raw) return 0;
+
+    const cleaned = raw.replace(/[^0-9,.-]/g, "");
+    const compact = cleaned.replace(/,/g, "");
+    const direct = Number(compact);
+    if (Number.isFinite(direct)) return direct;
+
+    const thousandsStripped = cleaned.replace(/[.,]/g, "");
+    const fallback = Number(thousandsStripped);
+    return Number.isFinite(fallback) ? fallback : 0;
+  };
+
+  const getItemTotalRevenueAfterDiscount = (item) => {
+    let details = {};
+    try {
+      details = typeof item?.ChiTietDichVu === "string"
+        ? JSON.parse(item.ChiTietDichVu)
+        : (item?.ChiTietDichVu || {});
+    } catch {
+      details = {};
+    }
+
+    if (Array.isArray(details?.services) && details.services.length > 0) {
+      return details.services.reduce((sum, service) => {
+        const soluong = parseNumericValue(service?.soluong) || 1;
+        const dongia = parseNumericValue(service?.dongia);
+        const thue = parseNumericValue(service?.thue);
+        const chietkhau = parseNumericValue(service?.chietkhau);
+
+        const subtotal = soluong * dongia;
+        const taxAmount = subtotal * (thue / 100);
+        const discountAmount = subtotal * (chietkhau / 100);
+
+        return sum + (subtotal + taxAmount - discountAmount);
+      }, 0);
+    }
+
+    if (details?.main || Array.isArray(details?.sub)) {
+      const rows = [
+        details?.main,
+        ...(Array.isArray(details?.sub) ? details.sub : [])
+      ].filter(Boolean);
+
+      if (rows.length > 0) {
+        return rows.reduce((sum, row) => {
+          const rev = parseNumericValue(row?.revenue);
+          const disc = parseNumericValue(row?.discount);
+          return sum + (rev - rev * (disc / 100));
+        }, 0);
+      }
+    }
+
+    return parseNumericValue(item?.DoanhThuSauChietKhau);
+  };
+
+  const displayedTotalRevenue = Math.round(
+    filteredData.reduce((sum, row) => sum + getItemTotalRevenueAfterDiscount(row), 0)
+  );
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (columnMenuRef.current && !columnMenuRef.current.contains(event.target)) { setShowColumnMenu(false); }
@@ -3883,7 +3945,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                 <div className="d-flex justify-content-end align-items-center px-3 py-2 bg-light border-start border-end border-bottom">
                   <span className="me-2 text-muted fw-semibold">Tổng doanh thu tích luỹ:</span>
                   <span className="fs-6 fw-bold text-primary">
-                      {totalRevenue.toLocaleString("vi-VN")} đ
+                      {displayedTotalRevenue.toLocaleString("vi-VN")} đ
                   </span>
                 </div>
             )}
