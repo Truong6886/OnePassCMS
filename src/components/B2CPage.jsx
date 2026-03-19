@@ -5,17 +5,17 @@ import Header from "./Header";
 import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import EditProfileModal from "./EditProfileModal";
 import { showToast } from "../utils/toast";
-import useDashboardData from "./CMSDashboard/hooks/useDashboardData";
 import { LayoutGrid, Edit, Trash2, X, Pin, PinOff, PlusCircle, Check, ChevronDown, Eye, EyeOff, Plus } from "lucide-react";
 import Swal from "sweetalert2";
 import "../styles/DashboardList.css";
 import { authenticatedFetch } from "../utils/api";
 import translateService from "../utils/translateService";
 
-const API_BASE =
-  window.location.hostname === "localhost"
-    ? "http://localhost:5000/api"
-    : "https://onepasscms-backend-tvdy.onrender.com/api";
+const LOCAL_API_BASE = "http://localhost:5000/api";
+const REMOTE_API_BASE = "https://onepasscms-backend-tvdy.onrender.com/api";
+const API_BASE = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname)
+  ? LOCAL_API_BASE
+  : REMOTE_API_BASE;
 const CUSTOM_SERVICE_OPTION_VALUE = "__ADD_CUSTOM_SERVICE__";
 const CUSTOM_SERVICE_TYPE_VALUE = "__ADD_CUSTOM_SERVICE_TYPE__";
 const B2C_COLUMN_WIDTHS = {
@@ -48,6 +48,50 @@ const B2C_COLUMN_WIDTHS = {
   doanhThuSau: 130,
   tongDoanhThuTichLuy: 160,
   hanhDong: 132,
+};
+
+const normalizeServiceName = (value) =>
+  String(value || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const mapToB2CServiceType = (value) => String(value || "").trim();
+
+// Fallback maps to keep UI stable when source config is missing.
+const B2C_CATEGORY_LIST = {};
+const B2C_SERVICE_CODE_MAP = {};
+
+const B2C_SERVICE_CODE_MAP_NORMALIZED = Object.entries(B2C_SERVICE_CODE_MAP).reduce(
+  (acc, [name, prefix]) => {
+    const key = normalizeServiceName(name);
+    if (key && prefix) acc[key] = String(prefix).trim();
+    return acc;
+  },
+  {}
+);
+
+const B2C_KNOWN_SERVICE_NAMES = new Set(Object.keys(B2C_SERVICE_CODE_MAP_NORMALIZED));
+
+let dbCategoryMap = {};
+
+const buildCategoryMapFromList = (list) => {
+  const map = {};
+
+  if (!Array.isArray(list)) return map;
+
+  list.forEach((item) => {
+    const serviceType = String(item?.LoaiDichVu || "").trim();
+    const serviceName = String(item?.TenDichVu || "").trim();
+
+    if (!serviceType || !serviceName) return;
+
+    if (!map[serviceType]) map[serviceType] = [];
+    if (!map[serviceType].includes(serviceName)) map[serviceType].push(serviceName);
+  });
+
+  return map;
 };
 
 const getPrimaryServiceName = (item) => {
@@ -2365,8 +2409,16 @@ const RowItem = ({
   );
 };
 
-const B2CPage = () => {
-  const { currentUser } = useDashboardData();
+const B2CPage = ({ currentUser: currentUserProp }) => {
+  const [currentUser, setCurrentUser] = useState(() => {
+    const savedUser = localStorage.getItem("currentUser");
+    if (!savedUser) return null;
+    try {
+      return JSON.parse(savedUser);
+    } catch {
+      return null;
+    }
+  });
   const [showSidebar, setShowSidebar] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [currentLanguage, setCurrentLanguage] = useState(localStorage.getItem("language") || "vi");
@@ -2381,6 +2433,7 @@ const B2CPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 20;
   const tableContainerRef = useRef(null);
+  const lastConnectionToastRef = useRef(0);
   const [approveModalItem, setApproveModalItem] = useState(null);
   const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
   const unformatNumber = (value) => (value ? value.toString().replace(/\./g, "") : "");
@@ -2440,6 +2493,14 @@ const B2CPage = () => {
   useEffect(() => {
     fetchDichVu();
   }, []);
+
+  useEffect(() => {
+    const dynamicMap = buildCategoryMapFromList(dichvuList);
+    dbCategoryMap = {
+      ...B2C_CATEGORY_LIST,
+      ...dynamicMap,
+    };
+  }, [dichvuList]);
 
 const initialColumnKeys = [
     { key: "id", label: tHeaders.stt },
@@ -2521,7 +2582,7 @@ const handleApproveClick = (item) => {
             showToast(json.message || "Lỗi khi duyệt", "error");
         }
     } catch (err) {
-        showToast("Lỗi kết nối server", "error");
+      showConnectionToast();
     }
   };
   const [visibleColumns, setVisibleColumns] = useState({});
@@ -2535,6 +2596,72 @@ const handleApproveClick = (item) => {
 
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const columnMenuRef = useRef(null);
+
+  const showConnectionToast = () => {
+    const now = Date.now();
+    if (now - lastConnectionToastRef.current < 2000) return;
+    lastConnectionToastRef.current = now;
+    showToast("Lỗi kết nối server", "error");
+  };
+
+  useEffect(() => {
+    if (currentUserProp) {
+      setCurrentUser(currentUserProp);
+      return;
+    }
+
+    const savedUser = localStorage.getItem("currentUser");
+    if (!savedUser) return;
+
+    try {
+      setCurrentUser(JSON.parse(savedUser));
+    } catch {
+      setCurrentUser(null);
+    }
+  }, [currentUserProp]);
+
+  const requestWithFallback = async (url, options = {}) => {
+    const urlCandidates = [url];
+    if (url.startsWith(LOCAL_API_BASE)) {
+      urlCandidates.push(url.replace(LOCAL_API_BASE, REMOTE_API_BASE));
+    }
+
+    let lastErr = null;
+
+    for (const targetUrl of urlCandidates) {
+      try {
+        return await authenticatedFetch(targetUrl, options);
+      } catch (primaryErr) {
+        lastErr = primaryErr;
+        console.warn("authenticatedFetch failed, fallback to fetch:", targetUrl, primaryErr);
+
+        const token = localStorage.getItem("sessionToken");
+        const userStr = localStorage.getItem("currentUser");
+        let fallbackUser = null;
+        try {
+          fallbackUser = userStr ? JSON.parse(userStr) : null;
+        } catch {
+          fallbackUser = null;
+        }
+
+        const fallbackHeaders = {
+          ...(!(options.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(fallbackUser?.id ? { "x-user-id": fallbackUser.id } : {}),
+          ...(options.headers || {}),
+        };
+
+        try {
+          return await fetch(targetUrl, { ...options, headers: fallbackHeaders });
+        } catch (fallbackErr) {
+          lastErr = fallbackErr;
+          console.warn("fetch fallback failed:", targetUrl, fallbackErr);
+        }
+      }
+    }
+
+    throw lastErr || new Error("All API fallbacks failed");
+  };
 
 const tableHeaders = [
     tHeaders.stt, tHeaders.khachHang, tHeaders.maVung, tHeaders.soDienThoai, tHeaders.email, 
@@ -2575,25 +2702,49 @@ const tableHeaders = [
 
 const fetchData = async () => {
     try {
+  if (!currentUser) return;
+
+    const currentUserId = Number(
+    currentUser?.id ??
+    currentUser?.userId ??
+    currentUser?.UserID
+    );
+
       let url = `${API_BASE}/yeucau?page=${currentPage}&limit=${itemsPerPage}`;
       
       if (currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) { 
           url += `&is_admin=true`; 
-      } else { 
-          url += `&userId=${currentUser?.id}`; 
+    } else if (Number.isFinite(currentUserId) && currentUserId > 0) {
+      url += `&userId=${currentUserId}`;
+    } else {
+      console.warn("B2C fetchData skipped invalid currentUser id:", currentUser);
+      return;
       }
  
-      const res = await authenticatedFetch(url);
-      
-      if (!res) return;
+      const res = await requestWithFallback(url);
+      if (!res) throw new Error("No response from API");
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
 
-      const json = await res.json();
+      let json;
+      try {
+        json = await res.json();
+      } catch (parseErr) {
+        throw new Error(`Invalid API payload: ${parseErr.message}`);
+      }
       
       if (json.success) { 
-          const normalizedRows = (json.data || []).map((row) => ({
-            ...row,
-            MaHoSo: normalizeServiceCodeForRow(row)
-          }));
+          const sourceRows = Array.isArray(json.data) ? json.data : [];
+          const normalizedRows = sourceRows.map((row) => {
+            try {
+              return {
+                ...row,
+                MaHoSo: normalizeServiceCodeForRow(row)
+              };
+            } catch (rowErr) {
+              console.warn("B2C row normalize failed, keep raw row:", rowErr, row);
+              return row;
+            }
+          });
           setData(normalizedRows); 
           setTotalPages(json.totalPages || 1); 
           setTotalRevenue(json.totalRevenue || 0);
@@ -2601,8 +2752,9 @@ const fetchData = async () => {
           showToast("Không thể tải dữ liệu", "error"); 
       }
 
-    } catch (err) { 
-        showToast("Lỗi kết nối server", "error"); 
+    } catch (err) {
+        console.error("B2C fetchData failed:", err);
+      showConnectionToast();
     }
   };
 

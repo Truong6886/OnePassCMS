@@ -166,7 +166,7 @@ const formatDateTimeReject = (isoString) => {
 const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
 const unformatNumber = (value) => (value ? value.toString().replace(/\./g, "") : "");
 
-const API_BASE = window.location.hostname === "localhost"
+const API_BASE = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname)
   ? "http://localhost:5000/api"
   : "https://onepasscms-backend-tvdy.onrender.com/api";
 
@@ -251,13 +251,24 @@ const toServiceCodeDatePart = (value, fallback = "") => {
   return fallback;
 };
 
+const dateFromServiceCode = (serviceCode) => {
+  const match = String(serviceCode || "").trim().match(/^[^-]+-(\d{6})-[YNyn]-\d{3}$/);
+  if (!match) return "";
+  const datePart = match[1];
+  const yy = Number(datePart.slice(0, 2));
+  const mm = datePart.slice(2, 4);
+  const dd = datePart.slice(4, 6);
+  const fullYear = yy >= 70 ? `19${String(yy).padStart(2, "0")}` : `20${String(yy).padStart(2, "0")}`;
+  return `${fullYear}-${mm}-${dd}`;
+};
+
 const normalizeB2BCodeBySubmissionDate = (item) => {
   const currentCode = String(item?.MaDichVu || "").trim();
   const match = currentCode.match(/^([^-]+)-(\d{6})-([YNyn])-([0-9]{3})$/);
   if (!match) return currentCode;
 
   const expectedDate = toServiceCodeDatePart(
-    item?.NgayBatDau || item?.NgayThucHien || item?.NgayTao || item?.CreatedAt,
+    item?.NgayHen || item?.NgayBatDau || item?.NgayThucHien || item?.NgayTao || item?.CreatedAt,
     match[2]
   );
   const expectedInvoiceCode = ["yes", "có", "true", "y"].includes(
@@ -484,10 +495,73 @@ export default function B2BPage() {
         return false;
       }
 
-      // ...phần xử lý tiếp theo của bạn ở đây...
+      const canApproveB2B = hasB2BApprovePermission(currentUser);
+      let approveAction = null;
 
-      // Nếu thành công:
-      loadServices(currentPage.services || 1);
+      if (serviceModalMode === "create" && canApproveB2B) {
+        approveAction = "accountant_approve";
+      }
+
+      if (
+        serviceModalMode === "edit" &&
+        canApproveB2B &&
+        isPendingServiceStatus(editingServiceData?.status || editingServiceData?.TrangThai)
+      ) {
+        approveAction = "accountant_approve";
+      }
+
+      const savePayload = {
+        ...payload,
+        approveAction,
+        userId: currentUser?.id
+      };
+
+      let url = `${API_BASE}/b2b/services`;
+      let method = "POST";
+
+      if (serviceModalMode === "edit" && editingServiceData?.id) {
+        url = `${API_BASE}/b2b/services/update/${editingServiceData.id}`;
+        method = "PUT";
+      }
+
+      const saveRes = await authenticatedFetch(url, {
+        method,
+        body: JSON.stringify(savePayload)
+      });
+
+      if (!saveRes) {
+        showToast("Không thể lưu dịch vụ - vui lòng thử lại", "error");
+        return false;
+      }
+
+      const saveJson = await saveRes.json();
+      if (!saveJson.success) {
+        showToast(saveJson.message || "Lưu dịch vụ thất bại", "error");
+        return false;
+      }
+
+      const serviceCode = String(
+        saveJson.newCode ||
+        saveJson.code ||
+        saveJson.MaDichVu ||
+        saveJson.data?.MaDichVu ||
+        saveJson.data?.ServiceID ||
+        "CHUA_CAP_MA"
+      ).trim();
+
+      showToast(
+        serviceModalMode === "edit"
+          ? `CHỈNH SỬA / CẬP NHẬT DỊCH VỤ THÀNH CÔNG - Mã dịch vụ: ${serviceCode}`
+          : `ĐĂNG KÝ DỊCH VỤ THÀNH CÔNG - Đã cấp mã: ${serviceCode}`,
+        "success"
+      );
+
+      const targetPage = serviceModalMode === "create" ? 1 : (currentPage.services || 1);
+      if (serviceModalMode === "create" && currentPage.services !== 1) {
+        setCurrentPage((prev) => ({ ...prev, services: 1 }));
+      }
+
+      loadServices(targetPage);
       return true;
     } catch (err) {
       console.error("Detailed error:", err);
@@ -1119,7 +1193,7 @@ export default function B2BPage() {
             code: !isPendingServiceStatus(item.TrangThai) ? normalizeB2BCodeBySubmissionDate(item) : "",
             createdDate: toDateOnly(item.NgayTao) || toDateOnly(item.createdAt) || toDateOnly(item.CreatedAt) || toDateOnly(item.NgayDangKy) || toDateOnly(item.NgayDangKyB2B) || toDateOnly(item.NgayBatDau) || toDateOnly(item.NgayThucHien),
             startDate: toDateOnly(item.NgayBatDau) || toDateOnly(item.NgayThucHien),
-            appointmentDate: toDateOnly(item.NgayKetThuc),
+            appointmentDate: toDateOnly(item.NgayHen) || dateFromServiceCode(item.MaDichVu || item.ServiceID),
             completionDate: toDateOnly(item.NgayHoanThanh),
             revenueBefore: item.DoanhThuTruocChietKhau,
             discountRate: item.MucChietKhau,
@@ -1241,6 +1315,7 @@ export default function B2BPage() {
       DiaChiNhan: service.DiaChiNhan || "",
 
       NgayBatDau: service.startDate,
+      NgayHen: service.appointmentDate || service.NgayHen || "",
       NgayHoanThanh: service.endDate,
 
       DoanhThu: mainRevenueStr,
@@ -1299,6 +1374,8 @@ export default function B2BPage() {
         LoaiDichVu: selectedService.LoaiDichVu || selectedService.serviceType,
         TenDichVu: selectedService.TenDichVu || selectedService.serviceName,
         NgayThucHien: selectedService.NgayBatDau || selectedService.startDate,
+        NgayKetThuc: selectedService.NgayHen || selectedService.appointmentDate || selectedService.endDate || null,
+        NgayHen: selectedService.NgayHen || selectedService.appointmentDate || selectedService.endDate || null,
         DiaChiNhan: selectedService.DiaChiNhan || "",
         TrangThai: finalApprovedStatus,
         NgayHoanThanh: selectedService.NgayHoanThanh || selectedService.endDate,
@@ -3062,7 +3139,34 @@ export default function B2BPage() {
                     }));
                   }
                   else {
-                    setSelectedService(prev => ({ ...prev, [name]: value }));
+                    setSelectedService(prev => {
+                      if (name === "NgayBatDau") {
+                        return {
+                          ...prev,
+                          NgayBatDau: value,
+                          startDate: value,
+                        };
+                      }
+
+                      if (name === "NgayHen") {
+                        return {
+                          ...prev,
+                          NgayHen: value,
+                          appointmentDate: value,
+                          endDate: value,
+                        };
+                      }
+
+                      if (name === "NgayHoanThanh") {
+                        return {
+                          ...prev,
+                          NgayHoanThanh: value,
+                          endDate: value,
+                        };
+                      }
+
+                      return { ...prev, [name]: value };
+                    });
                   }
                 };
 
@@ -3236,7 +3340,7 @@ export default function B2BPage() {
                       <input
                         type="date"
                         name="NgayBatDau"
-                        value={selectedService.startDate || ""}
+                        value={selectedService.NgayBatDau || selectedService.startDate || ""}
                         onChange={handleApproveModalChange}
                         style={inputStyle}
                       />
@@ -3244,16 +3348,16 @@ export default function B2BPage() {
 
                     {/* Ngày hoàn thành (có thể sửa) */}
                     <div className="col-md-6">
-                      <label style={labelStyle}>Ngày hoàn thành mong muốn</label>
+                      <label style={labelStyle}>Ngày hẹn</label>
                       <input
                         type="date"
-                        name="NgayHoanThanh"
-                        value={selectedService.endDate || ""}
+                        name="NgayHen"
+                        value={selectedService.NgayHen || selectedService.appointmentDate || selectedService.endDate || ""}
                         onChange={handleApproveModalChange}
                         style={inputStyle}
                       />
                       <div style={helperTextStyle}>
-                        Ngày hoàn thành dịch vụ có thể sai khác tuỳ thuộc vào thực tế hồ sơ.
+                        Ngày hẹn trả kết quả dùng để đồng bộ với mã dịch vụ.
                       </div>
                     </div>
 

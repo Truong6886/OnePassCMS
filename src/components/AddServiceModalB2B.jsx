@@ -4,7 +4,7 @@ import ReactDOM from "react-dom";
 import { showToast } from "../utils/toast";
 import { authenticatedFetch } from "../utils/api";
 
-const API_BASE = window.location.hostname === "localhost"
+const API_BASE = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname)
   ? "http://localhost:5000/api"
   : "https://onepasscms-backend-tvdy.onrender.com/api";
 const CUSTOM_SERVICE_OPTION_VALUE = "__ADD_CUSTOM_SERVICE__";
@@ -274,7 +274,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
             editingService.CreatedAt?.split?.("T")?.[0] ||
             "",
           NgayDangKy: editingService.startDate || new Date().toISOString().split('T')[0],
-          NgayHen: editingService.appointmentDate || editingService.NgayKetThuc || "",
+          NgayHen: editingService.appointmentDate || editingService.NgayHen || editingService.NgayKetThuc || "",
           NgayHoanThanh:
             editingService.completionDate ||
             editingService.NgayHoanThanh?.split?.("T")?.[0] ||
@@ -742,7 +742,7 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
       Email: formData.Email,
       NgayTao: createdDate,
       NgayBatDau: formData.NgayDangKy,
-      NgayKetThuc: formData.NgayHen,
+      NgayHen: formData.NgayHen,
       NgayHoanThanh: completionDate,
       GhiChu: formData.GhiChu || "",
       TenHinhThuc: formData.TenHinhThuc || "",
