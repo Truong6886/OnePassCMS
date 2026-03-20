@@ -2041,13 +2041,59 @@ export default function B2BPage() {
     };
 
     const displayData = [...(serviceData || [])].sort((a, b) => {
-      const compA = String(a.companyId || a.DoanhNghiepID || "");
-      const compB = String(b.companyId || b.DoanhNghiepID || "");
-      if (compA !== "" && compB === "") return -1;
-      if (compA === "" && compB !== "") return 1;
-      if (compA !== "" && compB !== "") return compA.localeCompare(compB);
+      const timeA = new Date(a.NgayTao || a.CreatedAt || a.createdAt || "").getTime();
+      const timeB = new Date(b.NgayTao || b.CreatedAt || b.createdAt || "").getTime();
+      const hasTimeA = Number.isFinite(timeA) && timeA > 0;
+      const hasTimeB = Number.isFinite(timeB) && timeB > 0;
+
+      if (hasTimeA && hasTimeB && timeA !== timeB) {
+        // Dịch vụ nhập trước hiển thị trước.
+        return timeA - timeB;
+      }
+
       return (a.id || 0) - (b.id || 0);
     });
+
+    const normalizedKeyword = String(searchTerm || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+
+    const filteredDisplayData = !normalizedKeyword
+      ? displayData
+      : displayData.filter((rec) => {
+          const details = rec?.ChiTietDichVu || {};
+          const detailNames = Array.isArray(details.services)
+            ? details.services.map((s) => `${s?.name || ""} ${s?.note || s?.ghiChu || s?.serviceNote || ""}`).join(" ")
+            : "";
+
+          const rawText = [
+            rec.companyName,
+            rec.soDKKD,
+            rec.serviceType,
+            rec.serviceName,
+            rec.code,
+            rec.picName,
+            rec.status,
+            rec.email,
+            rec.phoneNumber,
+            rec.NoiTiepNhanHoSo,
+            rec.DiaChiNhan,
+            rec.GhiChu,
+            rec.DanhMuc,
+            detailNames,
+          ]
+            .filter(Boolean)
+            .join(" ");
+
+          const normalizedText = rawText
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase();
+
+          return normalizedText.includes(normalizedKeyword);
+        });
 
     return (
       <div>
@@ -2237,8 +2283,8 @@ export default function B2BPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {displayData && displayData.length > 0 ? (
-                    displayData.map((rec, idx) => {
+                  {filteredDisplayData && filteredDisplayData.length > 0 ? (
+                    filteredDisplayData.map((rec, idx) => {
                       const globalIndex = idx + 1 + (currentPage.services - 1) * PAGE_SIZE;
                       const subRowsCount = getSubRowCount(rec);
                       
@@ -2286,7 +2332,7 @@ export default function B2BPage() {
                       const servicesList = serviceRows.map((s) => s.name || "");
                       
                       const currentCompanyId = String(rec.companyId || rec.DoanhNghiepID || "");
-                      const prevCompanyId = idx > 0 ? String(displayData[idx - 1].companyId || displayData[idx - 1].DoanhNghiepID || "") : null;
+                      const prevCompanyId = idx > 0 ? String(filteredDisplayData[idx - 1].companyId || filteredDisplayData[idx - 1].DoanhNghiepID || "") : null;
 
                       let shouldRenderCompanyCell = false;
                       let companyRowSpan = 0;
@@ -2294,8 +2340,8 @@ export default function B2BPage() {
 
                       if (!currentCompanyId || currentCompanyId !== prevCompanyId) {
                         shouldRenderCompanyCell = true;
-                        for (let i = idx; i < displayData.length; i++) {
-                          const nextRec = displayData[i];
+                        for (let i = idx; i < filteredDisplayData.length; i++) {
+                          const nextRec = filteredDisplayData[i];
                           if (String(nextRec.companyId || nextRec.DoanhNghiepID || "") !== currentCompanyId) break;
                           companyRowSpan += getSubRowCount(nextRec);
                         }
@@ -2478,7 +2524,7 @@ export default function B2BPage() {
                         );
                       });
                     })
-                  ) : (<tr><td colSpan="100%" className="text-center text-muted py-4">Chưa có dữ liệu</td></tr>)}
+                  ) : (<tr><td colSpan="100%" className="text-center text-muted py-4">{normalizedKeyword ? "Không tìm thấy kết quả" : "Chưa có dữ liệu"}</td></tr>)}
                 </tbody>
               </table>
             </div>

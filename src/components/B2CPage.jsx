@@ -5,7 +5,7 @@ import Header from "./Header";
 import NotificationPanel from "./CMSDashboard/NotificationPanel";
 import EditProfileModal from "./EditProfileModal";
 import { showToast } from "../utils/toast";
-import { LayoutGrid, Edit, Trash2, X, Pin, PinOff, PlusCircle, Check, ChevronDown, Eye, EyeOff, Plus } from "lucide-react";
+import { LayoutGrid, Edit, Trash2, X, Pin, PinOff, PlusCircle, Check, ChevronDown, Eye, EyeOff, Plus, SlidersHorizontal } from "lucide-react";
 import Swal from "sweetalert2";
 import "../styles/DashboardList.css";
 import { authenticatedFetch } from "../utils/api";
@@ -2559,11 +2559,13 @@ const B2CPage = ({ currentUser: currentUserProp }) => {
   const [dichvuList, setDichvuList] = useState([]);
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [pendingSearch, setPendingSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 20;
   const tableContainerRef = useRef(null);
   const lastConnectionToastRef = useRef(0);
+  // Đã bỏ filterMenuRef
   const [approveModalItem, setApproveModalItem] = useState(null);
   const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
   const unformatNumber = (value) => (value ? value.toString().replace(/\./g, "") : "");
@@ -2743,6 +2745,8 @@ const handleApproveClick = (item) => {
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const columnMenuRef = useRef(null);
 
+  // Đã bỏ filter options và hasActiveFilters
+
   const showConnectionToast = () => {
     const now = Date.now();
     if (now - lastConnectionToastRef.current < 2000) return;
@@ -2846,17 +2850,26 @@ const tableHeaders = [
     fetchCatalogs();
   }, []);
 
+
 const fetchData = async () => {
-    try {
-  if (!currentUser) return;
+  try {
+    if (!currentUser) return;
 
     const currentUserId = Number(
-    currentUser?.id ??
-    currentUser?.userId ??
-    currentUser?.UserID
+      currentUser?.id ??
+      currentUser?.userId ??
+      currentUser?.UserID
     );
 
-      let url = `${API_BASE}/yeucau?page=${currentPage}&limit=${itemsPerPage}`;
+    const params = new URLSearchParams({
+      page: String(currentPage),
+      limit: String(itemsPerPage),
+    });
+
+    if (searchTerm) params.set("search", searchTerm);
+    // Đã bỏ filter, chỉ còn searchTerm
+
+      let url = `${API_BASE}/yeucau?${params.toString()}`;
       
       if (currentUser?.is_admin || currentUser?.is_director || currentUser?.is_accountant) { 
           url += `&is_admin=true`; 
@@ -2904,7 +2917,12 @@ const fetchData = async () => {
     }
   };
 
-  useEffect(() => { fetchData(); }, [currentPage, currentUser]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  useEffect(() => { fetchData(); }, [currentPage, currentUser, searchTerm]);
 
   const handleEditClick = (item) => { setEditingRequest(item); };
   const handleViewDetailClick = (item, serviceCode, clickedRow) => {
@@ -3692,11 +3710,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
     } catch { showToast("Lỗi kết nối", "error"); }
   };
 
-  const filteredData = data.filter((i) => {
-    if (!searchTerm) return true;
-    const s = searchTerm.toLowerCase();
-    return ((i.HoTen || "").toLowerCase().includes(s) || (i.Email || "").toLowerCase().includes(s) || (i.SoDienThoai || "").toLowerCase().includes(s) || (i.MaHoSo || "").toLowerCase().includes(s));
-  });
+  const filteredData = data;
 
   const parseNumericValue = (value) => {
     if (typeof value === "number") return Number.isFinite(value) ? value : 0;
@@ -3885,16 +3899,40 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
         <div className="mb-4">
           <div className="p-0">
             <div className="d-flex justify-content-between align-items-end mb-3 mt-4">
-              <input
-                type="text"
-                className="form-control shadow-sm"
-                placeholder={currentLanguage === "vi" ? "Tìm kiếm Họ tên, Email, SĐT..." : "Search Name, Email, Phone..."}
-                style={{ width: 300, marginLeft:90, borderRadius: "30px", paddingLeft: "18px", transition: "all 0.3s ease", fontSize: "14px" }}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onFocus={(e) => (e.target.style.boxShadow = "0 0 8px rgba(37,99,235,0.3)")}
-                onBlur={(e) => (e.target.style.boxShadow = "none")}
-              />
+              <div className="d-flex align-items-center gap-2" style={{ marginLeft: 90 }}>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder={currentLanguage === "vi" ? "Tìm theo tên, email, tên dịch vụ, người phụ trách..." : "Search name, email, service, assignee..."}
+                  style={{
+                    width: 280,
+                    borderRadius: "20px",
+                    paddingLeft: "16px",
+                    fontSize: "14px",
+                    border: "1px solid #e5e7eb",
+                    background: "#fafbfc"
+                  }}
+                  value={pendingSearch}
+                  onChange={(e) => setPendingSearch(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn"
+                  style={{
+                    borderRadius: "20px",
+                    background: "#f3f4f6",
+                    color: "#222",
+                    border: "1px solid #e5e7eb",
+                    fontWeight: 500,
+                    padding: "0 22px",
+                    height: 40,
+                    boxShadow: "none"
+                  }}
+                  onClick={() => setSearchTerm(pendingSearch)}
+                >
+                  {currentLanguage === "vi" ? "Bộ lọc" : "Filter"}
+                </button>
+              </div>
 
               {currentUser && (
                 <div className="d-flex align-items-center gap-2">

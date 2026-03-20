@@ -252,17 +252,23 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
         const defaultPackage = normalizePackageOption(editingService.package || editingService.GoiDichVu || "thường") || "thường";
         const selectedCompany = companiesList.find(c => String(c.ID) === String(editingService.companyId || editingService.DoanhNghiepID));
         const fallbackPhone = selectedCompany?.SoDienThoai || selectedCompany?.phoneNumber || selectedCompany?.PhoneNumber || "";
+        const fallbackAreaCode = selectedCompany?.MaVung || selectedCompany?.maVung || "";
         const fallbackEmail = selectedCompany?.Email || selectedCompany?.email || "";
         const mergedPhone = editingService.phoneNumber || editingService.SoDienThoai || editingService.PhoneNumber || fallbackPhone;
+        const mergedAreaCode = editingService.MaVung || editingService.maVung || fallbackAreaCode;
         const mergedEmail = editingService.email || editingService.Email || fallbackEmail;
-        const parsePhone = (rawPhone = "") => {
+        const parsePhone = (rawPhone = "", areaCode = "") => {
           const phone = String(rawPhone || "").trim();
-          if (!phone) return { maVung: "+84", soDienThoai: "" };
-          if (phone.startsWith("+84")) return { maVung: "+84", soDienThoai: phone.slice(3).trim() };
-          if (phone.startsWith("+82")) return { maVung: "+82", soDienThoai: phone.slice(3).trim() };
-          return { maVung: "+84", soDienThoai: phone };
+          const normalizedAreaCode = String(areaCode || "").trim();
+          const phoneMatch = phone.match(/^(\+\d{1,4})\s*(.*)$/);
+          if (!phone) return { maVung: normalizedAreaCode || "+84", soDienThoai: "" };
+          if (phoneMatch) {
+            const [, prefix, rest] = phoneMatch;
+            return { maVung: normalizedAreaCode || prefix, soDienThoai: String(rest || "").trim() };
+          }
+          return { maVung: normalizedAreaCode || "+84", soDienThoai: phone };
         };
-        const { maVung, soDienThoai } = parsePhone(mergedPhone);
+        const { maVung, soDienThoai } = parsePhone(mergedPhone, mergedAreaCode);
 
         setFormData({
           DoanhNghiepID: editingService.companyId || "",
@@ -611,21 +617,20 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
     InvoiceUrl: ""
   });
 
-  const parsePhoneWithAreaCode = (rawPhone = "") => {
+  const parsePhoneWithAreaCode = (rawPhone = "", areaCode = "") => {
     const phone = String(rawPhone || "").trim();
+    const normalizedAreaCode = String(areaCode || "").trim();
     if (!phone) {
-      return { maVung: "+84", soDienThoai: "" };
+      return { maVung: normalizedAreaCode || "+84", soDienThoai: "" };
     }
 
-    if (phone.startsWith("+84")) {
-      return { maVung: "+84", soDienThoai: phone.slice(3).trim() };
+    const phoneMatch = phone.match(/^(\+\d{1,4})\s*(.*)$/);
+    if (phoneMatch) {
+      const [, prefix, rest] = phoneMatch;
+      return { maVung: normalizedAreaCode || prefix, soDienThoai: String(rest || "").trim() };
     }
 
-    if (phone.startsWith("+82")) {
-      return { maVung: "+82", soDienThoai: phone.slice(3).trim() };
-    }
-
-    return { maVung: "+84", soDienThoai: phone };
+    return { maVung: normalizedAreaCode || "+84", soDienThoai: phone };
   };
 
   const handleDocUpload = async (files) => {
@@ -671,8 +676,9 @@ const AddServiceModalB2B = ({ isOpen, onClose, onSave, currentUser, currentLangu
       const selectedCompany = companiesList.find(c => String(c.ID) === String(value));
       if (selectedCompany) {
         const companyPhone = selectedCompany.SoDienThoai || selectedCompany.phoneNumber || selectedCompany.PhoneNumber || "";
+        const companyAreaCode = selectedCompany.MaVung || selectedCompany.maVung || "";
         const companyEmail = selectedCompany.Email || selectedCompany.email || "";
-        const { maVung, soDienThoai } = parsePhoneWithAreaCode(companyPhone);
+        const { maVung, soDienThoai } = parsePhoneWithAreaCode(companyPhone, companyAreaCode);
 
         setFormData(prev => {
           const next = {
