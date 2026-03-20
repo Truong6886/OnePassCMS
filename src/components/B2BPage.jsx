@@ -170,9 +170,16 @@ const formatDateTimeReject = (isoString) => {
 const formatNumber = (value) => (!value ? "0" : value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
 const unformatNumber = (value) => (value ? value.toString().replace(/\./g, "") : "");
 
-const API_BASE = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname)
+const isLocalNetworkHost = (host) =>
+  ["localhost", "127.0.0.1", "::1"].includes(host) ||
+  /^10\./.test(host) ||
+  /^192\.168\./.test(host) ||
+  /^172\.(1[6-9]|2\d|3[0-1])\./.test(host);
+
+const API_BASE = isLocalNetworkHost(window.location.hostname)
   ? "http://localhost:5000/api"
   : "https://onepasscms-backend-tvdy.onrender.com/api";
+const PAGE_SIZE = 20;
 
 const mapToUnifiedB2BServiceType = (value) => {
   const cleanValue = String(value || "").trim().toLowerCase();
@@ -335,6 +342,58 @@ const normalizePackageLabel = (value) => {
   return String(value || "").trim();
 };
 
+const normalizeApprovedCompanyRecord = (item = {}) => ({
+  ...item,
+  TenDoanhNghiep: item.TenDoanhNghiep || item.tenDoanhNghiep || item.CompanyName || "",
+  SoDKKD: item.SoDKKD || item.soDKKD || item.BusinessRegistrationNumber || "",
+  NguoiDaiDien: item.NguoiDaiDien || item.nguoiDaiDien || item.NguoiDaiDienPhapLuat || "",
+  NganhNgheChinh: item.NganhNgheChinh || item.nganhNgheChinh || item.NganhNghe || item.nganhNghe || "",
+  DiaChi: item.DiaChi || item.diaChi || item.DiaChiTruSo || item.Address || "",
+  MaVung: item.MaVung || item.maVung || "",
+  SoDienThoai:
+    item.SoDienThoai ||
+    item.soDienThoai ||
+    item.SoDienThoaiLienHe ||
+    item.phone ||
+    item.phoneNumber ||
+    "",
+  Email: item.Email || item.email || ""
+});
+
+const formatCompanyPhoneNumber = (item = {}) => {
+  const rawPhone = String(item?.SoDienThoai || "").trim();
+  const maVung = String(item?.MaVung || "").trim();
+
+  if (!rawPhone) return "";
+  if (rawPhone.startsWith("+")) {
+    if (!maVung) return rawPhone;
+    const parsed = rawPhone.match(/^(\+\d{1,4})\s*(.*)$/);
+    if (!parsed) return rawPhone;
+    const normalizedCode = maVung.startsWith("+") ? maVung : `+${maVung}`;
+    const local = String(parsed[2] || "").trim();
+    return `${normalizedCode} ${local}`.trim();
+  }
+  if (!maVung) return rawPhone;
+
+  const normalizedCode = maVung.startsWith("+") ? maVung : `+${maVung}`;
+  return `${normalizedCode} ${rawPhone}`.trim();
+};
+
+const splitPhoneForEditForm = (item = {}) => {
+  const rawPhone = String(item?.SoDienThoai || "").trim();
+  const rawAreaCode = String(item?.MaVung || "").trim();
+  const parsed = rawPhone.match(/^(\+\d{1,4})\s*(.*)$/);
+
+  const parsedCode = parsed ? parsed[1] : "";
+  const localNumber = parsed ? String(parsed[2] || "").trim() : rawPhone;
+  const areaCode = rawAreaCode || parsedCode || "+82";
+
+  return {
+    MaVung: areaCode,
+    SoDienThoai: localNumber,
+  };
+};
+
 
 export default function B2BPage() {
   // State cho popup cấu hình cột
@@ -455,7 +514,7 @@ export default function B2BPage() {
     
     // Load danh sách khách hàng đang hoạt động nếu chưa có
     if (approvedList.length === 0) {
-      loadApproved(1);
+      loadApprovedListAll();
     }
 
     // Tải lại danh sách dịch vụ mới nhất từ DB (để hiển thị dịch vụ vừa thêm)
@@ -883,6 +942,9 @@ export default function B2BPage() {
     SoDKKD: "",
     NguoiDaiDien: "",
     NganhNgheChinh: "",
+    SoDienThoai: "",
+    Email: "",
+    MaVung: "",
     DiaChi: ""
   });
 
@@ -1121,7 +1183,10 @@ export default function B2BPage() {
   useEffect(() => {
     if (!currentUser) return;
     if (activeTab === "pending") loadPending(currentPage.pending);
-    if (activeTab === "approved") loadApproved(currentPage.approved);
+    if (activeTab === "approved") {
+      loadApproved(currentPage.approved);
+      loadApprovedListAll();
+    }
     if (activeTab === "rejected") loadRejected(currentPage.rejected);
     if (activeTab === "services") loadServices(currentPage.services);
   }, [activeTab, currentPage, currentUser]);
@@ -1137,7 +1202,7 @@ export default function B2BPage() {
 
       const [pendingRes, approvedRes, rejectedRes] = await Promise.all([
         authenticatedFetch(`${API_BASE}/b2b/pending`),
-        authenticatedFetch(`${API_BASE}/b2b/approved`),
+        authenticatedFetch(`${API_BASE}/b2b/approved?all=true`),
         authenticatedFetch(`${API_BASE}/b2b/reject`)
       ]);
 
@@ -1149,7 +1214,7 @@ export default function B2BPage() {
       const r = await rejectedRes.json();
 
       setPendingList((p.data || []).map(item => ({ ...item, rejectionReason: "" })));
-      setApprovedList(a.data || []);
+      setApprovedList((a.data || []).map(normalizeApprovedCompanyRecord));
       setRejectedList(r.data || []);
 
       loadServices(1);
@@ -1160,9 +1225,23 @@ export default function B2BPage() {
     }
   };
 
+  const loadApprovedListAll = async () => {
+    try {
+      const res = await authenticatedFetch(`${API_BASE}/b2b/approved?all=true`);
+      if (!res) return;
+
+      const json = await res.json();
+      if (json.success) {
+        setApprovedList((json.data || []).map(normalizeApprovedCompanyRecord));
+      }
+    } catch (error) {
+      console.error("Lỗi tải danh sách doanh nghiệp đã duyệt (all)", error);
+    }
+  };
+
 
   const loadPending = async (page = 1) => {
-    const res = await authenticatedFetch(`${API_BASE}/b2b/pending?page=${page}&limit=20`);
+    const res = await authenticatedFetch(`${API_BASE}/b2b/pending?page=${page}&limit=${PAGE_SIZE}`);
     if (!res) return;
 
     const json = await res.json();
@@ -1170,19 +1249,19 @@ export default function B2BPage() {
   };
 
   const loadApproved = async (page = 1) => {
-    const res = await authenticatedFetch(`${API_BASE}/b2b/approved?page=${page}&limit=20`);
+    const res = await authenticatedFetch(`${API_BASE}/b2b/approved?page=${page}&limit=${PAGE_SIZE}`);
     if (!res) return;
 
     const json = await res.json();
     if (json.success) { 
-      setApprovedData(json.data);
-      setApprovedList(json.data || []);
+      const normalizedApprovedData = (json.data || []).map(normalizeApprovedCompanyRecord);
+      setApprovedData(normalizedApprovedData);
       setApprovedTotal(json.total); 
     }
   };
 
   const loadRejected = async (page = 1) => {
-    const res = await authenticatedFetch(`${API_BASE}/b2b/reject?page=${page}&limit=20`);
+    const res = await authenticatedFetch(`${API_BASE}/b2b/reject?page=${page}&limit=${PAGE_SIZE}`);
     if (!res) return;
 
     const json = await res.json();
@@ -1193,7 +1272,7 @@ export default function B2BPage() {
   const loadServices = async (page = 1) => {
     try {
       setLoading(true);
-      const res = await authenticatedFetch(`${API_BASE}/b2b/services?page=${page}&limit=20`);
+      const res = await authenticatedFetch(`${API_BASE}/b2b/services?page=${page}&limit=${PAGE_SIZE}`);
 
       if (!res) return;
 
@@ -1468,7 +1547,12 @@ export default function B2BPage() {
         method: "PUT",
         body: JSON.stringify({
           TenDoanhNghiep: item.TenDoanhNghiep, SoDKKD: item.SoDKKD,
-          NguoiDaiDien: item.NguoiDaiDien, NganhNgheChinh: item.NganhNgheChinh, DiaChi: item.DiaChi
+          NguoiDaiDien: item.NguoiDaiDien,
+          NganhNgheChinh: item.NganhNgheChinh,
+          SoDienThoai: item.SoDienThoai,
+          Email: item.Email,
+          MaVung: item.MaVung,
+          DiaChi: item.DiaChi
         })
       });
       if (!res) return;
@@ -1484,12 +1568,16 @@ export default function B2BPage() {
 
   const openEditApprovedCompanyModal = (item) => {
     if (!item) return;
+    const phoneParts = splitPhoneForEditForm(item);
     setEditingApprovedCompany(item);
     setEditCompanyForm({
       TenDoanhNghiep: item.TenDoanhNghiep || "",
       SoDKKD: item.SoDKKD || "",
       NguoiDaiDien: item.NguoiDaiDien || "",
       NganhNgheChinh: item.NganhNgheChinh || "",
+      SoDienThoai: phoneParts.SoDienThoai,
+      Email: item.Email || "",
+      MaVung: phoneParts.MaVung,
       DiaChi: item.DiaChi || ""
     });
     setShowEditCompanyModal(true);
@@ -1503,6 +1591,9 @@ export default function B2BPage() {
       SoDKKD: "",
       NguoiDaiDien: "",
       NganhNgheChinh: "",
+      SoDienThoai: "",
+      Email: "",
+      MaVung: "",
       DiaChi: ""
     });
   };
@@ -1515,16 +1606,27 @@ export default function B2BPage() {
   const submitEditApprovedCompany = async () => {
     if (!editingApprovedCompany?.ID) return;
 
+    const normalizedAreaCode = String(editCompanyForm.MaVung || "").trim();
+    const normalizedPhone = String(editCompanyForm.SoDienThoai || "").trim();
+    const combinedPhone = [normalizedAreaCode, normalizedPhone].filter(Boolean).join(" ").trim();
+
     const payload = {
       TenDoanhNghiep: String(editCompanyForm.TenDoanhNghiep || "").trim(),
       SoDKKD: String(editCompanyForm.SoDKKD || "").trim(),
       NguoiDaiDien: String(editCompanyForm.NguoiDaiDien || "").trim(),
       NganhNgheChinh: String(editCompanyForm.NganhNgheChinh || "").trim(),
+      SoDienThoai: combinedPhone,
+      Email: String(editCompanyForm.Email || "").trim(),
+      MaVung: normalizedAreaCode,
       DiaChi: String(editCompanyForm.DiaChi || "").trim()
     };
 
     if (!payload.TenDoanhNghiep || !payload.SoDKKD) {
       showToast("Vui lòng nhập Tên doanh nghiệp và Số ĐKKD", "warning");
+      return;
+    }
+    if (payload.Email && !payload.Email.includes("@")) {
+      showToast("Email không hợp lệ", "warning");
       return;
     }
 
@@ -1652,6 +1754,7 @@ export default function B2BPage() {
       if (json.success) {
         showToast("Xóa thành công", "success");
         setApprovedData(prev => prev.filter(item => item.ID !== id));
+        setApprovedList(prev => prev.filter(item => item.ID !== id));
       } else { showToast(json.message, "error"); }
     } catch (e) { showToast("Lỗi server", "error"); }
   };
@@ -2136,7 +2239,7 @@ export default function B2BPage() {
                 <tbody>
                   {displayData && displayData.length > 0 ? (
                     displayData.map((rec, idx) => {
-                      const globalIndex = idx + 1 + (currentPage.services - 1) * 20;
+                      const globalIndex = idx + 1 + (currentPage.services - 1) * PAGE_SIZE;
                       const subRowsCount = getSubRowCount(rec);
                       
                       // Lấy danh sách service names từ ChiTietDichVu
@@ -2379,7 +2482,7 @@ export default function B2BPage() {
                 </tbody>
               </table>
             </div>
-            <Pagination current={currentPage.services} total={serviceTotal} pageSize={20} currentLanguage={currentLanguage} onChange={(page) => handlePageChange("services", page)} />
+            <Pagination current={currentPage.services} total={serviceTotal} pageSize={PAGE_SIZE} currentLanguage={currentLanguage} onChange={(page) => handlePageChange("services", page)} />
           </>
         )}
       </div>
@@ -2431,7 +2534,7 @@ export default function B2BPage() {
         <div className="mb-2 text-muted" style={{ fontSize: "12px" }}>
           Bấm biểu tượng ghim ở tiêu đề để cố định cột. Có thể ghim nhiều cột cùng lúc.
         </div>
-        <div className="table-responsive shadow-sm rounded overflow-hidden">
+        <div className="table-responsive shadow-sm rounded" style={{ overflowX: "auto", overflowY: "visible" }}>
           <table className="table table-bordered table-sm mb-0 align-middle" style={{ fontSize: "12px", tableLayout: "fixed" }}>
             <thead className="text-white text-center align-middle" style={{ backgroundColor: "#1e3a8a", fontSize: "12px" }}>
               <tr>
@@ -2449,7 +2552,7 @@ export default function B2BPage() {
             <tbody>
               {rejectedData.map((item, idx) => (
                 <tr key={item.ID} className="bg-white hover:bg-gray-50">
-                  <td className="text-center border align-middle" style={{ height: "30px", ...rejectedCellPinStyle("stt", "#fff", 14) }}>{idx + 1 + (currentPage.rejected - 1) * 20}</td>
+                  <td className="text-center border align-middle" style={{ height: "30px", ...rejectedCellPinStyle("stt", "#fff", 14) }}>{idx + 1 + (currentPage.rejected - 1) * PAGE_SIZE}</td>
                   <td className="border align-middle" style={rejectedCellPinStyle("tenDN", "#fff", 13)}><div className="text-center" style={baseCellStyle}>{item.TenDoanhNghiep || ""}</div></td>
                   <td className="border align-middle" style={rejectedCellPinStyle("soDKKD", "#fff", 13)}><div className="text-center" style={baseCellStyle}>{item.SoDKKD || ""}</div></td>
                   <td className="border align-middle" style={rejectedCellPinStyle("email", "#fff", 12)}><div className="text-center" style={baseCellStyle}>{item.Email || ""}</div></td>
@@ -2463,7 +2566,7 @@ export default function B2BPage() {
               {rejectedData.length === 0 && (<tr><td colSpan="9" className="text-center py-3 text-muted">{currentLanguage === "vi" ? "Không có dữ liệu" : currentLanguage === "ko" ? "데이터가 없습니다" : "No data"}</td></tr>)}
             </tbody>
           </table>
-          <Pagination currentLanguage={currentLanguage} current={currentPage.rejected} total={rejectedTotal} pageSize={20} onChange={(page) => handlePageChange("rejected", page)} />
+          <Pagination currentLanguage={currentLanguage} current={currentPage.rejected} total={rejectedTotal} pageSize={PAGE_SIZE} onChange={(page) => handlePageChange("rejected", page)} />
         </div>
       </>
     );
@@ -2484,7 +2587,7 @@ export default function B2BPage() {
   const renderPendingApprovedTab = () => {
 
 
-    const totalColumns = activeTab === "pending" ? 8 : 9;
+    const isApprovedTab = activeTab === "approved";
     const tableKey = activeTab;
     const pendingApprovedColumns = [
       { key: "stt", width: 52 },
@@ -2497,15 +2600,21 @@ export default function B2BPage() {
       pendingApprovedColumns.push({ key: "dichVu", width: 100 }, { key: "giayPhep", width: 70 });
     }
 
-    if (activeTab === "approved") {
-      pendingApprovedColumns.push({ key: "nganhNghe", width: 120 }, { key: "diaChi", width: 150 });
+    if (isApprovedTab) {
+      pendingApprovedColumns.push(
+        { key: "soDienThoai", width: 110 },
+        { key: "email", width: 170 },
+        { key: "nganhNghe", width: 150 },
+        { key: "diaChi", width: 170 }
+      );
     }
 
     pendingApprovedColumns.push({ key: "ngayDangKy", width: 90 });
 
-    if (activeTab === "approved") {
+    if (isApprovedTab) {
       pendingApprovedColumns.push({ key: "tongDoanhThu", width: 100 });
     }
+    const totalColumns = pendingApprovedColumns.length + 1;
 
     const paHeaderStyle = (columnKey, width) => ({
       width: `${width}px`,
@@ -2558,7 +2667,7 @@ export default function B2BPage() {
         <div className="mb-2 text-muted" style={{ fontSize: "12px" }}>
           Bấm biểu tượng ghim ở tiêu đề để cố định cột. Có thể ghim nhiều cột cùng lúc.
         </div>
-        <div className="table-responsive shadow-sm rounded overflow-hidden">
+        <div className="table-responsive shadow-sm rounded" style={{ overflowX: "auto", overflowY: "visible" }}>
         <table
           className="table table-bordered table-sm mb-0 align-middle"
           style={{ fontSize: "12px", tableLayout: "fixed", width: "100%", borderCollapse: "separate", borderSpacing: 0 }}
@@ -2580,15 +2689,17 @@ export default function B2BPage() {
                 </>
               )}
 
-              {activeTab === "approved" && (
+              {isApprovedTab && (
                 <>
+                  <th style={paHeaderStyle("soDienThoai", 110)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.soDienThoai}</span>{renderPinButton(tableKey, "soDienThoai")}</div></th>
+                  <th style={paHeaderStyle("email", 170)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.email}</span>{renderPinButton(tableKey, "email")}</div></th>
                   <th style={paHeaderStyle("nganhNghe", 120)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.nganhNgheChinh}</span>{renderPinButton(tableKey, "nganhNghe")}</div></th>
                   <th style={paHeaderStyle("diaChi", 150)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.diaChi}</span>{renderPinButton(tableKey, "diaChi")}</div></th>
                 </>
               )}
 
               <th style={paHeaderStyle("ngayDangKy", 90)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ngayDangKy}</span>{renderPinButton(tableKey, "ngayDangKy")}</div></th>
-              {activeTab === "approved" && (
+              {isApprovedTab && (
                 <th style={paHeaderStyle("tongDoanhThu", 100)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.tongDoanhThuTichLuy}</span>{renderPinButton(tableKey, "tongDoanhThu")}</div></th>
               )}
               <th
@@ -2614,7 +2725,7 @@ export default function B2BPage() {
           <tbody>
             {(activeTab === "pending" ? pendingData : approvedData).map(
               (item, idx) => {
-                const globalIndex = idx + 1 + (currentPage[activeTab] - 1) * 20;
+                const globalIndex = idx + 1 + (currentPage[activeTab] - 1) * PAGE_SIZE;
                 const isEditing = editingRows[activeTab][item.ID];
                 const isExpanded = expandedRowId === item.ID;
 
@@ -2688,15 +2799,21 @@ export default function B2BPage() {
                       )}
 
                       {/* Cột riêng cho Approved */}
-                      {activeTab === "approved" && (
+                      {isApprovedTab && (
                         <>
-                          <td className="border" style={paCellPinStyle("nganhNghe", rowBg, 12)}>{isEditing ? <input style={inputStyle} value={item.NganhNgheChinh || ""} onChange={(e) => handleApprovedChange(item.ID, "NganhNgheChinh", e.target.value)} /> : <div style={viewStyle}>{item.NganhNgheChinh || ""}</div>}</td>
-                          <td className="border" style={paCellPinStyle("diaChi", rowBg, 12)}>{isEditing ? <input style={inputStyle} value={item.DiaChi || ""} onChange={(e) => handleApprovedChange(item.ID, "DiaChi", e.target.value)} /> : <div style={viewStyle}>{item.DiaChi || ""}</div>}</td>
+                          <td className="border" style={paCellPinStyle("soDienThoai", rowBg, 12)}>
+                            <div style={viewStyle} title={formatCompanyPhoneNumber(item)}>{formatCompanyPhoneNumber(item)}</div>
+                          </td>
+                          <td className="border" style={paCellPinStyle("email", rowBg, 12)}>
+                            <div style={viewStyle} title={item.Email || ""}>{item.Email || ""}</div>
+                          </td>
+                          <td className="border" style={paCellPinStyle("nganhNghe", rowBg, 12)}>{isEditing ? <input style={inputStyle} value={item.NganhNgheChinh || ""} onChange={(e) => handleApprovedChange(item.ID, "NganhNgheChinh", e.target.value)} /> : <div style={viewStyle} title={item.NganhNgheChinh || ""}>{item.NganhNgheChinh || ""}</div>}</td>
+                          <td className="border" style={paCellPinStyle("diaChi", rowBg, 12)}>{isEditing ? <input style={inputStyle} value={item.DiaChi || ""} onChange={(e) => handleApprovedChange(item.ID, "DiaChi", e.target.value)} /> : <div style={viewStyle} title={item.DiaChi || ""}>{item.DiaChi || ""}</div>}</td>
                         </>
                       )}
 
                       <td className="text-center border" style={paCellPinStyle("ngayDangKy", rowBg, 12)}>{formatDateTime(item.NgayTao || item.NgayDangKyB2B)}</td>
-                      {activeTab === "approved" && <td className="text-center border fw-bold text-primary" style={paCellPinStyle("tongDoanhThu", rowBg, 12)}>{formatNumber(calculateCompanyTotalRevenue(item.ID))}</td>}
+                      {isApprovedTab && <td className="text-center border fw-bold text-primary" style={paCellPinStyle("tongDoanhThu", rowBg, 12)}>{formatNumber(calculateCompanyTotalRevenue(item.ID))}</td>}
 
                       {/* Cột Hành Động */}
                       <td
@@ -2792,7 +2909,7 @@ export default function B2BPage() {
         <Pagination
           current={currentPage[activeTab]}
           total={activeTab === "pending" ? pendingTotal : approvedTotal}
-          pageSize={20}
+          pageSize={PAGE_SIZE}
           currentLanguage={currentLanguage}
           onChange={(page) => handlePageChange(activeTab, page)}
         />
@@ -2877,6 +2994,42 @@ export default function B2BPage() {
                   name="NganhNgheChinh"
                   className="form-control"
                   value={editCompanyForm.NganhNgheChinh}
+                  onChange={handleEditCompanyFormChange}
+                />
+              </div>
+              <div className="col-md-6">
+                <label className="form-label fw-semibold">Số điện thoại</label>
+                <div className="input-group">
+                  <select
+                    name="MaVung"
+                    className="form-select"
+                    style={{ maxWidth: "96px" }}
+                    value={editCompanyForm.MaVung || "+82"}
+                    onChange={handleEditCompanyFormChange}
+                  >
+                    {!(["+82", "+24"].includes(editCompanyForm.MaVung)) && editCompanyForm.MaVung ? (
+                      <option value={editCompanyForm.MaVung}>{editCompanyForm.MaVung}</option>
+                    ) : null}
+                    <option value="+82">+82</option>
+                    <option value="+24">+24</option>
+                  </select>
+                  <input
+                    type="text"
+                    name="SoDienThoai"
+                    className="form-control"
+                    value={editCompanyForm.SoDienThoai}
+                    onChange={handleEditCompanyFormChange}
+                    placeholder="Nhập số điện thoại"
+                  />
+                </div>
+              </div>
+              <div className="col-md-6">
+                <label className="form-label fw-semibold">Email</label>
+                <input
+                  type="email"
+                  name="Email"
+                  className="form-control"
+                  value={editCompanyForm.Email}
                   onChange={handleEditCompanyFormChange}
                 />
               </div>

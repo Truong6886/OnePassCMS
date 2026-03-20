@@ -4,17 +4,36 @@ import { showToast } from "../utils/toast";
 import { authenticatedFetch } from "../utils/api";
 
 const API_BASE = "https://onepasscms-backend-tvdy.onrender.com/api";
+const PHONE_COUNTRY_CODES = ["+84", "+82"];
+
+const splitPhoneAndCode = (rawPhone = "") => {
+  const value = String(rawPhone || "").trim();
+  if (!value) return { countryCode: "+84", localNumber: "" };
+
+  const match = value.match(/^(\+\d+)\s*(.*)$/);
+  if (match) {
+    const [, prefix, rest] = match;
+    return {
+      countryCode: PHONE_COUNTRY_CODES.includes(prefix) ? prefix : "+84",
+      localNumber: rest || ""
+    };
+  }
+
+  return { countryCode: "+84", localNumber: value };
+};
 
 export default function RegisterB2BModal({ isOpen, onClose, onSuccess, currentUser }) {
+  const initialPhone = splitPhoneAndCode("+84 ");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [phoneCountryCode, setPhoneCountryCode] = useState(initialPhone.countryCode);
   const [formData, setFormData] = useState({
     tenDoanhNghiep: "",
     soDKKD: "",
     nguoiDaiDienPhapLuat: "",
     nganhNgheChinh: "",
-    soDienThoaiLienHe: "+84 ",
+    soDienThoaiLienHe: initialPhone.localNumber,
     email: "",
     matKhau: "",
     xacNhanMatKhau: "",
@@ -104,7 +123,7 @@ export default function RegisterB2BModal({ isOpen, onClose, onSuccess, currentUs
     if (!formData.nganhNgheChinh.trim()) {
       return showToast("Vui lòng nhập ngành nghề chính", "warning");
     }
-    if (!formData.soDienThoaiLienHe.trim() || formData.soDienThoaiLienHe === "+84 ") {
+    if (!formData.soDienThoaiLienHe.trim()) {
       return showToast("Vui lòng nhập số điện thoại liên hệ", "warning");
     }
     if (!formData.email.trim() || !formData.email.includes("@")) {
@@ -131,7 +150,7 @@ export default function RegisterB2BModal({ isOpen, onClose, onSuccess, currentUs
       formDataToSend.append("soDKKD", formData.soDKKD);
       formDataToSend.append("nguoiDaiDienPhapLuat", formData.nguoiDaiDienPhapLuat);
       formDataToSend.append("nganhNgheChinh", formData.nganhNgheChinh);
-      formDataToSend.append("soDienThoaiLienHe", formData.soDienThoaiLienHe);
+      formDataToSend.append("soDienThoaiLienHe", `${phoneCountryCode} ${formData.soDienThoaiLienHe.trim()}`);
       formDataToSend.append("email", formData.email);
       formDataToSend.append("matKhau", formData.matKhau);
       formDataToSend.append("dichVuChinh", formData.dichVuChinh.join(", "));
@@ -195,7 +214,7 @@ export default function RegisterB2BModal({ isOpen, onClose, onSuccess, currentUs
       soDKKD: "",
       nguoiDaiDienPhapLuat: "",
       nganhNgheChinh: "",
-      soDienThoaiLienHe: "+84 ",
+      soDienThoaiLienHe: "",
       email: "",
       matKhau: "",
       xacNhanMatKhau: "",
@@ -206,6 +225,7 @@ export default function RegisterB2BModal({ isOpen, onClose, onSuccess, currentUs
     setShowPassword(false);
     setShowConfirmPassword(false);
     setShowServiceDropdown(false);
+    setPhoneCountryCode("+84");
   };
 
   if (!isOpen) return null;
@@ -367,6 +387,8 @@ export default function RegisterB2BModal({ isOpen, onClose, onSuccess, currentUs
                   <select 
                     className="form-select" 
                     style={{ maxWidth: "80px", fontSize: "13px", borderRadius: "8px 0 0 8px", border: "1px solid #e5e7eb" }}
+                    value={phoneCountryCode}
+                    onChange={(e) => setPhoneCountryCode(e.target.value)}
                   >
                     <option value="+84">+84</option>
                     <option value="+82">+82</option>
@@ -374,8 +396,8 @@ export default function RegisterB2BModal({ isOpen, onClose, onSuccess, currentUs
                   <input
                     type="tel"
                     name="soDienThoaiLienHe"
-                    value={formData.soDienThoaiLienHe.replace("+84 ", "")}
-                    onChange={(e) => handleChange({target: {name: "soDienThoaiLienHe", value: "+84 " + e.target.value}})}
+                    value={formData.soDienThoaiLienHe}
+                    onChange={handleChange}
                     placeholder="Nhập số"
                     style={{ ...inputStyle, borderRadius: "0 8px 8px 0", borderLeft: "none" }}
                     className="form-control form-control-sm"
