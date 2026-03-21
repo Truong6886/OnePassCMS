@@ -1,7 +1,58 @@
 // ✅ Header.jsx (đã sửa)
 import React, { useState, useEffect, useRef } from "react";
+// Mock data cho thông báo
+const mockNotifications = [
+  {
+    id: 1,
+    user: "Hằng Nguyễn",
+    action: "đã thêm dịch vụ B2B mã 12345",
+    time: "21:00 21/03/2025",
+    isNew: true,
+  },
+  {
+    id: 2,
+    user: "Hằng Nguyễn",
+    action: "đã chỉnh sửa dịch vụ B2C mã 67890",
+    time: "21:00 21/03/2025",
+    isNew: true,
+  },
+  {
+    id: 3,
+    user: "Minh Trần",
+    action: "đã xóa dịch vụ B2B mã 54321",
+    time: "20:00 20/03/2025",
+    isNew: false,
+  },
+  {
+    id: 4,
+    user: "Hằng Nguyễn",
+    action: "đã thêm dịch vụ B2C mã 11111",
+    time: "19:00 19/03/2025",
+    isNew: false,
+  },
+];
 
 const Header = ({ currentUser, onToggleSidebar, showSidebar, onOpenEditModal, hasNewRequest, onBellClick, currentLanguage, onLanguageChange }) => {
+  // State cho popup thông báo
+  const [showNotification, setShowNotification] = useState(false);
+  const [showAll, setShowAll] = useState(false); // Xem tất cả lịch sử
+  const [notifications, setNotifications] = useState(mockNotifications);
+  const notificationRef = useRef(null);
+    // Đóng popup khi click ra ngoài
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+          setShowNotification(false);
+        }
+      };
+      if (showNotification) {
+        document.addEventListener("mousedown", handleClickOutside);
+      }
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [showNotification]);
+    // Phân loại thông báo mới/cũ
+    const newNotifications = notifications.filter((n) => n.isNew);
+    const oldNotifications = notifications.filter((n) => !n.isNew);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -109,11 +160,11 @@ const Header = ({ currentUser, onToggleSidebar, showSidebar, onOpenEditModal, ha
   
 
         {/* 🔔 Bell Notification */}
-        <div className="position-relative">
+        <div className="position-relative" ref={notificationRef}>
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onBellClick();
+              setShowNotification((prev) => !prev);
             }}
             className="btn position-relative d-flex align-items-center justify-content-center"
             style={{
@@ -141,7 +192,7 @@ const Header = ({ currentUser, onToggleSidebar, showSidebar, onOpenEditModal, ha
               height="22"
               fill="url(#bellGradient)"
               viewBox="0 0 24 24"
-              className={hasNewRequest ? "bell-shake" : ""}
+              className={newNotifications.length > 0 ? "bell-shake" : ""}
             >
               <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9z"></path>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -152,9 +203,8 @@ const Header = ({ currentUser, onToggleSidebar, showSidebar, onOpenEditModal, ha
                 </linearGradient>
               </defs>
             </svg>
-
             {/* 🔴 Red badge */}
-            {hasNewRequest && (
+            {newNotifications.length > 0 && (
               <span
                 style={{
                   position: "absolute",
@@ -169,6 +219,98 @@ const Header = ({ currentUser, onToggleSidebar, showSidebar, onOpenEditModal, ha
               ></span>
             )}
           </button>
+          {/* Popup Thông báo */}
+          {showNotification && (
+            <div
+              style={{
+                position: "absolute",
+                top: "50px",
+                right: 0,
+                width: "370px",
+                background: "#fff",
+                borderRadius: "12px",
+                boxShadow: "0 8px 32px rgba(44,77,158,0.10)",
+                border: "1px solid #e5e7eb",
+                zIndex: 2000,
+                padding: 0,
+                animation: "fadeInUp 0.2s",
+              }}
+            >
+              <div style={{ padding: "14px 18px 10px 18px", borderBottom: "1px solid #f1f1f1", fontWeight: 700, color: "#2c4d9e", fontSize: 17 }}>
+                <span role="img" aria-label="bell">🔔</span> Thông báo mới
+              </div>
+              <div style={{ maxHeight: showAll ? "400px" : "220px", overflowY: "auto" }}>
+                {/* Thông báo mới */}
+                {newNotifications.length === 0 && oldNotifications.length === 0 && (
+                  <div style={{ padding: 18, color: "#888", textAlign: "center" }}>Không có thông báo nào.</div>
+                )}
+                {newNotifications.length > 0 && (
+                  <>
+                    {newNotifications.map((n) => (
+                      <div key={n.id} style={{ padding: "12px 18px", borderBottom: "1px solid #f5f5f5", background: "#f7faff" }}>
+                        <div style={{ color: "#222", fontWeight: 500, fontSize: 15 }}>
+                          {n.user} {n.action}
+                        </div>
+                        <div style={{ color: "#888", fontSize: 13, marginTop: 2 }}>Vào lúc {n.time}</div>
+                      </div>
+                    ))}
+                  </>
+                )}
+                {/* Thông báo cũ */}
+                {(showAll || newNotifications.length === 0) && oldNotifications.length > 0 && (
+                  <>
+                    <div style={{ padding: "8px 18px 2px 18px", color: "#666", fontWeight: 600, fontSize: 14 }}>Thông báo cũ</div>
+                    {oldNotifications.map((n) => (
+                      <div key={n.id} style={{ padding: "10px 18px", borderBottom: "1px solid #f5f5f5", background: "#fff" }}>
+                        <div style={{ color: "#444", fontWeight: 400, fontSize: 15 }}>
+                          {n.user} {n.action}
+                        </div>
+                        <div style={{ color: "#aaa", fontSize: 13, marginTop: 2 }}>Vào lúc {n.time}</div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+              {/* Nút xem tất cả lịch sử */}
+              {oldNotifications.length > 0 && !showAll && (
+                <div style={{ textAlign: "center", padding: "8px 0 10px 0", background: "#f9f9f9", borderTop: "1px solid #f1f1f1" }}>
+                  <button
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#2c4d9e",
+                      fontWeight: 600,
+                      fontSize: 14,
+                      cursor: "pointer",
+                      textDecoration: "underline",
+                    }}
+                    onClick={() => setShowAll(true)}
+                  >
+                    Xem tất cả lịch sử
+                  </button>
+                </div>
+              )}
+              {/* Nút thu gọn */}
+              {showAll && (
+                <div style={{ textAlign: "center", padding: "8px 0 10px 0", background: "#f9f9f9", borderTop: "1px solid #f1f1f1" }}>
+                  <button
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#2c4d9e",
+                      fontWeight: 600,
+                      fontSize: 14,
+                      cursor: "pointer",
+                      textDecoration: "underline",
+                    }}
+                    onClick={() => setShowAll(false)}
+                  >
+                    Thu gọn
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="d-flex align-items-center" style={{ gap: "12px" }}>
           {/* 🇻🇳 Vietnamese */}
