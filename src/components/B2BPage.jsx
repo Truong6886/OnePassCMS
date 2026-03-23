@@ -896,8 +896,11 @@ export default function B2BPage() {
   const [approvedTotal, setApprovedTotal] = useState(0);
   const [rejectedData, setRejectedData] = useState([]);
   const [rejectedTotal, setRejectedTotal] = useState(0);
+  // Dữ liệu dịch vụ cho phân trang (hiển thị)
   const [serviceData, setServiceData] = useState([]);
   const [serviceTotal, setServiceTotal] = useState(0);
+  // Dữ liệu dịch vụ toàn bộ (để tính tổng doanh thu)
+  const [allServiceData, setAllServiceData] = useState([]);
   const [serviceCompanyRevenueMap, setServiceCompanyRevenueMap] = useState({});
   const [overallB2BRevenue, setOverallB2BRevenue] = useState(0);
   const B2B_SERVICE_MAPPING_HARDCODED = {
@@ -1229,7 +1232,27 @@ export default function B2BPage() {
     const savedUser = localStorage.getItem("currentUser");
     if (savedUser) setCurrentUser(JSON.parse(savedUser));
     loadData();
+    // Load toàn bộ dịch vụ để đồng bộ doanh thu
+    loadAllServices();
   }, []);
+
+  // Hàm load toàn bộ dịch vụ (không phân trang)
+  const loadAllServices = async () => {
+    try {
+      // Giả sử backend hỗ trợ lấy hết với limit lớn, hoặc có API riêng, nếu không thì cần backend hỗ trợ
+      const res = await authenticatedFetch(`${API_BASE}/b2b/services?page=1&limit=10000`);
+      if (!res) return;
+      const json = await res.json();
+      if (json.success) {
+        const formattedData = (json.data || []).map((item, index) => normalizeServiceRecord(item, index));
+        setAllServiceData(formattedData);
+      } else {
+        setAllServiceData([]);
+      }
+    } catch (error) {
+      setAllServiceData([]);
+    }
+  };
 
   useEffect(() => {
     if (!currentUser) return;
@@ -1349,13 +1372,12 @@ export default function B2BPage() {
     }
   };
 
+  // Tính tổng doanh thu dựa trên toàn bộ dịch vụ đã load (allServiceData)
   const calculateCompanyTotalRevenue = (companyId) => {
-    if (!serviceData || serviceData.length === 0) return 0;
-
-    return serviceData
+    if (!allServiceData || allServiceData.length === 0) return 0;
+    return allServiceData
       .filter(r => String(r.companyId) === String(companyId))
       .reduce((sum, r) => {
-        // Tính trực tiếp theo chi tiết dịch vụ để luôn lấy doanh thu sau thuế.
         const total = calculateRecordRevenueAfterTax(r);
         return sum + (Number.isFinite(total) ? total : 0);
       }, 0);
