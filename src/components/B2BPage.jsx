@@ -450,7 +450,15 @@ export default function B2BPage() {
   // State cho popup cấu hình cột
   const [showColumnConfig, setShowColumnConfig] = useState(false);
   // State cho các cột hiển thị
-  const [visibleColumns, setVisibleColumns] = useState(COLUMN_CONFIGS.map(c => c.key));
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    const savedUser = localStorage.getItem("currentUser");
+    const currentUser = savedUser ? JSON.parse(savedUser) : null;
+    const hasRevenue = hasRevenueViewPermission(currentUser);
+    // Nếu không có quyền xem doanh thu thì ẩn các cột doanh thu
+    return COLUMN_CONFIGS.map(c => c.key).filter(
+      key => hasRevenue || !REVENUE_COLUMN_KEYS.includes(key)
+    );
+  });
 
   const [expandedRowId, setExpandedRowId] = useState(null);
   const [showRegisterB2BModal, setShowRegisterB2BModal] = useState(false);
@@ -1839,6 +1847,7 @@ export default function B2BPage() {
   const renderServicesTab = () => {
     const canApproveB2B = hasB2BApprovePermission(currentUser);
     const canViewRevenue = hasRevenueViewPermission(currentUser);
+    // Chỉ hiển thị cột doanh thu nếu có quyền
     const serviceColumnConfigs = COLUMN_CONFIGS.filter(
       (col) => canViewRevenue || !REVENUE_COLUMN_KEYS.includes(col.key)
     );
@@ -1877,6 +1886,11 @@ export default function B2BPage() {
         { key: "tongDoanhThu", width: 100 }
       );
     }
+    // Nếu không có quyền thì loại bỏ các cột doanh thu khỏi visibleColumns
+    // Loại bỏ hoàn toàn các cột doanh thu nếu không có quyền
+    const filteredColumns = canViewRevenue
+      ? visibleColumns
+      : visibleColumns.filter(key => !REVENUE_COLUMN_KEYS.includes(key));
 
     const serviceHeaderStyle = (columnKey, width) => ({
       width: `${width}px`,
@@ -2683,7 +2697,9 @@ export default function B2BPage() {
 
     pendingApprovedColumns.push({ key: "ngayDangKy", width: 90 });
 
-    if (isApprovedTab) {
+    // Chỉ thêm cột Tổng Doanh Thu nếu có quyền xem doanh thu
+    const canViewRevenue = hasRevenueViewPermission(currentUser);
+    if (isApprovedTab && canViewRevenue) {
       pendingApprovedColumns.push({ key: "tongDoanhThu", width: 100 });
     }
     const totalColumns = pendingApprovedColumns.length + 1;
@@ -2771,7 +2787,7 @@ export default function B2BPage() {
               )}
 
               <th style={paHeaderStyle("ngayDangKy", 90)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.ngayDangKy}</span>{renderPinButton(tableKey, "ngayDangKy")}</div></th>
-              {isApprovedTab && (
+              {isApprovedTab && canViewRevenue && (
                 <th style={paHeaderStyle("tongDoanhThu", 100)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.tongDoanhThuTichLuy}</span>{renderPinButton(tableKey, "tongDoanhThu")}</div></th>
               )}
               <th
@@ -2885,7 +2901,7 @@ export default function B2BPage() {
                       )}
 
                       <td className="text-center border" style={paCellPinStyle("ngayDangKy", rowBg, 12)}>{formatDateTime(item.NgayTao || item.NgayDangKyB2B)}</td>
-                      {isApprovedTab && <td className="text-center border fw-bold text-primary" style={paCellPinStyle("tongDoanhThu", rowBg, 12)}>{formatNumber(calculateCompanyTotalRevenue(item.ID))}</td>}
+                      {isApprovedTab && canViewRevenue && <td className="text-center border fw-bold text-primary" style={paCellPinStyle("tongDoanhThu", rowBg, 12)}>{formatNumber(calculateCompanyTotalRevenue(item.ID))}</td>}
 
                       {/* Cột Hành Động */}
                       <td

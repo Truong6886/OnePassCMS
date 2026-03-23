@@ -3991,7 +3991,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
             </div>
 
            <div className="table-wrapper mt-3" style={{marginLeft:90}}>
-            <div className="table-responsive" style={{ paddingLeft: "0px", position: "relative", maxHeight: "calc(100vh - 340px)", overflow: "auto", borderBottom: "1px solid #dee2e6" }} ref={tableContainerRef}>
+            <div className="table-responsive" style={{ paddingLeft: "0px", position: "relative", maxHeight: "calc(100vh - 240px)", overflow: "auto", borderBottom: "1px solid #dee2e6" }} ref={tableContainerRef}>
               <table className="table table-bordered align-middle mb-0" style={{ tableLayout: "fixed", width: "100%" }}>
                 <thead>
                   <tr>
