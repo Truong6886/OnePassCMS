@@ -342,14 +342,16 @@ const normalizePackageLabel = (value) => {
   return String(value || "").trim();
 };
 
+// Hàm chuẩn hóa dữ liệu doanh nghiệp (đồng bộ field giữa các môi trường)
 const normalizeApprovedCompanyRecord = (item = {}) => ({
   ...item,
-  TenDoanhNghiep: item.TenDoanhNghiep || item.tenDoanhNghiep || item.CompanyName || "",
-  SoDKKD: item.SoDKKD || item.soDKKD || item.BusinessRegistrationNumber || "",
-  NguoiDaiDien: item.NguoiDaiDien || item.nguoiDaiDien || item.NguoiDaiDienPhapLuat || "",
-  NganhNgheChinh: item.NganhNgheChinh || item.nganhNgheChinh || item.NganhNghe || item.nganhNghe || "",
-  DiaChi: item.DiaChi || item.diaChi || item.DiaChiTruSo || item.Address || "",
-  MaVung: item.MaVung || item.maVung || "",
+  ID: item.ID || item.id || item.DoanhNghiepID || item.companyId || "",
+  TenDoanhNghiep: item.TenDoanhNghiep || item.tenDoanhNghiep || item.CompanyName || item.companyName || "",
+  SoDKKD: item.SoDKKD || item.soDKKD || item.BusinessRegistrationNumber || item.businessRegNo || "",
+  NguoiDaiDien: item.NguoiDaiDien || item.nguoiDaiDien || item.NguoiDaiDienPhapLuat || item.legalRepresentative || "",
+  NganhNgheChinh: item.NganhNgheChinh || item.nganhNgheChinh || item.NganhNghe || item.nganhNghe || item.mainBusiness || "",
+  DiaChi: item.DiaChi || item.diaChi || item.DiaChiTruSo || item.Address || item.address || "",
+  MaVung: item.MaVung || item.maVung || item.areaCode || "",
   SoDienThoai:
     item.SoDienThoai ||
     item.soDienThoai ||
@@ -359,6 +361,55 @@ const normalizeApprovedCompanyRecord = (item = {}) => ({
     "",
   Email: item.Email || item.email || ""
 });
+
+// Hàm chuẩn hóa dữ liệu dịch vụ (đồng bộ field giữa các môi trường)
+const normalizeServiceRecord = (item = {}, index = 0) => {
+  let parsedChiTietDichVu = { main: {}, sub: [] };
+  if (item.ChiTietDichVu) {
+    if (typeof item.ChiTietDichVu === "string") {
+      try {
+        parsedChiTietDichVu = JSON.parse(item.ChiTietDichVu) || { main: {}, sub: [] };
+      } catch (error) {
+        parsedChiTietDichVu = { main: {}, sub: [] };
+      }
+    } else {
+      parsedChiTietDichVu = item.ChiTietDichVu;
+    }
+  }
+  return {
+    ...item,
+    id: item.ID || item.id || item.ServiceID || `temp_${index}_${Date.now()}`,
+    uiId: item.ID ? `server_${item.ID}` : `temp_${index}_${Date.now()}`,
+    companyId: item.DoanhNghiepID || item.companyId || item.CompanyID || "",
+    companyName: item.TenDoanhNghiep || item.tenDoanhNghiep || item.CompanyName || item.companyName || "",
+    soDKKD: item.SoDKKD || item.soDKKD || item.BusinessRegistrationNumber || item.businessRegNo || "",
+    phoneNumber: item.SoDienThoai || item.PhoneNumber || item.phoneNumber || item.phone || "",
+    email: item.Email || item.email || "",
+    serviceType: item.LoaiDichVu || item.serviceType || "",
+    serviceName: item.TenDichVu || item.serviceName || "",
+    NoiTiepNhanHoSo: parsedChiTietDichVu?.meta?.NoiTiepNhanHoSo || item.NoiTiepNhanHoSo || "",
+    DiaChiNhan: item.DiaChiNhan || item.diaChiNhan || "",
+    package: normalizePackageLabel(item.GoiDichVu || item.package),
+    invoiceYN: item.YeuCauHoaDon || item.invoiceYN,
+    invoiceUrl: item.InvoiceUrl || item.invoiceUrl,
+    picId: item.NguoiPhuTrachId || item.picId,
+    picName: item.NguoiPhuTrach ? (item.NguoiPhuTrach.username || item.NguoiPhuTrach.name) : (item.picName || ""),
+    code: !isPendingServiceStatus(item.TrangThai || item.status) ? normalizeB2BCodeBySubmissionDate(item) : "",
+    createdDate: toDateOnly(item.NgayTao) || toDateOnly(item.createdAt) || toDateOnly(item.CreatedAt) || toDateOnly(item.NgayDangKy) || toDateOnly(item.NgayDangKyB2B) || toDateOnly(item.NgayBatDau) || toDateOnly(item.NgayThucHien),
+    startDate: toDateOnly(item.NgayBatDau) || toDateOnly(item.NgayThucHien),
+    appointmentDate: toDateOnly(item.NgayHen) || dateFromServiceCode(item.MaDichVu || item.ServiceID),
+    completionDate: toDateOnly(item.NgayHoanThanh),
+    revenueBefore: item.DoanhThuTruocChietKhau || item.revenueBefore,
+    discountRate: item.MucChietKhau || item.discountRate,
+    discountAmount: item.SoTienChietKhau || item.discountAmount,
+    revenueAfter: item.DoanhThuSauChietKhau || item.revenueAfter,
+    ChiTietDichVu: parsedChiTietDichVu,
+    totalRevenue: item.TongDoanhThuTichLuy || item.totalRevenue,
+    walletUsage: item.Vi || item.walletUsage,
+    status: item.TrangThai || item.status,
+    isNew: false
+  };
+};
 
 const formatCompanyPhoneNumber = (item = {}) => {
   const rawPhone = String(item?.SoDienThoai || "").trim();
@@ -1213,9 +1264,9 @@ export default function B2BPage() {
       const a = await approvedRes.json();
       const r = await rejectedRes.json();
 
-      setPendingList((p.data || []).map(item => ({ ...item, rejectionReason: "" })));
+      setPendingList((p.data || []).map(item => ({ ...normalizeApprovedCompanyRecord(item), rejectionReason: "" })));
       setApprovedList((a.data || []).map(normalizeApprovedCompanyRecord));
-      setRejectedList(r.data || []);
+      setRejectedList((r.data || []).map(normalizeApprovedCompanyRecord));
 
       loadServices(1);
     } catch (err) {
@@ -1245,7 +1296,7 @@ export default function B2BPage() {
     if (!res) return;
 
     const json = await res.json();
-    if (json.success) { setPendingData(json.data); setPendingTotal(json.total); }
+    if (json.success) { setPendingData((json.data || []).map(normalizeApprovedCompanyRecord)); setPendingTotal(json.total); }
   };
 
   const loadApproved = async (page = 1) => {
@@ -1265,7 +1316,7 @@ export default function B2BPage() {
     if (!res) return;
 
     const json = await res.json();
-    if (json.success) { setRejectedData(json.data); setRejectedTotal(json.total); }
+    if (json.success) { setRejectedData((json.data || []).map(normalizeApprovedCompanyRecord)); setRejectedTotal(json.total); }
   };
 
   // 3. Load Services
@@ -1278,54 +1329,7 @@ export default function B2BPage() {
 
       const json = await res.json();
       if (json.success) {
-        const formattedData = (json.data || []).map((item, index) => {
-          let parsedChiTietDichVu = { main: {}, sub: [] };
-          if (item.ChiTietDichVu) {
-            if (typeof item.ChiTietDichVu === "string") {
-              try {
-                parsedChiTietDichVu = JSON.parse(item.ChiTietDichVu) || { main: {}, sub: [] };
-              } catch (error) {
-                parsedChiTietDichVu = { main: {}, sub: [] };
-              }
-            } else {
-              parsedChiTietDichVu = item.ChiTietDichVu;
-            }
-          }
-
-          return {
-            ...item,
-            id: item.ID,
-            uiId: item.ID ? `server_${item.ID}` : `temp_${index}_${Date.now()}`,
-            companyId: item.DoanhNghiepID,
-            companyName: item.TenDoanhNghiep,
-            soDKKD: item.SoDKKD,
-            phoneNumber: item.SoDienThoai || item.PhoneNumber || item.phoneNumber || "",
-            email: item.Email || item.email || "",
-            serviceType: item.LoaiDichVu,
-            serviceName: item.TenDichVu,
-            NoiTiepNhanHoSo: parsedChiTietDichVu?.meta?.NoiTiepNhanHoSo || "",
-            DiaChiNhan: item.DiaChiNhan || "",
-            package: normalizePackageLabel(item.GoiDichVu),
-            invoiceYN: item.YeuCauHoaDon,
-            invoiceUrl: item.InvoiceUrl,
-            picId: item.NguoiPhuTrachId,
-            picName: item.NguoiPhuTrach ? (item.NguoiPhuTrach.username || item.NguoiPhuTrach.name) : "",
-            code: !isPendingServiceStatus(item.TrangThai) ? normalizeB2BCodeBySubmissionDate(item) : "",
-            createdDate: toDateOnly(item.NgayTao) || toDateOnly(item.createdAt) || toDateOnly(item.CreatedAt) || toDateOnly(item.NgayDangKy) || toDateOnly(item.NgayDangKyB2B) || toDateOnly(item.NgayBatDau) || toDateOnly(item.NgayThucHien),
-            startDate: toDateOnly(item.NgayBatDau) || toDateOnly(item.NgayThucHien),
-            appointmentDate: toDateOnly(item.NgayHen) || dateFromServiceCode(item.MaDichVu || item.ServiceID),
-            completionDate: toDateOnly(item.NgayHoanThanh),
-            revenueBefore: item.DoanhThuTruocChietKhau,
-            discountRate: item.MucChietKhau,
-            discountAmount: item.SoTienChietKhau,
-            revenueAfter: item.DoanhThuSauChietKhau,
-            ChiTietDichVu: parsedChiTietDichVu,
-            totalRevenue: item.TongDoanhThuTichLuy,
-            walletUsage: item.Vi,
-            status: item.TrangThai,
-            isNew: false
-          };
-        });
+        const formattedData = (json.data || []).map((item, index) => normalizeServiceRecord(item, index));
         setServiceData(formattedData);
         setServiceTotal(json.total);
         setServiceCompanyRevenueMap(json.companyRevenueMap || {});
