@@ -1007,7 +1007,8 @@ export default function B2BPage() {
     SoDienThoai: "",
     Email: "",
     MaVung: "",
-    DiaChi: ""
+    DiaChi: "",
+    GhiChu: ""
   });
 
   // Vẫn giữ editingRows cho pending/approved
@@ -1612,7 +1613,8 @@ export default function B2BPage() {
       SoDienThoai: phoneParts.SoDienThoai,
       Email: item.Email || "",
       MaVung: phoneParts.MaVung,
-      DiaChi: item.DiaChi || ""
+      DiaChi: item.DiaChi || "",
+      GhiChu: item.GhiChu || ""
     });
     setShowEditCompanyModal(true);
   };
@@ -1628,7 +1630,8 @@ export default function B2BPage() {
       SoDienThoai: "",
       Email: "",
       MaVung: "",
-      DiaChi: ""
+      DiaChi: "",
+      GhiChu: ""
     });
   };
 
@@ -1652,7 +1655,8 @@ export default function B2BPage() {
       SoDienThoai: combinedPhone,
       Email: String(editCompanyForm.Email || "").trim(),
       MaVung: normalizedAreaCode,
-      DiaChi: String(editCompanyForm.DiaChi || "").trim()
+      DiaChi: String(editCompanyForm.DiaChi || "").trim(),
+      GhiChu: String(editCompanyForm.GhiChu || "").trim()
     };
 
     if (!payload.TenDoanhNghiep || !payload.SoDKKD) {
@@ -2783,6 +2787,7 @@ export default function B2BPage() {
                   <th style={paHeaderStyle("email", 170)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.email}</span>{renderPinButton(tableKey, "email")}</div></th>
                   <th style={paHeaderStyle("nganhNghe", 120)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.nganhNgheChinh}</span>{renderPinButton(tableKey, "nganhNghe")}</div></th>
                   <th style={paHeaderStyle("diaChi", 150)}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.diaChi}</span>{renderPinButton(tableKey, "diaChi")}</div></th>
+                  <th style={paHeaderStyle("ghiChu", 120)}><div className="d-flex align-items-center justify-content-center gap-1"><span>Ghi chú</span></div></th>
                 </>
               )}
 
@@ -2897,6 +2902,7 @@ export default function B2BPage() {
                           </td>
                           <td className="border" style={paCellPinStyle("nganhNghe", rowBg, 12)}>{isEditing ? <input style={inputStyle} value={item.NganhNgheChinh || ""} onChange={(e) => handleApprovedChange(item.ID, "NganhNgheChinh", e.target.value)} /> : <div style={viewStyle} title={item.NganhNgheChinh || ""}>{item.NganhNgheChinh || ""}</div>}</td>
                           <td className="border" style={paCellPinStyle("diaChi", rowBg, 12)}>{isEditing ? <input style={inputStyle} value={item.DiaChi || ""} onChange={(e) => handleApprovedChange(item.ID, "DiaChi", e.target.value)} /> : <div style={viewStyle} title={item.DiaChi || ""}>{item.DiaChi || ""}</div>}</td>
+                          <td className="border" style={paCellPinStyle("ghiChu", rowBg, 12)}>{isEditing ? <input style={inputStyle} value={item.GhiChu || ""} onChange={(e) => handleApprovedChange(item.ID, "GhiChu", e.target.value)} /> : <div style={viewStyle} title={item.GhiChu || ""}>{item.GhiChu || ""}</div>}</td>
                         </>
                       )}
 
@@ -3129,6 +3135,17 @@ export default function B2BPage() {
                   rows={3}
                   value={editCompanyForm.DiaChi}
                   onChange={handleEditCompanyFormChange}
+                />
+              </div>
+              <div className="col-12">
+                <label className="form-label fw-semibold">Ghi chú</label>
+                <textarea
+                  name="GhiChu"
+                  className="form-control"
+                  rows={2}
+                  value={editCompanyForm.GhiChu}
+                  onChange={handleEditCompanyFormChange}
+                  placeholder="Nhập ghi chú cho doanh nghiệp (nếu có)"
                 />
               </div>
             </div>

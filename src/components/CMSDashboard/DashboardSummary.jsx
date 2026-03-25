@@ -413,6 +413,7 @@ const chartDataByTime = allDates.map((dateStr) => {
   };
 
   return (
+
     <div className="mb-4">
       {/* TABS */}
       <div
@@ -425,6 +426,7 @@ const chartDataByTime = allDates.map((dateStr) => {
         }}
       >
         {[
+          { key: "all", labelVi: "Tổng số lượng dịch vụ", labelEn: "All Services", labelKo: "전체 서비스" },
           { key: "individual", labelVi: "Khách Hàng Cá Nhân", labelEn: "Individual", labelKo: "개인 고객" },
           { key: "b2b", labelVi: "Khách Hàng Doanh Nghiệp", labelEn: "B2B", labelKo: "기업 고객" },
         ].map((tab) => (
@@ -448,6 +450,237 @@ const chartDataByTime = allDates.map((dateStr) => {
         ))}
       </div>
 
+      {/* TAB: TỔNG SỐ LƯỢNG DỊCH VỤ (ALL) */}
+      {activeTab === "all" && (
+        <div className="mb-4">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "2rem", flexWrap: "wrap" }}>
+            {/* LEFT: 2 PIE CHARTS */}
+            <div style={{ flex: "1 1 48%", display: "flex", flexDirection: "column", gap: "2rem" }}>
+              {/* Pie Chart: Tổng số lượng dịch vụ (B2B+B2C) */}
+              <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
+                <h5 className="fw-semibold mb-3 text-primary">
+                  {currentLanguage === "vi" ? "Tổng quan số lượng dịch vụ" : currentLanguage === "ko" ? "서비스 요약" : "Service Overview"}
+                </h5>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "2rem" }}>
+                  <div style={{ flex: "1 1 50%", minWidth: 280, height: 320, position: "relative" }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          dataKey="value"
+                          data={Object.entries(
+                            [...allData, ...b2bServices].reduce((acc, cur) => {
+                              const name = translateService(cur.LoaiDichVu || "Không xác định", currentLanguage);
+                              acc[name] = (acc[name] || 0) + 1;
+                              return acc;
+                            }, {})
+                          ).map(([name, count]) => ({ name, value: count }))}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={100}
+                          labelLine={false}
+                        >
+                          {Object.entries(
+                            [...allData, ...b2bServices].reduce((acc, cur) => {
+                              const name = translateService(cur.LoaiDichVu || "Không xác định", currentLanguage);
+                              acc[name] = (acc[name] || 0) + 1;
+                              return acc;
+                            }, {})
+                          ).map(([name], i) => (
+                            <Cell
+                              key={i}
+                              fill={getServiceColor(name, serviceColorMap)}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center" }}>
+                      <h4 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#2563eb", marginBottom: "0.25rem" }}>
+                        {[...allData, ...b2bServices].length}
+                      </h4>
+                    </div>
+                  </div>
+                  {/* Legend */}
+                  <div style={{ flex: "1 1 45%", minWidth: 240 }}>
+                    <h6 className="fw-semibold mb-3 text-secondary">
+                      {currentLanguage === "vi" ? "Tổng quan số lượng dịch vụ" : currentLanguage === "ko" ? "서비스 요약" : "Service Summary"}
+                    </h6>
+                    {(() => {
+                      const grouped = [...allData, ...b2bServices].reduce((acc, cur) => {
+                        const name = translateService(cur.LoaiDichVu || "Không xác định", currentLanguage);
+                        acc[name] = (acc[name] || 0) + 1;
+                        return acc;
+                      }, {});
+                      const total = Object.values(grouped).reduce((sum, v) => sum + v, 0);
+                      return (
+                        <>
+                          {Object.entries(grouped).map(([name, count], i) => {
+                            const percent = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+                            return (
+                              <div key={i} className="d-flex justify-content-between align-items-center mb-2" style={{ cursor: "pointer", background: "transparent", borderRadius: 6, padding: "4px 8px" }}>
+                                <span>{name}</span>
+                                <strong>
+                                  {count} <span style={{ color: "#6b7280" }}>({percent}%)</span>
+                                </strong>
+                              </div>
+                            );
+                          })}
+                          <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top" style={{ fontWeight: "600", color: "#1f2937" }}>
+                            <span>{currentLanguage === "vi" ? "Tổng cộng" : currentLanguage === "ko" ? "합계" : "Total"}</span>
+                            <span>
+                              {total} <span style={{ color: "#6b7280" }}>{currentLanguage === "vi" ? "yêu cầu" : currentLanguage === "ko" ? "요청" : "requests"}</span>
+                            </span>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+              {/* Pie Chart: Số lượng dịch vụ theo nhân viên (B2B+B2C) */}
+              <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
+                <h5 className="fw-semibold mb-3 text-primary">
+                  {currentLanguage === "vi" ? "Số lượng dịch vụ theo nhân viên" : currentLanguage === "ko" ? "직원별 서비스 수" : "Service Count by Staff"}
+                </h5>
+                {(() => {
+                  // Gộp staff từ cả B2C và B2B
+                  const grouped = [...allData, ...b2bServices].reduce((acc, cur) => {
+                    const staff = getStaffName(cur);
+                    acc[staff] = (acc[staff] || 0) + 1;
+                    return acc;
+                  }, {});
+                  const total = Object.values(grouped).reduce((s, v) => s + v, 0);
+                  const staffData = Object.entries(grouped).map(([name, value]) => ({ name, value }));
+                  const colors = ["#3b82f6", "#f59e0b", "#10b981", "#8b5cf6", "#ec4899", "#f97316", "#06b6d4", "#84cc16"];
+                  return (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
+                      <div style={{ flex: "1 1 40%", minWidth: 200, height: 260, position: "relative" }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={staffData}
+                              dataKey="value"
+                              nameKey="name"
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={50}
+                              outerRadius={80}
+                              paddingAngle={2}
+                            >
+                              {staffData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} stroke="none" />
+                              ))}
+                            </Pie>
+                            <Tooltip formatter={(value) => [value, currentLanguage === "vi" ? "Yêu cầu" : currentLanguage === "ko" ? "요청" : "Requests"]} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
+                          <h4 style={{ fontSize: "1.5rem", fontWeight: "700", color: "#2563eb", marginBottom: "0" }}>
+                            {[...allData, ...b2bServices].length}
+                          </h4>
+                        </div>
+                      </div>
+                      <div style={{ flex: "1 1 50%", minWidth: 200 }}>
+                        <div style={{ maxHeight: "260px", overflowY: "auto", paddingRight: "5px" }}>
+                          {staffData.map((item, i) => {
+                            const percent = total > 0 ? ((item.value / total) * 100).toFixed(1) : 0;
+                            const color = colors[i % colors.length];
+                            return (
+                              <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 10, cursor: "pointer", background: "transparent", border: "1px solid transparent", borderRadius: 6, padding: "6px 8px", transition: "all 0.2s ease" }}>
+                                <div className="d-flex align-items-center" style={{ gap: "8px", overflow: "hidden" }}>
+                                  <div style={{ width: 12, height: 12, borderRadius: "50%", background: color, flexShrink: 0 }}></div>
+                                  <div style={{ fontWeight: 500, fontSize: "0.9rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "150px" }} title={item.name}>
+                                    {item.name}
+                                  </div>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <strong style={{ color: "#2563eb", fontSize: "0.9rem" }}>{item.value}</strong>
+                                  <span style={{ color: "#6b7280", fontSize: "0.85rem" }}>({percent}%)</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top" style={{ fontWeight: "600", color: "#1f2937", fontSize: "0.9rem" }}>
+                          <span>{currentLanguage === "vi" ? "Tổng cộng" : currentLanguage === "ko" ? "합계" : "Total"}</span>
+                          <span>{total} <span style={{ color: "#6b7280" }}>{currentLanguage === "vi" ? "yêu cầu" : currentLanguage === "ko" ? "요청" : "requests"}</span></span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+            {/* BẢNG DANH SÁCH YÊU CẦU (B2B+B2C) */}
+            <div style={{ flex: "1 1 48%", background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", maxHeight: "1000px", overflow: "hidden" }}>
+              <div className="d-flex justify-content-between align-items-center mb-3 flex-shrink-0" style={{ gap: "1rem" }}>
+                <h5 className="fw-semibold mb-0 text-primary">
+                  {currentLanguage === "vi" ? "Danh sách yêu cầu (Tổng hợp)" : currentLanguage === "ko" ? "요청 목록 (전체)" : "All Requests"}
+                </h5>
+              </div>
+              <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                <div className="table-responsive" style={{ flex: 1, overflow: "auto" }}>
+                  <table className="table table-bordered align-middle table-sm" style={{fontSize: "13px"}}>
+                    <thead>
+                      <tr className="text-center">
+                        <th style={{width: "40px"}}>STT</th>
+                        <th style={{minWidth: "120px"}}>{currentLanguage === "vi" ? "Khách hàng" : currentLanguage === "ko" ? "고객" : "Customer"}</th>
+                        <th style={{width: "100px"}}>{currentLanguage === "vi" ? "Loại dịch vụ" : currentLanguage === "ko" ? "서비스 유형" : "Service Type"}</th>
+                        <th style={{minWidth: "120px"}}>{currentLanguage === "vi" ? "Tên dịch vụ" : currentLanguage === "ko" ? "서비스명" : "Service Name"}</th>
+                        <th style={{minWidth: "100px"}}>{currentLanguage === "vi" ? "Mã dịch vụ" : currentLanguage === "ko" ? "서비스 코드" : "Service Code"}</th>
+                        <th style={{minWidth: "150px"}}>{currentLanguage === "vi" ? "Danh mục" : currentLanguage === "ko" ? "카테고리" : "Category"}</th>
+                        <th style={{width: "120px"}}>{currentLanguage === "vi" ? "Người phụ trách" : currentLanguage === "ko" ? "담당자" : "Assignee"}</th>
+                        <th style={{width: "90px"}}>{currentLanguage === "vi" ? "Ngày hẹn" : currentLanguage === "ko" ? "약속일" : "Appointment Date"}</th>
+                        <th style={{width: "100px"}}>{currentLanguage === "vi" ? "Ngày bắt đầu" : currentLanguage === "ko" ? "시작 날짜" : "Start Date"}</th>
+                        <th style={{width: "100px"}}>{currentLanguage === "vi" ? "Ngày kết thúc" : currentLanguage === "ko" ? "종료 날짜" : "End Date"}</th>
+                        <th style={{width: "100px"}}>{currentLanguage === "vi" ? "Trạng thái" : currentLanguage === "ko" ? "상태" : "Status"}</th>
+                        <th style={{width: "90px"}}>{currentLanguage === "vi" ? "Hình thức" : currentLanguage === "ko" ? "방법" : "Method"}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...allData, ...b2bServices].map((r, idx) => {
+                        const details = typeof r.ChiTietDichVu === 'string' ? (() => { try { return JSON.parse(r.ChiTietDichVu); } catch { return { main: {}, sub: [] }; } })() : (r.ChiTietDichVu || { main: {}, sub: [] });
+                        let displayRows = [];
+                        displayRows.push({ name: r.DanhMuc ? r.DanhMuc.split(" + ")[0] : (r.TenDichVu || ""), isMain: true });
+                        if (details.sub && details.sub.length > 0) {
+                          details.sub.forEach(sub => { displayRows.push({ name: sub.name, isMain: false }); });
+                        } else {
+                          const parts = (r.DanhMuc || "").split(" + ");
+                          if (parts.length > 1) { parts.slice(1).forEach(p => displayRows.push({ name: p, isMain: false })); }
+                        }
+                        const rowSpan = displayRows.length;
+                        const mergedStyle = { verticalAlign: "middle" };
+                        return displayRows.map((row, rIdx) => {
+                          const isFirst = rIdx === 0;
+                          return (
+                            <tr key={`${r.YeuCauID || r.id || idx}-${rIdx}`}>
+                              {isFirst && (<td rowSpan={rowSpan} className="text-center" style={{...mergedStyle, left: 0, zIndex: 5}}>{r.YeuCauID || r.id || idx + 1}</td>)}
+                              {isFirst && (<td rowSpan={rowSpan} className="text-center" style={{...mergedStyle, left: "40px", zIndex: 5}}>{r.HoTen || r.TenKhachHang || r.CompanyName || ""}</td>)}
+                              {isFirst && (<td rowSpan={rowSpan} className="text-center" style={{verticalAlign: "middle"}}><span className="text-center">{translateService(r.LoaiDichVu, currentLanguage)}</span></td>)}
+                              {isFirst && (<td rowSpan={rowSpan} style={{verticalAlign: "middle"}}>{r.TenDichVu}</td>)}
+                              {isFirst && (<td rowSpan={rowSpan} style={{verticalAlign: "middle", textAlign: "center"}}>{r.MaHoSo || r.MaDichVu || ""}</td>)}
+                              <td style={{ color: row.isMain ? "#000" : "#000", paddingLeft: "8px", textAlign: "center", whiteSpace: "normal" }}>{row.name}</td>
+                              {isFirst && (<td rowSpan={rowSpan} className="text-center" style={{verticalAlign: "middle"}}>{r.NguoiPhuTrach?.name || r.NguoiPhuTrach || ""}</td>)}
+                              {isFirst && (<td rowSpan={rowSpan} className="text-center" style={{verticalAlign: "middle"}}>{r.ChonNgay ? new Date(r.ChonNgay).toLocaleDateString("vi-VN") : ""}</td>)}
+                              {isFirst && (<td rowSpan={rowSpan} className="text-center">{r.NgayBatDau ? new Date(r.NgayBatDau).toLocaleDateString("vi-VN") : "-"}</td>)}
+                              {isFirst && (<td rowSpan={rowSpan} className="text-center">{r.NgayKetThuc ? new Date(r.NgayKetThuc).toLocaleDateString("vi-VN") : "-"}</td>)}
+                              {isFirst && (<td rowSpan={rowSpan} className="text-center" style={{verticalAlign: "middle"}}><span>{r.TrangThai}</span></td>)}
+                              {isFirst && (<td rowSpan={rowSpan} className="text-center" style={{verticalAlign: "middle"}}>{r.TenHinhThuc}</td>)}
+                            </tr>
+                          );
+                        });
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* TAB: KHÁCH HÀNG CÁ NHÂN */}
       {activeTab === "individual" && (
         <div className="mb-4">
            <div
