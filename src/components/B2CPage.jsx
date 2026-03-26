@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import * as XLSX from "xlsx";
 import ReactDOM from "react-dom";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
@@ -2559,7 +2560,6 @@ const B2CPage = ({ currentUser: currentUserProp }) => {
   const [dichvuList, setDichvuList] = useState([]);
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [pendingSearch, setPendingSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 20;
@@ -2922,7 +2922,7 @@ const fetchData = async () => {
     setCurrentPage(1);
   }, [searchTerm]);
 
-  useEffect(() => { fetchData(); }, [currentPage, currentUser, searchTerm]);
+  useEffect(() => { fetchData(); }, [currentPage, currentUser]);
 
   const handleEditClick = (item) => { setEditingRequest(item); };
   const handleViewDetailClick = (item, serviceCode, clickedRow) => {
@@ -3710,7 +3710,32 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
     } catch { showToast("Lỗi kết nối", "error"); }
   };
 
-  const filteredData = data;
+  // Lọc theo mọi cột: searchTerm xuất hiện ở bất kỳ giá trị nào (không phân biệt hoa thường, loại bỏ dấu)
+  function normalizeText(str) {
+    return String(str || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  // Flatten object to string (for deep search)
+  function flattenValues(obj) {
+    if (obj == null) return "";
+    if (typeof obj === "string" || typeof obj === "number" || typeof obj === "boolean") return String(obj);
+    if (Array.isArray(obj)) return obj.map(flattenValues).join(" ");
+    if (typeof obj === "object") return Object.values(obj).map(flattenValues).join(" ");
+    return "";
+  }
+
+  const normalizedSearch = normalizeText(searchTerm);
+  const filteredData = !normalizedSearch
+    ? data
+    : data.filter(row => {
+        const flat = normalizeText(flattenValues(row));
+        return flat.includes(normalizedSearch);
+      });
 
   const parseNumericValue = (value) => {
     if (typeof value === "number") return Number.isFinite(value) ? value : 0;
@@ -3912,30 +3937,52 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                     border: "1px solid #e5e7eb",
                     background: "#fafbfc"
                   }}
-                  value={pendingSearch}
-                  onChange={(e) => setPendingSearch(e.target.value)}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
-                <button
-                  type="button"
-                  className="btn"
-                  style={{
-                    borderRadius: "20px",
-                    background: "#f3f4f6",
-                    color: "#222",
-                    border: "1px solid #e5e7eb",
-                    fontWeight: 500,
-                    padding: "0 22px",
-                    height: 40,
-                    boxShadow: "none"
-                  }}
-                  onClick={() => setSearchTerm(pendingSearch)}
-                >
-                  {currentLanguage === "vi" ? "Bộ lọc" : "Filter"}
-                </button>
               </div>
+
 
               {currentUser && (
                 <div className="d-flex align-items-center gap-2">
+                  {/* Nút tải Excel */}
+                  <button
+                    onClick={() => {
+                      // Lấy toàn bộ data bảng (không chỉ trang hiện tại)
+                      const exportData = (data || []).map(row => {
+                        const obj = {};
+                        (tableHeaders || []).forEach((header, idx) => {
+                          const key = availableColumnDefs[idx]?.key;
+                          if (key && isVisible(key)) {
+                            obj[header] = row[key] !== undefined ? row[key] : "";
+                          }
+                        });
+                        return obj;
+                      });
+                      if (!exportData.length) return;
+                      const ws = XLSX.utils.json_to_sheet(exportData);
+                      const wb = XLSX.utils.book_new();
+                      XLSX.utils.book_append_sheet(wb, ws, "B2C Requests");
+                      XLSX.writeFile(wb, `B2C_Requests_${new Date().toISOString().slice(0,10)}.xlsx`);
+                    }}
+                    style={{
+                      background: "#22c55e",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      padding: "8px 16px",
+                      fontWeight: 500,
+                      fontSize: 14,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px"
+                    }}
+                  >
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{marginRight:4}}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                    Tải Excel
+                  </button>
+                  {/* Nút đăng ký dịch vụ mới */}
                   <div>
                     <button
                       onClick={handleCreateClick}
@@ -3989,6 +4036,15 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                 </div>
               )}
             </div>
+            {/* Tổng doanh thu B2C dưới nút đăng ký dịch vụ mới */}
+            {canViewFinance && (
+              <div className="d-flex align-items-center gap-2" style={{ marginLeft: 'auto', marginTop: 8, marginBottom: 0, width: 'fit-content' }}>
+                <span style={{ color: '#222', fontWeight: 600, fontSize: 16 }}>Tổng doanh thu B2C:</span>
+                <span className="fs-5 fw-bold text-primary" style={{ fontSize: 20, marginLeft: 6 }}>
+                  {displayedTotalRevenue.toLocaleString("vi-VN")} đ
+                </span>
+              </div>
+            )}
 
            <div className="table-wrapper mt-3" style={{marginLeft:90}}>
             <div className="table-responsive" style={{ paddingLeft: "0px", position: "relative", maxHeight: "calc(100vh - 240px)", overflow: "auto", borderBottom: "1px solid #dee2e6" }} ref={tableContainerRef}>
@@ -4105,14 +4161,7 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
             </div>
             
        
-            {canViewFinance && (
-                <div className="d-flex justify-content-end align-items-center px-3 py-2 bg-light border-start border-end border-bottom">
-                  <span className="me-2 text-muted fw-semibold">Tổng doanh thu tích luỹ:</span>
-                  <span className="fs-6 fw-bold text-primary">
-                      {displayedTotalRevenue.toLocaleString("vi-VN")} đ
-                  </span>
-                </div>
-            )}
+            {/* Đã chuyển tổng doanh thu B2C lên trên */}
 
 
             <div className="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-white" style={{ marginTop: "0", borderTop: "1px solid #dee2e6" }}>

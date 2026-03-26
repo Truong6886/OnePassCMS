@@ -7,7 +7,8 @@ import EditProfileModal from "./EditProfileModal";
 import RegisterB2BModal from "./RegisterB2BModal";
 import AddServiceModalB2B from "./AddServiceModalB2B";
 import { showToast } from "../utils/toast";
-import { Save, Trash2, XCircle, Check, FileText, Edit, Eye, EyeOff, Plus, X, ChevronDown, Paperclip, Pin, Settings2 } from "lucide-react";
+import { Save, Trash2, XCircle, Check, FileText, Edit, Eye, EyeOff, Plus, X, ChevronDown, Paperclip, Pin, Settings2, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 // Danh sách cột cấu hình cho popup
 const COLUMN_CONFIGS = [
   { key: "stt", label: "STT" },
@@ -462,6 +463,125 @@ export default function B2BPage() {
 
   const [expandedRowId, setExpandedRowId] = useState(null);
   const [showRegisterB2BModal, setShowRegisterB2BModal] = useState(false);
+
+  // Excel Export Handler
+  const handleExportExcel = () => {
+
+    // Export all data for the current tab (not just current page)
+    let exportData = [];
+    let fileName = "B2B_DanhSach.xlsx";
+    let columns = COLUMN_CONFIGS;
+    if (activeTab === "approved") {
+      exportData = approvedData || [];
+      fileName = "B2B_DaDuyet.xlsx";
+    } else if (activeTab === "pending") {
+      exportData = pendingData || [];
+      fileName = "B2B_ChoDuyet.xlsx";
+    } else if (activeTab === "services") {
+      exportData = allServiceData || [];
+      fileName = "B2B_DichVu.xlsx";
+    } else if (activeTab === "rejected") {
+      exportData = rejectedData || [];
+      fileName = "B2B_TuChoi.xlsx";
+    }
+
+    if (!exportData.length) {
+      showToast("Không có dữ liệu để xuất Excel", "warning");
+      return;
+    }
+
+    // Map data to flat objects for Excel, theo đúng cấu hình cột
+    const mapped = exportData.map((item, idx) => {
+      const row = {};
+      columns.forEach(col => {
+        switch (col.key) {
+          case "stt":
+            row[col.label] = idx + 1;
+            break;
+          case "company":
+            row[col.label] = item.TenDoanhNghiep || item.companyName || "";
+            break;
+          case "soDKKD":
+            row[col.label] = item.SoDKKD || item.soDKKD || item.BusinessRegistrationNumber || item.businessRegNo || "";
+            break;
+          case "hoSo":
+            row[col.label] = item.HoSo || item.hoSo || item.FileName || "";
+            break;
+          case "diaChiNhan":
+            row[col.label] = item.DiaChiNhan || item.diaChiNhan || "";
+            break;
+          case "noiTiepNhan":
+            row[col.label] = item.NoiTiepNhanHoSo || item.noiTiepNhanHoSo || "";
+            break;
+          case "loaiDichVu":
+            row[col.label] = item.LoaiDichVu || item.serviceType || "";
+            break;
+          case "tenDichVu":
+            row[col.label] = item.TenDichVu || item.serviceName || "";
+            break;
+          case "maDichVu":
+            row[col.label] = item.MaDichVu || item.ServiceID || item.maDichVu || "";
+            break;
+          case "ghiChu":
+            row[col.label] = item.GhiChu || item.ghiChu || item.ghiChuDichVu || "";
+            break;
+          case "nguoiPhuTrach":
+            row[col.label] = item.NguoiPhuTrach?.name || item.NguoiPhuTrach || item.picName || "";
+            break;
+          case "ngayTao":
+            row[col.label] = item.NgayTao || item.createdAt || item.CreatedAt || "";
+            break;
+          case "ngayBatDau":
+            row[col.label] = item.NgayBatDau || item.startDate || "";
+            break;
+          case "ngayHen":
+            row[col.label] = item.NgayHen || item.appointmentDate || "";
+            break;
+          case "ngayKetThuc":
+            row[col.label] = item.NgayKetThuc || item.completionDate || "";
+            break;
+          case "goi":
+            row[col.label] = item.GoiDichVu || item.package || "";
+            break;
+          case "invoiceYN":
+            row[col.label] = item.YeuCauHoaDon || item.invoiceYN || "";
+            break;
+          case "invoice":
+            row[col.label] = item.InvoiceUrl || item.invoiceUrl || "";
+            break;
+          case "trangThai":
+            row[col.label] = item.TrangThai || item.status || "";
+            break;
+          case "doanhThuTruoc":
+            row[col.label] = item.DoanhThuTruocChietKhau || item.revenueBefore || "";
+            break;
+          case "mucChietKhau":
+            row[col.label] = item.MucChietKhau || item.discountRate || "";
+            break;
+          case "soTienChietKhau":
+            row[col.label] = item.SoTienChietKhau || item.discountAmount || "";
+            break;
+          case "doanhThuSau":
+            row[col.label] = item.DoanhThuSauChietKhau || item.revenueAfter || "";
+            break;
+          case "tongDoanhThu":
+            row[col.label] = item.TongDoanhThuTichLuy || item.totalRevenue || "";
+            break;
+          case "hanhDong":
+            row[col.label] = ""; // Không xuất nút hành động
+            break;
+          default:
+            row[col.label] = item[col.key] || "";
+        }
+      });
+      return row;
+    });
+
+    const ws = XLSX.utils.json_to_sheet(mapped);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "B2B");
+    XLSX.writeFile(wb, fileName);
+  };
 
   const toggleExpand = (id) => {
     setExpandedRowId(prev => prev === id ? null : id);
@@ -1065,6 +1185,7 @@ export default function B2BPage() {
       mucChietKhau: "Mức\nChiết Khấu",
       soTienChietKhau: "Số Tiền\nChiết Khấu",
       doanhThuSau: "Doanh Thu\nSau Chiết Khấu",
+      tongDoanhThuTichLuy: "Tổng Doanh Thu",
       suDungVi: "Sử Dụng\nVí",
       tongDoanhThuTichLuy: "Tổng Doanh Thu",
       hanhDong: "Hành Động",
@@ -1114,6 +1235,7 @@ export default function B2BPage() {
       doanhThuSau: "Revenue After Discount",
       tongDoanhThuTichLuy: "Total Revenue",
       suDungVi: "Wallet Usage",
+      tongDoanhThuTichLuy: "Total Revenue",
       hanhDong: "Actions",
       msgWalletLimit: "Wallet usage cannot exceed 2,000,000",
       noiTiepNhanHoSo: "Receiving Office",
@@ -1158,6 +1280,7 @@ export default function B2BPage() {
       mucChietKhau: "할인율",
       soTienChietKhau: "할인 금액",
       doanhThuSau: "할인 후 매출",
+      tongDoanhThuTichLuy: "총 매출",
       suDungVi: "지갑 사용",
       hoSo: "서류",
       tongDoanhThuTichLuy: "총 매출",
@@ -2247,9 +2370,10 @@ export default function B2BPage() {
           </div>
         </div>
 
-        {/* Tổng doanh thu tích lũy chuyển lên đây */}
+
+        {/* Tổng doanh thu tích lũy + Nút tải Excel */}
         {canViewRevenue && (
-          <div className="d-flex justify-content-end align-items-center mt-3 mb-2"
+          <div className="d-flex justify-content-end align-items-center mt-3 mb-2 gap-3"
             style={{
               fontSize: "17px",
               fontWeight: 600,
@@ -2258,7 +2382,16 @@ export default function B2BPage() {
             }}
           >
             <span style={{ fontWeight: 700, fontSize: 17, marginRight: 8 }}>Tổng doanh thu tích lũy:</span>
-            <span style={{ fontWeight: 700, fontSize: 20, color: '#2563eb' }}>{formatNumber(overallB2BRevenue)} đ</span>
+            <span style={{ fontWeight: 700, fontSize: 20, color: '#2563eb', marginRight: 16 }}>{formatNumber(overallB2BRevenue)} đ</span>
+            <button
+              className="btn btn-outline-success d-flex align-items-center"
+              style={{ height: 38 }}
+              onClick={handleExportExcel}
+              title="Tải danh sách B2B ra Excel"
+            >
+              <Download size={18} className="me-2" />
+              Tải Excel
+            </button>
           </div>
         )}
 
@@ -2279,7 +2412,7 @@ export default function B2BPage() {
                   <tr>
                     <th className="py-0 border" style={{ ...serviceHeaderStyle("stt", 52), ...getColumnVisibilityStyle("stt") }}><div className="d-flex align-items-center justify-content-center gap-1" style={{ padding: "0 8px" }}><span>{t.stt}</span>{renderPinButton(tableKey, "stt")}</div></th>
                     <th className="py-0 border" style={{ ...serviceHeaderStyle("company", 120), ...getColumnVisibilityStyle("company") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.chonDN}</span>{renderPinButton(tableKey, "company")}</div></th>
-                    <th className="py-0 border" style={{ ...serviceHeaderStyle("soDKKD", 90), ...getColumnVisibilityStyle("soDKKD") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>Số ĐKKD</span>{renderPinButton(tableKey, "soDKKD")}</div></th>
+                    <th className="py-0 border" style={{ ...serviceHeaderStyle("soDKKD", 90), ...getColumnVisibilityStyle("soDKKD") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.soDKKD}</span>{renderPinButton(tableKey, "soDKKD")}</div></th>
                     <th className="py-0 border" style={{ ...serviceHeaderStyle("hoSo", 219), ...getColumnVisibilityStyle("hoSo") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.hoSo}</span>{renderPinButton(tableKey, "hoSo")}</div></th>
                     <th className="py-0 border" style={{ ...serviceHeaderStyle("noiTiepNhan", 180), ...getColumnVisibilityStyle("noiTiepNhan") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.noiTiepNhanHoSo}</span>{renderPinButton(tableKey, "noiTiepNhan")}</div></th>
                     <th className="py-0 border" style={{ ...serviceHeaderStyle("diaChiNhan", 180), ...getColumnVisibilityStyle("diaChiNhan") }}><div className="d-flex align-items-center justify-content-center gap-1"><span>{t.diaChiNhan}</span>{renderPinButton(tableKey, "diaChiNhan")}</div></th>
@@ -2568,7 +2701,7 @@ export default function B2BPage() {
                         );
                       });
                     })
-                  ) : (<tr><td colSpan="100%" className="text-center text-muted py-4">{normalizedKeyword ? "Không tìm thấy kết quả" : "Chưa có dữ liệu"}</td></tr>)}
+                  ) : (<tr><td colSpan="100%" className="text-center py-4">{normalizedKeyword ? "Không tìm thấy kết quả" : "Chưa có dữ liệu"}</td></tr>)}
                 </tbody>
               </table>
             </div>
@@ -3020,7 +3153,7 @@ export default function B2BPage() {
         <Header currentUser={currentUser} onToggleSidebar={() => setShowSidebar(!showSidebar)} showSidebar={showSidebar} onOpenEditModal={() => setShowEditModal(true)} hasNewRequest={hasNewRequest} onBellClick={() => { setShowNotification(!showNotification); setHasNewRequest(false); }} currentLanguage={currentLanguage} onLanguageChange={setCurrentLanguage} />
         <NotificationPanel showNotification={showNotification} setShowNotification={setShowNotification} notifications={notifications} currentLanguage={currentLanguage} />
         {showEditModal && <EditProfileModal currentUser={currentUser} onUpdate={u => setCurrentUser(u)} onClose={() => setShowEditModal(false)} currentLanguage={currentLanguage} />}
-        <div className="d-flex border-bottom mb-3 gap-4 mt-3 px-4">
+        <div className="d-flex border-bottom mb-3 gap-4 mt-3 px-4 align-items-center">
           {["pending", "approved", "rejected", "services"].map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-2 border-0 bg-transparent fw-bold ${activeTab === tab ? "text-primary border-bottom border-primary border-2" : "text-muted"}`}>
               {tab === "pending" ? t.pendingTab : tab === "approved" ? t.approvedTab : tab === "rejected" ? t.rejectedTab : t.servicesTab}
