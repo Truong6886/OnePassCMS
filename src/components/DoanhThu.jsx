@@ -424,9 +424,9 @@ export default function DoanhThu() {
   }, [activeTab, currentPage, rowsPerPage]);
 
   const prepareChartData = (data, mode, type) => {
-    if (type === "combined") { 
-      prepareCombinedChartData(data, mode); 
-      return; 
+    if (type === "combined") {
+      prepareCombinedChartData(data, mode);
+      return;
     }
     if (!data || data.length === 0) {
       type === "personal" ? setChartData([]) : setCompanyLineChartData([]);
@@ -436,18 +436,34 @@ export default function DoanhThu() {
     data.forEach((r) => {
       const date = new Date(r.NgayTao || Date.now());
       let key = "";
+      let sortKey = 0;
       switch (mode) {
-        case "ngay": key = date.toLocaleDateString("vi-VN"); break;
-        case "tuan": key = `Tuần ${Math.ceil(date.getDate() / 7)}/${date.getMonth() + 1}`; break;
-        case "thang": key = `${date.getMonth() + 1}/${date.getFullYear()}`; break;
-        case "nam": key = `${date.getFullYear()}`; break;
-        default: key = date.toLocaleDateString("vi-VN");
+        case "ngay":
+          key = date.toLocaleDateString("vi-VN");
+          sortKey = date.getTime();
+          break;
+        case "tuan":
+          key = `Tuần ${Math.ceil(date.getDate() / 7)}/${date.getMonth() + 1}`;
+          sortKey = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + Math.ceil(date.getDate() / 7);
+          break;
+        case "thang":
+          key = `${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getFullYear()}`;
+          sortKey = date.getFullYear() * 100 + (date.getMonth() + 1);
+          break;
+        case "nam":
+          key = `${date.getFullYear()}`;
+          sortKey = date.getFullYear();
+          break;
+        default:
+          key = date.toLocaleDateString("vi-VN");
+          sortKey = date.getTime();
       }
-      if (!group[key]) group[key] = { name: key, doanhthu: 0 };
+      if (!group[key]) group[key] = { name: key, doanhthu: 0, sortKey };
       const val = parseFloat(type === "personal" ? (r.DoanhThuSauChietKhau || r.DoanhThu || 0) : (r.DoanhThu || 0));
       group[key].doanhthu += isNaN(val) ? 0 : val;
     });
-    const result = Object.values(group);
+    // Sort theo sortKey tăng dần
+    const result = Object.values(group).sort((a, b) => a.sortKey - b.sortKey);
     type === "personal" ? setChartData(result) : setCompanyLineChartData(result);
   };
 
@@ -467,15 +483,25 @@ export default function DoanhThu() {
     data.forEach((r) => {
       const date = new Date(r.NgayTao || r.NgayThucHien);
       let key = "";
-      if (mode === "ngay") key = date.toLocaleDateString("vi-VN");
-      else if (mode === "tuan") { const weekNum = Math.ceil((date.getDate()) / 7); key = `Tuần ${weekNum}/${date.getMonth() + 1}`; }
-      else if (mode === "thang") key = `${date.getMonth() + 1}/${date.getFullYear()}`;
-      else if (mode === "nam") key = `${date.getFullYear()}`;
-      // Đếm số lượng đơn thay vì tính doanh thu
-      if (!grouped[key]) grouped[key] = 0;
-      grouped[key] += 1;
+      let sortKey = 0;
+      if (mode === "ngay") {
+        key = date.toLocaleDateString("vi-VN");
+        sortKey = date.getTime();
+      } else if (mode === "tuan") {
+        const weekNum = Math.ceil((date.getDate()) / 7);
+        key = `Tuần ${weekNum}/${date.getMonth() + 1}`;
+        sortKey = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + weekNum;
+      } else if (mode === "thang") {
+        key = `${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getFullYear()}`;
+        sortKey = date.getFullYear() * 100 + (date.getMonth() + 1);
+      } else if (mode === "nam") {
+        key = `${date.getFullYear()}`;
+        sortKey = date.getFullYear();
+      }
+      if (!grouped[key]) grouped[key] = { name: key, doanhthu: 0, sortKey };
+      grouped[key].doanhthu += 1;
     });
-    const chartData = Object.keys(grouped).map(k => ({ name: k, doanhthu: grouped[k] }));
+    const chartData = Object.values(grouped).sort((a, b) => a.sortKey - b.sortKey);
     setCombinedChartData(chartData);
   };
 
@@ -659,23 +685,53 @@ const handleFilter = () => {
       const tienCK = (dt * ck) / 100;
       const sauCK = dt - tienCK;
 
+      // Payload cho bảng doanh thu cá nhân
       const payload = {
+        DoanhThuTruocChietKhau: dt,
+        MucChietKhau: ck,
+        SoTienChietKhau: tienCK,
+        DoanhThuSauChietKhau: sauCK,
+        Invoice: updatedData.Invoice,
+        InvoiceUrl: updatedData.InvoiceUrl
+      };
+
+      // Gọi API cập nhật doanh thu cá nhân
+      const res = await fetch(`https://onepasscms-backend-tvdy.onrender.com/api/yeucau/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await res.json();
+
+      if (result.success) {
+        // Gọi tiếp API cập nhật cho bảng B2C (đồng bộ dữ liệu)
+        // Lấy lại bản ghi gốc để đồng bộ đủ trường (nếu cần)
+        let b2cPayload = {
+          ...updatedData,
           DoanhThuTruocChietKhau: dt,
           MucChietKhau: ck,
           SoTienChietKhau: tienCK,
           DoanhThuSauChietKhau: sauCK,
           Invoice: updatedData.Invoice,
           InvoiceUrl: updatedData.InvoiceUrl
-      };
-
-      const res = await fetch(`https://onepasscms-backend-tvdy.onrender.com/api/yeucau/${id}`, {
+        };
+        // Xoá các trường không cần thiết nếu có
+        delete b2cPayload.NguoiPhuTrach;
+        delete b2cPayload.User;
+        delete b2cPayload.ConfirmPassword;
+        delete b2cPayload.InvoiceFile;
+        // Nếu có trường YeuCauXuatHoaDon thì đồng bộ sang Invoice
+        if (b2cPayload.YeuCauXuatHoaDon) {
+          b2cPayload.Invoice = b2cPayload.YeuCauXuatHoaDon;
+          delete b2cPayload.YeuCauXuatHoaDon;
+        }
+        // Gọi API cập nhật B2C
+        await fetch(`https://onepasscms-backend-tvdy.onrender.com/api/yeucau/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-      });
+          body: JSON.stringify(b2cPayload),
+        });
 
-      const result = await res.json();
-      if (result.success) {
         toast.success(`Cập nhật thành công!`);
         fetchPersonalData(currentPage);
       } else {

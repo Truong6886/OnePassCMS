@@ -71,6 +71,16 @@ function NewsPage() {
     fetchNews();
   }, []);
 
+  // Chặn truy cập nếu không có quyền
+  if (
+    currentUser &&
+    !currentUser.perm_manage_news &&
+    !currentUser.is_admin &&
+    !currentUser.is_director
+  ) {
+    return <div style={{padding:40, color:'#b91c1c', fontWeight:600, fontSize:20}}>Bạn không có quyền truy cập trang này.</div>;
+  }
+
   const fetchNews = async () => {
     try {
       setLoading(true);

@@ -3948,19 +3948,117 @@ const ApproveModal = ({ request, onClose, onConfirm, currentLanguage, users, cur
                   {/* Nút tải Excel */}
                   <button
                     onClick={() => {
-                      // Lấy toàn bộ data bảng (không chỉ trang hiện tại)
-                      const exportData = (data || []).map(row => {
-                        const obj = {};
-                        (tableHeaders || []).forEach((header, idx) => {
-                          const key = availableColumnDefs[idx]?.key;
-                          if (key && isVisible(key)) {
-                            obj[header] = row[key] !== undefined ? row[key] : "";
-                          }
+                      // Xuất từng dòng dịch vụ (bao gồm dịch vụ phụ), lấy đúng dữ liệu hiển thị từng cột
+                      let exportData = [];
+                      (data || []).forEach((item, idx) => {
+                        // Lấy dịch vụ chính và dịch vụ phụ (nếu có)
+                        let mainServices = [];
+                        try {
+                          const details = typeof item.ChiTietDichVu === 'string' ? JSON.parse(item.ChiTietDichVu) : item.ChiTietDichVu;
+                          if (details?.services && Array.isArray(details.services)) mainServices = details.services;
+                          if (details?.sub && Array.isArray(details.sub)) mainServices = mainServices.concat(details.sub);
+                        } catch { mainServices = []; }
+                        if (!mainServices.length) mainServices = [{ name: item.TenDichVu || item.DanhMuc || '', note: item.GhiChuDichVu || item.GhiChuDV || '' }];
+                        mainServices.forEach((service, sidx) => {
+                          const obj = {};
+                          initialColumnKeys.forEach((col, colIdx) => {
+                            if (!isVisible(col.key) || col.key === "hanhDong") return;
+                            switch (col.key) {
+                              case "id":
+                              case "stt":
+                                obj[col.label] = idx + 1;
+                                break;
+                              case "hoTen":
+                                obj[col.label] = item.HoTen || '';
+                                break;
+                              case "maVung":
+                                obj[col.label] = item.MaVung || '';
+                                break;
+                              case "sdt":
+                                obj[col.label] = item.SoDienThoai || '';
+                                break;
+                              case "email":
+                                obj[col.label] = item.Email || '';
+                                break;
+                              case "hinhThuc":
+                                obj[col.label] = item.TenHinhThuc || '';
+                                break;
+                              case "coSo":
+                                obj[col.label] = item.CoSoTuVan || '';
+                                break;
+                              case "diaChiNhan":
+                                obj[col.label] = item.DiaChiNhan || '';
+                                break;
+                              case "noiTiepNhanHoSo":
+                                obj[col.label] = item.NoiTiepNhanHoSo || (() => { try { const d = typeof item.ChiTietDichVu === 'string' ? JSON.parse(item.ChiTietDichVu) : item.ChiTietDichVu; return d?.meta?.receivingOffice || d?.meta?.NoiTiepNhanHoSo || ''; } catch { return ''; } })();
+                                break;
+                              case "loaiDichVu":
+                                obj[col.label] = item.LoaiDichVu || '';
+                                break;
+                              case "danhMuc":
+                                obj[col.label] = service.name || '';
+                                break;
+                              case "maDichVu":
+                                obj[col.label] = item.MaDichVu || '';
+                                break;
+                              case "ghiChuDichVu":
+                                obj[col.label] = service.note || '';
+                                break;
+                              case "nguoiPhuTrach":
+                                obj[col.label] = item.NguoiPhuTrach?.name || '';
+                                break;
+                              case "ngayTao":
+                                obj[col.label] = item.NgayTao ? new Date(item.NgayTao).toLocaleDateString("vi-VN") : '';
+                                break;
+                              case "ngayBatDau":
+                                obj[col.label] = item.NgayBatDau ? new Date(item.NgayBatDau).toLocaleDateString("vi-VN") : '';
+                                break;
+                              case "ngayHen":
+                                obj[col.label] = item.ChonNgay ? new Date(item.ChonNgay).toLocaleDateString("vi-VN") : '';
+                                break;
+                              case "ngayKetThuc":
+                                obj[col.label] = item.NgayKetThuc ? new Date(item.NgayKetThuc).toLocaleDateString("vi-VN") : '';
+                                break;
+                              case "trangThai":
+                                obj[col.label] = item.TrangThai || '';
+                                break;
+                              case "goiDichVu":
+                                obj[col.label] = item.GoiDichVu || '';
+                                break;
+                              case "invoice":
+                                obj[col.label] = item.Invoice === "Yes" ? "Yes" : "No";
+                                break;
+                              case "invoiceUrl":
+                                obj[col.label] = item.InvoiceUrl || '';
+                                break;
+                              case "ghiChu":
+                                obj[col.label] = item.GhiChu || '';
+                                break;
+                              case "doanhThuTruoc":
+                                obj[col.label] = item.DoanhThuTruocChietKhau || '';
+                                break;
+                              case "mucChietKhau":
+                                obj[col.label] = item.MucChietKhau || '';
+                                break;
+                              case "soTienChietKhau":
+                                obj[col.label] = item.SoTienChietKhau || '';
+                                break;
+                              case "doanhThuSau":
+                                obj[col.label] = item.DoanhThuSauChietKhau || '';
+                                break;
+                              case "tongDoanhThuTichLuy":
+                                obj[col.label] = item.TongDoanhThuTichLuy || '';
+                                break;
+                              default:
+                                obj[col.label] = item[col.key] !== undefined ? item[col.key] : '';
+                            }
+                          });
+                          exportData.push(obj);
                         });
-                        return obj;
                       });
-                      if (!exportData.length) return;
-                      const ws = XLSX.utils.json_to_sheet(exportData);
+                      const exportHeaders = initialColumnKeys.filter(col => col.key !== "hanhDong" && isVisible(col.key)).map(col => col.label);
+                      const ws = XLSX.utils.json_to_sheet(exportData, { header: exportHeaders });
+                      XLSX.utils.sheet_add_aoa(ws, [exportHeaders], { origin: "A1" });
                       const wb = XLSX.utils.book_new();
                       XLSX.utils.book_append_sheet(wb, ws, "B2C Requests");
                       XLSX.writeFile(wb, `B2C_Requests_${new Date().toISOString().slice(0,10)}.xlsx`);

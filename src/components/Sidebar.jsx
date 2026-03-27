@@ -2,14 +2,30 @@ import React, { useEffect, useState } from "react";
 import logo from "../assets/logo.png";
 import { useNavigate, useLocation } from "react-router-dom";
 import { List, Search, DollarSign, UserRound, Handshake, Store, Newspaper, LayoutGrid } from "lucide-react";
-export default function Sidebar({ collapsed = false, user }) {
+
+export default function Sidebar({ collapsed = false }) {
   const [hoveredItem, setHoveredItem] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("currentUser"));
+    } catch { return null; }
+  });
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname;
   const [currentLanguage, setCurrentLanguage] = useState(
     localStorage.getItem("language") || "vi"
   );
+
+  useEffect(() => {
+    const syncUser = () => {
+      try {
+        setCurrentUser(JSON.parse(localStorage.getItem("currentUser")));
+      } catch { setCurrentUser(null); }
+    };
+    window.addEventListener("storage", syncUser);
+    return () => window.removeEventListener("storage", syncUser);
+  }, []);
 
 useEffect(() => {
   const updateLanguage = () => {
@@ -180,7 +196,7 @@ useEffect(() => {
             </li>
           
               
-          {(user?.is_accountant || user?.is_director || user?.perm_view_revenue) && (
+          {(currentUser?.is_accountant || currentUser?.is_director || currentUser?.perm_view_revenue) && (
             <li
               style={getItemStyle("doanhthu")}
               onMouseEnter={() => setHoveredItem("doanhthu")}
@@ -192,7 +208,7 @@ useEffect(() => {
             </li>
           )}
          
-        {(user?.is_director || user?.is_accountant || user?.is_admin) && (
+        {(currentUser?.is_director || currentUser?.is_accountant || currentUser?.is_admin) && (
           <li
             style={getItemStyle("vendor")} 
             onMouseEnter={() => setHoveredItem("vendor")}
@@ -214,15 +230,17 @@ useEffect(() => {
             {!collapsed && <span>{texts.services[currentLanguage]}</span>}
           </li>
 
-          <li
-            style={getItemStyle("news")}
-            onMouseEnter={() => setHoveredItem("news")}
-            onMouseLeave={() => setHoveredItem(null)}
-            onClick={() => navigate("/news")}
-          >
-            <Newspaper size={22} />
-            {!collapsed && <span>{texts.news[currentLanguage]}</span>}
-          </li>
+          {(currentUser?.perm_manage_news || currentUser?.is_admin || currentUser?.is_director) && (
+            <li
+              style={getItemStyle("news")}
+              onMouseEnter={() => setHoveredItem("news")}
+              onMouseLeave={() => setHoveredItem(null)}
+              onClick={() => navigate("/news")}
+            >
+              <Newspaper size={22} />
+              {!collapsed && <span>{texts.news[currentLanguage]}</span>}
+            </li>
+          )}
           
           {/* Tra cứu hồ sơ */}
           <li

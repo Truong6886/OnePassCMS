@@ -39,7 +39,7 @@ export default function QuanLyNhanVien() {
 
   const [formData, setFormData] = useState({
     username: "", name: "", email: "", password: "", role: "user", 
-    perm_approve_b2b: false, perm_approve_b2c: false, perm_view_revenue: false, perm_view_staff: false,
+    perm_approve_b2b: false, perm_approve_b2c: false, perm_view_revenue: false, perm_view_staff: false, perm_manage_news: false,
     ChucDanh: "", PhongBan: "", MaVung: "+84", SoDienThoai: "", NgayVaoLam: "", LoaiHopDong: "", CV: ""
   });
 
@@ -170,6 +170,7 @@ const handleOpenAdd = () => {
       perm_approve_b2c: user.perm_approve_b2c || false,
       perm_view_revenue: user.perm_view_revenue || false,
       perm_view_staff: user.perm_view_staff || false,
+      perm_manage_news: user.perm_manage_news || false,
       ChucDanh: user.ChucDanh || "",
       PhongBan: user.PhongBan || "",
       MaVung: user.MaVung || "+84",
@@ -489,7 +490,8 @@ const handleSaveUser = async () => {
     if (user.perm_approve_b2b || user.is_director) perms.push({ label: t.duyetB2B, color: "bg-primary" });
     if (user.perm_approve_b2c || user.is_director) perms.push({ label: t.duyetB2C, color: "bg-success" });
     if (user.perm_view_revenue || user.is_accountant || user.is_director) perms.push({ label: t.xemDoanhThu, color: "bg-warning text-dark" });
-    if (user.perm_view_staff || user.is_director) perms.push({ label: t.xemCV, color: "bg-info text-dark" }); 
+    if (user.perm_view_staff || user.is_director) perms.push({ label: t.xemCV, color: "bg-info text-dark" });
+    if (user.perm_manage_news || user.is_director) perms.push({ label: "Quản lý tin tức", color: "bg-danger text-white" });
     return (
       <div className="d-flex flex-wrap justify-content-center gap-1">
         {perms.map((p, idx) => (
@@ -503,7 +505,8 @@ const handleSaveUser = async () => {
     { key: "perm_approve_b2b", label: t.duyetB2B },
     { key: "perm_approve_b2c", label: t.duyetB2C },
     { key: "perm_view_revenue", label: t.xemDoanhThu },
-    { key: "perm_view_staff", label: t.xemCV }
+    { key: "perm_view_staff", label: t.xemCV },
+    { key: "perm_manage_news", label: "Quản lý tin tức" }
   ];
 
   const selectedPermissions = permissionOptions
