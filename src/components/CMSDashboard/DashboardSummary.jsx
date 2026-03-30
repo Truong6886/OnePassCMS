@@ -462,8 +462,8 @@ const chartDataByTime = allDates.map((dateStr) => {
                   {currentLanguage === "vi" ? "Tổng quan số lượng dịch vụ" : currentLanguage === "ko" ? "서비스 요약" : "Service Overview"}
                 </h5>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "2rem" }}>
-                  <div style={{ flex: "1 1 50%", minWidth: 280, height: 320, position: "relative" }}>
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div style={{ flex: "1 1 50%", minWidth: 280, minHeight: 200, height: 320, position: "relative" }}>
+                    <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={200}>
                       <PieChart>
                         <Pie
                           dataKey="value"
@@ -556,8 +556,8 @@ const chartDataByTime = allDates.map((dateStr) => {
                   const colors = ["#3b82f6", "#f59e0b", "#10b981", "#8b5cf6", "#ec4899", "#f97316", "#06b6d4", "#84cc16"];
                   return (
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
-                      <div style={{ flex: "1 1 40%", minWidth: 200, height: 260, position: "relative" }}>
-                        <ResponsiveContainer width="100%" height="100%">
+                      <div style={{ flex: "1 1 40%", minWidth: 200, minHeight: 180, height: 260, position: "relative" }}>
+                        <ResponsiveContainer width="100%" height="100%" minWidth={180} minHeight={180}>
                           <PieChart>
                             <Pie
                               data={staffData}
@@ -713,8 +713,8 @@ const chartDataByTime = allDates.map((dateStr) => {
             </h5>
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "2rem" }}>
-              <div style={{ flex: "1 1 50%", minWidth: 280, height: 320, position: "relative" }}>
-                <ResponsiveContainer width="100%" height="100%">
+              <div style={{ flex: "1 1 50%", minWidth: 280, minHeight: 200, height: 320, position: "relative" }}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={200}>
                   <PieChart>
                     <Pie
                       dataKey="value"
@@ -839,8 +839,8 @@ const chartDataByTime = allDates.map((dateStr) => {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
                   
                 
-                  <div style={{ flex: "1 1 40%", minWidth: 200, height: 260, position: "relative" }}>
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div style={{ flex: "1 1 40%", minWidth: 200, minHeight: 180, height: 260, position: "relative" }}>
+                    <ResponsiveContainer width="100%" height="100%" minWidth={180} minHeight={180}>
                       <PieChart>
                         <Pie
                           data={staffData}

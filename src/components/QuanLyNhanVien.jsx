@@ -155,11 +155,11 @@ const handleOpenAdd = () => {
   };
 
   const fillFormData = (user) => {
+    // Chỉ director/accountant là đặc biệt, còn lại là user/admin
     let role = "user";
-    if (user.is_admin) role = "admin";
-    else if (user.is_director) role = "director";
+    if (user.is_director) role = "director";
     else if (user.is_accountant) role = "accountant";
-
+    else if (user.is_admin) role = "admin";
     setFormData({
       username: user.username,
       name: user.name || "",
@@ -371,14 +371,23 @@ const handleSaveUser = async () => {
       : "https://onepasscms-backend-tvdy.onrender.com/api/User";
     const method = isEditing ? "PUT" : "POST";
 
+    // Chỉ set is_director/is_accountant nếu đúng, còn lại là quyền hạn
     let roleFlags = {
-       is_admin: formData.role === "admin",
-       is_director: formData.role === "director",
-       is_accountant: formData.role === "accountant",
-       is_staff: formData.role === "user"
+      is_director: formData.role === "director",
+      is_accountant: formData.role === "accountant",
+      is_admin: formData.role === "admin",
+      is_staff: formData.role === "user"
     };
-
-    const payload = { ...formData, ...roleFlags };
+    // Nếu là director/accountant thì reset hết quyền hạn về false, còn lại giữ nguyên
+    let payload = { ...formData, ...roleFlags };
+    if (formData.role === "director" || formData.role === "accountant") {
+      payload.perm_approve_b2b = false;
+      payload.perm_approve_b2c = false;
+      payload.perm_view_revenue = false;
+      payload.perm_view_staff = false;
+      payload.perm_manage_news = false;
+    }
+    // Nếu là admin/user thì giữ nguyên các quyền hạn đã chọn
     delete payload.role;
 
     if (isEditing) {
@@ -913,18 +922,23 @@ const handleSaveUser = async () => {
 
                     {/* --- VAI TRÒ HỆ THỐNG --- */}
                     <div className="col-md-12">
-                        <label style={labelStyle}>{t.vaiTro} <span className="text-danger">*</span></label>
-                        <select 
-                            style={inputStyle} 
-                            value={formData.role} 
-                            disabled={isDeleting} 
-                            onChange={e => setFormData({...formData, role: e.target.value})}
-                        >
-                            <option value="user">Nhân viên (Staff)</option>
-                            <option value="accountant">Kế toán (Accountant)</option>
-                            <option value="director">Giám đốc (Director)</option>
-                            <option value="admin">Quản trị viên (Admin)</option>
-                        </select>
+                      <label style={labelStyle}>{t.vaiTro} <span className="text-danger">*</span></label>
+                      <select
+                        style={inputStyle}
+                        value={formData.role}
+                        disabled={isDeleting || formData.role === "director" || formData.role === "accountant"}
+                        onChange={e => setFormData({ ...formData, role: e.target.value })}
+                      >
+                        <option value="user">Nhân viên (Staff)</option>
+                        <option value="admin">Quản trị viên (Admin)</option>
+                        <option value="accountant">Kế toán (Accountant)</option>
+                        <option value="director">Giám đốc (Director)</option>
+                      </select>
+                      {(formData.role === "director" || formData.role === "accountant") && (
+                        <div style={{ fontSize: "12px", color: "#888", marginTop: 4 }}>
+                        Chỉ Giám đốc/Kế toán mới có thể giữ vai trò này. Nếu muốn chuyển về Admin/Staff, hãy tạo user mới hoặc liên hệ quản trị viên.
+                        </div>
+                      )}
                     </div>
 
                     {/* --- MẬT KHẨU GIÁM ĐỐC --- */}
