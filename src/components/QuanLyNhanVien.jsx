@@ -500,7 +500,7 @@ const handleSaveUser = async () => {
     if (user.perm_approve_b2c || user.is_director) perms.push({ label: t.duyetB2C, color: "bg-success" });
     if (user.perm_view_revenue || user.is_accountant || user.is_director) perms.push({ label: t.xemDoanhThu, color: "bg-warning text-dark" });
     if (user.perm_view_staff || user.is_director) perms.push({ label: t.xemCV, color: "bg-info text-dark" });
-    if (user.perm_manage_news || user.is_director) perms.push({ label: "Quản lý tin tức", color: "bg-danger text-white" });
+    if (flagTrue(user.perm_manage_news) || user.is_director) perms.push({ label: "Quản lý tin tức", color: "bg-danger text-white" });
     return (
       <div className="d-flex flex-wrap justify-content-center gap-1">
         {perms.map((p, idx) => (
