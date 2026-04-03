@@ -74,7 +74,7 @@ function NewsPage() {
   // Chặn truy cập nếu không có quyền
   if (
     currentUser &&
-    !currentUser.perm_manage_news &&
+    !currentUser.perm_news_manage &&
     !currentUser.is_admin &&
     !currentUser.is_director
   ) {

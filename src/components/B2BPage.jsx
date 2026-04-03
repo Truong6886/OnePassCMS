@@ -2207,18 +2207,31 @@ export default function B2BPage() {
       return Math.max(0, rev - discAmount - wallet);
     };
 
-    const displayData = [...(serviceData || [])].sort((a, b) => {
-      const timeA = new Date(a.NgayTao || a.CreatedAt || a.createdAt || "").getTime();
-      const timeB = new Date(b.NgayTao || b.CreatedAt || b.createdAt || "").getTime();
-      const hasTimeA = Number.isFinite(timeA) && timeA > 0;
-      const hasTimeB = Number.isFinite(timeB) && timeB > 0;
 
-      if (hasTimeA && hasTimeB && timeA !== timeB) {
-        // Dịch vụ nhập trước hiển thị trước.
-        return timeA - timeB;
-      }
+    // --- GROUP BY COMPANY, HIGHLIGHT NEWEST SERVICE ---
+    // 1. Group all services by companyId
+    const groupedByCompany = {};
+    (serviceData || []).forEach((item) => {
+      const companyId = String(item.companyId || item.DoanhNghiepID || "");
+      if (!groupedByCompany[companyId]) groupedByCompany[companyId] = [];
+      groupedByCompany[companyId].push(item);
+    });
 
-      return (a.id || 0) - (b.id || 0);
+    // 2. For each company, sort services by NgayTao/CreatedAt DESC (newest first)
+    Object.keys(groupedByCompany).forEach((companyId) => {
+      groupedByCompany[companyId].sort((a, b) => {
+        const timeA = new Date(a.NgayTao || a.CreatedAt || a.createdAt || "").getTime();
+        const timeB = new Date(b.NgayTao || b.CreatedAt || b.createdAt || "").getTime();
+        return timeB - timeA;
+      });
+      // 3. Mark the newest service for this company
+      if (groupedByCompany[companyId][0]) groupedByCompany[companyId][0].__isNewestForCompany = true;
+    });
+
+    // 4. Flatten back to displayData, keeping company groups together, newest first
+    let displayData = [];
+    Object.values(groupedByCompany).forEach((arr) => {
+      displayData = displayData.concat(arr);
     });
 
     const normalizedKeyword = String(searchTerm || "")
@@ -2524,7 +2537,12 @@ export default function B2BPage() {
                         }
                       }
 
-                      const rowBg = rec.isNew ? "#dcfce7" : "#fff";
+
+                      // Highlight newest service for company
+                      let rowBg = "#fff";
+                      if (rec.__isNewestForCompany) {
+                        rowBg = "#d1fae5"; // light green for newest
+                      }
 
                       const mergedStyle = {
                         backgroundColor: rowBg,

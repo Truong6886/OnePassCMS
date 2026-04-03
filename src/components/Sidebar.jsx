@@ -230,7 +230,7 @@ useEffect(() => {
             {!collapsed && <span>{texts.services[currentLanguage]}</span>}
           </li>
 
-          {(currentUser?.perm_manage_news || currentUser?.is_director || currentUser?.is_accountant) && (
+          {(currentUser?.perm_news_manage || currentUser?.is_director || currentUser?.is_accountant) && (
             <li
               style={getItemStyle("news")}
               onMouseEnter={() => setHoveredItem("news")}

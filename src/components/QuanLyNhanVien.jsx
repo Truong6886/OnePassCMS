@@ -39,7 +39,7 @@ export default function QuanLyNhanVien() {
 
   const [formData, setFormData] = useState({
     username: "", name: "", email: "", password: "", role: "user", 
-    perm_approve_b2b: false, perm_approve_b2c: false, perm_view_revenue: false, perm_view_staff: false, perm_manage_news: false,
+    perm_approve_b2b: false, perm_approve_b2c: false, perm_view_revenue: false, perm_view_staff: false, perm_news_manage: false,
     ChucDanh: "", PhongBan: "", MaVung: "+84", SoDienThoai: "", NgayVaoLam: "", LoaiHopDong: "", CV: ""
   });
 
@@ -140,6 +140,13 @@ export default function QuanLyNhanVien() {
   useSocketListener({ currentLanguage, setNotifications, setShowNotification, currentUser: currentUser});
   useEffect(() => { fetchUsers(); }, []);
 
+  // DEBUG: Log users when fetched
+  useEffect(() => {
+    if (users && users.length > 0) {
+      console.log("[DEBUG] Users fetched:", users);
+    }
+  }, [users]);
+
 const handleOpenAdd = () => {
     setIsEditing(false);
     setIsDeleting(false);
@@ -170,7 +177,7 @@ const handleOpenAdd = () => {
       perm_approve_b2c: user.perm_approve_b2c || false,
       perm_view_revenue: user.perm_view_revenue || false,
       perm_view_staff: user.perm_view_staff || false,
-      perm_manage_news: user.perm_manage_news || false,
+      perm_news_manage: user.perm_news_manage || false,
       ChucDanh: user.ChucDanh || "",
       PhongBan: user.PhongBan || "",
       MaVung: user.MaVung || "+84",
@@ -385,7 +392,7 @@ const handleSaveUser = async () => {
       payload.perm_approve_b2c = false;
       payload.perm_view_revenue = false;
       payload.perm_view_staff = false;
-      payload.perm_manage_news = false;
+      payload.perm_news_manage = true; // director/accountant luôn có quyền quản lý tin tức
     }
     // Nếu là admin/user thì giữ nguyên các quyền hạn đã chọn
     delete payload.role;
@@ -468,6 +475,7 @@ const handleSaveUser = async () => {
         perm_approve_b2c: targetDisable ? false : Boolean(user.perm_approve_b2c),
         perm_view_revenue: targetDisable ? false : Boolean(user.perm_view_revenue),
         perm_view_staff: targetDisable ? false : Boolean(user.perm_view_staff),
+        perm_news_manage: Boolean(user.perm_news_manage),
         ChucDanh: user.ChucDanh || "",
         PhongBan: user.PhongBan || "",
         MaVung: user.MaVung || "+84",
@@ -500,7 +508,7 @@ const handleSaveUser = async () => {
     if (user.perm_approve_b2c || user.is_director) perms.push({ label: t.duyetB2C, color: "bg-success" });
     if (user.perm_view_revenue || user.is_accountant || user.is_director) perms.push({ label: t.xemDoanhThu, color: "bg-warning text-dark" });
     if (user.perm_view_staff || user.is_director) perms.push({ label: t.xemCV, color: "bg-info text-dark" });
-    if (flagTrue(user.perm_manage_news) || user.is_director) perms.push({ label: "Quản lý tin tức", color: "bg-danger text-white" });
+    if (flagTrue(user.perm_news_manage) || user.is_director) perms.push({ label: "Quản lý tin tức", color: "bg-danger text-white" });
     return (
       <div className="d-flex flex-wrap justify-content-center gap-1">
         {perms.map((p, idx) => (
@@ -515,7 +523,7 @@ const handleSaveUser = async () => {
     { key: "perm_approve_b2c", label: t.duyetB2C },
     { key: "perm_view_revenue", label: t.xemDoanhThu },
     { key: "perm_view_staff", label: t.xemCV },
-    { key: "perm_manage_news", label: "Quản lý tin tức" }
+    { key: "perm_news_manage", label: "Quản lý tin tức" }
   ];
 
   const selectedPermissions = permissionOptions
@@ -600,6 +608,7 @@ const handleSaveUser = async () => {
                   <tr>
                     <th className="py-3 ps-3 text-center">{t.stt}</th>
                     <th className="py-3 text-center">{t.tenNhanVien}</th>
+                    <th className="py-3 text-center">Tên đăng nhập</th>
                     <th className="py-3 text-center">{t.chucDanh}</th>
                     <th className="py-3 text-center">{t.phongBan}</th>
                     <th className="py-3 text-center">{t.email}</th>
@@ -629,6 +638,9 @@ const handleSaveUser = async () => {
                           <td className="ps-3 fw-bold text-secondary text-center">{i + 1}</td>
                           <td className="fw-semibold text-dark text-center">
                             {u.name || u.username}
+                          </td>
+                          <td className="text-center">
+                            {u.username}
                           </td>
                           <td className="text-center">{u.ChucDanh || "-"}</td>
                           <td className="text-center">{u.PhongBan || "-"}</td>
@@ -907,7 +919,7 @@ const handleSaveUser = async () => {
                       <div style={{ position: "relative" }}>
                         <input
                           type={showPassword ? "text" : "password"}
-                          style={{...inputStyle, paddingRight: "40px", backgroundColor: "#F2F6F7", cursor: "text", color: "#ACACAC", height: "44px"}}
+                          style={{...inputStyle, paddingRight: "40px", height: "44px"}} 
                           placeholder="Nhập mật khẩu"
                           value={formData.password}
                           onChange={e => setFormData({...formData, password: e.target.value})}
