@@ -538,6 +538,76 @@ const chartDataByTime = allDates.map((dateStr) => {
                     })()}
                   </div>
                 </div>
+                 <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: "1.5rem", alignItems: "start", marginBottom: 32 }}>
+            {/* Sơ đồ tròn bên trái */}
+            <div style={{ height: 220, position: "relative", background: "#fff", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={Object.entries(
+                      filteredData.reduce((acc, cur) => {
+                        // Gom nhóm B2B và B2C
+                        const type = cur.isB2B ? "B2B" : "B2C";
+                        acc[type] = (acc[type] || 0) + 1;
+                        return acc;
+                      }, {})
+                    ).map(([name, count]) => ({ name, value: count }))}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={85}
+                    labelLine={false}
+                  >
+                    {Object.entries(
+                      filteredData.reduce((acc, cur) => {
+                        const type = cur.isB2B ? "B2B" : "B2C";
+                        acc[type] = (acc[type] || 0) + 1;
+                        return acc;
+                      }, {})
+                    ).map(([name], i) => (
+                      <Cell key={i} fill={name === "B2B" ? "#3b82f6" : "#d4a574"} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
+                <h4 style={{ fontSize: "1.3rem", fontWeight: 700, color: "#2563eb", marginBottom: 0 }}>{filteredData.length}</h4>
+              </div>
+            </div>
+            {/* 2 bảng nhỏ tổng B2B/B2C bên phải */}
+            <div style={{ display: "flex", gap: "1.5rem", width: "100%" }}>
+              {/* Bảng B2B */}
+              <div style={{ flex: 1, background: "#fff", borderRadius: 10, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+                <div style={{ background: "#3b82f6", color: "#fff", padding: "8px 12px", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>B2B</span>
+                  <span style={{ fontWeight: 700, fontSize: 12 }}>{formatCurrency(b2bTotalRevenue)}</span>
+                </div>
+                <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", background: "#f9fafb" }}>
+                  <thead style={{ background: "#1e3a8a", color: "#fff" }}>
+                    <tr>
+                      <th style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600 }}>STT</th>
+                      <th style={{ padding: "6px 4px", textAlign: "left", fontWeight: 600 }}>Khách hàng B2B</th>
+                      <th style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600 }}>Số lượng dịch vụ</th>
+                      <th style={{ padding: "6px 4px", textAlign: "right", fontWeight: 600 }}>Doanh thu</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {b2bStats.slice(0, 5).map((company, idx) => (
+                      <tr key={company.name}>
+                        <td style={{ textAlign: "center", padding: 4 }}>{idx + 1}</td>
+                        <td style={{ padding: 4 }}>{company.name}</td>
+                        <td style={{ textAlign: "center", padding: 4 }}>{company.count}</td>
+                        <td style={{ textAlign: "right", padding: 4 }}>{formatCurrency(company.revenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* Bảng B2C */}
+              
+            </div>
+          </div>
               </div>
               {/* Pie Chart: Số lượng dịch vụ theo nhân viên (B2B+B2C) */}
               <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
@@ -612,7 +682,9 @@ const chartDataByTime = allDates.map((dateStr) => {
                   );
                 })()}
               </div>
+              
             </div>
+            
             {/* BẢNG DANH SÁCH YÊU CẦU (B2B+B2C) */}
             <div style={{ flex: "1 1 48%", background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", maxHeight: "1000px", overflow: "hidden" }}>
               <div className="d-flex justify-content-between align-items-center mb-3 flex-shrink-0" style={{ gap: "1rem" }}>
@@ -676,7 +748,9 @@ const chartDataByTime = allDates.map((dateStr) => {
                   </table>
                 </div>
               </div>
+              
             </div>
+            
           </div>
         </div>
       )}
@@ -2213,6 +2287,8 @@ const chartDataByTime = allDates.map((dateStr) => {
             })()}
           </div>
 
+            
+
           {/* RIGHT: B2B TABLE */}
           <div
             style={{
@@ -2452,8 +2528,186 @@ const chartDataByTime = allDates.map((dateStr) => {
                 {currentLanguage === "vi" ? `Trang ${b2bCurrentPage}/${totalB2BPages}` : `Page ${b2bCurrentPage}/${totalB2BPages}`}
               </div>
             </div>
+            
+          </div>
+                      
+                      {(
+        <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", marginTop: "2rem" }}>
+          <div style={{ display: "flex", gap: "2rem", alignItems: "stretch" }}>
+            {/* Left: Pie Chart B2B */}
+            <div style={{ flex: "0 0 320px", paddingRight: "1rem", borderRight: "1px solid #e5e7eb" }}>
+              <h5 className="fw-semibold mb-4 text-dark">
+                {currentLanguage === "vi" ? "Theo khách hàng doanh nghiệp" : currentLanguage === "ko" ? "기업 고객별" : "By Business Customer"}
+              </h5>
+              <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start" }}>
+                {/* Pie Chart */}
+                <div style={{ flex: "0 0 150px", height: 150, position: "relative" }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={(() => {
+                          const companyData = b2bServices.reduce((acc, cur) => {
+                            const company = cur.TenDoanhNghiep || cur.companyName || cur.CompanyName || (currentLanguage === "vi" ? "Khác" : currentLanguage === "ko" ? "기타" : "Other");
+                            acc[company] = (acc[company] || 0) + 1;
+                            return acc;
+                          }, {});
+                          return Object.entries(companyData).map(([name, value]) => ({ name, value }));
+                        })()}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={35}
+                        outerRadius={60}
+                        labelLine={false}
+                      >
+                        {(() => {
+                          const colors = ["#ef4444", "#f87171", "#14b8a6", "#2dd4bf", "#fbbf24", "#fcd34d", "#60a5fa"];
+                          const companyData = b2bServices.reduce((acc, cur) => {
+                            const company = cur.TenDoanhNghiep || cur.companyName || cur.CompanyName || (currentLanguage === "vi" ? "Khác" : currentLanguage === "ko" ? "기타" : "Other");
+                            acc[company] = (acc[company] || 0) + 1;
+                            return acc;
+                          }, {});
+                          return Object.entries(companyData).map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />);
+                        })()}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center" }}>
+                    <h4 style={{ fontSize: "1.4rem", fontWeight: "700", color: "#1f2937", marginBottom: "0px" }}>
+                      {b2bServices.length}
+                    </h4>
+                    <small style={{ color: "#6b7280", fontSize: "0.65rem" }}>
+                      {currentLanguage === "vi" ? "Dịch vụ" : currentLanguage === "ko" ? "서비스" : "Services"}
+                    </small>
+                  </div>
+                </div>
+                {/* Legend */}
+                <div style={{ flex: 1 }}>
+                  <h6 className="fw-semibold mb-3 text-secondary" style={{ fontSize: "0.85rem" }}>
+                    {currentLanguage === "vi" ? "Tổng quan theo công ty" : "Overview"}
+                  </h6>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    {(() => {
+                      const companyData = b2bServices.reduce((acc, cur) => {
+                        const company = cur.TenDoanhNghiep || cur.companyName || cur.CompanyName || (currentLanguage === "vi" ? "Khác" : "Other");
+                        acc[company] = (acc[company] || 0) + 1;
+                        return acc;
+                      }, {});
+                      const sortedCompanies = Object.entries(companyData).sort((a, b) => b[1] - a[1]).slice(0, 5);
+                      const total = Object.values(companyData).reduce((s, v) => s + v, 0);
+                      const colors = ["#ef4444", "#14b8a6", "#fbbf24"];
+                      return sortedCompanies.map(([company, count], idx) => {
+                        const percent = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+                        const displayCompany = company.length > 18 ? company.substring(0, 15) + "..." : company;
+                        return (
+                          <div key={idx} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.75rem" }}>
+                            <div style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: colors[idx % colors.length], flexShrink: 0 }}></div>
+                            <span style={{ color: "#4b5563", flex: 1 }}>{displayCompany}</span>
+                            <span style={{ fontWeight: "600", color: "#1f2937" }}>{count}</span>
+                            <span style={{ color: "#9ca3af", minWidth: "30px", textAlign: "right" }}>({percent}%)</span>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                  <div className="mt-2 pt-2 border-top" style={{ borderColor: "#e5e7eb", paddingTop: "6px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.8rem", fontWeight: "600" }}>
+                      <span>{currentLanguage === "vi" ? "Tổng cộng" : "Total"}</span>
+                      <span style={{ color: "#2563eb" }}>{b2bServices.length} {currentLanguage === "vi" ? "dịch vụ" : "services"}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* Right: Data Tables B2B */}
+            <div style={{ flex: 1, paddingLeft: "1rem" }}>
+              <h5 className="fw-semibold mb-4 text-dark">
+                {currentLanguage === "vi" ? "Dữ liệu lọc" : currentLanguage === "ko" ? "필터링된 데이터" : "Filtered Data"}
+              </h5>
+              <div style={{ maxWidth: "1200px", width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "thin", paddingBottom: 8 }}>
+                <div style={{ display: "flex", gap: "1rem", minWidth: "700px" }}>
+                  {(() => {
+                  // Group data by company and calculate totals
+                  const companyGroups = b2bServices.reduce((acc, cur) => {
+                    const company = cur.TenDoanhNghiep || cur.companyName || cur.CompanyName || (currentLanguage === "vi" ? "Không xác định" : "Unknown");
+                    if (!acc[company]) {
+                      acc[company] = { services: [], totalRevenue: 0 };
+                    }
+                    acc[company].services.push(cur);
+                    const revenue = parseFloat(cur.DoanhThu) || parseFloat(cur.PhiDichVu) || 0;
+                    acc[company].totalRevenue += revenue;
+                    return acc;
+                  }, {});
+                  // Get all companies (not just top 3)
+                  const allCompanies = Object.entries(companyGroups).sort((a, b) => b[1].services.length - a[1].services.length);
+                  const companyColors = ["#6b7280", "#06b6d4", "#d4a574", "#f59e42", "#8b5cf6", "#10b981", "#f59e0b"]; // More colors for more companies
+                  return allCompanies.map(([companyName, data], idx) => (
+                    <div key={idx} style={{ minWidth: 220, maxWidth: 260, flex: "0 0 220px", overflow: "hidden" }}>
+                      <div style={{ 
+                        backgroundColor: companyColors[idx % companyColors.length], 
+                        color: "#fff", 
+                        padding: "6px 12px", 
+                        borderRadius: "6px 6px 0 0", 
+                        fontWeight: 600,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        fontSize: "0.85rem"
+                      }}>
+                        <span>{companyName}</span>
+                        <span style={{ fontWeight: 700, fontSize: "0.8rem" }}>
+                          {data.services.length}
+                        </span>
+                      </div>
+                      <table style={{ 
+                        width: "100%", 
+                        fontSize: "0.75rem", 
+                        borderCollapse: "collapse", 
+                        backgroundColor: "#f9fafb"
+                      }}>
+                        <thead style={{ backgroundColor: companyColors[idx % companyColors.length], color: "#fff", opacity: 0.85 }}>
+                          <tr>
+                            <th style={{ padding: "4px 6px", textAlign: "center", fontWeight: 600, borderRight: "1px solid #d1d5db" }}>
+                              STT
+                            </th>
+                            <th style={{ padding: "4px 6px", textAlign: "left", fontWeight: 600, borderRight: "1px solid #d1d5db" }}>
+                              {currentLanguage === "vi" ? "Tên dịch vụ" : "Service"}
+                            </th>
+                            <th style={{ padding: "4px 6px", textAlign: "right", fontWeight: 600 }}>
+                              {currentLanguage === "vi" ? "Doanh thu" : "Revenue"}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {data.services.slice(0, 5).map((service, sIdx) => {
+                            const revenue = parseFloat(service.DoanhThu) || parseFloat(service.PhiDichVu) || 0;
+                            const serviceName = service.TenDichVu || service.LoaiDichVu || (currentLanguage === "vi" ? "Giấy đủ điều kiện" : "Service");
+                            return (
+                              <tr key={sIdx} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                                <td style={{ padding: "4px 6px", textAlign: "center", borderRight: "1px solid #e5e7eb", fontWeight: 500, color: "#374151" }}>
+                                  {sIdx + 1}
+                                </td>
+                                <td style={{ padding: "4px 6px", textAlign: "left", borderRight: "1px solid #e5e7eb", color: "#4b5563", maxWidth: "0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {serviceName.length > 15 ? serviceName.substring(0, 15) + "..." : serviceName}
+                                </td>
+                                <td style={{ padding: "4px 6px", textAlign: "right", fontWeight: 600, color: "#1f2937" }}>
+                                  {revenue === 0 ? "0" : formatCurrency(revenue)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ));
+                })()}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+       )}
+      </div>
       )}
       <style>{`
  

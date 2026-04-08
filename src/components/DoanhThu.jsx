@@ -255,6 +255,13 @@ export default function DoanhThu() {
   const [combinedChartData, setCombinedChartData] = useState([]);
   const [combinedCurrentPage, setCombinedCurrentPage] = useState(1);
   const [combinedTotalPages, setCombinedTotalPages] = useState(1);
+  // Checkbox filter state for Tổng hợp
+  const [combinedChartFilters, setCombinedChartFilters] = useState({
+    order: true,
+    money: true,
+    b2b: true,
+    b2c: true,
+  });
   
   const apiTotalPagesRef = useRef(1);
   if (!currentUser?.is_director && !currentUser?.is_accountant && !currentUser?.perm_view_revenue) {
@@ -477,6 +484,7 @@ export default function DoanhThu() {
     setCompanyPieChartData(pieData);
   };
 
+  // Chuẩn bị dữ liệu biểu đồ tổng hợp: gom nhóm theo thời gian, chia B2B/B2C, số lượng đơn và tổng tiền
   const prepareCombinedChartData = (data, mode) => {
     if (!data || data.length === 0) { setCombinedChartData([]); return; }
     const grouped = {};
@@ -498,8 +506,21 @@ export default function DoanhThu() {
         key = `${date.getFullYear()}`;
         sortKey = date.getFullYear();
       }
-      if (!grouped[key]) grouped[key] = { name: key, doanhthu: 0, sortKey };
-      grouped[key].doanhthu += 1;
+      if (!grouped[key]) grouped[key] = {
+        name: key,
+        sortKey,
+        b2bOrder: 0,
+        b2cOrder: 0,
+        b2bMoney: 0,
+        b2cMoney: 0,
+      };
+      if (r.CustomerType === "B2B") {
+        grouped[key].b2bOrder += 1;
+        grouped[key].b2bMoney += parseFloat(r.DoanhThuSauChietKhau || r.DoanhThu || 0);
+      } else {
+        grouped[key].b2cOrder += 1;
+        grouped[key].b2cMoney += parseFloat(r.DoanhThuSauChietKhau || r.DoanhThu || 0);
+      }
     });
     const chartData = Object.values(grouped).sort((a, b) => a.sortKey - b.sortKey);
     setCombinedChartData(chartData);
@@ -912,9 +933,10 @@ const handleFilter = () => {
             <button onClick={() => setActiveTab("company")} style={{ padding: "10px 20px", border: "none", background: "transparent", borderBottom: activeTab === "company" ? "3px solid #2563eb" : "3px solid transparent", color: activeTab === "company" ? "#2563eb" : "#64748b", fontWeight: 600, cursor: "pointer" }}>{t.companyTab}</button>
           </div>
 
+
           {/* TOP FILTER (CHART FILTER) */}
           <div className="d-flex flex-wrap gap-2 justify-content-between mb-4">
-             <div className="d-flex gap-2 align-items-center">
+            <div className="d-flex gap-2 align-items-center">
               <input type="date" className="form-control" style={{width: 140}} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
               <span>→</span>
               <input type="date" className="form-control" style={{width: 140}} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
@@ -924,7 +946,6 @@ const handleFilter = () => {
               {activeTab === "personal" && (
                 <>
                   <select className="form-select" style={{width: 150}} value={selectedService} onChange={(e) => setSelectedService(e.target.value)}>{serviceOptions.map((s, i) => <option key={i} value={s}>{s === "tatca" ? t.allServices : s}</option>)}</select>
-                  
                   <select className="form-select" style={{width: 170}} value={selectedStaff} onChange={(e) => setSelectedStaff(e.target.value)}>
                       <option value="tatca">{t.allStaff}</option>
                       {staffList.map((u) => (
@@ -935,6 +956,23 @@ const handleFilter = () => {
               )}
               <button onClick={handleFilter} className="btn btn-primary">{t.filter}</button>
             </div>
+            {/* Chỉ hiện filter này ở tab Tổng hợp */}
+            {activeTab === "combined" && (
+              <div className="d-flex gap-3 align-items-center ms-3" style={{background: '#f3f4f6', borderRadius: 8, padding: '6px 18px'}}>
+                <label className="d-flex align-items-center gap-1 mb-0" style={{fontWeight: 500}}>
+                  <input type="checkbox" checked={combinedChartFilters.order} onChange={e => setCombinedChartFilters(f => ({...f, order: e.target.checked}))} /> Đơn
+                </label>
+                <label className="d-flex align-items-center gap-1 mb-0" style={{fontWeight: 500}}>
+                  <input type="checkbox" checked={combinedChartFilters.money} onChange={e => setCombinedChartFilters(f => ({...f, money: e.target.checked}))} /> Tiền
+                </label>
+                <label className="d-flex align-items-center gap-1 mb-0" style={{fontWeight: 500}}>
+                  <input type="checkbox" checked={combinedChartFilters.b2b} onChange={e => setCombinedChartFilters(f => ({...f, b2b: e.target.checked}))} /> B2B
+                </label>
+                <label className="d-flex align-items-center gap-1 mb-0" style={{fontWeight: 500}}>
+                  <input type="checkbox" checked={combinedChartFilters.b2c} onChange={e => setCombinedChartFilters(f => ({...f, b2c: e.target.checked}))} /> B2C
+                </label>
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-3 p-4 shadow-sm mb-4" style={{ minHeight: "360px" }}>
@@ -942,47 +980,70 @@ const handleFilter = () => {
             {loading ? <p>{t.loadingChart}</p> : (
               activeTab === "combined" ? (
                 <div className="row">
-                    <div className="col-md-8">
-                        <ResponsiveContainer width="100%" height={300}>
-                            <LineChart data={combinedChartData}>
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="name" />
-                              <YAxis width={60} />
-                              <Tooltip labelFormatter={(label) => `${t.time}: ${label}`} formatter={(v) => [v + " " + t.orders, t.orderCount]} />
-                              <Legend />
-                              <Line type="monotone" dataKey="doanhthu" stroke="#8b5cf6" strokeWidth={2} name={t.orderCount} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
-                    <div className="col-md-4">
-                        <h6 className="text-center text-primary fw-bold mb-3">{t.b2bVsB2c}</h6>
-                        <ResponsiveContainer width="100%" height={260}>
-                          <PieChart>
-                            <Pie 
-                              data={b2bVsB2cData} 
-                              cx="50%" 
-                              cy="50%" 
-                              labelLine={false} 
-                              innerRadius={50}
-                              outerRadius={85} 
-                              fill="#8884d8" 
-                              dataKey="value"
-                              label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-                            >
-                              <Cell fill="#3b82f6" />
-                              <Cell fill="#ec4899" />
-                            </Pie>
-                            <Tooltip formatter={(v) => [v + " " + t.orders, t.orderCount]} />
-                            <Legend />
-                            <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: "20px", fontWeight: "bold", fill: "#1e3a8a" }}>
-                              {b2bVsB2cData.reduce((sum, item) => sum + item.value, 0)}
-                            </text>
-                            <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: "10px", fill: "#64748b" }}>
-                              ({t.orders})
-                            </text>
-                          </PieChart>
-                        </ResponsiveContainer>
-                    </div>
+                  <div className="col-md-8">
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={combinedChartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis width={100} tickFormatter={v => formatCurrency(v)} />
+                        <Tooltip
+                          labelFormatter={label => `${t.time}: ${label}`}
+                          formatter={(value, name, props) => {
+                            if (name.includes("Tiền")) return [formatCurrency(value) + " " + t.revenueUnit, name];
+                            return [value + " " + t.orders, name];
+                          }}
+                        />
+                        <Legend />
+                        {/* Đường số lượng đơn */}
+                        {combinedChartFilters.order && combinedChartFilters.b2b && (
+                          <Line type="monotone" dataKey="b2bOrder" stroke="#8b5cf6" strokeWidth={2} name="Đơn B2B" />
+                        )}
+                        {combinedChartFilters.order && combinedChartFilters.b2c && (
+                          <Line type="monotone" dataKey="b2cOrder" stroke="#3b82f6" strokeDasharray="5 2" strokeWidth={2} name="Đơn B2C" />
+                        )}
+                        {/* Đường tiền */}
+                        {combinedChartFilters.money && combinedChartFilters.b2b && (
+                          <Line type="monotone" dataKey="b2bMoney" stroke="#ec4899" strokeWidth={2} name="Tiền B2B" yAxisId={1} dot={false} />
+                        )}
+                        {combinedChartFilters.money && combinedChartFilters.b2c && (
+                          <Line type="monotone" dataKey="b2cMoney" stroke="#16a34a" strokeDasharray="5 2" strokeWidth={2} name="Tiền B2C" yAxisId={1} dot={false} />
+                        )}
+                        {/* Trục phụ cho tiền */}
+                        {(combinedChartFilters.money && (combinedChartFilters.b2b || combinedChartFilters.b2c)) && (
+                          <YAxis yAxisId={1} orientation="right" tickFormatter={v => formatCurrency(v)} width={100} />
+                        )}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="col-md-4">
+                    <h6 className="text-center text-primary fw-bold mb-3">{t.b2bVsB2c}</h6>
+                    <ResponsiveContainer width="100%" height={260}>
+                      <PieChart>
+                        <Pie 
+                          data={b2bVsB2cData} 
+                          cx="50%" 
+                          cy="50%" 
+                          labelLine={false} 
+                          innerRadius={50}
+                          outerRadius={85} 
+                          fill="#8884d8" 
+                          dataKey="value"
+                          label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                        >
+                          <Cell fill="#3b82f6" />
+                          <Cell fill="#ec4899" />
+                        </Pie>
+                        <Tooltip formatter={(v) => [v + " " + t.orders, t.orderCount]} />
+                        <Legend />
+                        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: "20px", fontWeight: "bold", fill: "#1e3a8a" }}>
+                          {b2bVsB2cData.reduce((sum, item) => sum + item.value, 0)}
+                        </text>
+                        <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: "10px", fill: "#64748b" }}>
+                          ({t.orders})
+                        </text>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               ) : activeTab === "personal" ? (
                 <div className="row">
