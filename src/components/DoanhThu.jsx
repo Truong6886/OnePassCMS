@@ -196,6 +196,11 @@ export default function DoanhThu() {
  
   const [filteredRecords, setFilteredRecords] = useState([]);
   const [chartData, setChartData] = useState([]);
+  // Checkbox filter state for Cá nhân
+  const [personalChartFilters, setPersonalChartFilters] = useState({
+    order: true,
+    money: true,
+  });
   const [savingRow, setSavingRow] = useState(null);
   
   const [selectedService, setSelectedService] = useState("tatca");
@@ -246,6 +251,11 @@ export default function DoanhThu() {
   const [companyCurrentPage, setCompanyCurrentPage] = useState(1);
   const [companyTotalPages, setCompanyTotalPages] = useState(1);
   const [companyLineChartData, setCompanyLineChartData] = useState([]);
+  // Checkbox filter state for Doanh nghiệp
+  const [companyChartFilters, setCompanyChartFilters] = useState({
+    order: true,
+    money: true,
+  });
   const [companyPieChartData, setCompanyPieChartData] = useState([]);
   const [b2bVsB2cData, setB2bVsB2cData] = useState([]);
   const [b2CServicePieData, setB2CServicePieData] = useState([]);
@@ -430,13 +440,15 @@ export default function DoanhThu() {
     }
   }, [activeTab, currentPage, rowsPerPage]);
 
+  // Chuẩn bị dữ liệu biểu đồ cho Cá nhân: gom nhóm theo thời gian, tính số lượng đơn và tổng tiền
   const prepareChartData = (data, mode, type) => {
     if (type === "combined") {
       prepareCombinedChartData(data, mode);
       return;
     }
     if (!data || data.length === 0) {
-      type === "personal" ? setChartData([]) : setCompanyLineChartData([]);
+      if (type === "personal") setChartData([]);
+      else setCompanyLineChartData([]);
       return;
     }
     const group = {};
@@ -465,13 +477,13 @@ export default function DoanhThu() {
           key = date.toLocaleDateString("vi-VN");
           sortKey = date.getTime();
       }
-      if (!group[key]) group[key] = { name: key, doanhthu: 0, sortKey };
-      const val = parseFloat(type === "personal" ? (r.DoanhThuSauChietKhau || r.DoanhThu || 0) : (r.DoanhThu || 0));
-      group[key].doanhthu += isNaN(val) ? 0 : val;
+      if (!group[key]) group[key] = { name: key, order: 0, money: 0, sortKey };
+      group[key].order += 1;
+      group[key].money += parseFloat(r.DoanhThuSauChietKhau || r.DoanhThu || 0);
     });
-    // Sort theo sortKey tăng dần
     const result = Object.values(group).sort((a, b) => a.sortKey - b.sortKey);
-    type === "personal" ? setChartData(result) : setCompanyLineChartData(result);
+    if (type === "personal") setChartData(result);
+    else setCompanyLineChartData(result);
   };
 
   const preparePieChartData = (aggregatedData) => {
@@ -954,6 +966,28 @@ const handleFilter = () => {
                   </select>
                 </>
               )}
+                          {/* Bộ lọc Đơn/Tiền cho tab Cá nhân */}
+                          {activeTab === "personal" && (
+                            <div className="d-flex gap-3 align-items-center ms-3" style={{background: '#f3f4f6', borderRadius: 8, padding: '6px 18px'}}>
+                              <label className="d-flex align-items-center gap-1 mb-0" style={{fontWeight: 500}}>
+                                <input type="checkbox" checked={personalChartFilters.order} onChange={e => setPersonalChartFilters(f => ({...f, order: e.target.checked}))} /> Đơn
+                              </label>
+                              <label className="d-flex align-items-center gap-1 mb-0" style={{fontWeight: 500}}>
+                                <input type="checkbox" checked={personalChartFilters.money} onChange={e => setPersonalChartFilters(f => ({...f, money: e.target.checked}))} /> Tiền
+                              </label>
+                            </div>
+                          )}
+              {/* Bộ lọc Đơn/Tiền cho tab Doanh nghiệp */}
+              {activeTab === "company" && (
+                <div className="d-flex gap-3 align-items-center ms-3" style={{background: '#f3f4f6', borderRadius: 8, padding: '6px 18px'}}>
+                  <label className="d-flex align-items-center gap-1 mb-0" style={{fontWeight: 500}}>
+                    <input type="checkbox" checked={companyChartFilters.order} onChange={e => setCompanyChartFilters(f => ({...f, order: e.target.checked}))} /> Đơn
+                  </label>
+                  <label className="d-flex align-items-center gap-1 mb-0" style={{fontWeight: 500}}>
+                    <input type="checkbox" checked={companyChartFilters.money} onChange={e => setCompanyChartFilters(f => ({...f, money: e.target.checked}))} /> Tiền
+                  </label>
+                </div>
+              )}
               <button onClick={handleFilter} className="btn btn-primary">{t.filter}</button>
             </div>
             {/* Chỉ hiện filter này ở tab Tổng hợp */}
@@ -1047,66 +1081,102 @@ const handleFilter = () => {
                 </div>
               ) : activeTab === "personal" ? (
                 <div className="row">
-                    <div className="col-md-8">
-                        <ResponsiveContainer width="100%" height={300}>
-                            <LineChart data={chartData}>
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="name" />
-                              <YAxis tickFormatter={(v) => formatCurrency(v)} width={100} />
-                              <Tooltip labelFormatter={(label) => `${t.time}: ${label}`} formatter={(v) => [formatCurrency(v) + " " + t.revenueUnit, t.revenue]} />
-                              <Legend />
-                              <Line type="monotone" dataKey="doanhthu" stroke="#2563eb" strokeWidth={2} name={t.revenue} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
-                    <div className="col-md-4">
-                        <h6 className="text-center text-primary fw-bold mb-3">{t.serviceCount}</h6>
-                        <ResponsiveContainer width="100%" height={260}>
-                          <PieChart>
-                            <Pie 
-                              data={b2CServicePieData} 
-                              cx="50%" 
-                              cy="50%" 
-                              labelLine={false} 
-                              outerRadius={80} 
-                              fill="#8884d8" 
-                              dataKey="value"
-                              nameKey="name"
-                              label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-                            >
-                              {b2CServicePieData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                            </Pie>
-                            <Tooltip formatter={(v) => [v + " " + t.orders, t.orderCount]} />
-                            <Legend layout="vertical" verticalAlign="middle" align="right" />
-                          </PieChart>
-                        </ResponsiveContainer>
-                    </div>
+                  <div className="col-md-8">
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis tickFormatter={v => formatCurrency(v)} width={100} />
+                        <Tooltip
+                          labelFormatter={label => `${t.time}: ${label}`}
+                          formatter={(value, name, props) => {
+                            if (name.includes("Tiền")) return [formatCurrency(value) + " " + t.revenueUnit, name];
+                            if (name.includes("Đơn")) return [value + " " + t.orders, name];
+                            return [value, name];
+                          }}
+                        />
+                        <Legend />
+                        {/* Đường số lượng đơn */}
+                        {personalChartFilters.order && (
+                          <Line type="monotone" dataKey="order" stroke="#2563eb" strokeWidth={2} name="Đơn" />
+                        )}
+                        {/* Đường tiền */}
+                        {personalChartFilters.money && (
+                          <Line type="monotone" dataKey="money" stroke="#f59e42" strokeWidth={2} name="Tiền" yAxisId={1} dot={false} />
+                        )}
+                        {/* Trục phụ cho tiền */}
+                        {personalChartFilters.money && (
+                          <YAxis yAxisId={1} orientation="right" tickFormatter={v => formatCurrency(v)} width={100} />
+                        )}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="col-md-4">
+                    <h6 className="text-center text-primary fw-bold mb-3">{t.serviceCount}</h6>
+                    <ResponsiveContainer width="100%" height={260}>
+                      <PieChart>
+                        <Pie 
+                          data={b2CServicePieData} 
+                          cx="50%" 
+                          cy="50%" 
+                          labelLine={false} 
+                          outerRadius={80} 
+                          fill="#8884d8" 
+                          dataKey="value"
+                          nameKey="name"
+                          label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                        >
+                          {b2CServicePieData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                        </Pie>
+                        <Tooltip formatter={(v) => [v + " " + t.orders, t.orderCount]} />
+                        <Legend layout="vertical" verticalAlign="middle" align="right" />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               ) : (
                 <div className="row">
-                    <div className="col-md-8">
-                         <ResponsiveContainer width="100%" height={300}>
-                            <LineChart data={companyLineChartData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" />
-                                <YAxis tickFormatter={(v) => formatCurrency(v)} width={90} />
-                                <Tooltip labelFormatter={(label) => `${t.time}: ${label}`} formatter={(v) => [formatCurrency(v) + " " + t.revenueUnit, t.revenue]} />
-                                <Legend />
-                                <Line type="monotone" dataKey="doanhthu" stroke="#16a34a" strokeWidth={2} name={t.revenue} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
-                    <div className="col-md-4">
-                         <ResponsiveContainer width="100%" height={300}>
-                            <PieChart>
-                                <Pie data={companyPieChartData} cx="50%" cy="50%" labelLine={false} outerRadius={80} fill="#8884d8" dataKey="value" nameKey="name" label={({ percent }) => `${(percent * 100).toFixed(0)}%`}>
-                                    {companyPieChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                                </Pie>
-                                <Tooltip formatter={(v) => formatCurrency(v) + " " + t.revenueUnit} />
-                                <Legend layout="vertical" verticalAlign="middle" align="right" />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
+                  <div className="col-md-8">
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={companyLineChartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis tickFormatter={v => formatCurrency(v)} width={90} />
+                        <Tooltip
+                          labelFormatter={label => `${t.time}: ${label}`}
+                          formatter={(value, name, props) => {
+                            if (name.includes("Tiền")) return [formatCurrency(value) + " " + t.revenueUnit, name];
+                            if (name.includes("Đơn")) return [value + " " + t.orders, name];
+                            return [value, name];
+                          }}
+                        />
+                        <Legend />
+                        {/* Đường số lượng đơn */}
+                        {companyChartFilters.order && (
+                          <Line type="monotone" dataKey="order" stroke="#16a34a" strokeWidth={2} name="Đơn" />
+                        )}
+                        {/* Đường tiền */}
+                        {companyChartFilters.money && (
+                          <Line type="monotone" dataKey="money" stroke="#f59e42" strokeWidth={2} name="Tiền" yAxisId={1} dot={false} />
+                        )}
+                        {/* Trục phụ cho tiền */}
+                        {companyChartFilters.money && (
+                          <YAxis yAxisId={1} orientation="right" tickFormatter={v => formatCurrency(v)} width={100} />
+                        )}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="col-md-4">
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie data={companyPieChartData} cx="50%" cy="50%" labelLine={false} outerRadius={80} fill="#8884d8" dataKey="value" nameKey="name" label={({ percent }) => `${(percent * 100).toFixed(0)}%`}>
+                          {companyPieChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                        </Pie>
+                        <Tooltip formatter={(v) => formatCurrency(v) + " " + t.revenueUnit} />
+                        <Legend layout="vertical" verticalAlign="middle" align="right" />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               )
             )}
