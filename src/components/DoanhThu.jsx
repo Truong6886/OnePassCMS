@@ -604,15 +604,23 @@ const handleFilter = () => {
     let filtered = isPersonal ? records : (isCombined ? combinedRecords : companyRecords);
     
     // 1. Lọc theo thời gian (Date Range)
-    if (startDate || endDate) {
-        filtered = filtered.filter((r) => {
-            const date = new Date(r.NgayTao || r.NgayThucHien); // Bổ sung fallback NgayThucHien cho chắc chắn
-            const s = startDate ? new Date(startDate) : null;
-            const e = endDate ? new Date(endDate) : null;
-            if(s) s.setHours(0,0,0,0);
-            if(e) e.setHours(23,59,59,999);
-            return (!s || date >= s) && (!e || date <= e);
-        });
+    // Nếu không có startDate, tự động lấy ngày nhỏ nhất trong dữ liệu làm mốc bắt đầu
+    let minDate = null;
+    if (activeTab === "personal" && records.length > 0 && !startDate) {
+      minDate = records.reduce((min, r) => {
+        const d = new Date(r.NgayTao || r.NgayThucHien);
+        return (!min || d < min) ? d : min;
+      }, null);
+    }
+    if (startDate || endDate || minDate) {
+      filtered = filtered.filter((r) => {
+        const date = new Date(r.NgayTao || r.NgayThucHien);
+        const s = startDate ? new Date(startDate) : (minDate ? new Date(minDate) : null);
+        const e = endDate ? new Date(endDate) : null;
+        if(s) s.setHours(0,0,0,0);
+        if(e) e.setHours(23,59,59,999);
+        return (!s || date >= s) && (!e || date <= e);
+      });
     }
 
     // 2. Xử lý lọc riêng cho Tab Cá Nhân

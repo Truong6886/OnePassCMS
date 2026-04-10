@@ -538,76 +538,7 @@ const chartDataByTime = allDates.map((dateStr) => {
                     })()}
                   </div>
                 </div>
-                 <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: "1.5rem", alignItems: "start", marginBottom: 32 }}>
-            {/* Sơ đồ tròn bên trái */}
-            <div style={{ height: 220, position: "relative", background: "#fff", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={Object.entries(
-                      filteredData.reduce((acc, cur) => {
-                        // Gom nhóm B2B và B2C
-                        const type = cur.isB2B ? "B2B" : "B2C";
-                        acc[type] = (acc[type] || 0) + 1;
-                        return acc;
-                      }, {})
-                    ).map(([name, count]) => ({ name, value: count }))}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={85}
-                    labelLine={false}
-                  >
-                    {Object.entries(
-                      filteredData.reduce((acc, cur) => {
-                        const type = cur.isB2B ? "B2B" : "B2C";
-                        acc[type] = (acc[type] || 0) + 1;
-                        return acc;
-                      }, {})
-                    ).map(([name], i) => (
-                      <Cell key={i} fill={name === "B2B" ? "#3b82f6" : "#d4a574"} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
-                <h4 style={{ fontSize: "1.3rem", fontWeight: 700, color: "#2563eb", marginBottom: 0 }}>{filteredData.length}</h4>
-              </div>
-            </div>
-            {/* 2 bảng nhỏ tổng B2B/B2C bên phải */}
-            <div style={{ display: "flex", gap: "1.5rem", width: "100%" }}>
-              {/* Bảng B2B */}
-              <div style={{ flex: 1, background: "#fff", borderRadius: 10, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-                <div style={{ background: "#3b82f6", color: "#fff", padding: "8px 12px", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>B2B</span>
-                  <span style={{ fontWeight: 700, fontSize: 12 }}>{formatCurrency(b2bTotalRevenue)}</span>
-                </div>
-                <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", background: "#f9fafb" }}>
-                  <thead style={{ background: "#1e3a8a", color: "#fff" }}>
-                    <tr>
-                      <th style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600 }}>STT</th>
-                      <th style={{ padding: "6px 4px", textAlign: "left", fontWeight: 600 }}>Khách hàng B2B</th>
-                      <th style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600 }}>Số lượng dịch vụ</th>
-                      <th style={{ padding: "6px 4px", textAlign: "right", fontWeight: 600 }}>Doanh thu</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {b2bStats.slice(0, 5).map((company, idx) => (
-                      <tr key={company.name}>
-                        <td style={{ textAlign: "center", padding: 4 }}>{idx + 1}</td>
-                        <td style={{ padding: 4 }}>{company.name}</td>
-                        <td style={{ textAlign: "center", padding: 4 }}>{company.count}</td>
-                        <td style={{ textAlign: "right", padding: 4 }}>{formatCurrency(company.revenue)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {/* Bảng B2C */}
-              
-            </div>
-          </div>
+          
               </div>
               {/* Pie Chart: Số lượng dịch vụ theo nhân viên (B2B+B2C) */}
               <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
@@ -751,6 +682,92 @@ const chartDataByTime = allDates.map((dateStr) => {
               
             </div>
             
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: "1.5rem", alignItems: "start", marginBottom: 32 }}>
+            {/* Sơ đồ tròn bên trái */}
+            <div style={{ height: 220, position: "relative", background: "#fff", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: "B2B", value: b2bStats.reduce((sum, c) => sum + c.count, 0) },
+                      { name: "B2C", value: b2cStats.reduce((sum, c) => sum + c.count, 0) }
+                    ]}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={85}
+                    labelLine={false}
+                  >
+                    <Cell fill="#3b82f6" />
+                    <Cell fill="#d4a574" />
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
+                <h4 style={{ fontSize: "1.3rem", fontWeight: 700, color: "#2563eb", marginBottom: 0 }}>
+                  {b2bStats.reduce((sum, c) => sum + c.count, 0) + b2cStats.reduce((sum, c) => sum + c.count, 0)}
+                </h4>
+              </div>
+            </div>
+            {/* 2 bảng nhỏ tổng B2B/B2C bên phải */}
+            <div style={{ display: "flex", gap: "1.5rem", width: "100%" }}>
+              {/* Bảng B2B */}
+              <div style={{ flex: 1, background: "#fff", borderRadius: 10, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+                <div style={{ background: "#3b82f6", color: "#fff", padding: "8px 12px", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>B2B</span>
+                  <span style={{ fontWeight: 700, fontSize: 12 }}>{formatCurrency(b2bTotalRevenue)}</span>
+                </div>
+                <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", background: "#f9fafb" }}>
+                  <thead style={{ background: "#1e3a8a", color: "#fff" }}>
+                    <tr>
+                      <th style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600 }}>STT</th>
+                      <th style={{ padding: "6px 4px", textAlign: "left", fontWeight: 600 }}>Khách hàng B2B</th>
+                      <th style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600 }}>Số lượng dịch vụ</th>
+                      <th style={{ padding: "6px 4px", textAlign: "right", fontWeight: 600 }}>Doanh thu</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {b2bStats.slice(0, 5).map((company, idx) => (
+                      <tr key={company.name}>
+                        <td style={{ textAlign: "center", padding: 4 }}>{idx + 1}</td>
+                        <td style={{ padding: 4 }}>{company.name}</td>
+                        <td style={{ textAlign: "center", padding: 4 }}>{company.count}</td>
+                        <td style={{ textAlign: "right", padding: 4 }}>{formatCurrency(company.revenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* Bảng B2C */}
+              <div style={{ flex: 1, background: "#fff", borderRadius: 10, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+                <div style={{ background: "#d4a574", color: "#fff", padding: "8px 12px", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>B2C</span>
+                  <span style={{ fontWeight: 700, fontSize: 12 }}>{formatCurrency(b2cTotalRevenue)}</span>
+                </div>
+                <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", background: "#f9fafb" }}>
+                  <thead style={{ background: "#78350f", color: "#fff" }}>
+                    <tr>
+                      <th style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600 }}>STT</th>
+                      <th style={{ padding: "6px 4px", textAlign: "left", fontWeight: 600 }}>Khách hàng B2C</th>
+                      <th style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600 }}>Số lượng dịch vụ</th>
+                      <th style={{ padding: "6px 4px", textAlign: "right", fontWeight: 600 }}>Doanh thu</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {b2cStats.slice(0, 5).map((customer, idx) => (
+                      <tr key={customer.name}>
+                        <td style={{ textAlign: "center", padding: 4 }}>{idx + 1}</td>
+                        <td style={{ padding: 4 }}>{customer.name}</td>
+                        <td style={{ textAlign: "center", padding: 4 }}>{customer.count}</td>
+                        <td style={{ textAlign: "right", padding: 4 }}>{formatCurrency(customer.revenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       )}
