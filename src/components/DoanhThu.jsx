@@ -499,18 +499,24 @@ export default function DoanhThu() {
   // Chuẩn bị dữ liệu biểu đồ tổng hợp: gom nhóm theo thời gian, chia B2B/B2C, số lượng đơn và tổng tiền
   const prepareCombinedChartData = (data, mode) => {
     if (!data || data.length === 0) { setCombinedChartData([]); return; }
+    function getWeekNumber(d) {
+      d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+      const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+      return [d.getUTCFullYear(), weekNo];
+    }
     const grouped = {};
     data.forEach((r) => {
       const date = new Date(r.NgayTao || r.NgayThucHien);
       let key = "";
-      let sortKey = 0;
+      let sortKey = date.getTime();
       if (mode === "ngay") {
         key = date.toLocaleDateString("vi-VN");
-        sortKey = date.getTime();
       } else if (mode === "tuan") {
-        const weekNum = Math.ceil((date.getDate()) / 7);
-        key = `Tuần ${weekNum}/${date.getMonth() + 1}`;
-        sortKey = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + weekNum;
+        const [year, weekNum] = getWeekNumber(date);
+        key = `Tuần ${weekNum}/${year}`;
+        sortKey = year * 100 + weekNum;
       } else if (mode === "thang") {
         key = `${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getFullYear()}`;
         sortKey = date.getFullYear() * 100 + (date.getMonth() + 1);
@@ -1022,40 +1028,44 @@ const handleFilter = () => {
             {loading ? <p>{t.loadingChart}</p> : (
               activeTab === "combined" ? (
                 <div className="row">
-                  <div className="col-md-8">
-                    <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={combinedChartData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis width={100} tickFormatter={v => formatCurrency(v)} />
-                        <Tooltip
-                          labelFormatter={label => `${t.time}: ${label}`}
-                          formatter={(value, name, props) => {
-                            if (name.includes("Tiền")) return [formatCurrency(value) + " " + t.revenueUnit, name];
-                            return [value + " " + t.orders, name];
-                          }}
-                        />
-                        <Legend />
-                        {/* Đường số lượng đơn */}
-                        {combinedChartFilters.order && combinedChartFilters.b2b && (
-                          <Line type="monotone" dataKey="b2bOrder" stroke="#8b5cf6" strokeWidth={2} name="Đơn B2B" />
-                        )}
-                        {combinedChartFilters.order && combinedChartFilters.b2c && (
-                          <Line type="monotone" dataKey="b2cOrder" stroke="#3b82f6" strokeDasharray="5 2" strokeWidth={2} name="Đơn B2C" />
-                        )}
-                        {/* Đường tiền */}
-                        {combinedChartFilters.money && combinedChartFilters.b2b && (
-                          <Line type="monotone" dataKey="b2bMoney" stroke="#ec4899" strokeWidth={2} name="Tiền B2B" yAxisId={1} dot={false} />
-                        )}
-                        {combinedChartFilters.money && combinedChartFilters.b2c && (
-                          <Line type="monotone" dataKey="b2cMoney" stroke="#16a34a" strokeDasharray="5 2" strokeWidth={2} name="Tiền B2C" yAxisId={1} dot={false} />
-                        )}
-                        {/* Trục phụ cho tiền */}
-                        {(combinedChartFilters.money && (combinedChartFilters.b2b || combinedChartFilters.b2c)) && (
-                          <YAxis yAxisId={1} orientation="right" tickFormatter={v => formatCurrency(v)} width={100} />
-                        )}
-                      </LineChart>
-                    </ResponsiveContainer>
+                  <div style={{ flex: 1, minWidth: 0, overflowX: 'auto', paddingBottom: 16 }}>
+                    <div style={{ minWidth: 1400 }}>
+                      <Legend layout="horizontal" align="center" verticalAlign="top" />
+                      <div style={{ position: 'relative', width: '100%', height: 300 }}>
+                        <ResponsiveContainer width="100%" height={280}>
+                          <LineChart data={combinedChartData} margin={{ top: 10, right: 30, left: 0, bottom: 40 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" angle={45} textAnchor="end" interval={0} tick={{ fontSize: 11 }} height={70} tickMargin={44} />
+                            <YAxis width={100} tickFormatter={v => formatCurrency(v)} />
+                            <Tooltip
+                              labelFormatter={label => `${t.time}: ${label}`}
+                              formatter={(value, name, props) => {
+                                if (name.includes("Tiền")) return [formatCurrency(value) + " " + t.revenueUnit, name];
+                                return [value + " " + t.orders, name];
+                              }}
+                            />
+                            {/* Đường số lượng đơn */}
+                            {combinedChartFilters.order && combinedChartFilters.b2b && (
+                              <Line type="monotone" dataKey="b2bOrder" stroke="#8b5cf6" strokeWidth={2} name="Đơn B2B" />
+                            )}
+                            {combinedChartFilters.order && combinedChartFilters.b2c && (
+                              <Line type="monotone" dataKey="b2cOrder" stroke="#3b82f6" strokeDasharray="5 2" strokeWidth={2} name="Đơn B2C" />
+                            )}
+                            {/* Đường tiền */}
+                            {combinedChartFilters.money && combinedChartFilters.b2b && (
+                              <Line type="monotone" dataKey="b2bMoney" stroke="#ec4899" strokeWidth={2} name="Tiền B2B" yAxisId={1} dot={false} />
+                            )}
+                            {combinedChartFilters.money && combinedChartFilters.b2c && (
+                              <Line type="monotone" dataKey="b2cMoney" stroke="#16a34a" strokeDasharray="5 2" strokeWidth={2} name="Tiền B2C" yAxisId={1} dot={false} />
+                            )}
+                            {/* Trục phụ cho tiền */}
+                            {(combinedChartFilters.money && (combinedChartFilters.b2b || combinedChartFilters.b2c)) && (
+                              <YAxis yAxisId={1} orientation="right" tickFormatter={v => formatCurrency(v)} width={100} />
+                            )}
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
                   </div>
                   <div className="col-md-4">
                     <h6 className="text-center text-primary fw-bold mb-3">{t.b2bVsB2c}</h6>
@@ -1090,34 +1100,38 @@ const handleFilter = () => {
               ) : activeTab === "personal" ? (
                 <div className="row">
                   <div className="col-md-8">
-                    <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis tickFormatter={v => formatCurrency(v)} width={100} />
-                        <Tooltip
-                          labelFormatter={label => `${t.time}: ${label}`}
-                          formatter={(value, name, props) => {
-                            if (name.includes("Tiền")) return [formatCurrency(value) + " " + t.revenueUnit, name];
-                            if (name.includes("Đơn")) return [value + " " + t.orders, name];
-                            return [value, name];
-                          }}
-                        />
-                        <Legend />
-                        {/* Đường số lượng đơn */}
-                        {personalChartFilters.order && (
-                          <Line type="monotone" dataKey="order" stroke="#2563eb" strokeWidth={2} name="Đơn" />
-                        )}
-                        {/* Đường tiền */}
-                        {personalChartFilters.money && (
-                          <Line type="monotone" dataKey="money" stroke="#f59e42" strokeWidth={2} name="Tiền" yAxisId={1} dot={false} />
-                        )}
-                        {/* Trục phụ cho tiền */}
-                        {personalChartFilters.money && (
-                          <YAxis yAxisId={1} orientation="right" tickFormatter={v => formatCurrency(v)} width={100} />
-                        )}
-                      </LineChart>
-                    </ResponsiveContainer>
+                    <div style={{ width: '100%', overflowX: 'auto' }}>
+                      <div style={{ minWidth: Math.max(600, chartData.length * 30) }}>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <LineChart data={chartData} height={300}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" angle={45} textAnchor="end" interval={0} tick={{ fontSize: 10 }} height={60} />
+                            <YAxis tickFormatter={v => formatCurrency(v)} width={100} />
+                            <Tooltip
+                              labelFormatter={label => `${t.time}: ${label}`}
+                              formatter={(value, name, props) => {
+                                if (name.includes("Tiền")) return [formatCurrency(value) + " " + t.revenueUnit, name];
+                                if (name.includes("Đơn")) return [value + " " + t.orders, name];
+                                return [value, name];
+                              }}
+                            />
+                            <Legend />
+                            {/* Đường số lượng đơn */}
+                            {personalChartFilters.order && (
+                              <Line type="monotone" dataKey="order" stroke="#2563eb" strokeWidth={2} name="Đơn" />
+                            )}
+                            {/* Đường tiền */}
+                            {personalChartFilters.money && (
+                              <Line type="monotone" dataKey="money" stroke="#f59e42" strokeWidth={2} name="Tiền" yAxisId={1} dot={false} />
+                            )}
+                            {/* Trục phụ cho tiền */}
+                            {personalChartFilters.money && (
+                              <YAxis yAxisId={1} orientation="right" tickFormatter={v => formatCurrency(v)} width={100} />
+                            )}
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
                   </div>
                   <div className="col-md-4">
                     <h6 className="text-center text-primary fw-bold mb-3">{t.serviceCount}</h6>
